@@ -45,6 +45,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_intro.h"
 #include "base/qt/qt_common_adapters.h"
 
+#include "tdb/tdb_instance.h"
+#include "ui/toast/toast.h"
+
 namespace Intro {
 namespace {
 
@@ -63,6 +66,8 @@ using namespace ::Intro::details;
 	}
 	return Platform::SystemCountry();
 }
+
+std::unique_ptr<Tdb::Instance> Instance;
 
 } // namespace
 
@@ -90,6 +95,18 @@ Widget::Widget(
 		account,
 		rpl::single(true))) {
 	controller->setDefaultFloatPlayerDelegate(floatPlayerDelegate());
+
+	Instance = std::make_unique<Tdb::Instance>(Tdb::InstanceConfig{
+		.apiId = ApiId,
+		.apiHash = ApiHash,
+		.systemLanguageCode = Lang::GetInstance().systemLangCode(),
+		.deviceModel = Platform::DeviceModelPretty(),
+		.systemVersion = Platform::SystemVersionPretty(),
+		.applicationVersion = QString::fromLatin1(AppVersionStr),
+	});
+	Instance->testNetwork([](bool success) {
+		Ui::Toast::Show(u"TDLib Network "_q + (success ? "OK!" : "Fail :("));
+	});
 
 	getData()->country = ComputeNewAccountCountry();
 
@@ -855,6 +872,7 @@ void Widget::backRequested() {
 }
 
 Widget::~Widget() {
+	Instance = nullptr;
 	for (auto step : base::take(_stepHistory)) {
 		delete step;
 	}
