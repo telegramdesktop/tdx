@@ -1901,6 +1901,54 @@ win:
 #         -Dprotobuf_WITH_ZLIB_DEFAULT=OFF
 #     cmake --build . $MAKE_THREADS_CNT
 
+stage('td', """
+win:
+    git clone https://github.com/tdlib/td.git
+    cd td
+    git checkout c582ab0bbf
+depends:patches/tdlib/*.patch
+    for /r %%i in (..\\patches\\tdlib\\*) do git apply %%i
+    SET OPENSSL_DIR=%LIBS_DIR%\\openssl
+    SET OPENSSL_LIBS_DIR=%OPENSSL_DIR%\\out
+    SET ZLIB_DIR=%LIBS_DIR%\\zlib
+    SET ZLIB_LIBS_DIR=%LIBS_DIR%\\zlib\\contrib\\vstudio\\vc14\\%X8664%
+    mkdir out
+    cd out
+    mkdir Debug
+    cd Debug
+    cmake -A Win32 ^
+        -DOPENSSL_FOUND=1 ^
+        -DOPENSSL_INCLUDE_DIR=%OPENSSL_DIR%\include ^
+        -DOPENSSL_CRYPTO_LIBRARY="%OPENSSL_LIBS_DIR%.dbg\libcrypto.lib" ^
+        -DZLIB_FOUND=1 ^
+        -DZLIB_INCLUDE_DIR=%ZLIB_DIR% ^
+        -DZLIB_LIBRARIES="%ZLIB_LIBS_DIR%\ZlibStatDebug\zlibstat.lib" ^
+        -DCMAKE_CXX_FLAGS_DEBUG="/DZLIB_WINAPI /DNDEBUG /MTd /Zi /Od /Ob0" ^
+        -DCMAKE_C_FLAGS_DEBUG="/DNDEBUG /MTd /Zi /Od /Ob0" ^
+        -DCMAKE_EXE_LINKER_FLAGS="/SAFESEH:NO Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib %OPENSSL_LIBS_DIR%.dbg\libssl.lib" ^
+        -DCMAKE_SHARED_LINKER_FLAGS="/SAFESEH:NO Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib %OPENSSL_LIBS_DIR%.dbg\libssl.lib" ^
+        -DTD_ENABLE_MULTI_PROCESSOR_COMPILATION=ON ^
+        ../..
+    cmake --build . --config Debug --target tdclient
+    cd ..
+    mkdir Release
+    cd Release
+    cmake -A Win32 ^
+        -DOPENSSL_FOUND=1 ^
+        -DOPENSSL_INCLUDE_DIR=%OPENSSL_DIR%\include ^
+        -DOPENSSL_CRYPTO_LIBRARY="%OPENSSL_LIBS_DIR%\libcrypto.lib" ^
+        -DZLIB_FOUND=1 ^
+        -DZLIB_INCLUDE_DIR=%ZLIB_DIR% ^
+        -DZLIB_LIBRARIES="%ZLIB_LIBS_DIR%\ZlibStatDebug\zlibstat.lib" ^
+        -DCMAKE_CXX_FLAGS_RELEASE="/DZLIB_WINAPI /MT /Ob2" ^
+        -DCMAKE_C_FLAGS_RELEASE="/MT /Ob2" ^
+        -DCMAKE_EXE_LINKER_FLAGS="/SAFESEH:NO Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib %OPENSSL_LIBS_DIR%\libssl.lib" ^
+        -DCMAKE_SHARED_LINKER_FLAGS="/SAFESEH:NO Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib %OPENSSL_LIBS_DIR%\libssl.lib" ^
+        -DTD_ENABLE_MULTI_PROCESSOR_COMPILATION=ON ^
+        ../..
+    cmake --build . --config Release --target tdclient
+""")
+
 if win:
     currentCodePage = subprocess.run('chcp', capture_output=True, shell=True, text=True, env=modifiedEnv).stdout.strip().split()[-1]
     subprocess.run('chcp 65001 > nul', shell=True, env=modifiedEnv)
