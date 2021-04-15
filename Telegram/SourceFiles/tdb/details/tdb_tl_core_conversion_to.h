@@ -54,6 +54,17 @@ struct tl_to_type<TLvector<T>>
 };
 
 template <typename T>
+auto tl_to_vector_optional(const TLvector<std::optional<T>> &value) {
+	using U = tl_to_type_t<T>;
+	auto result = std::vector<U>();
+	result.reserve(value.v.size());
+	for (const auto &element : value.v) {
+		result.push_back(U(element ? tl_to(*element) : nullptr));
+	}
+	return result;
+}
+
+template <typename T>
 auto tl_to_vector(const TLvector<T> &value) {
 	constexpr bool simple = std::is_same_v<TLint32, T>
 		|| std::is_same_v<TLint64, T>
