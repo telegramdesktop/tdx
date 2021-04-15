@@ -106,8 +106,10 @@ Widget::Widget(
 		.systemVersion = Platform::SystemVersionPretty(),
 		.applicationVersion = QString::fromLatin1(AppVersionStr),
 	});
-	Instance->testNetwork([](bool success) {
-		Ui::Toast::Show(u"TDLib Network "_q + (success ? "OK!" : "Fail :("));
+	Instance->send(Tdb::TLtestNetwork(), [](const Tdb::TLok &result) {
+		Ui::Toast::Show(u"TDLib Network OK!"_q);
+	}, [](const Tdb::Error &error) {
+		Ui::Toast::Show(u"TDLib Network Fail: "_q + error.message);
 	});
 
 	getData()->country = ComputeNewAccountCountry();
