@@ -12,7 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Tdb {
 
-TLstring tl_from_simple(const std::string &value);
+TLstring tl_from_string(const std::string &value);
+TLbytes tl_from_simple(const std::string &value);
 TLint32 tl_from_simple(std::int32_t value);
 TLint64 tl_from_simple(std::int64_t value);
 TLdouble tl_from_simple(double value);
@@ -36,14 +37,17 @@ auto tl_from_vector(const std::vector<T> &value) {
 	using I = in_TLvector_t<U>;
 	auto result = QVector<I>();
 	result.reserve(value.size());
-	constexpr bool simple = std::is_same_v<std::int32_t, T>
-		|| std::is_same_v<std::int64_t, T>
-		|| std::is_same_v<std::string, T>
-		|| std::is_same_v<double, T>
-		|| std::is_same_v<bool, T>;
-	constexpr bool vector = !simple && is_TLvector_v<I>;
+	constexpr bool simple = std::is_same_v<TLint32, I>
+		|| std::is_same_v<TLint64, I>
+		|| std::is_same_v<TLbytes, I>
+		|| std::is_same_v<TLdouble, I>
+		|| std::is_same_v<TLbool, I>;
+	constexpr bool string = !simple && std::is_same_v<TLstring, I>;
+	constexpr bool vector = !simple && !string && is_TLvector_v<I>;
 	for (const auto &element : value) {
-		if constexpr (simple) {
+		if constexpr (string) {
+			result.push_back(tl_from_string(element));
+		} else if constexpr (simple) {
 			result.push_back(tl_from_simple(element));
 		} else if constexpr (vector) {
 			result.push_back(tl_from_vector<I>(element));
