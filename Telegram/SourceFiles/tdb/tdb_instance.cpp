@@ -7,21 +7,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "tdb/tdb_instance.h"
 
-#include "td/actor/actor.h"
-#include "td/telegram/Client.h"
-
+#include <QtCore/QMutex>
 #include <crl/crl_semaphore.h>
+#include <td/actor/actor.h>
+#include <td/telegram/Client.h>
 
-namespace Tdb {
 namespace {
 
-using namespace td;
+using namespace ::td;
 using ClientId = ClientManager::ClientId;
-using RequestId = ClientManager::RequestId;
-
 namespace api = td_api;
 
 } // namespace
+
+namespace Tdb::details {
+
+std::optional<Error> ParseError(ExternalResponse response) {
+	if (response->get_id() != api::error::ID) {
+		return std::nullopt;
+	}
+	return Error(tl_from<TLerror>(response));
+}
+
+} // namespace Tdb::details
+
+namespace Tdb {
 
 class Instance::Manager final
 	: public std::enable_shared_from_this<Manager> {
@@ -35,17 +45,29 @@ public:
 	[[nodiscard]] ClientId createClient(not_null<Impl*> impl);
 	void destroyClient(ClientId id);
 
-	RequestId send(
+	// Thread-safe.
+	[[nodiscard]] RequestId allocateRequestId();
+	void send(
 		ClientId id,
-		api::object_ptr<api::Function> request);
+		RequestId allocatedRequestId,
+		ExternalGenerator &&request,
+		ExternalCallback &&callback);
 
 private:
+	void sendToExternal(
+		ClientId id,
+		api::object_ptr<api::Function> request,
+		RequestId requestId = 0);
 	void loop();
 
 	const not_null<ClientManager*> _manager;
 	std::jthread _thread;
 	base::flat_map<ClientId, not_null<Impl*>> _clients;
-	RequestId _requestId = 0;
+
+	QMutex _mutex;
+	base::flat_map<RequestId, ExternalCallback> _callbacks;
+
+	std::atomic<uint32> _requestIdCounter = 0;
 	std::atomic<ClientId> _closingId = 0;
 	crl::semaphore _closing;
 
@@ -56,21 +78,34 @@ public:
 	explicit Impl(InstanceConfig &&config);
 	~Impl();
 
-	void testNetwork(Fn<void(bool)> done);
+	RequestId sendPrepared(
+		ExternalGenerator &&request,
+		ExternalCallback &&callback);
+	void cancel(RequestId requestId);
+	[[nodiscard]] bool shouldInvokeHandler(RequestId requestId);
 
-	void received(RequestId id, api::object_ptr<api::Object> result);
+	template <
+		typename Request,
+		typename = std::enable_if_t<!std::is_reference_v<Request>>>
+	RequestId send(
+			Request &&request,
+			FnMut<void(const typename Request::ResponseType &)> &&done,
+			FnMut<void(const Error &)> &&fail) {
+		return sendPrepared(
+			tl_to_generator(std::move(request)),
+			details::PrepareCallback<typename Request::ResponseType>(
+				std::move(done),
+				std::move(fail)));
+	}
+
+	void handleUpdate(const TLupdate &update);
 
 private:
-	RequestId send(api::object_ptr<api::Function> request);
-
 	void sendTdlibParameters(InstanceConfig &&config);
-
-	void handleUpdateAuthorizationState(
-		api::object_ptr<api::AuthorizationState> state);
 
 	const std::shared_ptr<Manager> _manager;
 	ClientManager::ClientId _client;
-	base::flat_map<RequestId, Fn<void(bool)>> _callbacks;
+	base::flat_set<RequestId> _activeRequests;
 
 };
 
@@ -100,28 +135,45 @@ void Instance::Manager::destroyClient(ClientId id) {
 	Expects(!_closingId);
 
 	_closingId = id;
-	_manager->send(id, ++_requestId, api::make_object<api::close>());
+	sendToExternal(id, api::make_object<api::close>());
 	_closing.acquire();
-	_clients.erase(id);
+	_clients.remove(id);
 
 	if (_clients.empty()) {
 		_thread.request_stop();
 
 		// Force wake.
-		_manager->send(
-			id,
-			++_requestId,
-			api::make_object<api::testCallEmpty>());
+		sendToExternal(id, api::make_object<api::testCallEmpty>());
 	}
 }
 
-RequestId Instance::Manager::send(
-		ClientId id,
-		api::object_ptr<api::Function> request) {
-	Expects(_clients.contains(id));
+RequestId Instance::Manager::allocateRequestId() {
+	return ++_requestIdCounter;
+}
 
-	_manager->send(id, ++_requestId, std::move(request));
-	return _requestId;
+void Instance::Manager::send(
+		ClientId clientId,
+		RequestId allocatedRequestId,
+		ExternalGenerator &&request,
+		ExternalCallback &&callback) {
+	if (callback) {
+		QMutexLocker lock(&_mutex);
+		_callbacks.emplace(allocatedRequestId, std::move(callback));
+	}
+	sendToExternal(
+		clientId,
+		api::object_ptr<api::Function>(request()),
+		allocatedRequestId);
+}
+
+void Instance::Manager::sendToExternal(
+		ClientId id,
+		api::object_ptr<api::Function> request,
+		RequestId requestId) {
+	if (!requestId) {
+		requestId = allocateRequestId();
+	}
+	_manager->send(id, requestId, std::move(request));
 }
 
 void Instance::Manager::loop() {
@@ -148,14 +200,42 @@ void Instance::Manager::loop() {
 				continue;
 			}
 		}
-		auto handleOnMain = [this, data = std::move(response)]() mutable {
-			const auto i = _clients.find(data.client_id);
-			if (i == end(_clients)) {
-				return;
+		const auto clientId = response.client_id;
+		const auto requestId = response.request_id;
+		const auto object = response.object.get();
+		if (!requestId) {
+			crl::on_main(weak_from_this(), [
+				this,
+				clientId,
+				update = tl_from<TLupdate>(object)
+			] {
+				const auto i = _clients.find(clientId);
+				if (i != end(_clients)) {
+					i->second->handleUpdate(update);
+				}
+			});
+			continue;
+		}
+		QMutexLocker lock(&_mutex);
+		auto callback = _callbacks.take(requestId);
+		lock.unlock();
+
+		if (!callback) {
+			continue;
+		}
+		crl::on_main(weak_from_this(), [
+			this,
+			clientId,
+			requestId,
+			handler = (*callback)({ object })
+		]() mutable {
+			const auto i = _clients.find(clientId);
+			if (i != end(_clients)
+				&& i->second->shouldInvokeHandler(requestId)
+				&& handler) {
+				handler();
 			}
-			i->second->received(data.request_id, std::move(data.object));
-		};
-		crl::on_main(weak_from_this(), std::move(handleOnMain));
+		});
 	}
 }
 
@@ -169,62 +249,71 @@ Instance::Impl::~Impl() {
 	_manager->destroyClient(_client);
 }
 
-void Instance::Impl::testNetwork(Fn<void(bool)> done) {
-	const auto id = _manager->send(
-		_client,
-		api::make_object<api::testNetwork>());
-	_callbacks.emplace(id, std::move(done));
-}
-
-void Instance::Impl::received(
-		RequestId id,
-		api::object_ptr<api::Object> result) {
-	if (!id) {
-		if (result->get_id() == api::updateAuthorizationState::ID) {
-			handleUpdateAuthorizationState(
-				std::move(static_cast<api::updateAuthorizationState*>(
-					result.get())->authorization_state_));
-		}
-	} else if (const auto callback = _callbacks.take(id)) {
-		(*callback)(result->get_id() != api::error::ID);
+RequestId Instance::Impl::sendPrepared(
+		ExternalGenerator &&request,
+		ExternalCallback &&callback) {
+	const auto requestId = _manager->allocateRequestId();
+	if (callback) {
+		_activeRequests.emplace(requestId);
 	}
+	crl::async([
+		manager = _manager,
+		clientId = _client,
+		requestId,
+		request = std::move(request),
+		callback = std::move(callback)
+	]() mutable {
+		manager->send(
+			clientId,
+			requestId,
+			std::move(request),
+			std::move(callback));
+	});
+	return requestId;
 }
 
-RequestId Instance::Impl::send(api::object_ptr<api::Function> request) {
-	return _manager->send(_client, std::move(request));
+void Instance::Impl::cancel(RequestId requestId) {
+	_activeRequests.remove(requestId);
+}
+
+bool Instance::Impl::shouldInvokeHandler(RequestId requestId) {
+	return _activeRequests.remove(requestId);
+}
+
+void Instance::Impl::handleUpdate(const TLupdate &update) {
+	update.match([&](const TLDupdateAuthorizationState &data) {
+		data.vauthorization_state().match([](
+			const TLDauthorizationStateWaitTdlibParameters &) {
+		}, [&](const TLDauthorizationStateWaitEncryptionKey &data) {
+			send(TLcheckDatabaseEncryptionKey(tl_bytes()), nullptr, nullptr);
+		}, [](const auto &) {
+
+		});
+	}, [](const auto &) {
+	});
 }
 
 void Instance::Impl::sendTdlibParameters(InstanceConfig &&config) {
-	send(api::make_object<api::setTdlibParameters>(
-		api::make_object<api::tdlibParameters>(
-			false, // use_test_dc
-			std::string(), // database_directory
-			std::string(), // files_directory
-			true, // use_file_database
-			true, // use_chat_info_database
-			true, // use_message_database
-			false, // use_secret_chats
-			config.apiId,
-			config.apiHash.toStdString(),
-			config.systemLanguageCode.toStdString(),
-			config.deviceModel.toStdString(),
-			config.systemVersion.toStdString(),
-			config.applicationVersion.toStdString(),
-			true, // enable_storage_optimizer
-			false))); // ignore_file_names
-}
-
-void Instance::Impl::handleUpdateAuthorizationState(
-		api::object_ptr<api::AuthorizationState> state) {
-	switch (state->get_id()) {
-	case api::authorizationStateWaitTdlibParameters::ID:
-		//sendTdlibParameters(); // Should happen only once.
-		break;
-
-	case api::authorizationStateWaitEncryptionKey::ID:
-		send(api::make_object<api::checkDatabaseEncryptionKey>());
-		break;
-	}
+	send(
+		TLsetTdlibParameters(
+			tl_tdlibParameters(
+				tl_bool(false), // use_test_dc
+				tl_string(), // database_directory
+				tl_string(), // files_directory
+				tl_bool(true), // use_file_database
+				tl_bool(true), // use_chat_info_database
+				tl_bool(true), // use_message_database
+				tl_bool(false), // use_secret_chats
+				tl_int32(config.apiId),
+				tl_string(config.apiHash),
+				tl_string(config.systemLanguageCode),
+				tl_string(config.deviceModel),
+				tl_string(config.systemVersion),
+				tl_string(config.applicationVersion),
+				tl_bool(true), // enable_storage_optimizer
+				tl_bool(false))), // ignore_file_names
+		nullptr,
+		nullptr);
 }
 
 Instance::Instance(InstanceConfig &&config)
@@ -233,8 +322,14 @@ Instance::Instance(InstanceConfig &&config)
 
 Instance::~Instance() = default;
 
-void Instance::testNetwork(Fn<void(bool)> done) {
-	_impl->testNetwork(std::move(done));
+RequestId Instance::sendPrepared(
+		ExternalGenerator &&request,
+		ExternalCallback &&callback) {
+	return _impl->sendPrepared(std::move(request), std::move(callback));
+}
+
+void Instance::cancel(RequestId requestId) {
+	_impl->cancel(requestId);
 }
 
 } // namespace Tdb
