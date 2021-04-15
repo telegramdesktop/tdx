@@ -131,7 +131,7 @@ static const uint32 mtpLayerMaxSingle = sizeof(mtpLayers) / sizeof(mtpLayers[0])
 
 using MTPint = tl::int_type;
 
-inline MTPint MTP_int(int32 v) {
+inline constexpr MTPint MTP_int(int32 v) noexcept {
 	return tl::make_int(v);
 }
 
@@ -139,40 +139,40 @@ template <typename Flags>
 using MTPflags = tl::flags_type<Flags>;
 
 template <typename T>
-inline MTPflags<base::flags<T>> MTP_flags(base::flags<T> v) {
+inline constexpr MTPflags<base::flags<T>> MTP_flags(base::flags<T> v) noexcept {
 	return tl::make_flags(v);
 }
 
 template <typename T, typename = std::enable_if_t<!std::is_same<T, int>::value>>
-inline MTPflags<base::flags<T>> MTP_flags(T v) {
+inline constexpr MTPflags<base::flags<T>> MTP_flags(T v) noexcept {
 	return tl::make_flags(v);
 }
 
-inline tl::details::zero_flags_helper MTP_flags(void(tl::details::zero_flags_helper::*)()) {
+inline constexpr tl::details::zero_flags_helper MTP_flags(void(tl::details::zero_flags_helper::*)()) noexcept {
 	return tl::details::zero_flags_helper();
 }
 
 using MTPlong = tl::long_type;
 
-inline MTPlong MTP_long(uint64 v) {
+inline constexpr MTPlong MTP_long(uint64 v) noexcept {
 	return tl::make_long(v);
 }
 
 using MTPint128 = tl::int128_type;
 
-inline MTPint128 MTP_int128(uint64 l, uint64 h) {
+inline constexpr MTPint128 MTP_int128(uint64 l, uint64 h) noexcept {
 	return tl::make_int128(l, h);
 }
 
 using MTPint256 = tl::int256_type;
 
-inline MTPint256 MTP_int256(const MTPint128 &l, const MTPint128 &h) {
+inline constexpr MTPint256 MTP_int256(const MTPint128 &l, const MTPint128 &h) noexcept {
 	return tl::make_int256(l, h);
 }
 
 using MTPdouble = tl::double_type;
 
-inline MTPdouble MTP_double(float64 v) {
+inline constexpr MTPdouble MTP_double(float64 v) noexcept {
 	return tl::make_double(v);
 }
 
