@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "td/telegram/td_api.h"
 #include "tdb/details/tdb_tl_core.h"
 #include "tdb_tl-scheme.h"
 
@@ -18,6 +17,19 @@ TLint32 tl_from_simple(std::int32_t value);
 TLint64 tl_from_simple(std::int64_t value);
 TLdouble tl_from_simple(double value);
 TLbool tl_from_simple(bool value);
+
+template <typename U, typename T>
+auto tl_from_vector_optional(const std::vector<T> &value) {
+	using I = in_TLvector_t<U>;
+	auto result = QVector<std::optional<I>>();
+	result.reserve(value.size());
+	for (const auto &element : value) {
+		result.push_back(element.get()
+			? std::make_optional(tl_from<I>(element.get()))
+			: std::nullopt);
+	}
+	return tl_vector<std::optional<I>>(std::move(result));
+}
 
 template <typename U, typename T>
 auto tl_from_vector(const std::vector<T> &value) {
