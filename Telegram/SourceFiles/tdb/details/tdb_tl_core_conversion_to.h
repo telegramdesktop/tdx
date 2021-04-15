@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Tdb {
 
 std::string tl_to_simple(const TLstring &value);
+std::string tl_to_simple(const TLbytes &value);
 std::int32_t tl_to_simple(const TLint32 &value);
 std::int64_t tl_to_simple(const TLint64 &value);
 double tl_to_simple(const TLdouble &value);
@@ -30,6 +31,10 @@ using tl_to_type_t = typename tl_to_type<T>::type;
 
 template <>
 struct tl_to_type<TLstring> : std::type_identity<std::string> {
+};
+
+template <>
+struct tl_to_type<TLbytes> : std::type_identity<std::string> {
 };
 
 template <>
@@ -68,6 +73,7 @@ template <typename T>
 auto tl_to_vector(const TLvector<T> &value) {
 	constexpr bool simple = std::is_same_v<TLint32, T>
 		|| std::is_same_v<TLint64, T>
+		|| std::is_same_v<TLbytes, T>
 		|| std::is_same_v<TLstring, T>
 		|| std::is_same_v<TLdouble, T>
 		|| std::is_same_v<TLbool, T>;

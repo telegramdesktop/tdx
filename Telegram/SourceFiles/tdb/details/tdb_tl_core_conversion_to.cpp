@@ -10,7 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Tdb {
 
 std::string tl_to_simple(const TLstring &value) {
-	return std::string(value.v.data(), value.v.size());
+	return value.v.toStdString();
+}
+
+std::string tl_to_simple(const TLbytes &value) {
+	return value.v.toStdString();
 }
 
 std::int32_t tl_to_simple(const TLint32 &value) {
