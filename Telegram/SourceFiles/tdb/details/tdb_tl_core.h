@@ -30,7 +30,6 @@ using TLint32 = tl::int_type;
 using TLint53 = tl::int64_type;
 using TLint64 = tl::int64_type;
 using TLdouble = tl::double_type;
-using TLstring = tl::string_type;
 using TLbytes = tl::bytes_type;
 template <typename T>
 using TLvector = tl::vector_type<T>;
@@ -46,21 +45,6 @@ inline constexpr TLint64 tl_int64(int64 value) noexcept {
 }
 inline constexpr TLdouble tl_double(float64 value) noexcept {
 	return tl::make_double(value);
-}
-inline TLstring tl_string(const std::string &v) {
-	return tl::make_string(v);
-}
-inline TLstring tl_string(const QString &v) {
-	return tl::make_string(v);
-}
-inline TLbytes tl_string(const QByteArray &v) {
-	return tl::make_string(v);
-}
-inline TLstring tl_string(const char *v) {
-	return tl::make_string(v);
-}
-inline TLstring tl_string() {
-	return tl::make_string();
 }
 inline TLbytes tl_bytes(const QByteArray &v) {
 	return tl::make_bytes(v);
@@ -98,6 +82,51 @@ inline TLvector<T> tl_vector() {
 	return tl::make_vector<T>();
 }
 
+class TLstring {
+public:
+	TLstring() noexcept = default;
+
+	uint32 type() const noexcept {
+		return tl::id_string;
+	}
+
+	QString v;
+
+private:
+	explicit TLstring(QString &&data) noexcept : v(std::move(data)) {
+	}
+
+	friend TLstring tl_string(const std::string &v);
+	friend TLstring tl_string(const QString &v);
+	friend TLstring tl_string(QString &&v);
+	friend TLstring tl_string(const char *v);
+	friend TLstring tl_string();
+
+};
+
+inline TLstring tl_string(const std::string &v) {
+	return TLstring(QString::fromStdString(v));
+}
+inline TLstring tl_string(const QString &v) {
+	return TLstring(QString(v));
+}
+inline TLstring tl_string(QString &&v) {
+	return TLstring(std::move(v));
+}
+inline TLstring tl_string(const char *v) {
+	return TLstring(QString::fromUtf8(v));
+}
+inline TLstring tl_string() {
+	return TLstring(QString());
+}
+
+inline bool operator==(const TLstring &a, const TLstring &b) {
+	return a.v == b.v;
+}
+inline bool operator!=(const TLstring &a, const TLstring &b) {
+	return a.v != b.v;
+}
+
 using ExternalRequest = ::td::td_api::Function*;
 using ExternalResponse = const ::td::td_api::Object*;
 using ExternalGenerator = Fn<ExternalRequest()>;
@@ -130,5 +159,9 @@ struct in_TLvector<TLvector<T>> {
 
 template <typename T>
 using in_TLvector_t = typename in_TLvector<T>::type;
+
+[[nodiscard]] inline QString qs(const TLstring &v) {
+	return v.v;
+}
 
 } // namespace Tdb

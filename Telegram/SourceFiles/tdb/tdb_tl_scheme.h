@@ -22,7 +22,7 @@ namespace Tdb {
 struct Error {
 	explicit Error(const TLerror &error)
 	: code(error.c_error().vcode().v)
-	, message(tl::utf16(error.c_error().vmessage())) {
+	, message(error.c_error().vmessage().v) {
 	}
 	Error(int code, const QString &message)
 	: code(code)
