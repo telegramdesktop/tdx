@@ -9,8 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Tdb {
 
-TLstring tl_from_simple(const std::string &value) {
+TLstring tl_from_string(const std::string &value) {
 	return tl_string(value);
+}
+
+TLbytes tl_from_simple(const std::string &value) {
+	return tl_bytes(QByteArray::fromStdString(value));
 }
 
 TLint32 tl_from_simple(std::int32_t value) {
