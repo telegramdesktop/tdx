@@ -119,6 +119,8 @@ Instance::Manager::Manager(PrivateTag)
 std::shared_ptr<Instance::Manager> Instance::Manager::Instance() {
 	auto result = ManagerInstance.lock();
 	if (!result) {
+		ClientManager::execute(
+			td_api::make_object<td_api::setLogVerbosityLevel>(0));
 		ManagerInstance = result = std::make_shared<Manager>(PrivateTag{});
 	}
 	return result;
