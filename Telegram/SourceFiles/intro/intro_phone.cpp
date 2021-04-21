@@ -61,8 +61,10 @@ PhoneWidget::PhoneWidget(
 , _phone(
 	this,
 	st::introPhone,
-	[](const QString &s) { return Countries::Groups(s); })
+	[](const QString &s) { return Countries::Groups(s); }) {
+#if 0 // #TODO legacy
 , _checkRequestTimer([=] { checkRequest(); }) {
+#endif
 	_phone->frontBackspaceEvent(
 	) | rpl::start_with_next([=](not_null<QKeyEvent*> e) {
 		_code->startErasing(e);
@@ -179,7 +181,10 @@ void PhoneWidget::submit() {
 	for (const auto &[index, existing] : Core::App().domain().accounts()) {
 		const auto raw = existing.get();
 		if (const auto session = raw->maybeSession()) {
+#if 0 // mtp
 			if (raw->mtp().environment() == account().mtp().environment()
+#endif
+			if (raw->testMode() == account().testMode()
 				&& DigitsOnly(session->user()->phone()) == phoneDigits) {
 				crl::on_main(raw, [=] {
 					Core::App().domain().activate(raw);
@@ -196,7 +201,7 @@ void PhoneWidget::submit() {
 #endif
 
 	_sentPhone = phone;
-
+	_sentRequest = true;
 	api().request(TLsetAuthenticationPhoneNumber(
 		tl_string(phone),
 		tl_phoneNumberAuthenticationSettings(
@@ -225,12 +230,12 @@ void PhoneWidget::submit() {
 #endif
 }
 
+#if 0 // #TODO legacy
 void PhoneWidget::stopCheck() {
 	_checkRequestTimer.cancel();
 }
 
 void PhoneWidget::checkRequest() {
-#if 0 // #TODO legacy
 	auto status = api().instance().state(_sentRequest);
 	if (status < 0) {
 		auto leftms = -status;
@@ -241,10 +246,8 @@ void PhoneWidget::checkRequest() {
 	if (!_sentRequest && status == MTP::RequestSent) {
 		stopCheck();
 	}
-#endif
 }
 
-#if 0 // #TODO legacy
 void PhoneWidget::phoneSubmitDone(const MTPauth_SentCode &result) {
 	stopCheck();
 	_sentRequest = 0;
@@ -292,12 +295,26 @@ void PhoneWidget::phoneSubmitFail(const MTP::Error &error) {
 }
 #endif
 
-bool PhoneWidget::handleAuthorizationState(
+void PhoneWidget::handleAuthorizationState(
 		const TLauthorizationState &state) {
-	return Step::handleAuthorizationState(state);
+	state.match([&](const TLDauthorizationStateWaitPhoneNumber &data) {
+	}, [&](const TLDauthorizationStateWaitOtherDeviceConfirmation &data) {
+	}, [&](const auto &) {
+		Step::handleAuthorizationState(state);
+	});
 }
 
 void PhoneWidget::phoneSetFail(const Error &error) {
+	const auto &type = error.message;
+	if (type == u"PHONE_NUMBER_FLOOD") {
+		Ui::show(Box<Ui::InformBox>(tr::lng_error_phone_flood(tr::now)));
+	} else if (type == u"PHONE_NUMBER_INVALID") {
+		showPhoneError(tr::lng_bad_phone());
+	} else if (type == u"PHONE_NUMBER_BANNED") {
+		Ui::ShowPhoneBannedError(getData()->controller, _sentPhone);
+	} else {
+		showPhoneError(rpl::single(type));
+	}
 }
 
 QString PhoneWidget::fullNumber() const {
@@ -320,14 +337,18 @@ void PhoneWidget::activate() {
 
 void PhoneWidget::finished() {
 	Step::finished();
+#if 0 // #TODO legacy
 	_checkRequestTimer.cancel();
+#endif
 	apiClear();
 
 	cancelled();
 }
 
 void PhoneWidget::cancelled() {
+#if 0 // #TODO legacy
 	api().request(base::take(_sentRequest)).cancel();
+#endif
 }
 
 } // namespace details

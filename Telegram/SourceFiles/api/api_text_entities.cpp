@@ -18,6 +18,7 @@ namespace Api {
 namespace {
 
 using namespace TextUtilities;
+using namespace Tdb;
 
 [[nodiscard]] QString CustomEmojiEntityData(
 		const MTPDmessageEntityCustomEmoji &data) {
@@ -342,6 +343,70 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(
 		}
 	}
 	return MTP_vector<MTPMessageEntity>(std::move(v));
+}
+
+EntitiesInText EntitiesFromTL(
+		Main::Session *session,
+		const QVector<TLtextEntity> &entities) {
+	auto result = EntitiesInText();
+	if (!entities.isEmpty()) {
+		result.reserve(entities.size());
+		for (const auto &entity : entities) {
+			entity.match([&](const TLDtextEntity &data) {
+				const auto offset = data.voffset().v;
+				const auto length = data.vlength().v;
+				auto additional = QString();
+				const auto type = data.vtype().match([&](
+						const TLDtextEntityTypeMention &data) {
+					return EntityType::Mention;
+				}, [&](const TLDtextEntityTypeHashtag &data) {
+					return EntityType::Hashtag;
+				}, [&](const TLDtextEntityTypeCashtag &data) {
+					return EntityType::Cashtag;
+				}, [&](const TLDtextEntityTypeBotCommand &data) {
+					return EntityType::BotCommand;
+				}, [&](const TLDtextEntityTypeUrl &data) {
+					return EntityType::Url;
+				}, [&](const TLDtextEntityTypeEmailAddress &data) {
+					return EntityType::Email;
+				}, [&](const TLDtextEntityTypePhoneNumber &data) {
+					return EntityType::Invalid;
+				}, [&](const TLDtextEntityTypeBankCardNumber &data) {
+					return EntityType::Invalid;
+				}, [&](const TLDtextEntityTypeBold &data) {
+					return EntityType::Bold;
+				}, [&](const TLDtextEntityTypeItalic &data) {
+					return EntityType::Italic;
+				}, [&](const TLDtextEntityTypeUnderline &data) {
+					return EntityType::Underline;
+				}, [&](const TLDtextEntityTypeStrikethrough &data) {
+					return EntityType::StrikeOut;
+				}, [&](const TLDtextEntityTypeCode &data) {
+					return EntityType::Code;
+				}, [&](const TLDtextEntityTypePre &data) {
+					return EntityType::Pre;
+				}, [&](const TLDtextEntityTypePreCode &data) {
+					additional = data.vlanguage().v;
+					return EntityType::Pre;
+				}, [&](const TLDtextEntityTypeTextUrl &data) {
+					additional = data.vurl().v;
+					return EntityType::CustomUrl;
+				}, [&](const TLDtextEntityTypeMentionName &data) {
+					additional = MentionNameDataFromFields({
+						.userId = uint64(data.vuser_id().v),
+					});
+					return EntityType::MentionName;
+				}, [&](const TLDtextEntityTypeMediaTimestamp &data) {
+					// #TODO entities media timestamp links
+					return EntityType::Invalid;
+				});
+				if (type != EntityType::Invalid) {
+					result.push_back({ type, offset, length, additional });
+				}
+			});
+		}
+	}
+	return result;
 }
 
 } // namespace Api

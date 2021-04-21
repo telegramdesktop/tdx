@@ -54,7 +54,7 @@ private:
 	void phoneSubmitFail(const MTP::Error &error);
 #endif
 
-	bool handleAuthorizationState(
+	void handleAuthorizationState(
 		const Tdb::TLauthorizationState &state) override;
 	void phoneSetFail(const Tdb::Error &error);
 
@@ -71,10 +71,13 @@ private:
 	object_ptr<Ui::PhonePartInput> _phone;
 
 	QString _sentPhone;
+#if 0 // #TODO legacy
 	mtpRequestId _sentRequest = 0;
 
 	base::Timer _checkRequestTimer;
+#endif
 
+	bool _sentRequest = 0;
 };
 
 } // namespace details

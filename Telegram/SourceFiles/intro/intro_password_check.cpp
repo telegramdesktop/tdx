@@ -127,9 +127,12 @@ void PasswordCheckWidget::activate() {
 }
 
 void PasswordCheckWidget::cancelled() {
+#if 0 // mtp
 	api().request(base::take(_sentRequest)).cancel();
+#endif
 }
 
+#if 0 // mtp
 void PasswordCheckWidget::pwdSubmitDone(
 		bool recover,
 		const MTPauth_Authorization &result) {
@@ -192,7 +195,6 @@ void PasswordCheckWidget::checkPasswordHash() {
 
 void PasswordCheckWidget::requestPasswordData() {
 	api().request(base::take(_sentRequest)).cancel();
-#if 0 // #TODO tdlib
 	_sentRequest = api().request(
 		MTPaccount_GetPassword()
 	).done([=](const MTPaccount_Password &result) {
@@ -203,7 +205,6 @@ void PasswordCheckWidget::requestPasswordData() {
 			passwordChecked();
 		});
 	}).send();
-#endif
 }
 
 void PasswordCheckWidget::passwordChecked() {
@@ -214,7 +215,6 @@ void PasswordCheckWidget::passwordChecked() {
 		return serverError();
 	}
 	_passwordState.mtp.request.id = 0;
-#if 0 // #TODO tdlib
 	_sentRequest = api().request(
 		MTPauth_CheckPassword(check.result)
 	).done([=](const MTPauth_Authorization &result) {
@@ -222,7 +222,6 @@ void PasswordCheckWidget::passwordChecked() {
 	}).fail([=](const MTP::Error &error) {
 		pwdSubmitFail(error);
 	}).handleFloodErrors().send();
-#endif
 }
 
 void PasswordCheckWidget::serverError() {
@@ -298,11 +297,12 @@ void PasswordCheckWidget::recoverStartFail(const MTP::Error &error) {
 	update();
 	hideError();
 }
+#endif
 
 void PasswordCheckWidget::toRecover() {
 	if (_passwordState.hasRecovery) {
 		if (_sentRequest) {
-			api().request(base::take(_sentRequest)).cancel();
+			return;
 		}
 		hideError();
 		_toRecover->hide();
@@ -314,7 +314,18 @@ void PasswordCheckWidget::toRecover() {
 		_codeField->setFocus();
 		updateDescriptionText();
 		if (_emailPattern.isEmpty()) {
-#if 0 // #TODO tdlib
+			api().request(
+				TLrequestAuthenticationPasswordRecovery()
+			).fail([=](const Error &error) {
+				_pwdField->show();
+				_pwdHint->show();
+				_codeField->hide();
+				_pwdField->setFocus();
+				updateDescriptionText();
+				update();
+				hideError();
+			}).send();
+#if 0 // #TODO legacy
 			api().request(
 				MTPauth_RequestPasswordRecovery()
 			).done([=](const MTPauth_PasswordRecovery &result) {
@@ -378,7 +389,16 @@ void PasswordCheckWidget::submit() {
 			return;
 		}
 		const auto send = crl::guard(this, [=] {
-#if 0 // #TODO tdlib
+			_sentRequest = true;
+			api().request(TLrecoverAuthenticationPassword(
+				tl_string(code),
+				tl_string(), // new_password
+				tl_string() // new_hint
+			)).fail([=](const Error &error) {
+				recoverFail(error);
+			}).send();
+
+#if 0 // #TODO legacy
 			_sentRequest = api().request(MTPauth_CheckRecoveryPassword(
 				MTP_string(code)
 			)).done([=](const MTPBool &result) {
@@ -430,6 +450,51 @@ void PasswordCheckWidget::passwordSubmitFail(const Error &error) {
 	} else {
 		showError(rpl::single(error.message));
 	}
+}
+
+void PasswordCheckWidget::recoverFail(const Error &error) {
+	_sentRequest = false;
+	const auto &type = error.message;
+	if (type == u"PASSWORD_EMPTY"
+		|| type == u"AUTH_KEY_UNREGISTERED") {
+		goBack();
+	} else if (type == u"PASSWORD_RECOVERY_NA") {
+		_pwdField->show();
+		_pwdHint->show();
+		_codeField->hide();
+		_pwdField->setFocus();
+		updateDescriptionText();
+		update();
+		hideError();
+	} else if (type == u"PASSWORD_RECOVERY_EXPIRED") {
+		_emailPattern = QString();
+		toPassword();
+	} else if (type == u"CODE_INVALID") {
+		showError(tr::lng_signin_wrong_code());
+		_codeField->selectAll();
+		_codeField->showError();
+	} else {
+		showError(rpl::single(type));
+		_codeField->setFocus();
+	}
+}
+
+void PasswordCheckWidget::handleAuthorizationState(
+		const TLauthorizationState &state) {
+	state.match([&](const TLDauthorizationStateWaitPassword &data) {
+		const auto has = tl_is_true(data.vhas_recovery_email_address());
+		if (_passwordState.hasRecovery != has
+			|| _passwordState.hint != data.vpassword_hint().v) {
+			getData()->pwdState.hasRecovery = has;
+			getData()->pwdState.hint = data.vpassword_hint().v;
+			goReplace<PasswordCheckWidget>(Animate::Forward);
+		} else {
+			_emailPattern = data.vrecovery_email_address_pattern().v;
+			updateDescriptionText();
+		}
+	}, [&](const auto &) {
+		Step::handleAuthorizationState(state);
+	});
 }
 
 rpl::producer<QString> PasswordCheckWidget::nextButtonText() const {
