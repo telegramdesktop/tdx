@@ -47,6 +47,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_intro.h"
 #include "base/qt/qt_common_adapters.h"
 
+#include "tdb/tdb_account.h"
+
 namespace Intro {
 namespace {
 
@@ -105,9 +107,7 @@ Widget::Widget(
 #endif
 	switch (point) {
 	case EnterPoint::Start:
-#if 0 // #TODO legacy
 		getNearestDC();
-#endif
 		appendStep(new StartWidget(this, _account, getData()));
 		break;
 	case EnterPoint::Phone:
@@ -126,9 +126,16 @@ Widget::Widget(
 		createLanguageLink();
 	}, lifetime());
 
+#if 0 // #TODO legacy
 	_account->mtpUpdates(
 	) | rpl::start_with_next([=](const MTPUpdates &updates) {
 		handleUpdates(updates);
+	}, lifetime());
+#endif
+
+	_account->tdb().updates(
+	) | rpl::start_with_next([=](const TLupdate &update) {
+		handleUpdate(update);
 	}, lifetime());
 
 	_back->entity()->setClickedCallback([=] { backRequested(); });
@@ -222,6 +229,7 @@ void Widget::refreshLang() {
 	InvokeQueued(this, [this] { updateControlsGeometry(); });
 }
 
+#if 0 // #TODO legacy
 void Widget::handleUpdates(const MTPUpdates &updates) {
 	updates.match([&](const MTPDupdateShort &data) {
 		handleUpdate(data.vupdate());
@@ -248,6 +256,29 @@ void Widget::handleUpdate(const MTPUpdate &update) {
 		};
 		Ui::show(Ui::MakeInformBox(text));
 	}, [](const auto &) {});
+}
+#endif
+
+void Widget::handleUpdate(const TLupdate &update) {
+	update.match([&](const TLDupdateServiceNotification &data) {
+		const auto text = data.vcontent().match([&](
+				const TLDmessageText &data) {
+			return data.vtext().match([&](const TLDformattedText &data) {
+				return TextWithEntities{
+					data.vtext().v,
+					Api::EntitiesFromTL(nullptr, data.ventities().v),
+				};
+			});
+		}, [](const auto &) {
+			return TextWithEntities();
+		});
+		if (data.vtype().v.startsWith("AUTH_KEY_DROP_")) {
+			Core::App().forceLogOut(_account, text);
+		} else {
+			Ui::show(Box<Ui::InformBox>(text));
+		}
+	}, [](const auto &) {
+	});
 }
 
 void Widget::createLanguageLink() {
@@ -452,13 +483,9 @@ void Widget::appendStep(Step *step) {
 	step->setShowTermsCallback([=] {
 		showTerms();
 	});
-#if 0 // #TODO legacy
 	step->setCancelNearestDcCallback([=] {
-		if (_api) {
-			_api->request(base::take(_nearestDcRequestId)).cancel();
-		}
+		_api.request(base::take(_nearestDcRequestId)).cancel();
 	});
-#endif
 	step->setAcceptTermsCallback([=](Fn<void()> callback) {
 		acceptTerms(callback);
 	});
@@ -539,10 +566,10 @@ void Widget::resetAccount() {
 		}).fail([=](const Error &error) {
 			_resetRequest = 0;
 
-			const auto &message = error.message;
-			if (message.startsWith(qstr("2FA_CONFIRM_WAIT_"))) { // #TODO tdlib errors
+			const auto &type = error.message;
+			if (type.startsWith(u"2FA_CONFIRM_WAIT_"_q)) {
 				const auto seconds = base::StringViewMid(
-					message,
+					type,
 					qstr("2FA_CONFIRM_WAIT_").size()).toInt();
 				const auto days = (seconds + 59) / 86400;
 				const auto hours = ((seconds + 59) % 86400) / 3600;
@@ -583,7 +610,7 @@ void Widget::resetAccount() {
 					Ui::FormatPhone(getData()->phone),
 					lt_when,
 					when)));
-			} else if (type == u"2FA_RECENT_CONFIRM"_q) { // #TODO tdlib errors
+			} else if (type == u"2FA_RECENT_CONFIRM"_q) {
 				Ui::show(Ui::MakeInformBox(
 					tr::lng_signin_reset_cancelled()));
 			} else {
@@ -601,8 +628,20 @@ void Widget::resetAccount() {
 	}));
 }
 
-#if 0 // #TODO legacy
 void Widget::getNearestDC() {
+	_nearestDcRequestId = _api.request(TLgetCountryCode(
+	)).done([=](const TLtext &result) {
+		_nearestDcRequestId = 0;
+		result.match([&](const TLDtext &data) {
+			const auto nearestCountry = data.vtext().v;
+			if (getData()->country != nearestCountry) {
+				getData()->country = nearestCountry;
+				getData()->updated.fire({});
+			}
+		});
+	}).send();
+
+#if 0 // #TODO legacy
 	if (!_api) {
 		return;
 	}
@@ -621,8 +660,8 @@ void Widget::getNearestDC() {
 			getData()->updated.fire({});
 		}
 	}).send();
-}
 #endif
+}
 
 void Widget::showTerms(Fn<void()> callback) {
 	if (getData()->termsLock.text.text.isEmpty()) {

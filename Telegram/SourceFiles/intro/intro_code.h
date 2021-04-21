@@ -50,7 +50,9 @@ protected:
 private:
 	void noTelegramCode();
 	void sendCall();
+#if 0 // mtp
 	void checkRequest();
+#endif
 
 	int errorTop() const override;
 
@@ -58,10 +60,13 @@ private:
 	void refreshLang();
 	void updateControlsGeometry();
 
+#if 0 // mtp
 	void codeSubmitDone(const MTPauth_Authorization &result);
 	void codeSubmitFail(const MTP::Error &error);
+#endif
 
 	void showCodeError(rpl::producer<QString> text);
+#if 0 // mtp
 	void callDone(const MTPauth_SentCode &result);
 	void gotPassword(const MTPaccount_Password &result);
 
@@ -71,23 +76,40 @@ private:
 	void submitCode(const QString &text);
 
 	void stopCheck();
+#endif
+
+	void handleAuthorizationState(
+		const Tdb::TLauthorizationState &state) override;
+
+	void checkCodeFail(const Tdb::Error &error);
 
 	object_ptr<Ui::LinkButton> _noTelegramCode;
+#if 0 // #TODO legacy
 	mtpRequestId _noTelegramCodeRequestId = 0;
+#endif
 
 	object_ptr<Ui::CodeInput> _code;
 	QString _sentCode;
+#if 0 // #TODO legacy
 	mtpRequestId _sentRequest = 0;
+#endif
 
 	rpl::variable<bool> _isFragment = false;
 
 	base::Timer _callTimer;
 	CallStatus _callStatus = CallStatus();
 	int _callTimeout;
+#if 0 // #TODO legacy
 	mtpRequestId _callRequestId = 0;
+#endif
 	object_ptr<Ui::FlatLabel> _callLabel;
 
+#if 0 // #TODO legacy
 	base::Timer _checkRequestTimer;
+#endif
+
+	bool _noTelegramCodeSent = false;
+	bool _sentRequest = false;
 
 };
 

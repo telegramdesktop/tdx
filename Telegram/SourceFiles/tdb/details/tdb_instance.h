@@ -15,23 +15,29 @@ namespace Tdb::details {
 using RequestId = int64;
 
 [[nodiscard]] std::optional<Error> ParseError(ExternalResponse);
+[[nodiscard]] bool ClientClosedUpdate(const TLupdate &update);
+
+void LogError(uint32 type, RequestId requestId, const Error &error);
 
 template <typename Response>
 [[nodiscard]] ExternalCallback PrepareCallback(
+		uint32 type,
 		FnMut<void(const Response &)> done,
 		FnMut<void(const Error &)> fail) {
 	if (!done && !fail) {
 		return nullptr;
 	}
 	return [
+		type,
 		done = std::move(done),
 		fail = std::move(fail)
-	](ExternalResponse external) mutable -> FnMut<void()> {
+	](RequestId requestId, ExternalResponse external) mutable
+	-> FnMut<void()> {
 		if (auto error = ParseError(external)) {
+			LogError(type, requestId, *error);
 			if (!fail) {
 				return nullptr;
 			}
-			// #TODO tdlib log error
 			return [
 				fail = std::move(fail),
 				error = *error
@@ -81,10 +87,12 @@ public:
 			Request &&request,
 			FnMut<void(const typename Request::ResponseType &)> &&done,
 			FnMut<void(const Error &)> &&fail) {
+		const auto type = request.type();
 		sendPrepared(
 			requestId,
 			tl_to_generator(std::move(request)),
 			PrepareCallback<typename Request::ResponseType>(
+				type,
 				std::move(done),
 				std::move(fail)));
 	}
@@ -119,9 +127,10 @@ template <
 auto Execute(Request &&request) {
 	using Response = typename Request::ResponseType;
 	auto container = base::expected<Response, Error>();
+	const auto type = request.type();
 	ExecuteExternal(
 		tl_to_generator(std::move(request)),
-		PrepareCallback<Response>([&](const Response &result) {
+		PrepareCallback<Response>(type, [&](const Response &result) {
 			container = result;
 		}, [&](const Error &error) {
 			container = base::make_unexpected(error);

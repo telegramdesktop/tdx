@@ -62,6 +62,7 @@ Account::~Account() {
 		_local->writeSearchSuggestionsIfNeeded();
 	}
 	destroySession(DestroyReason::Quitting);
+	_tdb = nullptr;
 }
 
 Storage::Domain &Account::domainLocal() const {
@@ -81,7 +82,8 @@ std::unique_ptr<MTP::Config> Account::prepareToStart(
 }
 
 void Account::start(std::unique_ptr<MTP::Config> config) {
-	_tdb = createTdb(config ? config->isTestMode() : false);
+	_testMode = config ? config->isTestMode() : false;
+	_tdb = createTdb();
 	_appConfig = std::make_unique<AppConfig>(this);
 	startMtp(config
 		? std::move(config)
@@ -92,8 +94,8 @@ void Account::start(std::unique_ptr<MTP::Config> config) {
 	watchSessionChanges();
 }
 
-std::unique_ptr<Tdb::Account> Account::createTdb(bool testMode) {
-	return std::make_unique<Tdb::Account>(Tdb::AccountConfig{
+std::unique_ptr<Tdb::Account> Account::createTdb() {
+	auto result = std::make_unique<Tdb::Account>(Tdb::AccountConfig{
 		.apiId = ApiId,
 		.apiHash = ApiHash,
 		.systemLanguageCode = Lang::GetInstance().systemLangCode(),
@@ -102,8 +104,13 @@ std::unique_ptr<Tdb::Account> Account::createTdb(bool testMode) {
 		.applicationVersion = QString::fromLatin1(AppVersionStr),
 		.databaseDirectory = _local->libDatabasePath(),
 		.filesDirectory = _local->libFilesPath(),
-		.testDc = testMode,
+		.testDc = _testMode,
 	});
+	result->updates(
+	) | rpl::filter(Tdb::IsRecreatedUpdate) | rpl::start_with_next([=] {
+		loggedOut();
+	}, _lifetime);
+	return result;
 }
 
 void Account::prepareToStartAdded(
@@ -213,8 +220,8 @@ void Account::createSession(
 			tl_string(phone),
 			tl_userStatusEmpty(),
 			null,
-			tl_bool(true), // is_contact #TODO tdlib check
-			tl_bool(true), // is_mutual_contact #TODO tdlib check
+			tl_bool(true), // is_contact
+			tl_bool(true), // is_mutual_contact
 			tl_bool(false), // is_verified
 			tl_bool(false), // is_support
 			tl_string(), // restriction_reason
@@ -319,6 +326,12 @@ Tdb::Sender &Account::sender() const {
 	return _tdb->sender();
 }
 
+bool Account::testMode() const {
+	Expects(_tdb != nullptr);
+
+	return _testMode;
+}
+
 rpl::producer<not_null<MTP::Instance*>> Account::mtpValue() const {
 	return _mtpValue.value() | rpl::map([](MTP::Instance *instance) {
 		return not_null{ instance };
@@ -353,6 +366,7 @@ void Account::setLegacyMtpKey(std::shared_ptr<MTP::AuthKey> key) {
 }
 
 QByteArray Account::serializeMtpAuthorization() const {
+#if 0 // #TODO legacy
 	const auto serialize = [&](
 			MTP::DcId mainDcId,
 			const MTP::AuthKeysList &keys,
@@ -407,6 +421,32 @@ QByteArray Account::serializeMtpAuthorization() const {
 	const auto &keys = _mtpFields.keys;
 	const auto &keysToDestroy = _mtpKeysToDestroy;
 	return serialize(_mtpFields.mainDcId, keys, keysToDestroy);
+#endif
+	const auto serialize = [&] {
+		auto result = QByteArray();
+		// wide tag + userId + legacyMainDcId + 2 * legacyKeysCount
+		auto size = 2 * sizeof(quint64) + sizeof(qint32) * 3;
+		result.reserve(size);
+		{
+			QDataStream stream(&result, QIODevice::WriteOnly);
+			stream.setVersion(QDataStream::Qt_5_1);
+
+			const auto currentUserId = sessionExists()
+				? session().userId()
+				: UserId();
+			stream
+				<< quint64(kWideIdsTag)
+				<< quint64(currentUserId.bare)
+				<< qint32(0) // legacyMainDcId
+				<< qint32(0) // legacyKeysCount
+				<< qint32(0); // legacyKeysToDestroyCount
+
+			DEBUG_LOG(("Auth Info: Written, userId: %1"
+				).arg(currentUserId.bare));
+		}
+		return result;
+	};
+	return serialize();
 }
 
 void Account::setSessionUserId(UserId userId) {
@@ -465,6 +505,7 @@ void Account::setMtpAuthorization(const QByteArray &serialized) {
 	}
 
 	setSessionUserId(userId);
+#if 0 // #TODO legacy
 	_mtpFields.mainDcId = mainDcId;
 
 	const auto readKeys = [&](auto &keys) {
@@ -492,6 +533,7 @@ void Account::setMtpAuthorization(const QByteArray &serialized) {
 		"read keys, current: %1, to destroy: %2"
 		).arg(_mtpFields.keys.size()
 		).arg(_mtpKeysToDestroy.size()));
+#endif
 }
 
 void Account::startMtp(std::unique_ptr<MTP::Config> config) {
@@ -610,10 +652,9 @@ void Account::logOut() {
 		loggedOut();
 	}
 #endif
-	_tdb->sender().request(
+	sender().request(
 		Tdb::TLlogOut()
 	).fail([=](const Tdb::Error &error) {
-		LOG(("Tdb Error: logOut - ").arg(error.message));
 		loggedOut();
 	}).send();
 }

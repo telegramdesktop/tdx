@@ -24,13 +24,6 @@ namespace api = td_api;
 
 } // namespace
 
-std::optional<Error> ParseError(ExternalResponse response) {
-	if (response->get_id() != api::error::ID) {
-		return std::nullopt;
-	}
-	return Error(tl_from<TLerror>(response));
-}
-
 class Instance::Manager final
 	: public std::enable_shared_from_this<Manager> {
 	struct PrivateTag {
@@ -57,6 +50,12 @@ private:
 		api::object_ptr<api::Function> request,
 		RequestId requestId = 0);
 	void loop();
+
+	void handleUpdateOnMain(ClientId clientId, TLupdate &&update);
+	void handleResponseOnMain(
+		ClientId clientId,
+		RequestId requestId,
+		FnMut<void()> &&handler);
 
 	const not_null<ClientManager*> _manager;
 	base::flat_map<ClientId, not_null<Impl*>> _clients;
@@ -93,10 +92,12 @@ public:
 			Request &&request,
 			FnMut<void(const typename Request::ResponseType &)> &&done,
 			FnMut<void(const Error &)> &&fail) {
+		const auto type = request.type();
 		return sendPrepared(
 			requestId,
 			tl_to_generator(std::move(request)),
 			PrepareCallback<typename Request::ResponseType>(
+				type,
 				std::move(done),
 				std::move(fail)));
 	}
@@ -105,10 +106,11 @@ public:
 	[[nodiscard]] rpl::producer<TLupdate> updates() const;
 
 private:
-	void sendTdlibParameters(InstanceConfig &&config);
+	void sendTdlibParameters();
 
 	const std::shared_ptr<Manager> _manager;
-	ClientManager::ClientId _client;
+	std::atomic<ClientManager::ClientId> _client;
+	InstanceConfig _config;
 	QMutex _activeRequestsMutex;
 	base::flat_set<RequestId> _activeRequests;
 	rpl::event_stream<TLupdate> _updates;
@@ -116,6 +118,30 @@ private:
 };
 
 std::weak_ptr<Instance::Manager> Instance::ManagerInstance;
+
+std::optional<Error> ParseError(ExternalResponse response) {
+	if (response->get_id() != api::error::ID) {
+		return std::nullopt;
+	}
+	return Error(tl_from<TLerror>(response));
+}
+
+bool ClientClosedUpdate(const TLupdate &update) {
+	if (update.type() != id_updateAuthorizationState) {
+		return false;
+	}
+	const auto &data = update.c_updateAuthorizationState();
+	const auto &state = data.vauthorization_state();
+	return (state.type() == id_authorizationStateClosed);
+}
+
+void LogError(uint32 type, RequestId requestId, const Error &error) {
+	LOG(("Tdb Error (%1) to 0x%2 (requestId %3): ")
+		.arg(error.code)
+		.arg(type, 0, 16)
+		.arg(requestId)
+		+ error.message);
+}
 
 Instance::Manager::Manager(PrivateTag)
 : _manager(ClientManager::get_manager_singleton())
@@ -138,11 +164,7 @@ std::shared_ptr<Instance::Manager> Instance::Manager::Instance() {
 }
 
 void Instance::Manager::destroyClient(ClientId id) {
-	Expects(!_closingId);
-
-	_closingId = id;
 	sendToExternal(id, api::make_object<api::close>());
-	_closing.acquire();
 	_clients.remove(id);
 
 	if (_clients.empty()) {
@@ -188,17 +210,7 @@ void Instance::Manager::loop() {
 		if (!response.object) {
 			continue;
 		}
-		if (response.object->get_id() == api::updateAuthorizationState::ID) {
-			const auto update = static_cast<api::updateAuthorizationState*>(
-				response.object.get());
-			const auto state = update->authorization_state_.get();
-			if (state->get_id() == api::authorizationStateClosed::ID) {
-				Assert(_closingId == response.client_id);
-				_closingId = 0;
-				_closing.release();
-				continue;
-			}
-		} else if (response.object->get_id() == api::error::ID) {
+		if (response.object->get_id() == api::error::ID) {
 			const auto error = static_cast<api::error*>(
 				response.object.get());
 			if (error->code_ == 500
@@ -215,10 +227,7 @@ void Instance::Manager::loop() {
 				clientId,
 				update = tl_from<TLupdate>(object)
 			]() mutable {
-				const auto i = _clients.find(clientId);
-				if (i != end(_clients)) {
-					i->second->handleUpdate(std::move(update));
-				}
+				handleUpdateOnMain(clientId, std::move(update));
 			});
 			continue;
 		}
@@ -227,28 +236,56 @@ void Instance::Manager::loop() {
 		lock.unlock();
 
 		if (!callback) {
+			if (const auto error = ParseError(object)) {
+				LogError(uint32(-1), requestId, *error);
+			}
 			continue;
 		}
 		crl::on_main(weak_from_this(), [
 			this,
 			clientId,
 			requestId,
-			handler = (*callback)({ object })
+			handler = (*callback)(requestId, object)
 		]() mutable {
-			const auto i = _clients.find(clientId);
-			if (i != end(_clients)
-				&& i->second->shouldInvokeHandler(requestId)
-				&& handler) {
-				handler();
-			}
+			handleResponseOnMain(clientId, requestId, std::move(handler));
 		});
 	}
 }
 
+void Instance::Manager::handleUpdateOnMain(
+		ClientId clientId,
+		TLupdate &&update) {
+	const auto i = _clients.find(clientId);
+	if (i == end(_clients)) {
+		return;
+	}
+	const auto instance = i->second;
+	if (ClientClosedUpdate(update)) {
+		_clients.erase(i);
+	}
+	instance->handleUpdate(std::move(update));
+}
+
+void Instance::Manager::handleResponseOnMain(
+		ClientId clientId,
+		RequestId requestId,
+		FnMut<void()> &&handler) {
+	const auto i = _clients.find(clientId);
+	if (i == end(_clients)
+		|| !i->second->shouldInvokeHandler(requestId)
+		|| !handler) {
+		return;
+	}
+	handler();
+}
+
 Instance::Impl::Impl(InstanceConfig &&config)
 : _manager(Manager::Instance())
-, _client(_manager->createClient(this)) {
-	sendTdlibParameters(std::move(config));
+, _client(_manager->createClient(this))
+, _config(std::move(config)) {
+	QDir().mkpath(_config.databaseDirectory);
+	QDir().mkpath(_config.filesDirectory);
+	sendTdlibParameters();
 }
 
 Instance::Impl::~Impl() {
@@ -269,7 +306,7 @@ void Instance::Impl::sendPrepared(
 	}
 	crl::async([
 		manager = _manager,
-		clientId = _client,
+		clientId = _client.load(),
 		requestId,
 		request = std::move(request),
 		callback = std::move(callback)
@@ -293,6 +330,10 @@ bool Instance::Impl::shouldInvokeHandler(RequestId requestId) {
 }
 
 void Instance::Impl::handleUpdate(TLupdate &&update) {
+	if (ClientClosedUpdate(update)) {
+		_client = _manager->createClient(this);
+		sendTdlibParameters();
+	}
 	update.match([&](const TLDupdateAuthorizationState &data) {
 		data.vauthorization_state().match([](
 			const TLDauthorizationStateWaitTdlibParameters &) {
@@ -308,29 +349,27 @@ rpl::producer<TLupdate> Instance::Impl::updates() const {
 	return _updates.events();
 }
 
-void Instance::Impl::sendTdlibParameters(InstanceConfig &&config) {
+void Instance::Impl::sendTdlibParameters() {
 	const auto fail = [=](Error error) {
 		LOG(("Critical Error: setTdlibParameters - %1").arg(error.message));
 	};
-	QDir().mkpath(config.databaseDirectory);
-	QDir().mkpath(config.filesDirectory);
 	send(
 		allocateRequestId(),
 		TLsetTdlibParameters(
 			tl_tdlibParameters(
-				tl_bool(config.testDc),
-				tl_string(config.databaseDirectory),
-				tl_string(config.filesDirectory), // files_directory
+				tl_bool(_config.testDc),
+				tl_string(_config.databaseDirectory),
+				tl_string(_config.filesDirectory), // files_directory
 				tl_bool(true), // use_file_database
 				tl_bool(true), // use_chat_info_database
 				tl_bool(true), // use_message_database
 				tl_bool(false), // use_secret_chats
-				tl_int32(config.apiId),
-				tl_string(config.apiHash),
-				tl_string(config.systemLanguageCode),
-				tl_string(config.deviceModel),
-				tl_string(config.systemVersion),
-				tl_string(config.applicationVersion),
+				tl_int32(_config.apiId),
+				tl_string(_config.apiHash),
+				tl_string(_config.systemLanguageCode),
+				tl_string(_config.deviceModel),
+				tl_string(_config.systemVersion),
+				tl_string(_config.applicationVersion),
 				tl_bool(true), // enable_storage_optimizer
 				tl_bool(false))), // ignore_file_names
 		nullptr,
@@ -370,7 +409,7 @@ void ExecuteExternal(
 		ExternalCallback &&callback) {
 	const auto result = ClientManager::execute(
 		api::object_ptr<api::Function>(request()));
-	if (auto handler = callback ? callback(result.get()) : nullptr) {
+	if (auto handler = callback ? callback(0, result.get()) : nullptr) {
 		handler();
 	}
 }

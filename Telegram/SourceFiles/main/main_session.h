@@ -15,7 +15,7 @@ class ApiWrap;
 
 namespace Tdb {
 class TLuser;
-} // namespace Td
+} // namespace Tdb
 
 namespace Api {
 class Updates;

@@ -130,7 +130,7 @@ inline bool operator!=(const TLstring &a, const TLstring &b) {
 using ExternalRequest = ::td::td_api::Function*;
 using ExternalResponse = const ::td::td_api::Object*;
 using ExternalGenerator = Fn<ExternalRequest()>;
-using ExternalCallback = FnMut<FnMut<void()>(ExternalResponse)>;
+using ExternalCallback = FnMut<FnMut<void()>(uint64, ExternalResponse)>;
 
 template <typename Request>
 [[nodiscard]] ExternalGenerator tl_to_generator(Request &&);

@@ -82,7 +82,10 @@ constexpr auto kLinkProtocols = {
 			const auto tag = *i;
 			if (TextUtilities::IsMentionLink(tag)
 				&& TextUtilities::MentionNameDataToFields(tag).selfId != id) {
+#if 0 // mtp
 				i = all.erase(i);
+#endif
+				++i;
 				continue;
 			} else if (Ui::InputField::IsCustomEmojiLink(tag)) {
 				const auto data = Ui::InputField::CustomEmojiEntityData(tag);
