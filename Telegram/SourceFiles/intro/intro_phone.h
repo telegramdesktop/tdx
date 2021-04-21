@@ -40,6 +40,10 @@ public:
 		return true;
 	}
 
+	StepType type() const override {
+		return StepType::Phone;
+	}
+
 protected:
 	void resizeEvent(QResizeEvent *e) override;
 

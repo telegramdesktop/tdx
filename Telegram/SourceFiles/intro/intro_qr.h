@@ -31,6 +31,10 @@ public:
 		return true;
 	}
 
+	StepType type() const override {
+		return StepType::Qr;
+	}
+
 private:
 	int errorTop() const override;
 

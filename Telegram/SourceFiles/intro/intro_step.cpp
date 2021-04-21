@@ -139,6 +139,7 @@ rpl::producer<const style::RoundButton*> Step::nextButtonStyle() const {
 	return rpl::single((const style::RoundButton*)(nullptr));
 }
 
+#if 0 // mtp
 void Step::goBack() {
 	if (_goCallback) {
 		_goCallback(nullptr, StackAction::Back, Animate::Back);
@@ -157,7 +158,6 @@ void Step::goReplace(Step *step, Animate animate) {
 	}
 }
 
-#if 0 // mtp
 void Step::finish(const MTPauth_Authorization &auth, QImage &&photo) {
 	auth.match([&](const MTPDauth_authorization &data) {
 		if (data.vuser().type() != mtpc_user
@@ -610,26 +610,26 @@ void Step::handleUpdate(const TLupdate &update) {
 void Step::handleAuthorizationState(const TLauthorizationState &state) {
 	return state.match([&](
 			const TLDauthorizationStateWaitPhoneNumber &data) {
-		goNext<PhoneWidget>();
+		go(StepType::Phone);
 	}, [&](const TLDauthorizationStateWaitCode &data) {
 		fillCodeInfo(data.vcode_info());
-		goNext<CodeWidget>();
+		go(StepType::Code);
 	}, [&](const TLDauthorizationStateWaitOtherDeviceConfirmation &data) {
 		getData()->qrLink = data.vlink().v;
-		goNext<QrWidget>();
+		go(StepType::Qr);
 	}, [&](const TLDauthorizationStateWaitRegistration &data) {
 		fillTerms(data.vterms_of_service());
-		goNext<SignupWidget>();
+		go(StepType::SignUp);
 	}, [&](const TLDauthorizationStateWaitPassword &data) {
 		getData()->pwdState.hasRecovery = tl_is_true(
 			data.vhas_recovery_email_address());
 		getData()->pwdState.hint = data.vpassword_hint().v;
 		//getData()->pwdState.notEmptyPassport = data.is_has_secure_values(); // #TODO tdlib
-		goNext<PasswordCheckWidget>();
+		go(StepType::Password);
 	}, [&](const TLDauthorizationStateReady &data) {
 		finish();
 	}, [&](const auto &) {
-		goNext<StartWidget>();
+		go(StepType::Start);
 	});
 }
 
@@ -747,8 +747,11 @@ void Step::setShowAnimationClipping(QRect clipping) {
 	_coverAnimation.clipping = clipping;
 }
 
+#if 0 // mtp
 void Step::setGoCallback(
 		Fn<void(Step *step, StackAction action, Animate animate)> callback) {
+#endif
+void Step::setGoCallback(Fn<void(StepType)> callback) {
 	_goCallback = std::move(callback);
 }
 

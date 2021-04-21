@@ -39,6 +39,10 @@ public:
 		return true;
 	}
 
+	StepType type() const override {
+		return StepType::Password;
+	}
+
 protected:
 	void resizeEvent(QResizeEvent *e) override;
 

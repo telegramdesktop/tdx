@@ -198,6 +198,8 @@ void CodeWidget::finished() {
 }
 
 void CodeWidget::cancelled() {
+	_sentRequest = false;
+
 #if 0 // #TODO legacy
 	api().request(base::take(_sentRequest)).cancel();
 	api().request(base::take(_callRequestId)).cancel();
@@ -301,7 +303,10 @@ void CodeWidget::checkCodeFail(const Error &error) {
 	if (type == u"PHONE_NUMBER_INVALID"
 		|| type == u"PHONE_CODE_EXPIRED"
 		|| type == u"PHONE_NUMBER_BANNED") {
+#if 0 // mtp
 		goBack();
+#endif
+		go(StepType::Start);
 	} else if (type == u"PHONE_CODE_EMPTY"
 		|| type == u"PHONE_CODE_INVALID") {
 		showCodeError(tr::lng_bad_code());

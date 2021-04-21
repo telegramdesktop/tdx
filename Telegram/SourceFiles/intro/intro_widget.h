@@ -81,6 +81,7 @@ enum class Animate {
 };
 
 class Step;
+enum class StepType;
 
 } // namespace details
 
@@ -141,6 +142,7 @@ private:
 	void acceptTerms(Fn<void()> callback);
 	void hideAndDestroy(object_ptr<Ui::FadeWrap<Ui::RpWidget>> widget);
 
+#if 0 // mtp
 	[[nodiscard]] details::Step *getStep(int skip = 0) const {
 		Expects(skip >= 0);
 		Expects(skip < _stepHistory.size());
@@ -153,6 +155,21 @@ private:
 		details::StackAction action,
 		details::Animate animate);
 	void appendStep(details::Step *step);
+#endif
+
+	[[nodiscard]] not_null<details::Step*> getStep() const {
+		Expects(!_stepHistory.empty());
+
+		return _stepHistory.back().get();
+	}
+	void historyMove(
+		details::Step *wasStep,
+		std::vector<std::unique_ptr<details::Step>>::iterator nowStep);
+	void appendStep(std::unique_ptr<details::Step> step);
+	void go(details::StepType type);
+
+	template <typename WidgetType>
+	[[nodiscard]] std::unique_ptr<details::Step> makeStep();
 
 	void getNearestDC();
 	void showTerms(Fn<void()> callback);
@@ -190,7 +207,10 @@ private:
 
 	std::unique_ptr<Window::SlideAnimation> _showAnimation;
 
+#if 0 // mtp
 	std::vector<details::Step*> _stepHistory;
+#endif
+	std::vector<std::unique_ptr<details::Step>> _stepHistory;
 	rpl::lifetime _stepLifetime;
 
 	details::Data _data;

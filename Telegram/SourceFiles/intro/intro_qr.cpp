@@ -254,7 +254,10 @@ void QrWidget::handleAuthorizationState(const TLauthorizationState &state) {
 }
 
 void QrWidget::submit() {
+#if 0 // mtp
 	goReplace<PhoneWidget>(Animate::Forward);
+#endif
+	go(StepType::Phone);
 }
 
 rpl::producer<QString> QrWidget::nextButtonText() const {
