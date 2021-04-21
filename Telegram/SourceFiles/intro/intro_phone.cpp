@@ -115,7 +115,10 @@ void PhoneWidget::setupQrLogin() {
 	}, qrLogin->lifetime());
 
 	qrLogin->setClickedCallback([=] {
+#if 0 // mtp
 		goReplace<QrWidget>(Animate::Forward);
+#endif
+		go(StepType::Qr);
 	});
 }
 
@@ -341,6 +344,8 @@ void PhoneWidget::finished() {
 }
 
 void PhoneWidget::cancelled() {
+	_sentRequest = false;
+
 #if 0 // #TODO legacy
 	api().request(base::take(_sentRequest)).cancel();
 #endif

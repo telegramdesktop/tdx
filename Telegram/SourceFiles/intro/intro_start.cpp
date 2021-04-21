@@ -47,7 +47,11 @@ void StartWidget::submit() {
 	api().request(
 		TLgetAuthorizationState()
 	).done([=](const TLauthorizationState &result) {
-		Step::handleAuthorizationState(result);
+		if (result.type() == id_authorizationStateWaitPhoneNumber) {
+			go(StepType::Qr);
+		} else {
+			Step::handleAuthorizationState(result);
+		}
 	}).send();
 }
 

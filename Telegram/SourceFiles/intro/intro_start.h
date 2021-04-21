@@ -28,6 +28,10 @@ public:
 	void submit() override;
 	rpl::producer<QString> nextButtonText() const override;
 
+	StepType type() const override {
+		return StepType::Start;
+	}
+
 private:
 	void handleAuthorizationState(
 		const Tdb::TLauthorizationState &state) override;
