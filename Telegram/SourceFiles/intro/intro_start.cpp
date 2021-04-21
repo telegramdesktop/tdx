@@ -30,7 +30,9 @@ StartWidget::StartWidget(
 }
 
 void StartWidget::submit() {
+#if 0 // #TODO tdlib
 	account().destroyStaleAuthorizationKeys();
+#endif
 	goNext<QrWidget>();
 }
 

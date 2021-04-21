@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_lock_widgets.h"
 #include "core/core_cloud_password.h"
 #include "media/player/media_player_float.h"
+#include "tdb/tdb_sender.h"
 
 namespace Main {
 class Account;
@@ -149,7 +150,9 @@ private:
 		details::Animate animate);
 	void appendStep(details::Step *step);
 
+#if 0 // #TODO legacy
 	void getNearestDC();
+#endif
 	void showTerms(Fn<void()> callback);
 
 	// FloatDelegate
@@ -173,8 +176,10 @@ private:
 	bool floatPlayerHandleWheelEvent(QEvent *e) override;
 
 	const not_null<Main::Account*> _account;
-	std::optional<MTP::Sender> _api;
+	Tdb::Sender _api;
+#if 0 // #TODO legacy
 	mtpRequestId _nearestDcRequestId = 0;
+#endif
 
 	std::unique_ptr<Window::SlideAnimation> _showAnimation;
 
@@ -203,7 +208,7 @@ private:
 	bool _nextShown = true;
 	Ui::Animations::Simple _nextShownAnimation;
 
-	mtpRequestId _resetRequest = 0;
+	Tdb::RequestId _resetRequest = 0;
 
 };
 
