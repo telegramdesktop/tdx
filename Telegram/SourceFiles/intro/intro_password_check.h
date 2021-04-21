@@ -67,6 +67,8 @@ private:
 	void passwordChecked();
 	void serverError();
 
+	void passwordSubmitFail(const Tdb::Error &error);
+
 	Core::CloudPasswordState _passwordState;
 	crl::time _lastSrpIdInvalidTime = 0;
 	bytes::vector _passwordHash;

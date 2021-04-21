@@ -160,6 +160,18 @@ QString Account::tempDirectory() const {
 	return _tempPath;
 }
 
+QString Account::libDatabasePath() const {
+	Expects(!_databasePath.isEmpty());
+
+	return _databasePath + "td";
+}
+
+QString Account::libFilesPath() const {
+	Expects(!_databasePath.isEmpty());
+
+	return _databasePath + "files";
+}
+
 StartResult Account::legacyStart(const QByteArray &passcode) {
 	const auto result = readMapWith(MTP::AuthKeyPtr(), passcode);
 	if (result == ReadMapResult::Failed) {

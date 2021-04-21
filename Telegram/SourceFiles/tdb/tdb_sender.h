@@ -118,6 +118,11 @@ public:
 	public:
 		using Result = typename Request::ResponseType;
 		[[nodiscard]] SpecificRequestBuilder &done(
+				FnMut<void()> callback) {
+			_done = makeDoneHandler<Result>(std::move(callback));
+			return *this;
+		}
+		[[nodiscard]] SpecificRequestBuilder &done(
 			FnMut<void(
 				const Result &result,
 				RequestId requestId)> callback) {
@@ -129,12 +134,12 @@ public:
 			_done = makeDoneHandler<Result>(std::move(callback));
 			return *this;
 		}
-		[[nodiscard]] SpecificRequestBuilder &done(
-				FnMut<void()> callback) {
-			_done = makeDoneHandler<Result>(std::move(callback));
+
+		[[nodiscard]] SpecificRequestBuilder &fail(
+				Fn<void()> callback) noexcept {
+			setFailHandler(std::move(callback));
 			return *this;
 		}
-
 		[[nodiscard]] SpecificRequestBuilder &fail(
 			Fn<void(
 				const Error &error,
@@ -144,11 +149,6 @@ public:
 		}
 		[[nodiscard]] SpecificRequestBuilder &fail(
 				Fn<void(const Error &error)> callback) noexcept {
-			setFailHandler(std::move(callback));
-			return *this;
-		}
-		[[nodiscard]] SpecificRequestBuilder &fail(
-				Fn<void()> callback) noexcept {
 			setFailHandler(std::move(callback));
 			return *this;
 		}

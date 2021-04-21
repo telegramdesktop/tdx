@@ -32,6 +32,8 @@ namespace Intro {
 namespace details {
 namespace {
 
+using namespace Tdb;
+
 [[nodiscard]] bool AllowPhoneAttempt(const QString &phone) {
 	const auto digits = ranges::count_if(
 		phone,
@@ -170,7 +172,6 @@ void PhoneWidget::submit() {
 		return;
 	}
 
-#if 0 // #TODO tdlib
 	cancelNearestDcRequest();
 
 	// Check if such account is authorized already.
@@ -190,9 +191,22 @@ void PhoneWidget::submit() {
 
 	hidePhoneError();
 
+#if 0 // #TODO legacy
 	_checkRequestTimer.callEach(1000);
+#endif
 
 	_sentPhone = phone;
+
+	api().request(TLsetAuthenticationPhoneNumber(
+		tl_string(phone),
+		tl_phoneNumberAuthenticationSettings(
+			tl_bool(false), // allow_flash_call
+			tl_bool(false), // is_current_phone_number
+			tl_bool(false)) // allow_sms_retriever_api
+	)).fail([=](const Error &error) {
+		phoneSetFail(error);
+	}).send();
+#if 0 // #TODO legacy
 	api().instance().setUserPhone(_sentPhone);
 	_sentRequest = api().request(MTPauth_SendCode(
 		MTP_string(_sentPhone),
@@ -230,6 +244,7 @@ void PhoneWidget::checkRequest() {
 #endif
 }
 
+#if 0 // #TODO legacy
 void PhoneWidget::phoneSubmitDone(const MTPauth_SentCode &result) {
 	stopCheck();
 	_sentRequest = 0;
@@ -274,6 +289,15 @@ void PhoneWidget::phoneSubmitFail(const MTP::Error &error) {
 	} else {
 		showPhoneError(rpl::single(Lang::Hard::ServerError()));
 	}
+}
+#endif
+
+bool PhoneWidget::handleAuthorizationState(
+		const TLauthorizationState &state) {
+	return Step::handleAuthorizationState(state);
+}
+
+void PhoneWidget::phoneSetFail(const Error &error) {
 }
 
 QString PhoneWidget::fullNumber() const {

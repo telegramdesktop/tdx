@@ -8,8 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "intro/intro_start.h"
 
 #include "lang/lang_keys.h"
-#include "intro/intro_qr.h"
-#include "intro/intro_phone.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "main/main_account.h"
@@ -17,6 +15,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Intro {
 namespace details {
+namespace {
+
+using namespace Tdb;
+
+} // namespace
 
 StartWidget::StartWidget(
 	QWidget *parent,
@@ -32,12 +35,24 @@ StartWidget::StartWidget(
 void StartWidget::submit() {
 #if 0 // #TODO tdlib
 	account().destroyStaleAuthorizationKeys();
-#endif
 	goNext<QrWidget>();
+#endif
+
+	api().request(
+		TLgetAuthorizationState()
+	).done([=](const TLauthorizationState &result) {
+		Step::handleAuthorizationState(result);
+	}).fail([=](const Error &error) {
+	}).send();
 }
 
 rpl::producer<QString> StartWidget::nextButtonText() const {
 	return tr::lng_start_msgs();
+}
+
+bool StartWidget::handleAuthorizationState(
+		const TLauthorizationState &state) {
+	return true;
 }
 
 } // namespace details

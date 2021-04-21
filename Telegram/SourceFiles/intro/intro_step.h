@@ -148,6 +148,12 @@ protected:
 
 	virtual int errorTop() const;
 
+	virtual void handleUpdate(const Tdb::TLupdate &update);
+	virtual bool handleAuthorizationState(
+		const Tdb::TLauthorizationState &state);
+
+	void finish(QImage &&photo = QImage());
+
 private:
 	struct CoverAnimation {
 		CoverAnimation() = default;
@@ -182,6 +188,12 @@ private:
 
 	void prepareCoverMask();
 	void paintCover(QPainter &p, int top);
+
+	void finish(const Tdb::TLuser &self, QImage photo);
+	void createSession(
+		const Tdb::TLuser &user,
+		QImage photo,
+		const QVector<Tdb::TLchatFilter> &filters);
 
 	const not_null<Main::Account*> _account;
 	const not_null<Data*> _data;
