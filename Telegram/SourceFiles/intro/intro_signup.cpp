@@ -182,6 +182,7 @@ void SignupWidget::submit() {
 
 		_firstName = _first->getLastText().trimmed();
 		_lastName = _last->getLastText().trimmed();
+#if 0 // #TODO tdlib
 		_sentRequest = api().request(MTPauth_SignUp(
 			MTP_string(getData()->phone),
 			MTP_bytes(getData()->phoneHash),
@@ -192,6 +193,7 @@ void SignupWidget::submit() {
 		}).fail([=](const MTP::Error &error) {
 			nameSubmitFail(error);
 		}).handleFloodErrors().send();
+#endif
 	};
 	if (_termsAccepted
 		|| getData()->termsLock.text.text.isEmpty()

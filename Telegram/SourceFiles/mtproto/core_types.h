@@ -23,7 +23,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <gsl/gsl>
 
 using mtpPrime = int32;
+#if 0 // mtp
 using mtpRequestId = int32;
+#endif
+using mtpRequestId = int64;
 using mtpMsgId = uint64;
 using mtpPingId = uint64;
 
