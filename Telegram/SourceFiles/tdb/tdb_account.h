@@ -41,4 +41,8 @@ private:
 
 using details::Execute;
 
+[[nodiscard]] inline bool IsRecreatedUpdate(const TLupdate &update) {
+	return details::ClientClosedUpdate(update);
+}
+
 } // namespace Tdb
