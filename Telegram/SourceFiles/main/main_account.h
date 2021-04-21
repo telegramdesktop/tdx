@@ -13,7 +13,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Tdb {
 class TLuser;
-} // namespace Td
+class Account;
+class Sender;
+} // namespace Tdb
 
 namespace Storage {
 class Account;
@@ -25,11 +27,6 @@ namespace MTP {
 class AuthKey;
 class Config;
 } // namespace MTP
-
-namespace Tdb {
-class Account;
-class Sender;
-} // namespace Tdb
 
 namespace Main {
 
@@ -99,6 +96,7 @@ public:
 		return *_tdb;
 	}
 	[[nodiscard]] Tdb::Sender &sender() const;
+	[[nodiscard]] bool testMode() const;
 
 	[[nodiscard]] MTP::Instance &mtp() const {
 		return *_mtp;
@@ -174,7 +172,7 @@ private:
 	void loggedOut();
 	void destroySession(DestroyReason reason);
 
-	[[nodiscard]] std::unique_ptr<Tdb::Account> createTdb(bool testMode);
+	[[nodiscard]] std::unique_ptr<Tdb::Account> createTdb();
 
 	const not_null<Domain*> _domain;
 	const std::unique_ptr<Storage::Account> _local;
@@ -200,6 +198,7 @@ private:
 	MTP::Instance::Fields _mtpFields;
 	MTP::AuthKeysList _mtpKeysToDestroy;
 	bool _loggingOut = false;
+	bool _testMode = false;
 
 	rpl::lifetime _lifetime;
 

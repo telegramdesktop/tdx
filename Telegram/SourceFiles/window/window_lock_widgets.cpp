@@ -324,6 +324,24 @@ TermsLock TermsLock::FromMTP(
 	};
 }
 
+TermsLock TermsLock::FromTL(
+		Main::Session *session,
+		const Tdb::TLDtermsOfService &data) {
+	const auto minAge = data.vmin_user_age().v;
+	auto text = data.vtext().match([&](const Tdb::TLDformattedText &data) {
+		return TextWithEntities{
+			TextUtilities::Clean(data.vtext().v),
+			Api::EntitiesFromTL(session, data.ventities().v),
+		};
+	});
+	return {
+		{}, // #TODO legacy
+		std::move(text),
+		(minAge ? std::make_optional(minAge) : std::nullopt),
+		Tdb::tl_is_true(data.vshow_popup())
+	};
+}
+
 TermsBox::TermsBox(
 	QWidget*,
 	const TermsLock &data,

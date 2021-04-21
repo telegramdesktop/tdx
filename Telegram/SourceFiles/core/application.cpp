@@ -907,6 +907,7 @@ void Application::logoutWithChecks(Main::Account *account) {
 void Application::forceLogOut(
 		not_null<Main::Account*> account,
 		const TextWithEntities &explanation) {
+	// #TODO secret allow cancel force logout
 	const auto box = Ui::show(Ui::MakeConfirmBox({
 		.text = explanation,
 		.confirmText = tr::lng_passcode_logout(tr::now),

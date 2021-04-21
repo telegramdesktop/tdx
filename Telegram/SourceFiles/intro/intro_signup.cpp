@@ -21,6 +21,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Intro {
 namespace details {
+namespace {
+
+using namespace Tdb;
+
+} // namespace
 
 SignupWidget::SignupWidget(
 	QWidget *parent,
@@ -107,9 +112,12 @@ void SignupWidget::activate() {
 }
 
 void SignupWidget::cancelled() {
+#if 0
 	api().request(base::take(_sentRequest)).cancel();
+#endif
 }
 
+#if 0 // #TODO legacy
 void SignupWidget::nameSubmitDone(const MTPauth_Authorization &result) {
 	finish(result);
 }
@@ -154,6 +162,7 @@ void SignupWidget::nameSubmitFail(const MTP::Error &error) {
 		}
 	}
 }
+#endif
 
 void SignupWidget::submit() {
 	if (_sentRequest) {
@@ -182,7 +191,17 @@ void SignupWidget::submit() {
 
 		_firstName = _first->getLastText().trimmed();
 		_lastName = _last->getLastText().trimmed();
-#if 0 // #TODO tdlib
+
+		_sentRequest = true;
+		api().request(TLregisterUser(
+			tl_string(_firstName),
+			tl_string(_lastName),
+			tl_bool(false) // disable_notification
+		)).fail([=](const Error &error) {
+			registerUserFail(error);
+		}).send();
+
+#if 0 // #TODO legacy
 		_sentRequest = api().request(MTPauth_SignUp(
 			MTP_flags(0),
 			MTP_string(getData()->phone),
@@ -205,6 +224,44 @@ void SignupWidget::submit() {
 			_termsAccepted = true;
 			send();
 		}));
+	}
+}
+
+void SignupWidget::handleAuthorizationState(
+		const TLauthorizationState &state) {
+	state.match([&](const TLDauthorizationStateWaitRegistration &data) {
+		fillTerms(data.vterms_of_service());
+	}, [&](const auto &) {
+		Step::handleAuthorizationState(state);
+	});
+}
+
+void SignupWidget::registerUserFail(const Error &error) {
+	_sentRequest = false;
+
+	const auto &type = error.message;
+	if (type == u"PHONE_NUMBER_FLOOD") {
+		Ui::show(Box<Ui::InformBox>(tr::lng_error_phone_flood(tr::now)));
+	} else if (type == u"PHONE_NUMBER_INVALID"
+		|| type == u"PHONE_NUMBER_BANNED"
+		|| type == u"PHONE_CODE_EXPIRED"
+		|| type == u"PHONE_CODE_EMPTY"
+		|| type == u"PHONE_CODE_INVALID"
+		|| type == u"PHONE_NUMBER_OCCUPIED") {
+		goBack();
+	} else if (type == u"FIRSTNAME_INVALID") {
+		showError(tr::lng_bad_name());
+		_first->setFocus();
+	} else if (type == u"LASTNAME_INVALID") {
+		showError(tr::lng_bad_name());
+		_last->setFocus();
+	} else {
+		showError(rpl::single(type));
+		if (_invertOrder) {
+			_last->setFocus();
+		} else {
+			_first->setFocus();
+		}
 	}
 }
 

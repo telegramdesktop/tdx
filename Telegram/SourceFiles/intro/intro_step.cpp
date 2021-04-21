@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "intro/intro_phone.h"
 #include "intro/intro_code.h"
 #include "intro/intro_password_check.h"
+#include "intro/intro_start.h"
 
 namespace Intro {
 namespace details {
@@ -127,7 +128,7 @@ Tdb::Sender &Step::api() const {
 }
 
 void Step::apiClear() {
-	_api.reset();
+	_api.emplace(_account->sender());
 }
 
 rpl::producer<QString> Step::nextButtonText() const {
@@ -156,6 +157,7 @@ void Step::goReplace(Step *step, Animate animate) {
 	}
 }
 
+#if 0 // mtp
 void Step::finish(const MTPauth_Authorization &auth, QImage &&photo) {
 	auth.match([&](const MTPDauth_authorization &data) {
 		if (data.vuser().type() != mtpc_user
@@ -179,7 +181,6 @@ void Step::finish(const MTPauth_Authorization &auth, QImage &&photo) {
 }
 
 void Step::finish(const MTPUser &user, QImage &&photo) {
-#if 0 // #TODO legacy
 	if (user.type() != mtpc_user
 		|| !user.c_user().is_self()
 		|| !user.c_user().vid().v) {
@@ -212,14 +213,14 @@ void Step::finish(const MTPUser &user, QImage &&photo) {
 	}).fail([=](const MTP::Error &error) {
 		createSession(user, photo, QVector<MTPDialogFilter>());
 	}).send();
-#endif
 }
+#endif
 
 void Step::finish(QImage &&photo) {
 	api().request(TLgetMe()).done([=](const TLuser &result) {
 		finish(result, photo);
-	}).fail([=] {
-		// #TODO tdlib errors
+	}).fail([=](const Error &error) {
+		const auto &type = error.message;
 	}).send();
 }
 
@@ -229,7 +230,7 @@ void Step::finish(const TLuser &self, QImage photo) {
 		for (const auto &[_, existing] : Core::App().domain().accounts()) {
 			const auto raw = existing.get();
 			if (const auto session = raw->maybeSession()) {
-				if (raw->mtp().environment() == _account->mtp().environment()
+				if (existing->testMode() == _account->testMode()
 					&& UserId(data.vid()) == session->userId()) {
 					_account->logOut();
 					crl::on_main(raw, [=] {
@@ -435,6 +436,7 @@ bool Step::paintAnimated(QPainter &p, QRect clip) {
 	return true;
 }
 
+#if 0 // #TODO legacy
 void Step::fillSentCodeData(const MTPDauth_sentCode &data) {
 	const auto bad = [](const char *type) {
 		LOG(("API Error: Should not be '%1'.").arg(type));
@@ -465,6 +467,43 @@ void Step::fillSentCodeData(const MTPDauth_sentCode &data) {
 		bad("SmsPhrase");
 	}, [&](const MTPDauth_sentCodeTypeSetUpEmailRequired &) {
 		bad("SetUpEmailRequired");
+	});
+}
+#endif
+
+void Step::fillCodeInfo(const TLauthenticationCodeInfo &info) {
+	info.match([&](const TLDauthenticationCodeInfo &data) {
+		getData()->phone = data.vphone_number().v;
+		const auto currentType = data.vtype().type();
+		getData()->codeByTelegram
+			= (currentType == id_authenticationCodeTypeTelegramMessage);
+		getData()->codeLength = data.vtype().match([](
+				const TLDauthenticationCodeTypeFlashCall &) {
+			LOG(("Tdb Error: authenticationCodeTypeFlashCall."));
+			return 0;
+		}, [&](const auto &data) {
+			return data.vlength().v;
+		});
+		if (const auto next = data.vnext_type()) {
+			const auto type = next->type();
+			getData()->callStatus
+				= (type == id_authenticationCodeTypeCall
+					? CallStatus::Waiting
+					: CallStatus::Disabled);
+			getData()->callTimeout
+				= (type == id_authenticationCodeTypeCall
+					? data.vtimeout().v
+					: 0);
+		} else {
+			getData()->callStatus = CallStatus::Disabled;
+			getData()->callTimeout = 0;
+		}
+	});
+}
+
+void Step::fillTerms(const TLtermsOfService &terms) {
+	getData()->termsLock = terms.match([&](const TLDtermsOfService &data) {
+		return Window::TermsLock::FromTL(nullptr, data);
 	});
 }
 
@@ -568,31 +607,29 @@ void Step::handleUpdate(const TLupdate &update) {
 	});
 }
 
-bool Step::handleAuthorizationState(const TLauthorizationState &state) {
-	return state.match([&](const TLDauthorizationStateWaitPhoneNumber &data) {
+void Step::handleAuthorizationState(const TLauthorizationState &state) {
+	return state.match([&](
+			const TLDauthorizationStateWaitPhoneNumber &data) {
 		goNext<PhoneWidget>();
-		return true;
 	}, [&](const TLDauthorizationStateWaitCode &data) {
+		fillCodeInfo(data.vcode_info());
 		goNext<CodeWidget>();
-		return true;
 	}, [&](const TLDauthorizationStateWaitOtherDeviceConfirmation &data) {
+		getData()->qrLink = data.vlink().v;
 		goNext<QrWidget>();
-		return true;
 	}, [&](const TLDauthorizationStateWaitRegistration &data) {
+		fillTerms(data.vterms_of_service());
 		goNext<SignupWidget>();
-		return true;
 	}, [&](const TLDauthorizationStateWaitPassword &data) {
 		getData()->pwdState.hasRecovery = tl_is_true(
 			data.vhas_recovery_email_address());
 		getData()->pwdState.hint = data.vpassword_hint().v;
 		//getData()->pwdState.notEmptyPassport = data.is_has_secure_values(); // #TODO tdlib
 		goNext<PasswordCheckWidget>();
-		return true;
 	}, [&](const TLDauthorizationStateReady &data) {
 		finish();
-		return true;
 	}, [&](const auto &) {
-		return false;
+		goNext<StartWidget>();
 	});
 }
 

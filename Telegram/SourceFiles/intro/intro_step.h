@@ -104,7 +104,12 @@ protected:
 		rpl::producer<TextWithEntities> richDescriptionText);
 	bool paintAnimated(QPainter &p, QRect clip);
 
+#if 0 // mtp
 	void fillSentCodeData(const MTPDauth_sentCode &type);
+#endif
+
+	void fillCodeInfo(const Tdb::TLauthenticationCodeInfo &info);
+	void fillTerms(const Tdb::TLtermsOfService &terms);
 
 	void showDescription();
 	void hideDescription();
@@ -112,12 +117,15 @@ protected:
 	[[nodiscard]] not_null<Data*> getData() const {
 		return _data;
 	}
+
+#if 0 // mtp
 	void finish(const MTPauth_Authorization &auth, QImage &&photo = {});
 	void finish(const MTPUser &user, QImage &&photo = {});
 	void createSession(
 		const MTPUser &user,
 		QImage photo,
 		const QVector<MTPDialogFilter> &filters);
+#endif
 
 	void goBack();
 
@@ -149,7 +157,7 @@ protected:
 	virtual int errorTop() const;
 
 	virtual void handleUpdate(const Tdb::TLupdate &update);
-	virtual bool handleAuthorizationState(
+	virtual void handleAuthorizationState(
 		const Tdb::TLauthorizationState &state);
 
 	void finish(QImage &&photo = QImage());
