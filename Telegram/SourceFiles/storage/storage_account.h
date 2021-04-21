@@ -75,6 +75,8 @@ public:
 	}
 
 	[[nodiscard]] QString tempDirectory() const;
+	[[nodiscard]] QString libDatabasePath() const;
+	[[nodiscard]] QString libFilesPath() const;
 
 	[[nodiscard]] MTP::AuthKeyPtr peekLegacyLocalKey() const {
 		return _localKey;
