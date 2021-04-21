@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/object_ptr.h"
 #include "mtproto/sender.h"
+#include "tdb/tdb_sender.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 
@@ -50,7 +51,7 @@ public:
 
 	// It should not be called in StartWidget, in other steps it should be
 	// present and not changing.
-	[[nodiscard]] MTP::Sender &api() const;
+	[[nodiscard]] Tdb::Sender &api() const;
 	void apiClear();
 
 	virtual void finishInit() {
@@ -184,7 +185,7 @@ private:
 
 	const not_null<Main::Account*> _account;
 	const not_null<Data*> _data;
-	mutable std::optional<MTP::Sender> _api;
+	mutable std::optional<Tdb::Sender> _api;
 
 	bool _hasCover = false;
 	Fn<void(Step *step, StackAction action, Animate animate)> _goCallback;

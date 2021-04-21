@@ -29,6 +29,10 @@ struct Error {
 	, message(message) {
 	}
 
+	[[nodiscard]] static Error Local(const QString &message) {
+		return Error{ -555, message };
+	}
+
 	int code = 0;
 	QString message;
 

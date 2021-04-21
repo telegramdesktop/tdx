@@ -15,8 +15,10 @@ generate_tdb_tl(td_tdb ${src_loc}/tdb/details/tdb_tl_generate.py ${libs_loc}/td/
 target_precompile_headers(td_tdb PRIVATE ${src_loc}/tdb/tdb_pch.h)
 nice_target_sources(td_tdb ${src_loc}
 PRIVATE
-    tdb/tdb_instance.cpp
-    tdb/tdb_instance.h
+    tdb/tdb_account.cpp
+    tdb/tdb_account.h
+    tdb/tdb_sender.cpp
+    tdb/tdb_sender.h
     tdb/tdb_tl_scheme.h
 
     tdb/tdb_pch.h
@@ -27,7 +29,11 @@ PRIVATE
     tdb/details/tdb_tl_core_conversion_to.cpp
     tdb/details/tdb_tl_core_conversion_to.h
     tdb/details/tdb_tl_generate.py
+    tdb/details/tdb_instance.cpp
+    tdb/details/tdb_instance.h
 )
+
+target_sources(td_tdb PRIVATE ${libs_loc}/td/td/generate/scheme/td_api.tl)
 
 target_include_directories(td_tdb
 PUBLIC
