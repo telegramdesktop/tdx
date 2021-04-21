@@ -103,7 +103,6 @@ Widget::Widget(
 		_api.emplace(instance);
 		crl::on_main(this, [=] { createLanguageLink(); });
 	}, lifetime());
-#endif
 	switch (point) {
 	case EnterPoint::Start:
 		getNearestDC();
@@ -114,6 +113,20 @@ Widget::Widget(
 		break;
 	case EnterPoint::Qr:
 		appendStep(new QrWidget(this, _account, getData()));
+		break;
+	default: Unexpected("Enter point in Intro::Widget::Widget.");
+	}
+#endif
+	switch (point) {
+	case EnterPoint::Start:
+		getNearestDC();
+		go(StepType::Start);
+		break;
+	case EnterPoint::Phone:
+		go(StepType::Phone);
+		break;
+	case EnterPoint::Qr:
+		go(StepType::Qr);
 		break;
 	default: Unexpected("Enter point in Intro::Widget::Widget.");
 	}
@@ -360,6 +373,7 @@ void Widget::setInnerFocus() {
 	}
 }
 
+#if 0 // mtp
 void Widget::historyMove(StackAction action, Animate animate) {
 	Expects(_stepHistory.size() > 1);
 
@@ -374,6 +388,34 @@ void Widget::historyMove(StackAction action, Animate animate) {
 	} else if (action == StackAction::Replace) {
 		_stepHistory.erase(_stepHistory.end() - 2);
 	}
+#endif
+void Widget::historyMove(
+		Step *wasStep,
+		std::vector<std::unique_ptr<Step>>::iterator nowStep) {
+	_back->raise();
+	_settings->raise();
+	if (_update) {
+		_update->raise();
+	}
+	_connecting->raise();
+
+	for (auto i = nowStep + 1; i != end(_stepHistory); ++i) {
+		(*i)->cancelled();
+	}
+	if (!wasStep || wasStep->animating()) {
+		_stepHistory.erase(nowStep + 1, end(_stepHistory));
+		showControls();
+		getStep()->showFast();
+		setInnerFocus();
+		return;
+	}
+
+	const auto wasType = wasStep ? wasStep->type() : StepType::Start;
+	const auto nowType = (*nowStep)->type();
+	const auto animate = ((nowType >= wasType)
+		|| (wasType == StepType::Qr && nowType == StepType::Phone))
+		? Animate::Forward
+		: Animate::Back;
 
 	if (_resetAccount) {
 		hideAndDestroy(std::exchange(_resetAccount, { nullptr }));
@@ -399,9 +441,14 @@ void Widget::historyMove(StackAction action, Animate animate) {
 		}, _next->lifetime());
 	}
 
+#if 0 // mtp
 	getStep()->finishInit();
 	getStep()->prepareShowAnimated(wasStep);
 	if (wasStep->hasCover() != getStep()->hasCover()) {
+#endif
+	(*nowStep)->finishInit();
+	(*nowStep)->prepareShowAnimated(wasStep);
+	if (wasStep->hasCover() != (*nowStep)->hasCover()) {
 		_nextTopFrom = wasStep->contentTop() + st::introNextTop;
 		_controlsTopFrom = wasStep->hasCover() ? st::introCoverHeight : 0;
 		_coverShownAnimation.start(
@@ -413,12 +460,18 @@ void Widget::historyMove(StackAction action, Animate animate) {
 	}
 
 	_stepLifetime.destroy();
+#if 0 // mtp
 	if (action == StackAction::Forward || action == StackAction::Replace) {
 		wasStep->finished();
 	}
 	if (action == StackAction::Back || action == StackAction::Replace) {
 		delete base::take(wasStep);
 	}
+#endif
+	if (wasStep) {
+		wasStep->finished();
+	}
+	_stepHistory.erase(nowStep + 1, end(_stepHistory));
 	_back->toggle(getStep()->hasBack(), anim::type::normal);
 
 	auto stepHasCover = getStep()->hasCover();
@@ -454,6 +507,56 @@ void Widget::fixOrder() {
 	_connecting->raise();
 }
 
+template <typename WidgetType>
+std::unique_ptr<details::Step> Widget::makeStep() {
+	return std::make_unique<WidgetType>(this, _account, getData());
+}
+
+void Widget::go(StepType type) {
+	if (type == StepType::Start) {
+		if (const auto parent
+			= Core::App().domain().maybeLastOrSomeAuthedAccount()) {
+			Core::App().domain().activate(parent);
+		}
+		return;
+	} else if (!_stepHistory.empty() && getStep()->type() == type) {
+		return;
+	}
+	const auto wasStep = _stepHistory.empty() ? nullptr : getStep().get();
+	auto nowStep = begin(_stepHistory);
+	for (; nowStep != end(_stepHistory); ++nowStep) {
+		if ((*nowStep)->type() == type) {
+			break;
+		}
+	}
+	auto saved = std::unique_ptr<Step>();
+	if (nowStep == end(_stepHistory)) {
+		appendStep([&]() -> std::unique_ptr<Step> {
+			switch (type) {
+			case StepType::Start: return makeStep<StartWidget>();
+			case StepType::Phone: return makeStep<PhoneWidget>();
+			case StepType::Qr: return makeStep<QrWidget>();
+			case StepType::Code: return makeStep<CodeWidget>();
+			case StepType::Password: return makeStep<PasswordCheckWidget>();
+			case StepType::SignUp: return makeStep<SignupWidget>();
+			}
+			Unexpected("Type in Intro::Widget::go.");
+		}());
+		if (type == StepType::Qr || type == StepType::Phone) {
+			while (_stepHistory.size() > 1
+				&& (*(_stepHistory.end() - 2))->type() != StepType::Start) {
+				if ((_stepHistory.end() - 2)->get() == wasStep) {
+					saved = std::move(*(_stepHistory.end() - 2));
+				}
+				_stepHistory.erase(_stepHistory.end() - 2);
+			}
+		}
+		nowStep = (_stepHistory.end() - 1);
+	}
+	historyMove(wasStep, nowStep);
+}
+
+#if 0 // mtp
 void Widget::moveToStep(Step *step, StackAction action, Animate animate) {
 	appendStep(step);
 	_back->raise();
@@ -486,6 +589,28 @@ void Widget::appendStep(Step *step) {
 		_api.request(base::take(_nearestDcRequestId)).cancel();
 	});
 	step->setAcceptTermsCallback([=](Fn<void()> callback) {
+		acceptTerms(callback);
+	});
+}
+#endif
+
+void Widget::appendStep(std::unique_ptr<Step> step) {
+	const auto raw = step.get();
+	_stepHistory.push_back(std::move(step));
+	raw->setGeometry(rect());
+	raw->setGoCallback([=](StepType type) {
+		go(type);
+	});
+	raw->setShowResetCallback([=] {
+		showResetButton();
+	});
+	raw->setShowTermsCallback([=] {
+		showTerms();
+	});
+	raw->setCancelNearestDcCallback([=] {
+		_api.request(base::take(_nearestDcRequestId)).cancel();
+	});
+	raw->setAcceptTermsCallback([=](Fn<void()> callback) {
 		acceptTerms(callback);
 	});
 }
@@ -552,6 +677,7 @@ void Widget::resetAccount() {
 
 			getData()->controller->hideLayer();
 			if (getData()->phone.isEmpty()) {
+#if 0 // mtp
 				moveToStep(
 					new QrWidget(this, _account, getData()),
 					StackAction::Replace,
@@ -561,6 +687,10 @@ void Widget::resetAccount() {
 					new SignupWidget(this, _account, getData()),
 					StackAction::Replace,
 					Animate::Forward);
+#endif
+				go(StepType::Qr);
+			} else {
+				go(StepType::SignUp);
 			}
 		}).fail([=](const Error &error) {
 			_resetRequest = 0;
@@ -821,7 +951,10 @@ void Widget::resizeEvent(QResizeEvent *e) {
 	if (_stepHistory.empty()) {
 		return;
 	}
+#if 0 // mtp
 	for (const auto step : _stepHistory) {
+#endif
+	for (const auto &step : _stepHistory) {
 		step->setGeometry(rect());
 	}
 
@@ -889,6 +1022,7 @@ void Widget::keyPressEvent(QKeyEvent *e) {
 
 void Widget::backRequested() {
 	if (_stepHistory.size() > 1) {
+#if 0 // mtp
 		historyMove(StackAction::Back, Animate::Back);
 	} else if (const auto parent
 		= Core::App().domain().maybeLastOrSomeAuthedAccount()) {
@@ -898,13 +1032,20 @@ void Widget::backRequested() {
 			new StartWidget(this, _account, getData()),
 			StackAction::Replace,
 			Animate::Back);
+#endif
+		go(_stepHistory[_stepHistory.size() - 2]->type());
+	} else {
+		go(StepType::Start);
 	}
 }
 
 Widget::~Widget() {
+#if 0 // mtp
 	for (auto step : base::take(_stepHistory)) {
 		delete step;
 	}
+#endif
+	base::take(_stepHistory);
 }
 
 } // namespace Intro

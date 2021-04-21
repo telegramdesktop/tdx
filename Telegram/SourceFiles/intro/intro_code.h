@@ -44,6 +44,10 @@ public:
 
 	void updateDescText();
 
+	StepType type() const override {
+		return StepType::Code;
+	}
+
 protected:
 	void resizeEvent(QResizeEvent *e) override;
 

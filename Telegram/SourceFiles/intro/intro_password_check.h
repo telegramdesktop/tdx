@@ -35,6 +35,10 @@ public:
 	void submit() override;
 	rpl::producer<QString> nextButtonText() const override;
 
+	StepType type() const override {
+		return StepType::Password;
+	}
+
 protected:
 	void resizeEvent(QResizeEvent *e) override;
 
