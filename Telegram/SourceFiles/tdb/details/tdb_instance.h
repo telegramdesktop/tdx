@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Tdb::details {
 
+using RequestId = int64;
+
 [[nodiscard]] std::optional<Error> ParseError(ExternalResponse);
 
 template <typename Response>
@@ -49,12 +51,6 @@ template <typename Response>
 	};
 }
 
-} // namespace Tdb::details
-
-namespace Tdb {
-
-using RequestId = uint64;
-
 struct InstanceConfig {
 	int32 apiId = 0;
 	QString apiHash;
@@ -62,33 +58,45 @@ struct InstanceConfig {
 	QString deviceModel;
 	QString systemVersion;
 	QString applicationVersion;
+	QString databaseDirectory;
+	QString filesDirectory;
+	bool testDc = false;
 };
 
 class Instance final {
 public:
+	// Main thread.
 	explicit Instance(InstanceConfig &&config);
 	~Instance();
 
+	// Thread safe.
+	[[nodiscard]] RequestId allocateRequestId() const;
 	template <
 		typename Request,
 		typename = std::enable_if_t<!std::is_reference_v<Request>>>
-	RequestId send(
+	void send(
+			RequestId requestId,
 			Request &&request,
 			FnMut<void(const typename Request::ResponseType &)> &&done,
 			FnMut<void(const Error &)> &&fail) {
-		return sendPrepared(
+		sendPrepared(
+			requestId,
 			tl_to_generator(std::move(request)),
-			details::PrepareCallback<typename Request::ResponseType>(
+			PrepareCallback<typename Request::ResponseType>(
 				std::move(done),
 				std::move(fail)));
 	}
 	void cancel(RequestId requestId);
 
+	// Main thread.
+	[[nodiscard]] rpl::producer<TLupdate> updates() const;
+
 private:
 	class Manager;
 	class Impl;
 
-	RequestId sendPrepared(
+	void sendPrepared(
+		RequestId requestId,
 		ExternalGenerator &&request,
 		ExternalCallback &&callback);
 
@@ -98,4 +106,4 @@ private:
 
 };
 
-} // namespace Tdb
+} // namespace Tdb::details
