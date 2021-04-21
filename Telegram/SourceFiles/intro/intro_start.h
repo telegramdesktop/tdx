@@ -29,7 +29,7 @@ public:
 	rpl::producer<QString> nextButtonText() const override;
 
 private:
-	bool handleAuthorizationState(
+	void handleAuthorizationState(
 		const Tdb::TLauthorizationState &state) override;
 
 };

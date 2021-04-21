@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/text/text_entity.h"
+#include "tdb/tdb_tl_scheme.h"
 
 namespace Main {
 class Session;
@@ -28,5 +29,9 @@ enum class ConvertOption {
 	not_null<Main::Session*> session,
 	const EntitiesInText &entities,
 	ConvertOption option = ConvertOption::WithLocal);
+
+[[nodiscard]] EntitiesInText EntitiesFromTL(
+	Main::Session *session,
+	const QVector<Tdb::TLtextEntity> &entities);
 
 } // namespace Api
