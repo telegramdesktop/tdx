@@ -27,7 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/update_checker.h"
 #include "base/unixtime.h"
 #include "qr/qr_generate.h"
-#include "tdb/tdb_account.h"
 #include "styles/style_intro.h"
 
 namespace Intro {
@@ -196,11 +195,6 @@ QrWidget::QrWidget(
 	}, lifetime());
 #endif
 
-	account->tdb().updates(
-	) | rpl::start_with_next([=](const TLupdate &update) {
-		handleUpdate(update);
-	}, lifetime());
-
 	setupControls();
 	account->mtp().mainDcIdValue(
 	) | rpl::start_with_next([=] {
@@ -240,15 +234,16 @@ void QrWidget::checkForTokenUpdate(const MTPUpdate &update) {
 }
 #endif
 
-void QrWidget::handleUpdate(const TLupdate &update) {
-	update.match([&](const TLDupdateAuthorizationState &data) {
-		data.vauthorization_state().match(
-		[&](const TLDauthorizationStateWaitOtherDeviceConfirmation &data) {
-			_qrLinks.fire_copy(data.vlink().v);
-		}, [](const auto &) {
-		});
-	}, [](const auto &) {
+bool QrWidget::handleAuthorizationState(const TLauthorizationState &state) {
+	state.match([&](
+			const TLDauthorizationStateWaitOtherDeviceConfirmation &data) {
+		_qrLinks.fire_copy(data.vlink().v);
+	}, [&](const auto &) {
+		if (!Step::handleAuthorizationState(state)) {
+			goBack();
+		}
 	});
+	return true;
 }
 
 void QrWidget::submit() {
@@ -343,16 +338,14 @@ void QrWidget::refreshCode() {
 		TLgetAuthorizationState()
 	).done([=](const TLauthorizationState &result) {
 		result.match(
-		[&](const TLDauthorizationStateWaitOtherDeviceConfirmation &data) {
-			_qrLinks.fire_copy(data.vlink().v);
-		}, [&](const TLDauthorizationStateWaitPhoneNumber &data) {
+		[&](const TLDauthorizationStateWaitPhoneNumber &data) {
 			api().request(TLrequestQrCodeAuthentication(
 				tl_vector<TLint53>(0)
 			)).fail([=](const Error &error) {
 				showTokenError(error);
 			}).send();
 		}, [&](const auto &) {
-			showTokenError(Error::Local("Wrong authorizationState."));
+			handleAuthorizationState(result);
 		});
 	}).fail([=](const Error &error) {
 		showTokenError(error);

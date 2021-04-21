@@ -89,7 +89,7 @@ constexpr auto kTmpPasswordReserveTime = TimeId(10);
 
 Session::Session(
 	not_null<Account*> account,
-	const MTPUser &user,
+	const Tdb::TLuser &user,
 	std::unique_ptr<SessionSettings> settings)
 : _userId(user.c_user().vid())
 , _account(account)

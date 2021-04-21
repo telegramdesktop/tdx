@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "tdb/tdb_tl_scheme.h"
+#include "base/expected.h"
 
 namespace Tdb::details {
 
@@ -73,7 +74,8 @@ public:
 	[[nodiscard]] RequestId allocateRequestId() const;
 	template <
 		typename Request,
-		typename = std::enable_if_t<!std::is_reference_v<Request>>>
+		typename = std::enable_if_t<!std::is_reference_v<Request>>,
+		typename = typename Request::ResponseType>
 	void send(
 			RequestId requestId,
 			Request &&request,
@@ -105,5 +107,26 @@ private:
 	static std::weak_ptr<Instance::Manager> ManagerInstance;
 
 };
+
+void ExecuteExternal(
+	ExternalGenerator &&request,
+	ExternalCallback &&callback);
+
+template <
+	typename Request,
+	typename = std::enable_if_t<!std::is_reference_v<Request>>,
+	typename = typename Request::ResponseType>
+auto Execute(Request &&request) {
+	using Response = typename Request::ResponseType;
+	auto container = base::expected<Response, Error>();
+	ExecuteExternal(
+		tl_to_generator(std::move(request)),
+		PrepareCallback<Response>([&](const Response &result) {
+			container = result;
+		}, [&](const Error &error) {
+			container = base::make_unexpected(error);
+		}));
+	return container;
+}
 
 } // namespace Tdb::details

@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtp_instance.h"
 #include "base/weak_ptr.h"
 
+namespace Tdb {
+class TLuser;
+} // namespace Td
+
 namespace Storage {
 class Account;
 class Domain;
@@ -54,14 +58,20 @@ public:
 	void start(std::unique_ptr<MTP::Config> config);
 
 	[[nodiscard]] uint64 willHaveSessionUniqueId(MTP::Config *config) const;
+#if 0 // #TODO legacy
 	void createSession(
 		const MTPUser &user,
 		std::unique_ptr<SessionSettings> settings = nullptr);
+#endif
 	void createSession(
 		UserId id,
 		QByteArray serialized,
 		int streamVersion,
 		std::unique_ptr<SessionSettings> settings);
+
+	void createSession(
+		const Tdb::TLuser &user,
+		std::unique_ptr<SessionSettings> settings = nullptr);
 
 	void logOut();
 	void forcedLogOut();
@@ -141,8 +151,15 @@ private:
 	};
 
 	void startMtp(std::unique_ptr<MTP::Config> config);
+#if 0 // #TODO legacy
 	void createSession(
 		const MTPUser &user,
+		QByteArray serialized,
+		int streamVersion,
+		std::unique_ptr<SessionSettings> settings);
+#endif
+	void createSession(
+		const Tdb::TLuser &user,
 		QByteArray serialized,
 		int streamVersion,
 		std::unique_ptr<SessionSettings> settings);
@@ -156,6 +173,8 @@ private:
 
 	void loggedOut();
 	void destroySession(DestroyReason reason);
+
+	[[nodiscard]] std::unique_ptr<Tdb::Account> createTdb(bool testMode);
 
 	const not_null<Domain*> _domain;
 	const std::unique_ptr<Storage::Account> _local;

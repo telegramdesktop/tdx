@@ -44,20 +44,6 @@ constexpr auto kWideIdsTag = ~uint64(0);
 	return result;
 }
 
-[[nodiscard]] std::unique_ptr<Tdb::Account> CreateTdbAccount(bool testMode) {
-	return std::make_unique<Tdb::Account>(Tdb::AccountConfig{
-		.apiId = ApiId,
-		.apiHash = ApiHash,
-		.systemLanguageCode = Lang::GetInstance().systemLangCode(),
-		.deviceModel = Platform::DeviceModelPretty(),
-		.systemVersion = Platform::SystemVersionPretty(),
-		.applicationVersion = QString::fromLatin1(AppVersionStr),
-		.databaseDirectory = "",
-		.filesDirectory = "",
-		.testDc = testMode,
-	});
-}
-
 } // namespace
 
 Account::Account(
@@ -95,7 +81,7 @@ std::unique_ptr<MTP::Config> Account::prepareToStart(
 }
 
 void Account::start(std::unique_ptr<MTP::Config> config) {
-	_tdb = CreateTdbAccount(config ? config->isTestMode() : false);
+	_tdb = createTdb(config ? config->isTestMode() : false);
 	_appConfig = std::make_unique<AppConfig>(this);
 	startMtp(config
 		? std::move(config)
@@ -104,6 +90,20 @@ void Account::start(std::unique_ptr<MTP::Config> config) {
 	_appConfig->start();
 	watchProxyChanges();
 	watchSessionChanges();
+}
+
+std::unique_ptr<Tdb::Account> Account::createTdb(bool testMode) {
+	return std::make_unique<Tdb::Account>(Tdb::AccountConfig{
+		.apiId = ApiId,
+		.apiHash = ApiHash,
+		.systemLanguageCode = Lang::GetInstance().systemLangCode(),
+		.deviceModel = Platform::DeviceModelPretty(),
+		.systemVersion = Platform::SystemVersionPretty(),
+		.applicationVersion = QString::fromLatin1(AppVersionStr),
+		.databaseDirectory = _local->libDatabasePath(),
+		.filesDirectory = _local->libFilesPath(),
+		.testDc = testMode,
+	});
 }
 
 void Account::prepareToStartAdded(
@@ -151,6 +151,7 @@ uint64 Account::willHaveSessionUniqueId(MTP::Config *config) const {
 		| (config && config->isTestMode() ? 0x0100'0000'0000'0000ULL : 0ULL);
 }
 
+#if 0 // #TODO legacy
 void Account::createSession(
 		const MTPUser &user,
 		std::unique_ptr<SessionSettings> settings) {
@@ -160,15 +161,19 @@ void Account::createSession(
 		0,
 		settings ? std::move(settings) : std::make_unique<SessionSettings>());
 }
+#endif
 
 void Account::createSession(
 		UserId id,
 		QByteArray serialized,
 		int streamVersion,
 		std::unique_ptr<SessionSettings> settings) {
+	using namespace Tdb;
 	DEBUG_LOG(("sessionUserSerialized.size: %1").arg(serialized.size()));
 	QDataStream peekStream(serialized);
 	const auto phone = Serialize::peekUserPhone(streamVersion, peekStream);
+
+#if 0 // #TODO legacy
 	const auto flags = MTPDuser::Flag::f_self | (phone.isEmpty()
 		? MTPDuser::Flag()
 		: MTPDuser::Flag::f_phone);
@@ -197,14 +202,67 @@ void Account::createSession(
 		serialized,
 		streamVersion,
 		std::move(settings));
+#endif
+
+	createSession(
+		tl_user(
+			tl_int53(base::take(_sessionUserId).bare),
+			tl_string(), // first_name
+			tl_string(), // last_name
+			tl_string(), // username
+			tl_string(phone),
+			tl_userStatusEmpty(),
+			null,
+			tl_bool(true), // is_contact #TODO tdlib check
+			tl_bool(true), // is_mutual_contact #TODO tdlib check
+			tl_bool(false), // is_verified
+			tl_bool(false), // is_support
+			tl_string(), // restriction_reason
+			tl_bool(false), // is_scam
+			tl_bool(false), // is_fake,
+			tl_bool(true), // have_access
+			tl_userTypeRegular(),
+			tl_string()), // language_code
+		serialized,
+		streamVersion,
+		std::move(settings));
 }
 
+void Account::createSession(
+		const Tdb::TLuser &user,
+		std::unique_ptr<SessionSettings> settings) {
+	createSession(
+		user,
+		QByteArray(),
+		0,
+		settings ? std::move(settings) : std::make_unique<SessionSettings>());
+}
+
+#if 0 // #TODO legacy
 void Account::createSession(
 		const MTPUser &user,
 		QByteArray serialized,
 		int streamVersion,
 		std::unique_ptr<SessionSettings> settings) {
 	Expects(_mtp != nullptr);
+	Expects(_session == nullptr);
+	Expects(_sessionValue.current() == nullptr);
+
+	_session = std::make_unique<Session>(this, user, std::move(settings));
+	if (!serialized.isEmpty()) {
+		local().readSelf(_session.get(), serialized, streamVersion);
+	}
+	_sessionValue = _session.get();
+
+	Ensures(_session != nullptr);
+}
+#endif
+
+void Account::createSession(
+		const Tdb::TLuser &user,
+		QByteArray serialized,
+		int streamVersion,
+		std::unique_ptr<SessionSettings> settings) {
 	Expects(_session == nullptr);
 	Expects(_sessionValue.current() == nullptr);
 
@@ -544,12 +602,20 @@ void Account::logOut() {
 		return;
 	}
 	_loggingOut = true;
+#if 0 // #TODO legacy
 	if (_mtp) {
 		_mtp->logout([=] { loggedOut(); });
 	} else {
 		// We log out because we've forgotten passcode.
 		loggedOut();
 	}
+#endif
+	_tdb->sender().request(
+		Tdb::TLlogOut()
+	).fail([=](const Tdb::Error &error) {
+		LOG(("Tdb Error: logOut - ").arg(error.message));
+		loggedOut();
+	}).send();
 }
 
 bool Account::loggingOut() const {

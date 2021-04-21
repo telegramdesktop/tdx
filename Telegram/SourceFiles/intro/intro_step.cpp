@@ -36,12 +36,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_chat_filters.h"
 #include "window/window_controller.h"
+#include "tdb/tdb_account.h"
 #include "styles/style_intro.h"
 #include "styles/style_window.h"
+
+#include "intro/intro_qr.h"
+#include "intro/intro_phone.h"
+#include "intro/intro_code.h"
+#include "intro/intro_password_check.h"
 
 namespace Intro {
 namespace details {
 namespace {
+
+using namespace Tdb;
 
 void PrepareSupportMode(not_null<Main::Session*> session) {
 	using ::Data::AutoDownload::Full;
@@ -101,6 +109,11 @@ Step::Step(
 	) | rpl::start_with_next([=](const TextWithEntities &text) {
 		_description->entity()->setMarkedText(text);
 		updateLabelsPosition();
+	}, lifetime());
+
+	account->tdb().updates(
+	) | rpl::start_with_next([=](const TLupdate &update) {
+		handleUpdate(update);
 	}, lifetime());
 }
 
@@ -166,6 +179,7 @@ void Step::finish(const MTPauth_Authorization &auth, QImage &&photo) {
 }
 
 void Step::finish(const MTPUser &user, QImage &&photo) {
+#if 0 // #TODO legacy
 	if (user.type() != mtpc_user
 		|| !user.c_user().is_self()
 		|| !user.c_user().vid().v) {
@@ -192,6 +206,42 @@ void Step::finish(const MTPUser &user, QImage &&photo) {
 		}
 	}
 
+	api().request(MTPmessages_GetDialogFilters(
+	)).done([=](const MTPVector<MTPDialogFilter> &result) {
+		createSession(user, photo, result.v);
+	}).fail([=](const MTP::Error &error) {
+		createSession(user, photo, QVector<MTPDialogFilter>());
+	}).send();
+#endif
+}
+
+void Step::finish(QImage &&photo) {
+	api().request(TLgetMe()).done([=](const TLuser &result) {
+		finish(result, photo);
+	}).fail([=] {
+		// #TODO tdlib errors
+	}).send();
+}
+
+void Step::finish(const TLuser &self, QImage photo) {
+	self.match([&](const TLDuser &data) {
+		// Check if such account is authorized already.
+		for (const auto &[_, existing] : Core::App().domain().accounts()) {
+			const auto raw = existing.get();
+			if (const auto session = raw->maybeSession()) {
+				if (raw->mtp().environment() == _account->mtp().environment()
+					&& UserId(data.vid()) == session->userId()) {
+					_account->logOut();
+					crl::on_main(raw, [=] {
+						Core::App().domain().activate(raw);
+					});
+					return;
+				}
+			}
+		}
+	});
+	createSession(self, photo, {});
+
 #if 0 // #TODO tdlib
 	api().request(MTPmessages_GetDialogFilters(
 	)).done([=](const MTPmessages_DialogFilters &result) {
@@ -202,6 +252,7 @@ void Step::finish(const MTPUser &user, QImage &&photo) {
 #endif
 }
 
+#if 0 // #TODO legacy
 void Step::createSession(
 		const MTPUser &user,
 		QImage photo,
@@ -243,6 +294,43 @@ void Step::createSession(
 		PrepareSupportMode(&session);
 	}
 	Local::sync();
+}
+#endif
+
+void Step::createSession(
+		const TLuser &self,
+		QImage photo,
+		const QVector<TLchatFilter> &filters) {
+	// Save the default language if we've suggested some other and user ignored it.
+	const auto currentId = Lang::Id();
+	const auto defaultId = Lang::DefaultLanguageId();
+	const auto suggested = Lang::CurrentCloudManager().suggestedLanguage();
+	if (currentId.isEmpty() && !suggested.isEmpty() && suggested != defaultId) {
+		Lang::GetInstance().switchToId(Lang::DefaultLanguage());
+		Local::writeLangPack();
+	}
+
+	auto settings = std::make_unique<Main::SessionSettings>();
+	settings->setDialogsFiltersEnabled(!filters.isEmpty());
+
+	const auto account = _account;
+	account->createSession(self, std::move(settings));
+
+	// "this" is already deleted here by creating the main widget.
+	account->local().writeMtpData();
+	auto &session = account->session();
+	//session.data().chatsFilters().setPreloaded(filters); // #TODO tdlib
+	if (!filters.isEmpty()) {
+		session.saveSettingsDelayed();
+	}
+	if (!photo.isNull()) {
+		session.api().peerPhoto().upload(
+			session.user(),
+			{ std::move(photo) });
+	}
+	if (session.supportMode()) {
+		PrepareSupportMode(&session);
+	}
 }
 
 void Step::paintEvent(QPaintEvent *e) {
@@ -471,6 +559,41 @@ void Step::paintCover(QPainter &p, int top) {
 	//	planeTop += top;
 	}
 	st::introCoverIcon.paint(p, planeLeft, planeTop, width());
+}
+
+void Step::handleUpdate(const TLupdate &update) {
+	update.match([&](const TLDupdateAuthorizationState &data) {
+		handleAuthorizationState(data.vauthorization_state());
+	}, [](const auto &) {
+	});
+}
+
+bool Step::handleAuthorizationState(const TLauthorizationState &state) {
+	return state.match([&](const TLDauthorizationStateWaitPhoneNumber &data) {
+		goNext<PhoneWidget>();
+		return true;
+	}, [&](const TLDauthorizationStateWaitCode &data) {
+		goNext<CodeWidget>();
+		return true;
+	}, [&](const TLDauthorizationStateWaitOtherDeviceConfirmation &data) {
+		goNext<QrWidget>();
+		return true;
+	}, [&](const TLDauthorizationStateWaitRegistration &data) {
+		goNext<SignupWidget>();
+		return true;
+	}, [&](const TLDauthorizationStateWaitPassword &data) {
+		getData()->pwdState.hasRecovery = tl_is_true(
+			data.vhas_recovery_email_address());
+		getData()->pwdState.hint = data.vpassword_hint().v;
+		//getData()->pwdState.notEmptyPassport = data.is_has_secure_values(); // #TODO tdlib
+		goNext<PasswordCheckWidget>();
+		return true;
+	}, [&](const TLDauthorizationStateReady &data) {
+		finish();
+		return true;
+	}, [&](const auto &) {
+		return false;
+	});
 }
 
 int Step::contentLeft() const {

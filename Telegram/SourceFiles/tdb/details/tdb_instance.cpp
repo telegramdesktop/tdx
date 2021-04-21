@@ -7,9 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "tdb/details/tdb_instance.h"
 
+#include "base/debug_log.h"
+
 #include <QtCore/QMutex>
+#include <QtCore/QDir>
+#include <thread>
 #include <crl/crl_semaphore.h>
-#include <td/actor/actor.h>
 #include <td/telegram/Client.h>
 
 namespace Tdb::details {
@@ -56,7 +59,6 @@ private:
 	void loop();
 
 	const not_null<ClientManager*> _manager;
-	std::jthread _thread;
 	base::flat_map<ClientId, not_null<Impl*>> _clients;
 
 	QMutex _mutex;
@@ -65,6 +67,8 @@ private:
 	std::atomic<uint32> _requestIdCounter = 0;
 	std::atomic<ClientId> _closingId = 0;
 	crl::semaphore _closing;
+
+	std::jthread _thread;
 
 };
 
@@ -305,6 +309,11 @@ rpl::producer<TLupdate> Instance::Impl::updates() const {
 }
 
 void Instance::Impl::sendTdlibParameters(InstanceConfig &&config) {
+	const auto fail = [=](Error error) {
+		LOG(("Critical Error: setTdlibParameters - %1").arg(error.message));
+	};
+	QDir().mkpath(config.databaseDirectory);
+	QDir().mkpath(config.filesDirectory);
 	send(
 		allocateRequestId(),
 		TLsetTdlibParameters(
@@ -325,7 +334,7 @@ void Instance::Impl::sendTdlibParameters(InstanceConfig &&config) {
 				tl_bool(true), // enable_storage_optimizer
 				tl_bool(false))), // ignore_file_names
 		nullptr,
-		nullptr);
+		fail);
 }
 
 Instance::Instance(InstanceConfig &&config)
@@ -354,6 +363,16 @@ void Instance::cancel(RequestId requestId) {
 
 rpl::producer<TLupdate> Instance::updates() const {
 	return _impl->updates();
+}
+
+void ExecuteExternal(
+		ExternalGenerator &&request,
+		ExternalCallback &&callback) {
+	const auto result = ClientManager::execute(
+		api::object_ptr<api::Function>(request()));
+	if (auto handler = callback ? callback(result.get()) : nullptr) {
+		handler();
+	}
 }
 
 } // namespace Tdb::details

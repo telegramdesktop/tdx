@@ -82,6 +82,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Data {
 namespace {
 
+using namespace Tdb;
 using ViewElement = HistoryView::Element;
 
 // s: box 100x100
@@ -1060,6 +1061,92 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 	} else if (!result->isLoaded()) {
 		result->setLoadedStatus(PeerData::LoadedStatus::Normal);
 	}
+	if (flags) {
+		session().changes().peerUpdated(result, flags);
+	}
+	return result;
+}
+
+not_null<UserData*> Session::processUser(const TLuser &user) {
+	const auto &data = user.match([](
+			const auto &data) -> const TLDuser& {
+		return data;
+	});
+	const auto result = this->user(data.vid().v);
+	auto minimal = false;
+
+	using UpdateFlag = PeerUpdate::Flag;
+	auto flags = UpdateFlag::None | UpdateFlag::None;
+
+	const auto canShareThisContact = result->canShareThisContactFast();
+
+	const auto firstName = data.vtype().match([](
+			const TLDuserTypeDeleted &) {
+		return tr::lng_deleted(tr::now);
+	}, [&](const auto &) {
+		return TextUtilities::SingleLine(data.vfirst_name().v);
+	});
+	const auto lastName = TextUtilities::SingleLine(data.vlast_name().v);
+	const auto userName = data.vusername().v;
+	const auto phone = data.vphone_number().v;
+	const auto nameChanged = (result->firstName != firstName)
+		|| (result->lastName != lastName);
+
+	const auto phoneChanged = (result->phone() != data.vphone_number().v);
+	if (phoneChanged) {
+		result->setPhone(data.vphone_number().v);
+		flags |= UpdateFlag::PhoneNumber;
+	}
+	const auto isSelf = (UserId(data.vid().v) == session().userId());
+	const auto showPhone = !result->isServiceUser()
+		&& !tl_is_true(data.vis_support())
+		&& !isSelf
+		&& !tl_is_true(data.vis_contact())
+		&& !tl_is_true(data.vis_mutual_contact());
+	const auto showPhoneChanged = !result->isServiceUser()
+		&& !isSelf
+		&& ((showPhone && result->isContact())
+			|| (!showPhone
+				&& !result->isContact()
+				&& !result->phone().isEmpty()));
+	const auto phoneName = (showPhoneChanged || phoneChanged || nameChanged)
+		? ((showPhone && !phone.isEmpty())
+			? Ui::FormatPhone(phone)
+			: QString())
+		: result->nameOrPhone;
+	result->setName(firstName, lastName, phoneName, userName);
+
+	result->setPhoto(MTP_userProfilePhotoEmpty()); // #TODO tdlib
+	result->setUnavailableReasons({}); // #TODO tdlib
+	//result->setFlags(MTPDuser_ClientFlag::f_inaccessible | 0);
+	//result->setFlags(MTPDuser::Flag::f_deleted);
+	result->setBotInfoVersion(-1); // #TODO tdlib
+	result->setIsContact(tl_is_true(data.vis_contact()));
+	if (canShareThisContact != result->canShareThisContactFast()) {
+		flags |= UpdateFlag::CanShareContact;
+	}
+
+	if (minimal) {
+		if (!result->isMinimalLoaded()) {
+			result->setLoadedStatus(PeerData::LoadedStatus::Minimal);
+		}
+	} else if (!result->isFullLoaded()
+		&& (!result->isSelf() || !result->phone().isEmpty())) {
+		result->setLoadedStatus(PeerData::LoadedStatus::Full);
+	}
+
+	//data.vstatus() // #TODO tdlib
+	//if (status && !minimal) {
+	//	const auto oldOnlineTill = result->onlineTill;
+	//	const auto newOnlineTill = ApiWrap::OnlineTillFromStatus(
+	//		*status,
+	//		oldOnlineTill);
+	//	if (oldOnlineTill != newOnlineTill) {
+	//		result->onlineTill = newOnlineTill;
+	//		flags |= UpdateFlag::OnlineStatus;
+	//	}
+	//}
+
 	if (flags) {
 		session().changes().peerUpdated(result, flags);
 	}

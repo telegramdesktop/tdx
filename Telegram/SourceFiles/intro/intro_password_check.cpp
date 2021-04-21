@@ -24,6 +24,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Intro {
 namespace details {
+namespace {
+
+using namespace Tdb;
+
+} // namespace
 
 PasswordCheckWidget::PasswordCheckWidget(
 	QWidget *parent,
@@ -400,11 +405,30 @@ void PasswordCheckWidget::submit() {
 	} else {
 		hideError();
 
-		const auto password = _pwdField->getLastText().toUtf8();
+		_sentRequest = true;
+		const auto password = _pwdField->getLastText();
+		api().request(TLcheckAuthenticationPassword(
+			tl_string(password)
+		)).fail([=](const Error &error) {
+			passwordSubmitFail(error);
+		}).send();
+#if 0 // #TODO legacy
 		_passwordHash = Core::ComputeCloudPasswordHash(
 			_passwordState.mtp.request.algo,
 			bytes::make_span(password));
 		checkPasswordHash();
+#endif
+	}
+}
+
+void PasswordCheckWidget::passwordSubmitFail(const Error &error) {
+	_sentRequest = false;
+	if (error.message.contains(u"PASSWORD_HASH_INVALID")) {
+		showError(tr::lng_signin_bad_password());
+		_pwdField->selectAll();
+		_pwdField->showError();
+	} else {
+		showError(rpl::single(error.message));
 	}
 }
 

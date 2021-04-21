@@ -49,8 +49,14 @@ private:
 	void checkRequest();
 	void countryChanged();
 
+#if 0 // #TODO legacy
 	void phoneSubmitDone(const MTPauth_SentCode &result);
 	void phoneSubmitFail(const MTP::Error &error);
+#endif
+
+	bool handleAuthorizationState(
+		const Tdb::TLauthorizationState &state) override;
+	void phoneSetFail(const Tdb::Error &error);
 
 	QString fullNumber() const;
 	void stopCheck();
