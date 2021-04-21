@@ -50,7 +50,9 @@ struct Data {
 
 	QString country;
 	QString phone;
+#if 0 // #TODO legacy
 	QByteArray phoneHash;
+#endif
 
 	CallStatus callStatus = CallStatus::Disabled;
 	int callTimeout = 0;
@@ -65,6 +67,7 @@ struct Data {
 
 	rpl::event_stream<> updated;
 
+	QString qrLink;
 };
 
 enum class StackAction {
@@ -117,8 +120,10 @@ private:
 	void createLanguageLink();
 	void checkUpdateStatus();
 	void setupNextButton();
+#if 0 // #TODO legacy
 	void handleUpdates(const MTPUpdates &updates);
 	void handleUpdate(const MTPUpdate &update);
+#endif
 	void backRequested();
 
 	void updateControlsGeometry();
@@ -150,10 +155,10 @@ private:
 		details::Animate animate);
 	void appendStep(details::Step *step);
 
-#if 0 // #TODO legacy
 	void getNearestDC();
-#endif
 	void showTerms(Fn<void()> callback);
+
+	void handleUpdate(const Tdb::TLupdate &update);
 
 	// FloatDelegate
 	[[nodiscard]] auto floatPlayerDelegate()
@@ -177,9 +182,7 @@ private:
 
 	const not_null<Main::Account*> _account;
 	Tdb::Sender _api;
-#if 0 // #TODO legacy
-	mtpRequestId _nearestDcRequestId = 0;
-#endif
+	Tdb::RequestId _nearestDcRequestId = 0;
 
 	std::unique_ptr<Window::SlideAnimation> _showAnimation;
 

@@ -186,9 +186,9 @@ QrWidget::QrWidget(
 	setDescriptionText(rpl::single(QString()));
 	setErrorCentered(true);
 
-#if 0 // #TODO legacy
 	cancelNearestDcRequest();
 
+#if 0 // #TODO legacy
 	account->mtpUpdates(
 	) | rpl::start_with_next([=](const MTPUpdates &updates) {
 		checkForTokenUpdate(updates);
@@ -196,11 +196,15 @@ QrWidget::QrWidget(
 #endif
 
 	setupControls();
+#if 0 // #TODO legacy
 	account->mtp().mainDcIdValue(
 	) | rpl::start_with_next([=] {
 		api().request(base::take(_requestId)).cancel();
 		refreshCode();
 	}, lifetime());
+#endif
+
+	requestCode();
 }
 
 int QrWidget::errorTop() const {
@@ -234,16 +238,19 @@ void QrWidget::checkForTokenUpdate(const MTPUpdate &update) {
 }
 #endif
 
-bool QrWidget::handleAuthorizationState(const TLauthorizationState &state) {
-	state.match([&](
-			const TLDauthorizationStateWaitOtherDeviceConfirmation &data) {
+void QrWidget::handleAuthorizationState(const TLauthorizationState &state) {
+	state.match([&](const TLDauthorizationStateWaitPhoneNumber &data) {
+		api().request(TLrequestQrCodeAuthentication(
+			tl_vector<TLint53>(0)
+		)).fail([=](const Error &error) {
+			showTokenError(error);
+		}).send();
+	}, [&](const TLDauthorizationStateWaitOtherDeviceConfirmation &data) {
+		getData()->qrLink = data.vlink().v;
 		_qrLinks.fire_copy(data.vlink().v);
 	}, [&](const auto &) {
-		if (!Step::handleAuthorizationState(state)) {
-			goBack();
-		}
+		Step::handleAuthorizationState(state);
 	});
-	return true;
 }
 
 void QrWidget::submit() {
@@ -333,20 +340,15 @@ void QrWidget::setupControls() {
 	skip->setClickedCallback([=] { submit(); });
 }
 
-void QrWidget::refreshCode() {
+void QrWidget::requestCode() {
+	if (!getData()->qrLink.isEmpty()) {
+		_qrLinks.fire_copy(getData()->qrLink);
+		return;
+	}
 	api().request(
 		TLgetAuthorizationState()
 	).done([=](const TLauthorizationState &result) {
-		result.match(
-		[&](const TLDauthorizationStateWaitPhoneNumber &data) {
-			api().request(TLrequestQrCodeAuthentication(
-				tl_vector<TLint53>(0)
-			)).fail([=](const Error &error) {
-				showTokenError(error);
-			}).send();
-		}, [&](const auto &) {
-			handleAuthorizationState(result);
-		});
+		handleAuthorizationState(result);
 	}).fail([=](const Error &error) {
 		showTokenError(error);
 	}).send();
