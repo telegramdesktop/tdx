@@ -28,6 +28,10 @@ public:
 	void submit() override;
 	rpl::producer<QString> nextButtonText() const override;
 
+private:
+	bool handleAuthorizationState(
+		const Tdb::TLauthorizationState &state) override;
+
 };
 
 } // namespace details
