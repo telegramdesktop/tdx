@@ -47,13 +47,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_intro.h"
 #include "base/qt/qt_common_adapters.h"
 
-#include "tdb/tdb_instance.h"
-#include "ui/toast/toast.h"
-
 namespace Intro {
 namespace {
 
 using namespace ::Intro::details;
+using namespace Tdb;
 
 [[nodiscard]] QString ComputeNewAccountCountry() {
 	if (const auto parent
@@ -69,8 +67,6 @@ using namespace ::Intro::details;
 	return Platform::SystemCountry();
 }
 
-std::unique_ptr<Tdb::Instance> Instance;
-
 } // namespace
 
 Widget::Widget(
@@ -80,6 +76,7 @@ Widget::Widget(
 	EnterPoint point)
 : RpWidget(parent)
 , _account(account)
+, _api(account->sender())
 , _data(details::Data{ .controller = controller })
 , _nextStyle(&st::introNextButton)
 , _back(this, object_ptr<Ui::IconButton>(this, st::introBackButton))
@@ -98,31 +95,19 @@ Widget::Widget(
 		rpl::single(true))) {
 	controller->setDefaultFloatPlayerDelegate(floatPlayerDelegate());
 
-	Instance = std::make_unique<Tdb::Instance>(Tdb::InstanceConfig{
-		.apiId = ApiId,
-		.apiHash = ApiHash,
-		.systemLanguageCode = Lang::GetInstance().systemLangCode(),
-		.deviceModel = Platform::DeviceModelPretty(),
-		.systemVersion = Platform::SystemVersionPretty(),
-		.applicationVersion = QString::fromLatin1(AppVersionStr),
-	});
-	Instance->send(Tdb::TLtestNetwork(), [](const Tdb::TLok &result) {
-		Ui::Toast::Show(u"TDLib Network OK!"_q);
-	}, [](const Tdb::Error &error) {
-		Ui::Toast::Show(u"TDLib Network Fail: "_q + error.message);
-	});
-
 	getData()->country = ComputeNewAccountCountry();
-
+#if 0 // #TODO legacy
 	_account->mtpValue(
 	) | rpl::start_with_next([=](not_null<MTP::Instance*> instance) {
 		_api.emplace(instance);
 		crl::on_main(this, [=] { createLanguageLink(); });
 	}, lifetime());
-
+#endif
 	switch (point) {
 	case EnterPoint::Start:
+#if 0 // #TODO legacy
 		getNearestDC();
+#endif
 		appendStep(new StartWidget(this, _account, getData()));
 		break;
 	case EnterPoint::Phone:
@@ -294,17 +279,18 @@ void Widget::createLanguageLink() {
 		createLink(
 			Lang::GetOriginalValue(tr::lng_switch_to_this.base),
 			defaultId);
-	} else if (!suggested.isEmpty() && suggested != currentId && _api) {
-		_api->request(MTPlangpack_GetStrings(
-			MTP_string(Lang::CloudLangPackName()),
-			MTP_string(suggested),
-			MTP_vector<MTPstring>(1, MTP_string("lng_switch_to_this"))
-		)).done([=](const MTPVector<MTPLangPackString> &result) {
+	} else if (!suggested.isEmpty() && suggested != currentId/* && _api*/) {
+		_api.request(TLgetLanguagePackStrings(
+			tl_string(Lang::CloudLangPackName()),
+			tl_vector<TLstring>(1, tl_string("lng_switch_to_this"))
+		)).done([=](const TLlanguagePackStrings &result) {
+#if 0 // #TODO tdlib lang
 			const auto strings = Lang::Instance::ParseStrings(result);
 			const auto i = strings.find(tr::lng_switch_to_this.base);
 			if (i != strings.end()) {
 				createLink(i->second, suggested);
 			}
+#endif
 		}).send();
 	}
 }
@@ -466,11 +452,13 @@ void Widget::appendStep(Step *step) {
 	step->setShowTermsCallback([=] {
 		showTerms();
 	});
+#if 0 // #TODO legacy
 	step->setCancelNearestDcCallback([=] {
 		if (_api) {
 			_api->request(base::take(_nearestDcRequestId)).cancel();
 		}
 	});
+#endif
 	step->setAcceptTermsCallback([=](Fn<void()> callback) {
 		acceptTerms(callback);
 	});
@@ -523,7 +511,7 @@ void Widget::acceptTerms(Fn<void()> callback) {
 }
 
 void Widget::resetAccount() {
-	if (_resetRequest || !_api) {
+	if (_resetRequest/* || !_api*/) {
 		return;
 	}
 
@@ -531,10 +519,8 @@ void Widget::resetAccount() {
 		if (_resetRequest) {
 			return;
 		}
-		_resetRequest = _api->request(MTPaccount_DeleteAccount(
-			MTP_flags(0),
-			MTP_string("Forgot password"),
-			MTPInputCheckPasswordSRP()
+		_resetRequest = _api.request(TLdeleteAccount(
+			tl_string("Forgot password")
 		)).done([=] {
 			_resetRequest = 0;
 
@@ -550,14 +536,14 @@ void Widget::resetAccount() {
 					StackAction::Replace,
 					Animate::Forward);
 			}
-		}).fail([=](const MTP::Error &error) {
+		}).fail([=](const Error &error) {
 			_resetRequest = 0;
 
-			const auto &type = error.type();
-			if (type.startsWith(u"2FA_CONFIRM_WAIT_"_q)) {
+			const auto &message = error.message;
+			if (message.startsWith(qstr("2FA_CONFIRM_WAIT_"))) { // #TODO tdlib errors
 				const auto seconds = base::StringViewMid(
-					type,
-					u"2FA_CONFIRM_WAIT_"_q.size()).toInt();
+					message,
+					qstr("2FA_CONFIRM_WAIT_").size()).toInt();
 				const auto days = (seconds + 59) / 86400;
 				const auto hours = ((seconds + 59) % 86400) / 3600;
 				const auto minutes = ((seconds + 59) % 3600) / 60;
@@ -597,7 +583,7 @@ void Widget::resetAccount() {
 					Ui::FormatPhone(getData()->phone),
 					lt_when,
 					when)));
-			} else if (type == u"2FA_RECENT_CONFIRM"_q) {
+			} else if (type == u"2FA_RECENT_CONFIRM"_q) { // #TODO tdlib errors
 				Ui::show(Ui::MakeInformBox(
 					tr::lng_signin_reset_cancelled()));
 			} else {
@@ -615,6 +601,7 @@ void Widget::resetAccount() {
 	}));
 }
 
+#if 0 // #TODO legacy
 void Widget::getNearestDC() {
 	if (!_api) {
 		return;
@@ -635,6 +622,7 @@ void Widget::getNearestDC() {
 		}
 	}).send();
 }
+#endif
 
 void Widget::showTerms(Fn<void()> callback) {
 	if (getData()->termsLock.text.text.isEmpty()) {
@@ -876,7 +864,6 @@ void Widget::backRequested() {
 }
 
 Widget::~Widget() {
-	Instance = nullptr;
 	for (auto step : base::take(_stepHistory)) {
 		delete step;
 	}

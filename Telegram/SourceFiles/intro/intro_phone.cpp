@@ -170,6 +170,7 @@ void PhoneWidget::submit() {
 		return;
 	}
 
+#if 0 // #TODO tdlib
 	cancelNearestDcRequest();
 
 	// Check if such account is authorized already.
@@ -207,6 +208,7 @@ void PhoneWidget::submit() {
 	}).fail([=](const MTP::Error &error) {
 		phoneSubmitFail(error);
 	}).handleFloodErrors().send();
+#endif
 }
 
 void PhoneWidget::stopCheck() {
@@ -214,6 +216,7 @@ void PhoneWidget::stopCheck() {
 }
 
 void PhoneWidget::checkRequest() {
+#if 0 // #TODO legacy
 	auto status = api().instance().state(_sentRequest);
 	if (status < 0) {
 		auto leftms = -status;
@@ -224,6 +227,7 @@ void PhoneWidget::checkRequest() {
 	if (!_sentRequest && status == MTP::RequestSent) {
 		stopCheck();
 	}
+#endif
 }
 
 void PhoneWidget::phoneSubmitDone(const MTPauth_SentCode &result) {

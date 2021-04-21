@@ -149,7 +149,9 @@ private:
 		details::Animate animate);
 	void appendStep(details::Step *step);
 
+#if 0 // #TODO legacy
 	void getNearestDC();
+#endif
 	void showTerms(Fn<void()> callback);
 
 	// FloatDelegate
@@ -173,8 +175,13 @@ private:
 	bool floatPlayerHandleWheelEvent(QEvent *e) override;
 
 	const not_null<Main::Account*> _account;
+#if 0 // mtp
 	std::optional<MTP::Sender> _api;
+#endif
+	Tdb::Sender _api;
 	mtpRequestId _nearestDcRequestId = 0;
+
+	details::Data _data;
 
 	std::unique_ptr<Window::SlideAnimation> _showAnimation;
 

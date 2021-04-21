@@ -106,9 +106,9 @@ Step::Step(
 
 Step::~Step() = default;
 
-MTP::Sender &Step::api() const {
+Tdb::Sender &Step::api() const {
 	if (!_api) {
-		_api.emplace(&_account->mtp());
+		_api.emplace(_account->sender());
 	}
 	return *_api;
 }
@@ -192,12 +192,14 @@ void Step::finish(const MTPUser &user, QImage &&photo) {
 		}
 	}
 
+#if 0 // #TODO tdlib
 	api().request(MTPmessages_GetDialogFilters(
 	)).done([=](const MTPmessages_DialogFilters &result) {
 		createSession(user, photo, result.data().vfilters().v);
 	}).fail([=] {
 		createSession(user, photo, QVector<MTPDialogFilter>());
 	}).send();
+#endif
 }
 
 void Step::createSession(

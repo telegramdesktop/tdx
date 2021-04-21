@@ -37,19 +37,26 @@ private:
 	void sendCheckPasswordRequest();
 	void setupControls();
 	void refreshCode();
+#if 0 // #TODO legacy
 	void checkForTokenUpdate(const MTPUpdates &updates);
 	void checkForTokenUpdate(const MTPUpdate &update);
 	void handleTokenResult(const MTPauth_LoginToken &result);
-	void showTokenError(const MTP::Error &error);
+#endif
+	void showTokenError(const Tdb::Error &error);
+#if 0 // #TODO legacy
 	void importTo(MTP::DcId dcId, const QByteArray &token);
+#endif
 	void showToken(const QByteArray &token);
 	void done(const MTPauth_Authorization &authorization);
 
-	rpl::event_stream<QByteArray> _qrCodes;
-	base::Timer _refreshTimer;
-	mtpRequestId _requestId = 0;
-	bool _forceRefresh = false;
+	void handleUpdate(const Tdb::TLupdate &update);
 
+	rpl::event_stream<QString> _qrLinks;
+#if 0 // #TODO legacy
+	base::Timer _refreshTimer;
+	Tdb::RequestId _requestId = 0;
+	bool _forceRefresh = false;
+#endif
 };
 
 [[nodiscard]] QImage TelegramLogoImage();

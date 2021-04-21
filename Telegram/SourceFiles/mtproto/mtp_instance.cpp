@@ -2092,18 +2092,18 @@ void Instance::sendRequest(
 		crl::time msCanWait,
 		bool needsLayer,
 		mtpRequestId afterRequestId) {
-	return _private->sendRequest(
-		requestId,
-		std::move(request),
-		std::move(callbacks),
-		shiftedDcId,
-		msCanWait,
-		needsLayer,
-		afterRequestId);
+	//return _private->sendRequest( // While migrating just ignore requests.
+	//	requestId,
+	//	std::move(request),
+	//	std::move(callbacks),
+	//	shiftedDcId,
+	//	msCanWait,
+	//	needsLayer,
+	//	afterRequestId);
 }
 
 void Instance::sendAnything(ShiftedDcId shiftedDcId, crl::time msCanWait) {
-	_private->getSession(shiftedDcId)->sendAnything(msCanWait);
+	//_private->getSession(shiftedDcId)->sendAnything(msCanWait);
 }
 
 rpl::lifetime &Instance::lifetime() {
