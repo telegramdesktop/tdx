@@ -186,6 +186,7 @@ void PasswordCheckWidget::checkPasswordHash() {
 
 void PasswordCheckWidget::requestPasswordData() {
 	api().request(base::take(_sentRequest)).cancel();
+#if 0 // #TODO tdlib
 	_sentRequest = api().request(
 		MTPaccount_GetPassword()
 	).done([=](const MTPaccount_Password &result) {
@@ -196,6 +197,7 @@ void PasswordCheckWidget::requestPasswordData() {
 			passwordChecked();
 		});
 	}).send();
+#endif
 }
 
 void PasswordCheckWidget::passwordChecked() {
@@ -206,6 +208,7 @@ void PasswordCheckWidget::passwordChecked() {
 		return serverError();
 	}
 	_passwordState.mtp.request.id = 0;
+#if 0 // #TODO tdlib
 	_sentRequest = api().request(
 		MTPauth_CheckPassword(check.result)
 	).done([=](const MTPauth_Authorization &result) {
@@ -213,6 +216,7 @@ void PasswordCheckWidget::passwordChecked() {
 	}).fail([=](const MTP::Error &error) {
 		pwdSubmitFail(error);
 	}).handleFloodErrors().send();
+#endif
 }
 
 void PasswordCheckWidget::serverError() {
@@ -222,6 +226,7 @@ void PasswordCheckWidget::serverError() {
 void PasswordCheckWidget::codeSubmitDone(
 		const QString &code,
 		const MTPBool &result) {
+#if 0 // #TODO tdlib
 	auto fields = PasscodeBox::CloudFields::From(_passwordState);
 	fields.fromRecoveryCode = code;
 	fields.hasRecovery = false;
@@ -239,6 +244,7 @@ void PasswordCheckWidget::codeSubmitDone(
 	}, lifetime());
 
 	*boxShared = Ui::show(std::move(box));
+#endif
 }
 
 void PasswordCheckWidget::codeSubmitFail(const MTP::Error &error) {
@@ -302,6 +308,7 @@ void PasswordCheckWidget::toRecover() {
 		_codeField->setFocus();
 		updateDescriptionText();
 		if (_emailPattern.isEmpty()) {
+#if 0 // #TODO tdlib
 			api().request(
 				MTPauth_RequestPasswordRecovery()
 			).done([=](const MTPauth_PasswordRecovery &result) {
@@ -309,6 +316,7 @@ void PasswordCheckWidget::toRecover() {
 			}).fail([=](const MTP::Error &error) {
 				recoverStartFail(error);
 			}).send();
+#endif
 		}
 	} else {
 		const auto box = Ui::show(
@@ -364,6 +372,7 @@ void PasswordCheckWidget::submit() {
 			return;
 		}
 		const auto send = crl::guard(this, [=] {
+#if 0 // #TODO tdlib
 			_sentRequest = api().request(MTPauth_CheckRecoveryPassword(
 				MTP_string(code)
 			)).done([=](const MTPBool &result) {
@@ -371,6 +380,7 @@ void PasswordCheckWidget::submit() {
 			}).fail([=](const MTP::Error &error) {
 				codeSubmitFail(error);
 			}).handleFloodErrors().send();
+#endif
 		});
 
 		if (_passwordState.notEmptyPassport) {

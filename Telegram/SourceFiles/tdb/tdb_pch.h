@@ -16,4 +16,5 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flat_map.h"
 #include "base/flat_set.h"
 
-#include "tdb_tl-scheme.h"
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/details/tdb_instance.h"
