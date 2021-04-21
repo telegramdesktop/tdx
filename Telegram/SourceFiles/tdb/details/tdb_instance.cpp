@@ -5,13 +5,14 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "tdb/tdb_instance.h"
+#include "tdb/details/tdb_instance.h"
 
 #include <QtCore/QMutex>
 #include <crl/crl_semaphore.h>
 #include <td/actor/actor.h>
 #include <td/telegram/Client.h>
 
+namespace Tdb::details {
 namespace {
 
 using namespace ::td;
@@ -20,18 +21,12 @@ namespace api = td_api;
 
 } // namespace
 
-namespace Tdb::details {
-
 std::optional<Error> ParseError(ExternalResponse response) {
 	if (response->get_id() != api::error::ID) {
 		return std::nullopt;
 	}
 	return Error(tl_from<TLerror>(response));
 }
-
-} // namespace Tdb::details
-
-namespace Tdb {
 
 class Instance::Manager final
 	: public std::enable_shared_from_this<Manager> {
@@ -78,7 +73,9 @@ public:
 	explicit Impl(InstanceConfig &&config);
 	~Impl();
 
-	RequestId sendPrepared(
+	[[nodiscard]] RequestId allocateRequestId() const;
+	void sendPrepared(
+		RequestId requestId,
 		ExternalGenerator &&request,
 		ExternalCallback &&callback);
 	void cancel(RequestId requestId);
@@ -87,25 +84,30 @@ public:
 	template <
 		typename Request,
 		typename = std::enable_if_t<!std::is_reference_v<Request>>>
-	RequestId send(
+	void send(
+			RequestId requestId,
 			Request &&request,
 			FnMut<void(const typename Request::ResponseType &)> &&done,
 			FnMut<void(const Error &)> &&fail) {
 		return sendPrepared(
+			requestId,
 			tl_to_generator(std::move(request)),
-			details::PrepareCallback<typename Request::ResponseType>(
+			PrepareCallback<typename Request::ResponseType>(
 				std::move(done),
 				std::move(fail)));
 	}
 
-	void handleUpdate(const TLupdate &update);
+	void handleUpdate(TLupdate &&update);
+	[[nodiscard]] rpl::producer<TLupdate> updates() const;
 
 private:
 	void sendTdlibParameters(InstanceConfig &&config);
 
 	const std::shared_ptr<Manager> _manager;
 	ClientManager::ClientId _client;
+	QMutex _activeRequestsMutex;
 	base::flat_set<RequestId> _activeRequests;
+	rpl::event_stream<TLupdate> _updates;
 
 };
 
@@ -119,8 +121,6 @@ Instance::Manager::Manager(PrivateTag)
 std::shared_ptr<Instance::Manager> Instance::Manager::Instance() {
 	auto result = ManagerInstance.lock();
 	if (!result) {
-		ClientManager::execute(
-			td_api::make_object<td_api::setLogVerbosityLevel>(0));
 		ManagerInstance = result = std::make_shared<Manager>(PrivateTag{});
 	}
 	return result;
@@ -203,17 +203,17 @@ void Instance::Manager::loop() {
 			}
 		}
 		const auto clientId = response.client_id;
-		const auto requestId = response.request_id;
+		const auto requestId = RequestId(response.request_id);
 		const auto object = response.object.get();
 		if (!requestId) {
 			crl::on_main(weak_from_this(), [
 				this,
 				clientId,
 				update = tl_from<TLupdate>(object)
-			] {
+			]() mutable {
 				const auto i = _clients.find(clientId);
 				if (i != end(_clients)) {
-					i->second->handleUpdate(update);
+					i->second->handleUpdate(std::move(update));
 				}
 			});
 			continue;
@@ -251,11 +251,16 @@ Instance::Impl::~Impl() {
 	_manager->destroyClient(_client);
 }
 
-RequestId Instance::Impl::sendPrepared(
+RequestId Instance::Impl::allocateRequestId() const {
+	return _manager->allocateRequestId();
+}
+
+void Instance::Impl::sendPrepared(
+		RequestId requestId,
 		ExternalGenerator &&request,
 		ExternalCallback &&callback) {
-	const auto requestId = _manager->allocateRequestId();
 	if (callback) {
+		QMutexLocker lock(&_activeRequestsMutex);
 		_activeRequests.emplace(requestId);
 	}
 	crl::async([
@@ -271,37 +276,42 @@ RequestId Instance::Impl::sendPrepared(
 			std::move(request),
 			std::move(callback));
 	});
-	return requestId;
 }
 
 void Instance::Impl::cancel(RequestId requestId) {
+	QMutexLocker lock(&_activeRequestsMutex);
 	_activeRequests.remove(requestId);
 }
 
 bool Instance::Impl::shouldInvokeHandler(RequestId requestId) {
+	QMutexLocker lock(&_activeRequestsMutex);
 	return _activeRequests.remove(requestId);
 }
 
-void Instance::Impl::handleUpdate(const TLupdate &update) {
+void Instance::Impl::handleUpdate(TLupdate &&update) {
 	update.match([&](const TLDupdateAuthorizationState &data) {
 		data.vauthorization_state().match([](
 			const TLDauthorizationStateWaitTdlibParameters &) {
-		}, [&](const TLDauthorizationStateWaitEncryptionKey &data) {
-			send(TLcheckDatabaseEncryptionKey(tl_bytes()), nullptr, nullptr);
-		}, [](const auto &) {
-
+		}, [&](const auto &) {
+			_updates.fire(std::move(update));
 		});
-	}, [](const auto &) {
+	}, [&](const auto &) {
+		_updates.fire(std::move(update));
 	});
+}
+
+rpl::producer<TLupdate> Instance::Impl::updates() const {
+	return _updates.events();
 }
 
 void Instance::Impl::sendTdlibParameters(InstanceConfig &&config) {
 	send(
+		allocateRequestId(),
 		TLsetTdlibParameters(
 			tl_tdlibParameters(
-				tl_bool(false), // use_test_dc
-				tl_string(), // database_directory
-				tl_string(), // files_directory
+				tl_bool(config.testDc),
+				tl_string(config.databaseDirectory),
+				tl_string(config.filesDirectory), // files_directory
 				tl_bool(true), // use_file_database
 				tl_bool(true), // use_chat_info_database
 				tl_bool(true), // use_message_database
@@ -324,14 +334,26 @@ Instance::Instance(InstanceConfig &&config)
 
 Instance::~Instance() = default;
 
-RequestId Instance::sendPrepared(
+RequestId Instance::allocateRequestId() const {
+	return _impl->allocateRequestId();
+}
+
+void Instance::sendPrepared(
+		RequestId requestId,
 		ExternalGenerator &&request,
 		ExternalCallback &&callback) {
-	return _impl->sendPrepared(std::move(request), std::move(callback));
+	_impl->sendPrepared(
+		requestId,
+		std::move(request),
+		std::move(callback));
 }
 
 void Instance::cancel(RequestId requestId) {
 	_impl->cancel(requestId);
 }
 
-} // namespace Tdb
+rpl::producer<TLupdate> Instance::updates() const {
+	return _impl->updates();
+}
+
+} // namespace Tdb::details

@@ -22,6 +22,11 @@ class AuthKey;
 class Config;
 } // namespace MTP
 
+namespace Tdb {
+class Account;
+class Sender;
+} // namespace Tdb
+
 namespace Main {
 
 class Domain;
@@ -78,6 +83,13 @@ public:
 	[[nodiscard]] rpl::producer<Session*> sessionValue() const;
 	[[nodiscard]] rpl::producer<Session*> sessionChanges() const;
 
+	[[nodiscard]] Tdb::Account &tdb() const {
+		Expects(_tdb != nullptr);
+
+		return *_tdb;
+	}
+	[[nodiscard]] Tdb::Sender &sender() const;
+
 	[[nodiscard]] MTP::Instance &mtp() const {
 		return *_mtp;
 	}
@@ -107,8 +119,12 @@ public:
 	[[nodiscard]] QByteArray serializeMtpAuthorization() const;
 	void setMtpAuthorization(const QByteArray &serialized);
 
+#if 0 // #TODO legacy
 	void suggestMainDcId(MTP::DcId mainDcId);
+#endif
+#if 0 // #TODO tdlib
 	void destroyStaleAuthorizationKeys();
+#endif
 
 	void setHandleLoginCode(Fn<void(QString)> callback);
 	void handleLoginCode(const QString &code) const;
@@ -143,6 +159,7 @@ private:
 
 	const not_null<Domain*> _domain;
 	const std::unique_ptr<Storage::Account> _local;
+	std::unique_ptr<Tdb::Account> _tdb;
 
 	std::unique_ptr<MTP::Instance> _mtp;
 	rpl::variable<MTP::Instance*> _mtpValue;

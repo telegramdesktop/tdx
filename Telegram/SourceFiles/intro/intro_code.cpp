@@ -189,12 +189,14 @@ void CodeWidget::finished() {
 }
 
 void CodeWidget::cancelled() {
+#if 0 // #TODO tdlib
 	api().request(base::take(_sentRequest)).cancel();
 	api().request(base::take(_callRequestId)).cancel();
 	api().request(MTPauth_CancelCode(
 		MTP_string(getData()->phone),
 		MTP_bytes(getData()->phoneHash)
 	)).send();
+#endif
 }
 
 void CodeWidget::stopCheck() {
@@ -202,6 +204,7 @@ void CodeWidget::stopCheck() {
 }
 
 void CodeWidget::checkRequest() {
+#if 0 // #TODO legacy
 	auto status = api().instance().state(_sentRequest);
 	if (status < 0) {
 		auto leftms = -status;
@@ -215,6 +218,7 @@ void CodeWidget::checkRequest() {
 	if (!_sentRequest && status == MTP::RequestSent) {
 		stopCheck();
 	}
+#endif
 }
 
 void CodeWidget::codeSubmitDone(const MTPauth_Authorization &result) {
@@ -246,6 +250,7 @@ void CodeWidget::codeSubmitFail(const MTP::Error &error) {
 	} else if (err == u"PHONE_CODE_EMPTY"_q || err == u"PHONE_CODE_INVALID"_q) {
 		showCodeError(tr::lng_bad_code());
 	} else if (err == u"SESSION_PASSWORD_NEEDED"_q) {
+#if 0 // #TODO tdlib
 		_checkRequestTimer.callEach(1000);
 		_sentRequest = api().request(MTPaccount_GetPassword(
 		)).done([=](const MTPaccount_Password &result) {
@@ -253,6 +258,7 @@ void CodeWidget::codeSubmitFail(const MTP::Error &error) {
 		}).fail([=](const MTP::Error &error) {
 			codeSubmitFail(error);
 		}).handleFloodErrors().send();
+#endif
 	} else if (Logs::DebugEnabled()) { // internal server error
 		showCodeError(rpl::single(err + ": " + error.description()));
 	} else {
@@ -265,6 +271,7 @@ void CodeWidget::sendCall() {
 		if (--_callTimeout <= 0) {
 			_callStatus = CallStatus::Calling;
 			_callTimer.cancel();
+#if 0 // #TODO tdlib
 			_callRequestId = api().request(MTPauth_ResendCode(
 				MTP_flags(0),
 				MTP_string(getData()->phone),
@@ -273,6 +280,7 @@ void CodeWidget::sendCall() {
 			)).done([=](const MTPauth_SentCode &result) {
 				callDone(result);
 			}).send();
+#endif
 		} else {
 			getData()->callStatus = _callStatus;
 			getData()->callTimeout = _callTimeout;
@@ -344,6 +352,7 @@ void CodeWidget::submitCode(const QString &text) {
 	_sentCode = text;
 	_code->setEnabled(false);
 	getData()->pwdState = Core::CloudPasswordState();
+#if 0 // #TODO tdlib
 	_sentRequest = api().request(MTPauth_SignIn(
 		MTP_flags(MTPauth_SignIn::Flag::f_phone_code),
 		MTP_string(getData()->phone),
@@ -355,6 +364,7 @@ void CodeWidget::submitCode(const QString &text) {
 	}).fail([=](const MTP::Error &error) {
 		codeSubmitFail(error);
 	}).handleFloodErrors().send();
+#endif
 }
 
 rpl::producer<QString> CodeWidget::nextButtonText() const {
@@ -377,6 +387,7 @@ void CodeWidget::noTelegramCode() {
 	if (_noTelegramCodeRequestId) {
 		return;
 	}
+#if 0 // #TODO tdlib
 	_noTelegramCodeRequestId = api().request(MTPauth_ResendCode(
 		MTP_flags(0),
 		MTP_string(getData()->phone),
@@ -387,6 +398,7 @@ void CodeWidget::noTelegramCode() {
 	}).fail([=](const MTP::Error &error) {
 		noTelegramCodeFail(error);
 	}).handleFloodErrors().send();
+#endif
 }
 
 void CodeWidget::noTelegramCodeDone(const MTPauth_SentCode &result) {

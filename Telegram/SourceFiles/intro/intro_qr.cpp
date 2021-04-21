@@ -27,11 +27,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/update_checker.h"
 #include "base/unixtime.h"
 #include "qr/qr_generate.h"
+#include "tdb/tdb_account.h"
 #include "styles/style_intro.h"
 
 namespace Intro {
 namespace details {
 namespace {
+
+using namespace Tdb;
 
 [[nodiscard]] QImage TelegramQrExact(const Qr::Data &data, int pixel) {
 	return Qr::Generate(data, pixel, Qt::black);
@@ -59,7 +62,7 @@ namespace {
 
 [[nodiscard]] not_null<Ui::RpWidget*> PrepareQrWidget(
 		not_null<QWidget*> parent,
-		rpl::producer<QByteArray> codes) {
+		rpl::producer<QString> links) {
 	struct State {
 		explicit State(Fn<void()> callback)
 		: waiting(callback, st::defaultInfiniteRadialAnimation) {
@@ -72,9 +75,9 @@ namespace {
 		Ui::InfiniteRadialAnimation waiting;
 	};
 	auto qrs = std::move(
-		codes
-	) | rpl::map([](const QByteArray &code) {
-		return Qr::Encode(code, Qr::Redundancy::Quartile);
+		links
+	) | rpl::map([](const QString &link) {
+		return Qr::Encode(link, Qr::Redundancy::Quartile);
 	});
 	auto palettes = rpl::single(rpl::empty) | rpl::then(
 		style::PaletteChanged()
@@ -176,17 +179,26 @@ QrWidget::QrWidget(
 	QWidget *parent,
 	not_null<Main::Account*> account,
 	not_null<Data*> data)
-: Step(parent, account, data)
+: Step(parent, account, data) {
+#if 0 // #TODO legacy
 , _refreshTimer([=] { refreshCode(); }) {
+#endif
 	setTitleText(rpl::single(QString()));
 	setDescriptionText(rpl::single(QString()));
 	setErrorCentered(true);
 
+#if 0 // #TODO legacy
 	cancelNearestDcRequest();
 
 	account->mtpUpdates(
 	) | rpl::start_with_next([=](const MTPUpdates &updates) {
 		checkForTokenUpdate(updates);
+	}, lifetime());
+#endif
+
+	account->tdb().updates(
+	) | rpl::start_with_next([=](const TLupdate &update) {
+		handleUpdate(update);
 	}, lifetime());
 
 	setupControls();
@@ -201,6 +213,7 @@ int QrWidget::errorTop() const {
 	return contentTop() + st::introQrErrorTop;
 }
 
+#if 0 // #TODO legacy
 void QrWidget::checkForTokenUpdate(const MTPUpdates &updates) {
 	updates.match([&](const MTPDupdateShort &data) {
 		checkForTokenUpdate(data.vupdate());
@@ -225,6 +238,18 @@ void QrWidget::checkForTokenUpdate(const MTPUpdate &update) {
 		}
 	}, [](const auto &) {});
 }
+#endif
+
+void QrWidget::handleUpdate(const TLupdate &update) {
+	update.match([&](const TLDupdateAuthorizationState &data) {
+		data.vauthorization_state().match(
+		[&](const TLDauthorizationStateWaitOtherDeviceConfirmation &data) {
+			_qrLinks.fire_copy(data.vlink().v);
+		}, [](const auto &) {
+		});
+	}, [](const auto &) {
+	});
+}
 
 void QrWidget::submit() {
 	goReplace<PhoneWidget>(Animate::Forward);
@@ -235,7 +260,7 @@ rpl::producer<QString> QrWidget::nextButtonText() const {
 }
 
 void QrWidget::setupControls() {
-	const auto code = PrepareQrWidget(this, _qrCodes.events());
+	const auto code = PrepareQrWidget(this, _qrLinks.events());
 	rpl::combine(
 		sizeValue(),
 		code->widthValue()
@@ -314,20 +339,27 @@ void QrWidget::setupControls() {
 }
 
 void QrWidget::refreshCode() {
-	if (_requestId) {
-		return;
-	}
-	_requestId = api().request(MTPauth_ExportLoginToken(
-		MTP_int(ApiId),
-		MTP_string(ApiHash),
-		MTP_vector<MTPlong>(0)
-	)).done([=](const MTPauth_LoginToken &result) {
-		handleTokenResult(result);
-	}).fail([=](const MTP::Error &error) {
+	api().request(
+		TLgetAuthorizationState()
+	).done([=](const TLauthorizationState &result) {
+		result.match(
+		[&](const TLDauthorizationStateWaitOtherDeviceConfirmation &data) {
+			_qrLinks.fire_copy(data.vlink().v);
+		}, [&](const TLDauthorizationStateWaitPhoneNumber &data) {
+			api().request(TLrequestQrCodeAuthentication(
+				tl_vector<TLint53>(0)
+			)).fail([=](const Error &error) {
+				showTokenError(error);
+			}).send();
+		}, [&](const auto &) {
+			showTokenError(Error::Local("Wrong authorizationState."));
+		});
+	}).fail([=](const Error &error) {
 		showTokenError(error);
 	}).send();
 }
 
+#if 0 // #TODO legacy
 void QrWidget::handleTokenResult(const MTPauth_LoginToken &result) {
 	result.match([&](const MTPDauth_loginToken &data) {
 		_requestId = 0;
@@ -345,18 +377,13 @@ void QrWidget::handleTokenResult(const MTPauth_LoginToken &result) {
 		done(data.vauthorization());
 	});
 }
+#endif
 
-void QrWidget::showTokenError(const MTP::Error &error) {
-	_requestId = 0;
-	if (error.type() == u"SESSION_PASSWORD_NEEDED"_q) {
-		sendCheckPasswordRequest();
-	} else if (base::take(_forceRefresh)) {
-		refreshCode();
-	} else {
-		showError(rpl::single(error.type()));
-	}
+void QrWidget::showTokenError(const Error &error) {
+	showError(rpl::single(error.message));
 }
 
+#if 0 // #TODO legacy
 void QrWidget::showToken(const QByteArray &token) {
 	const auto encoded = token.toBase64(QByteArray::Base64UrlEncoding);
 	_qrCodes.fire_copy("tg://login?token=" + encoded);
@@ -406,6 +433,7 @@ void QrWidget::sendCheckPasswordRequest() {
 		showTokenError(error);
 	}).send();
 }
+#endif
 
 void QrWidget::activate() {
 	Step::activate();
@@ -414,13 +442,11 @@ void QrWidget::activate() {
 
 void QrWidget::finished() {
 	Step::finished();
-	_refreshTimer.cancel();
 	apiClear();
 	cancelled();
 }
 
 void QrWidget::cancelled() {
-	api().request(base::take(_requestId)).cancel();
 }
 
 QImage TelegramLogoImage() {

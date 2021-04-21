@@ -27,6 +27,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_domain.h"
 #include "main/main_session_settings.h"
+#include "lang/lang_instance.h"
+#include "tdb/tdb_account.h"
 
 namespace Main {
 namespace {
@@ -42,9 +44,26 @@ constexpr auto kWideIdsTag = ~uint64(0);
 	return result;
 }
 
+[[nodiscard]] std::unique_ptr<Tdb::Account> CreateTdbAccount(bool testMode) {
+	return std::make_unique<Tdb::Account>(Tdb::AccountConfig{
+		.apiId = ApiId,
+		.apiHash = ApiHash,
+		.systemLanguageCode = Lang::GetInstance().systemLangCode(),
+		.deviceModel = Platform::DeviceModelPretty(),
+		.systemVersion = Platform::SystemVersionPretty(),
+		.applicationVersion = QString::fromLatin1(AppVersionStr),
+		.databaseDirectory = "",
+		.filesDirectory = "",
+		.testDc = testMode,
+	});
+}
+
 } // namespace
 
-Account::Account(not_null<Domain*> domain, const QString &dataName, int index)
+Account::Account(
+	not_null<Domain*> domain,
+	const QString &dataName,
+	int index)
 : _domain(domain)
 , _local(std::make_unique<Storage::Account>(
 	this,
@@ -76,6 +95,7 @@ std::unique_ptr<MTP::Config> Account::prepareToStart(
 }
 
 void Account::start(std::unique_ptr<MTP::Config> config) {
+	_tdb = CreateTdbAccount(config ? config->isTestMode() : false);
 	_appConfig = std::make_unique<AppConfig>(this);
 	startMtp(config
 		? std::move(config)
@@ -233,6 +253,12 @@ rpl::producer<Session*> Account::sessionValue() const {
 
 rpl::producer<Session*> Account::sessionChanges() const {
 	return _sessionValue.changes();
+}
+
+Tdb::Sender &Account::sender() const {
+	Expects(_tdb != nullptr);
+
+	return _tdb->sender();
 }
 
 rpl::producer<not_null<MTP::Instance*>> Account::mtpValue() const {
@@ -580,6 +606,7 @@ void Account::destroyMtpKeys(MTP::AuthKeysList &&keys) {
 	}, _mtpForKeysDestroy->lifetime());
 }
 
+#if 0 // #TODO legacy
 void Account::suggestMainDcId(MTP::DcId mainDcId) {
 	Expects(_mtp != nullptr);
 
@@ -588,7 +615,9 @@ void Account::suggestMainDcId(MTP::DcId mainDcId) {
 		_mtpFields.mainDcId = mainDcId;
 	}
 }
+#endif
 
+#if 0 // #TODO legacy
 void Account::destroyStaleAuthorizationKeys() {
 	Expects(_mtp != nullptr);
 
@@ -603,6 +632,7 @@ void Account::destroyStaleAuthorizationKeys() {
 		}
 	}
 }
+#endif
 
 void Account::setHandleLoginCode(Fn<void(QString)> callback) {
 	_handleLoginCode = std::move(callback);
