@@ -49,7 +49,8 @@ private:
 	void showToken(const QByteArray &token);
 	void done(const MTPauth_Authorization &authorization);
 
-	void handleUpdate(const Tdb::TLupdate &update);
+	bool handleAuthorizationState(
+		const Tdb::TLauthorizationState &state) override;
 
 	rpl::event_stream<QString> _qrLinks;
 #if 0 // #TODO legacy

@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_location_manager.h"
 #include "base/timer.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 class Image;
 class HistoryItem;
 struct WebPageCollage;
@@ -208,6 +210,8 @@ public:
 
 	not_null<UserData*> processUser(const MTPUser &data);
 	not_null<PeerData*> processChat(const MTPChat &data);
+
+	not_null<UserData*> processUser(const Tdb::TLuser &user);
 
 	// Returns last user, if there were any.
 	UserData *processUsers(const MTPVector<MTPUser> &data);
