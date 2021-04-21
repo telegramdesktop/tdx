@@ -28,6 +28,8 @@ struct ChatIdType {
 	}
 	constexpr ChatIdType(MTPlong value) noexcept : bare(value.v) {
 	}
+	constexpr ChatIdType(tl::int64_type value) noexcept : bare(value.v) {
+	}
 
 	friend inline constexpr auto operator<=>(
 		ChatIdType,

@@ -80,6 +80,7 @@ public:
 	[[nodiscard]] int activeForStorage() const;
 
 private:
+	void configureTdbLogs();
 	void activateAfterStarting();
 	void closeAccountWindows(not_null<Main::Account*> account);
 	bool removePasscodeIfEmpty();

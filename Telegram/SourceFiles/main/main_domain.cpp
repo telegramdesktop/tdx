@@ -26,6 +26,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "data/data_peer_values.h" // Data::AmPremiumValue.
 
+#include "tdb/tdb_account.h"
+
 namespace Main {
 
 Domain::Domain(const QString &dataName)
@@ -66,6 +68,8 @@ bool Domain::started() const {
 Storage::StartResult Domain::start(const QByteArray &passcode) {
 	Expects(!started());
 
+	configureTdbLogs();
+
 	const auto result = _local->start(passcode);
 	if (result == Storage::StartResult::Success) {
 		activateAfterStarting();
@@ -74,6 +78,25 @@ Storage::StartResult Domain::start(const QByteArray &passcode) {
 		Assert(!started());
 	}
 	return result;
+}
+
+void Domain::configureTdbLogs() {
+	using namespace Tdb;
+	if (!Logs::DebugEnabled()) {
+		Execute(TLsetLogVerbosityLevel(tl_int32(0)));
+		Execute(TLsetLogStream(tl_logStreamEmpty()));
+	} else {
+		const auto logFolder = cWorkingDir() + qsl("DebugLogs");
+		const auto logPath = logFolder + qsl("/last_tdlib_log.txt");
+		QFile(logPath).remove();
+		QDir().mkpath(logFolder);
+
+		Execute(TLsetLogVerbosityLevel(tl_int32(4)));
+		Execute(TLsetLogStream(tl_logStreamFile(
+			tl_string(logPath),
+			tl_int53(200 * 1024 * 1024),
+			tl_bool(false))));
+	}
 }
 
 void Domain::finish() {
