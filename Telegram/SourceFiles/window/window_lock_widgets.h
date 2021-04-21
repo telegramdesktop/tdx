@@ -23,6 +23,10 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Tdb {
+class TLDtermsOfService;
+} // namespace Tdb
+
 namespace Window {
 
 class Controller;
@@ -88,6 +92,9 @@ struct TermsLock {
 	static TermsLock FromMTP(
 		Main::Session *session,
 		const MTPDhelp_termsOfService &data);
+	static TermsLock FromTL(
+		Main::Session *session,
+		const Tdb::TLDtermsOfService &data);
 
 };
 

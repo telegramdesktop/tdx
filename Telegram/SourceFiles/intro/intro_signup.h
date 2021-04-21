@@ -39,18 +39,28 @@ private:
 	void refreshLang();
 	void updateControlsGeometry();
 
+#if 0 // #TODO legacy
 	void nameSubmitDone(const MTPauth_Authorization &result);
 	void nameSubmitFail(const MTP::Error &error);
+#endif
+
+	void handleAuthorizationState(
+		const Tdb::TLauthorizationState &state) override;
+
+	void registerUserFail(const Tdb::Error &error);
 
 	object_ptr<Ui::UserpicButton> _photo;
 	object_ptr<Ui::InputField> _first;
 	object_ptr<Ui::InputField> _last;
 	QString _firstName, _lastName;
+#if 0 // #TODO legacy
 	mtpRequestId _sentRequest = 0;
+#endif
 
 	bool _invertOrder = false;
 
 	bool _termsAccepted = false;
+	bool _sentRequest = false;
 
 };
 
