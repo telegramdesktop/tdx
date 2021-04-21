@@ -112,6 +112,8 @@ void SignupWidget::activate() {
 }
 
 void SignupWidget::cancelled() {
+	_sentRequest = false;
+
 #if 0
 	api().request(base::take(_sentRequest)).cancel();
 #endif
@@ -248,7 +250,10 @@ void SignupWidget::registerUserFail(const Error &error) {
 		|| type == u"PHONE_CODE_EMPTY"
 		|| type == u"PHONE_CODE_INVALID"
 		|| type == u"PHONE_NUMBER_OCCUPIED") {
+#if 0 // mtp
 		goBack();
+#endif
+		go(StepType::Start);
 	} else if (type == u"FIRSTNAME_INVALID") {
 		showError(tr::lng_bad_name());
 		_first->setFocus();

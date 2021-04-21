@@ -36,6 +36,15 @@ struct Data;
 enum class StackAction;
 enum class Animate;
 
+enum class StepType {
+	Start,
+	Phone,
+	Qr,
+	Code,
+	Password,
+	SignUp,
+};
+
 class Step : public Ui::RpWidget {
 public:
 	Step(
@@ -48,6 +57,7 @@ public:
 	[[nodiscard]] Main::Account &account() const {
 		return *_account;
 	}
+	[[nodiscard]] virtual StepType type() const = 0;
 
 	// It should not be called in StartWidget, in other steps it should be
 	// present and not changing.
@@ -60,8 +70,11 @@ public:
 		setFocus();
 	}
 
+#if 0 // mtp
 	void setGoCallback(
 		Fn<void(Step *step, StackAction action, Animate animate)> callback);
+#endif
+	void setGoCallback(Fn<void(StepType)> callback);
 	void setShowResetCallback(Fn<void()> callback);
 	void setShowTermsCallback(Fn<void()> callback);
 	void setCancelNearestDcCallback(Fn<void()> callback);
@@ -125,7 +138,6 @@ protected:
 		const MTPUser &user,
 		QImage photo,
 		const QVector<MTPDialogFilter> &filters);
-#endif
 
 	void goBack();
 
@@ -137,6 +149,13 @@ protected:
 	template <typename StepType>
 	void goReplace(Animate animate) {
 		goReplace(new StepType(parentWidget(), _account, _data), animate);
+	}
+#endif
+
+	void go(StepType type) {
+		if (_goCallback) {
+			_goCallback(type);
+		}
 	}
 
 	void showResetButton() {
@@ -186,8 +205,10 @@ private:
 		float64 howMuchHidden);
 	void refreshError(const QString &text);
 
+#if 0 // mtp
 	void goNext(Step *step);
 	void goReplace(Step *step, Animate animate);
+#endif
 
 	[[nodiscard]] CoverAnimation prepareCoverAnimation(Step *step);
 	[[nodiscard]] QPixmap prepareContentSnapshot();
@@ -208,7 +229,10 @@ private:
 	mutable std::optional<Tdb::Sender> _api;
 
 	bool _hasCover = false;
+#if 0 // mtp
 	Fn<void(Step *step, StackAction action, Animate animate)> _goCallback;
+#endif
+	Fn<void(StepType)> _goCallback;
 	Fn<void()> _showResetCallback;
 	Fn<void()> _showTermsCallback;
 	Fn<void()> _cancelNearestDcCallback;
