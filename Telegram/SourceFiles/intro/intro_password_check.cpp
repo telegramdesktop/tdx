@@ -126,6 +126,8 @@ void PasswordCheckWidget::activate() {
 }
 
 void PasswordCheckWidget::cancelled() {
+	_sentRequest = false;
+
 #if 0 // mtp
 	api().request(base::take(_sentRequest)).cancel();
 #endif
@@ -456,7 +458,10 @@ void PasswordCheckWidget::recoverFail(const Error &error) {
 	const auto &type = error.message;
 	if (type == u"PASSWORD_EMPTY"
 		|| type == u"AUTH_KEY_UNREGISTERED") {
+#if 0 // mtp
 		goBack();
+#endif
+		go(StepType::Start);
 	} else if (type == u"PASSWORD_RECOVERY_NA") {
 		_pwdField->show();
 		_pwdHint->show();
@@ -486,7 +491,13 @@ void PasswordCheckWidget::handleAuthorizationState(
 			|| _passwordState.hint != data.vpassword_hint().v) {
 			getData()->pwdState.hasRecovery = has;
 			getData()->pwdState.hint = data.vpassword_hint().v;
+#if 0 // mtp
 			goReplace<PasswordCheckWidget>(Animate::Forward);
+#endif
+			_passwordState.hasRecovery = has;
+			_passwordState.hint = data.vpassword_hint().v;
+			_passwordState.notEmptyPassport = data.vhas_passport_data().v;
+			refreshLang();
 		} else {
 			_emailPattern = data.vrecovery_email_address_pattern().v;
 			updateDescriptionText();
