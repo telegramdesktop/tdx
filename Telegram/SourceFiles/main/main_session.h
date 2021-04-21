@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class ApiWrap;
 
+namespace Tdb {
+class TLuser;
+} // namespace Td
+
 namespace Api {
 class Updates;
 class SendProgressManager;
@@ -66,9 +70,15 @@ class SendAsPeers;
 
 class Session final : public base::has_weak_ptr {
 public:
+#if 0 // #TODO legacy
 	Session(
 		not_null<Account*> account,
 		const MTPUser &user,
+		std::unique_ptr<SessionSettings> settings);
+#endif
+	Session(
+		not_null<Account*> account,
+		const Tdb::TLuser &user,
 		std::unique_ptr<SessionSettings> settings);
 	~Session();
 

@@ -39,4 +39,6 @@ private:
 
 };
 
+using details::Execute;
+
 } // namespace Tdb
