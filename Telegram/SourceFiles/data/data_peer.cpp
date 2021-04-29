@@ -47,12 +47,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_download.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
+#include "tdb/tdb_tl_scheme.h"
 
 namespace {
 
 constexpr auto kUpdateFullPeerTimeout = crl::time(5000); // Not more than once in 5 seconds.
 constexpr auto kUserpicSize = 160;
 
+using namespace Tdb;
 using UpdateFlag = Data::PeerUpdate::Flag;
 
 } // namespace
@@ -399,6 +401,7 @@ Data::FileOrigin PeerData::userpicPhotoOrigin() const {
 		: Data::FileOrigin();
 }
 
+#if 0 // #TODO legacy
 void PeerData::updateUserpic(
 		PhotoId photoId,
 		MTP::DcId dcId,
@@ -416,6 +419,36 @@ void PeerData::updateUserpic(
 			kUserpicSize,
 			kUserpicSize),
 		hasVideo);
+}
+#endif
+
+void PeerData::updateUserpic(FileId fileId, PhotoId photoId) {
+	setUserpicChecked(
+		photoId,
+		ImageLocation(
+			{ TdbFileLocation{ fileId } },
+			kUserpicSize,
+			kUserpicSize));
+}
+
+void PeerData::updateUserpic(const TLchatPhotoInfo &photo) {
+	photo.match([&](const TLDchatPhotoInfo &data) {
+		updateUserpic(data.vsmall().match([&](const TLDfile &data) {
+			return data.vid().v;
+		})); // #TODO tdlib set data to view.
+	});
+}
+
+void PeerData::updateUserpic(const TLprofilePhoto &photo) {
+	photo.match([&](const TLDprofilePhoto &data) {
+		updateUserpic(data.vsmall().match([&](const TLDfile &data) {
+			return data.vid().v;
+		}), data.vid().v); // #TODO tdlib set data to view.
+	});
+}
+
+void PeerData::clearPhoto() {
+	clearUserpic();
 }
 
 void PeerData::clearUserpic() {
