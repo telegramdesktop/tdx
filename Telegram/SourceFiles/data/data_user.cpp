@@ -26,11 +26,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "styles/style_chat.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace {
 
 // User with hidden last seen stays online in UI for such amount of seconds.
 constexpr auto kSetOnlineAfterActivity = TimeId(30);
 
+using namespace Tdb;
 using UpdateFlag = Data::PeerUpdate::Flag;
 
 } // namespace
@@ -95,6 +98,7 @@ bool UserData::updateLastseen(Data::LastseenStatus value) {
 	return true;
 }
 
+#if 0 // mtp
 // see Serialize::readPeer as well
 void UserData::setPhoto(const MTPUserProfilePhoto &photo) {
 	photo.match([&](const MTPDuserProfilePhoto &data) {
@@ -111,6 +115,11 @@ void UserData::setPhoto(const MTPUserProfilePhoto &photo) {
 		removeFlags(UserDataFlag::PersonalPhoto);
 		clearUserpic();
 	});
+}
+#endif
+
+void UserData::setPhoto(const TLprofilePhoto &photo) {
+	updateUserpic(photo);
 }
 
 auto UserData::unavailableReasons() const

@@ -86,6 +86,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_upload.h"
 #include "storage/storage_account.h"
 
+#include "tdb/tdb_sender.h"
+
 namespace {
 
 // Save draft to the cloud with 1 sec extra delay.
@@ -102,6 +104,7 @@ constexpr auto kDialogsFirstLoad = 20;
 constexpr auto kDialogsPerPage = 500;
 constexpr auto kStatsSessionKillTimeout = 10 * crl::time(1000);
 
+using namespace Tdb;
 using PhotoFileLocationId = Data::PhotoFileLocationId;
 using DocumentFileLocationId = Data::DocumentFileLocationId;
 using UpdatedFileReferences = Data::UpdatedFileReferences;
@@ -209,6 +212,14 @@ Storage::Account &ApiWrap::local() const {
 
 Api::Updates &ApiWrap::updates() const {
 	return _session->updates();
+}
+
+Account &ApiWrap::tdb() const {
+	return _session->tdb();
+}
+
+Sender &ApiWrap::sender() const {
+	return _session->sender();
 }
 
 void ApiWrap::setupSupportMode() {
@@ -865,6 +876,7 @@ void ApiWrap::requestMoreDialogs(Data::Folder *folder) {
 
 	const auto firstLoad = !state->offsetDate;
 	const auto loadCount = firstLoad ? kDialogsFirstLoad : kDialogsPerPage;
+#if 0 // #TODO legacy
 	const auto flags = MTPmessages_GetDialogs::Flag::f_exclude_pinned
 		| MTPmessages_GetDialogs::Flag::f_folder_id;
 	const auto hash = uint64(0);
@@ -916,6 +928,20 @@ void ApiWrap::requestMoreDialogs(Data::Folder *folder) {
 		requestMoreDialogsIfNeeded();
 		_session->data().chatsListChanged(folder);
 	}).fail([=] {
+		dialogsLoadState(folder)->requestId = 0;
+	}).send();
+#endif
+
+	state->requestId = sender().request(TLgetChats(
+		folder ? tl_chatListArchive() : tl_chatListMain(),
+		tl_int32(loadCount)
+	)).done([=](const TLchats &result) {
+		result.match([&](const TLDchats &data) {
+			for (const auto &chatId : data.vchat_ids().v) {
+				const auto peerId = peerFromTdbChat(chatId);
+			}
+		});
+	}).fail([=](const Error &error) {
 		dialogsLoadState(folder)->requestId = 0;
 	}).send();
 
@@ -1950,6 +1976,7 @@ void ApiWrap::updatePrivacyLastSeens() {
 		});
 	}
 
+#if 0 // mtp
 	if (_contactsStatusesRequestId) {
 		request(_contactsStatusesRequestId).cancel();
 	}
@@ -1973,6 +2000,7 @@ void ApiWrap::updatePrivacyLastSeens() {
 	}).fail([this] {
 		_contactsStatusesRequestId = 0;
 	}).send();
+#endif
 }
 
 void ApiWrap::clearHistory(not_null<PeerData*> peer, bool revoke) {

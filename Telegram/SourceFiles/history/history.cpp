@@ -947,6 +947,7 @@ void History::applyMessageChanges(
 void History::applyServiceChanges(
 		not_null<HistoryItem*> item,
 		const MTPDmessageService &data) {
+#if 0 // #TODO legacy
 	const auto replyTo = data.vreply_to();
 	const auto processJoinedUser = [&](
 			not_null<ChannelData*> megagroup,
@@ -1196,6 +1197,7 @@ void History::applyServiceChanges(
 		}
 	}, [](const auto &) {
 	});
+#endif
 }
 
 void History::mainViewRemoved(

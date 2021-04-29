@@ -166,7 +166,7 @@ private:
 		details::Step *wasStep,
 		std::vector<std::unique_ptr<details::Step>>::iterator nowStep);
 	void appendStep(std::unique_ptr<details::Step> step);
-	void go(details::StepType type);
+	bool go(details::StepType type);
 
 	template <typename WidgetType>
 	[[nodiscard]] std::unique_ptr<details::Step> makeStep();

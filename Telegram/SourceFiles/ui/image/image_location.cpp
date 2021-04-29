@@ -35,6 +35,7 @@ enum class NonStorageLocationType : quint8 {
 	Url,
 	Memory,
 	AudioAlbumThumb,
+	Tdb,
 };
 
 MTPInputPeer GenerateInputPeer(
@@ -716,6 +717,13 @@ InMemoryKey inMemoryKey(const AudioAlbumThumbLocation &location) {
 	return { key.high, key.low };
 }
 
+InMemoryKey inMemoryKey(const TdbFileLocation &location) {
+	return {
+		0xFF00000000000000ULL,
+		0xFF00000000000000ULL | uint32(location.fileId)
+	};
+}
+
 InMemoryKey inMemoryKey(const InMemoryLocation &location) {
 	auto result = InMemoryKey();
 	const auto &data = location.bytes;
@@ -822,6 +830,8 @@ QByteArray DownloadLocation::serialize() const {
 		stream << quint8(NonStorageLocationType::Url) << data.url.toUtf8();
 	}, [&](const InMemoryLocation &data) {
 		stream << quint8(NonStorageLocationType::Memory) << data.bytes;
+	}, [&](const TdbFileLocation &data) {
+		stream << quint8(NonStorageLocationType::Tdb) << qint32(data.fileId);
 	});
 	buffer.close();
 	return result;
@@ -844,6 +854,8 @@ int DownloadLocation::serializeSize() const {
 		result += sizeof(quint64);
 	}, [&](const InMemoryLocation &data) {
 		result += Serialize::bytearraySize(data.bytes);
+	}, [&](const TdbFileLocation &data) {
+		result += sizeof(qint32);
 	});
 	return result;
 }
@@ -922,6 +934,15 @@ std::optional<DownloadLocation> DownloadLocation::FromSerialized(
 				DownloadLocation{ InMemoryLocation{ bytes } })
 			: std::nullopt;
 	} break;
+
+	case NonStorageLocationType::Tdb: {
+		qint32 fileId = 0;
+		stream >> fileId;
+		return (stream.status() == QDataStream::Ok)
+			? std::make_optional(
+				DownloadLocation{ TdbFileLocation{ fileId } })
+			: std::nullopt;
+	} break;
 	}
 	return std::nullopt;
 }
@@ -958,13 +979,15 @@ Storage::Cache::Key DownloadLocation::cacheKey() const {
 		return Data::AudioAlbumThumbCacheKey(data);
 	}, [](const InMemoryLocation &data) {
 		return Storage::Cache::Key();
+	}, [](const TdbFileLocation &data) {
+		return Storage::Cache::Key(); // #TODO tdlib
 	});
 }
 
 Storage::Cache::Key DownloadLocation::bigFileBaseCacheKey() const {
 	return v::is<StorageFileLocation>(data)
 		? v::get<StorageFileLocation>(data).bigFileBaseCacheKey()
-		: Storage::Cache::Key();
+		: Storage::Cache::Key(); // #TODO tdlib?.. streaming
 }
 
 bool DownloadLocation::valid() const {
@@ -980,6 +1003,8 @@ bool DownloadLocation::valid() const {
 		return data.documentId != 0;
 	}, [](const InMemoryLocation &data) {
 		return !data.bytes.isEmpty();
+	}, [](const TdbFileLocation &data) {
+		return (data.fileId != 0);
 	});
 }
 

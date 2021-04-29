@@ -35,7 +35,11 @@ public:
 	ChatData(not_null<Data::Session*> owner, PeerId id);
 
 	void setName(const QString &newName);
+#if 0 // #TODO legacy
 	void setPhoto(const MTPChatPhoto &photo);
+#endif
+
+	void setPhoto(const Tdb::TLchatPhotoInfo &photo);
 
 	void invalidateParticipants();
 	[[nodiscard]] bool noParticipantInfo() const {
