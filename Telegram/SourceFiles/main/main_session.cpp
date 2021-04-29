@@ -228,6 +228,14 @@ Storage::Domain &Session::domainLocal() const {
 	return _account->domainLocal();
 }
 
+Tdb::Account &Session::tdb() const {
+	return _account->tdb();
+}
+
+Tdb::Sender &Session::sender() const {
+	return _account->sender();
+}
+
 void Session::notifyDownloaderTaskFinished() {
 	downloader().notifyTaskFinished();
 }

@@ -483,6 +483,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 	const auto result = user(data.match([](const auto &data) {
 		return data.vid().v;
 	}));
+#if 0 // #TODO legacy
 	auto minimal = false;
 	const MTPUserStatus *status = nullptr;
 	const MTPUserStatus emptyStatus = MTP_userStatusEmpty();
@@ -726,6 +727,8 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 	if (flags) {
 		session().changes().peerUpdated(result, flags);
 	}
+#endif
+
 	return result;
 }
 
@@ -742,7 +745,7 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		return peer(peerFromChannel(data.vid().v));
 	});
 	auto minimal = false;
-
+#if 0 // #TODO legacy
 	using UpdateFlag = Data::PeerUpdate::Flag;
 	auto flags = UpdateFlag::None | UpdateFlag::None;
 	data.match([&](const MTPDchat &data) {
@@ -1026,6 +1029,7 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 	if (flags) {
 		session().changes().peerUpdated(result, flags);
 	}
+#endif
 	return result;
 }
 
@@ -1078,7 +1082,11 @@ not_null<UserData*> Session::processUser(const TLuser &user) {
 		: result->nameOrPhone;
 	result->setName(firstName, lastName, phoneName, userName);
 
-	result->setPhoto(MTP_userProfilePhotoEmpty()); // #TODO tdlib
+	if (const auto photo = data.vprofile_photo()) {
+		result->setPhoto(*photo);
+	} else {
+		result->clearPhoto();
+	}
 	result->setUnavailableReasons({}); // #TODO tdlib
 	//result->setFlags(MTPDuser_ClientFlag::f_inaccessible | 0);
 	//result->setFlags(MTPDuser::Flag::f_deleted);
@@ -1097,17 +1105,25 @@ not_null<UserData*> Session::processUser(const TLuser &user) {
 		result->setLoadedStatus(PeerData::LoadedStatus::Full);
 	}
 
-	//data.vstatus() // #TODO tdlib
-	//if (status && !minimal) {
-	//	const auto oldOnlineTill = result->onlineTill;
-	//	const auto newOnlineTill = ApiWrap::OnlineTillFromStatus(
-	//		*status,
-	//		oldOnlineTill);
-	//	if (oldOnlineTill != newOnlineTill) {
-	//		result->onlineTill = newOnlineTill;
-	//		flags |= UpdateFlag::OnlineStatus;
-	//	}
-	//}
+	const auto oldOnlineTill = result->onlineTill;
+	const auto newOnlineTill = data.vstatus().match([&](
+		const TLDuserStatusEmpty &) {
+		return 0;
+	}, [&](const TLDuserStatusRecently &) {
+		return (oldOnlineTill > -10) ? -2 : oldOnlineTill;
+	}, [&](const TLDuserStatusLastWeek &) {
+		return -3;
+	}, [&](const TLDuserStatusLastMonth &) {
+		return -4;
+	}, [&](const TLDuserStatusOffline &data) {
+		return data.vwas_online().v;
+	}, [&](const TLDuserStatusOnline &data) {
+		return data.vexpires().v;
+	});
+	if (oldOnlineTill != newOnlineTill) {
+		result->onlineTill = newOnlineTill;
+		flags |= UpdateFlag::OnlineStatus;
+	}
 
 	if (flags) {
 		session().changes().peerUpdated(result, flags);

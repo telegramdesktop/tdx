@@ -75,8 +75,13 @@ public:
 	using Flags = Data::Flags<UserDataFlags>;
 
 	UserData(not_null<Data::Session*> owner, PeerId id);
+
+#if 0 // #TODO legacy
 	void setPhoto(const MTPUserProfilePhoto &photo);
 	void setEmojiStatus(const MTPEmojiStatus &status);
+#endif
+
+	void setPhoto(const Tdb::TLprofilePhoto &photo);
 
 	void setName(
 		const QString &newFirstName,

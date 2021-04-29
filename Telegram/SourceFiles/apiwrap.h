@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "data/stickers/data_stickers_set.h"
 #include "data/data_messages.h"
+#include "tdb/tdb_sender.h"
 
 class TaskQueue;
 struct MessageGroupId;
@@ -21,6 +22,11 @@ struct SendingAlbum;
 enum class SendMediaType;
 struct FileLoadTo;
 struct ChatRestrictionsInfo;
+
+namespace Tdb {
+class Account;
+class Sender;
+} // namespace Tdb
 
 namespace Main {
 class Session;
@@ -138,6 +144,9 @@ public:
 	[[nodiscard]] Main::Session &session() const;
 	[[nodiscard]] Storage::Account &local() const;
 	[[nodiscard]] Api::Updates &updates() const;
+
+	[[nodiscard]] Tdb::Account &tdb() const;
+	[[nodiscard]] Tdb::Sender &sender() const;
 
 	void applyUpdates(
 		const MTPUpdates &updates,
@@ -257,9 +266,11 @@ public:
 	void updateNotifySettingsDelayed(Data::DefaultNotify type);
 	void saveDraftToCloudDelayed(not_null<Data::Thread*> thread);
 
+#if 0 // #TODO legacy
 	static int OnlineTillFromStatus(
 		const MTPUserStatus &status,
 		int currentOnlineTill);
+#endif
 
 	void clearHistory(not_null<PeerData*> peer, bool revoke);
 	void deleteConversation(not_null<PeerData*> peer, bool revoke);
