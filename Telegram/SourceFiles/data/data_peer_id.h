@@ -9,6 +9,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 using BareId = uint64;
 
+namespace tl {
+class int64_type;
+} // namespace tl
+
+namespace Tdb {
+using TLint53 = tl::int64_type;
+} // namespace Tdb
+
 struct PeerIdZeroHelper {
 };
 using PeerIdZero = void(PeerIdZeroHelper::*)();
@@ -215,6 +223,8 @@ bool operator>=(PeerIdZero, PeerId) = delete;
 	return peerFromChannel(channelId.v);
 }
 
+[[nodiscard]] PeerId peerFromTdbChat(Tdb::TLint53 id) noexcept;
+
 [[nodiscard]] inline constexpr UserId peerToUser(PeerId id) noexcept {
 	return id.to<UserId>();
 }
@@ -226,6 +236,8 @@ bool operator>=(PeerIdZero, PeerId) = delete;
 [[nodiscard]] inline constexpr ChannelId peerToChannel(PeerId id) noexcept {
 	return id.to<ChannelId>();
 }
+
+[[nodiscard]] Tdb::TLint53 peerToTdbChat(PeerId id) noexcept;
 
 [[nodiscard]] inline MTPlong peerToBareMTPInt(PeerId id) {
 	return MTP_long(id.value & PeerId::kChatTypeMask);

@@ -231,6 +231,14 @@ AppConfig &Session::appConfig() const {
 	return _account->appConfig();
 }
 
+Tdb::Account &Session::tdb() const {
+	return _account->tdb();
+}
+
+Tdb::Sender &Session::sender() const {
+	return _account->sender();
+}
+
 void Session::notifyDownloaderTaskFinished() {
 	downloader().notifyTaskFinished();
 }
