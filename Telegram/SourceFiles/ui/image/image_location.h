@@ -32,6 +32,7 @@ enum LoadToCacheSetting {
 };
 
 using InMemoryKey = std::pair<uint64, uint64>;
+using FileId = int32;
 
 namespace std {
 
@@ -455,9 +456,50 @@ inline bool operator>=(
 	return !(a < b);
 }
 
+struct TdbFileLocation {
+	FileId fileId = 0;
+};
+
+inline bool operator==(
+		const TdbFileLocation &a,
+		const TdbFileLocation &b) {
+	return (a.fileId == b.fileId);
+}
+
+inline bool operator<(
+		const TdbFileLocation &a,
+		const TdbFileLocation &b) {
+	return (a.fileId < b.fileId);
+}
+
+inline bool operator!=(
+		const TdbFileLocation &a,
+		const TdbFileLocation &b) {
+	return !(a == b);
+}
+
+inline bool operator>(
+		const TdbFileLocation &a,
+		const TdbFileLocation &b) {
+	return (b < a);
+}
+
+inline bool operator<=(
+		const TdbFileLocation &a,
+		const TdbFileLocation &b) {
+	return !(b < a);
+}
+
+inline bool operator>=(
+		const TdbFileLocation &a,
+		const TdbFileLocation &b) {
+	return !(a < b);
+}
+
 class DownloadLocation {
 public:
 	std::variant<
+		TdbFileLocation,
 		StorageFileLocation,
 		WebFileLocation,
 		GeoPointLocation,
