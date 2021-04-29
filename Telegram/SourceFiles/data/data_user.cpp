@@ -23,6 +23,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_peer_photo.h"
 #include "apiwrap.h"
 #include "ui/text/text_options.h"
+
+#include "tdb/tdb_tl_scheme.h"
+#include "apiwrap.h"
 #include "lang/lang_keys.h"
 #include "styles/style_chat.h"
 
@@ -31,6 +34,7 @@ namespace {
 // User with hidden last seen stays online in UI for such amount of seconds.
 constexpr auto kSetOnlineAfterActivity = TimeId(30);
 
+using namespace Tdb;
 using UpdateFlag = Data::PeerUpdate::Flag;
 
 } // namespace
@@ -57,6 +61,7 @@ void UserData::setIsContact(bool is) {
 	}
 }
 
+#if 0 // #TODO legacy
 // see Serialize::readPeer as well
 void UserData::setPhoto(const MTPUserProfilePhoto &photo) {
 	photo.match([&](const MTPDuserProfilePhoto &data) {
@@ -73,6 +78,11 @@ void UserData::setPhoto(const MTPUserProfilePhoto &photo) {
 		removeFlags(UserDataFlag::PersonalPhoto);
 		clearUserpic();
 	});
+}
+#endif
+
+void UserData::setPhoto(const TLprofilePhoto &photo) {
+	updateUserpic(photo);
 }
 
 void UserData::setEmojiStatus(const MTPEmojiStatus &status) {

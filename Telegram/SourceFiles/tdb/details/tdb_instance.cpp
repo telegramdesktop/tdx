@@ -63,7 +63,7 @@ private:
 	QMutex _mutex;
 	base::flat_map<RequestId, ExternalCallback> _callbacks;
 
-	std::atomic<uint32> _requestIdCounter = 0;
+	std::atomic<int32> _requestIdCounter = 0;
 	std::atomic<ClientId> _closingId = 0;
 	crl::semaphore _closing;
 
