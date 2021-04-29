@@ -546,6 +546,19 @@ std::unique_ptr<FileLoader> CreateFileLoader(
 			LoadFromCloudOrLocal,
 			autoLoading,
 			cacheTag);
+	}, [&](const TdbFileLocation &data) {
+		// #TODO tdlib
+		result = std::make_unique<FromMemoryLoader>(
+			session,
+			QByteArray(),
+			toFile,
+			loadSize,
+			fullSize,
+			locationType,
+			toCache,
+			LoadFromCloudOrLocal,
+			autoLoading,
+			cacheTag);
 	});
 
 	Ensures(result != nullptr);

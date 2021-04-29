@@ -29,11 +29,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "api/api_chat_invite.h"
 #include "api/api_invite_links.h"
+#include "tdb/tdb_tl_scheme.h"
 #include "apiwrap.h"
 #include "window/notifications_manager.h"
 
 namespace {
 
+using namespace Tdb;
 using UpdateFlag = Data::PeerUpdate::Flag;
 
 } // namespace
@@ -90,6 +92,7 @@ ChannelData::ChannelData(not_null<Data::Session*> owner, PeerId id)
 , _ptsWaiter(&owner->session().updates()) {
 }
 
+#if 0 // #TODO legacy
 void ChannelData::setPhoto(const MTPChatPhoto &photo) {
 	photo.match([&](const MTPDchatPhoto & data) {
 		updateUserpic(
@@ -99,6 +102,11 @@ void ChannelData::setPhoto(const MTPChatPhoto &photo) {
 	}, [&](const MTPDchatPhotoEmpty &) {
 		clearUserpic();
 	});
+}
+#endif
+
+void ChannelData::setPhoto(const TLchatPhotoInfo &photo) {
+	updateUserpic(photo);
 }
 
 void ChannelData::setName(

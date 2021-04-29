@@ -27,10 +27,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localimageloader.h"
 #include "storage/storage_user_photos.h"
 
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
+
 #include <QtCore/QBuffer>
 
 namespace Api {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kSharedMediaLimit = 100;
 
@@ -241,6 +246,7 @@ void PeerPhoto::suggest(not_null<PeerData*> peer, UserPhoto &&photo) {
 }
 
 void PeerPhoto::clear(not_null<PhotoData*> photo) {
+#if 0 // #TODO legacy
 	const auto self = _session->user();
 	if (self->userpicPhotoId() == photo->id) {
 		_api.request(MTPphotos_UpdateProfilePhoto(
@@ -284,6 +290,25 @@ void PeerPhoto::clear(not_null<PhotoData*> photo) {
 				peerToUser(self->id),
 				photo->id));
 		}
+	}
+#endif
+
+	if (_session->user()->userpicPhotoId() == photo->id) {
+		_session->sender().request(TLdeleteProfilePhoto(
+			tl_int64(photo->id)
+		)).send();
+	} else if (photo->peer && photo->peer->userpicPhotoId() == photo->id) {
+		_session->sender().request(TLsetChatPhoto(
+			peerToTdbChat(photo->peer->id),
+			null
+		)).send();
+	} else {
+		_session->sender().request(TLdeleteProfilePhoto(
+			tl_int64(photo->id)
+		)).send();
+		_session->storage().remove(Storage::UserPhotosRemoveOne(
+			peerToUser(_session->userPeerId()),
+			photo->id));
 	}
 }
 

@@ -15,6 +15,8 @@ class ApiWrap;
 
 namespace Tdb {
 class TLuser;
+class Account;
+class Sender;
 } // namespace Tdb
 
 namespace Api {
@@ -106,6 +108,9 @@ public:
 	[[nodiscard]] Storage::Domain &domainLocal() const;
 
 	[[nodiscard]] AppConfig &appConfig() const;
+
+	[[nodiscard]] Tdb::Account &tdb() const;
+	[[nodiscard]] Tdb::Sender &sender() const;
 
 	[[nodiscard]] bool premium() const;
 	[[nodiscard]] bool premiumPossible() const;

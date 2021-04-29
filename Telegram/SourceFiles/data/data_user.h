@@ -93,7 +93,11 @@ public:
 	UserData(not_null<Data::Session*> owner, PeerId id);
 	~UserData();
 
+#if 0 // mtp
 	void setPhoto(const MTPUserProfilePhoto &photo);
+#endif
+
+	void setPhoto(const Tdb::TLprofilePhoto &photo);
 
 	void setName(
 		const QString &newFirstName,

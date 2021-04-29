@@ -118,19 +118,16 @@ Widget::Widget(
 	default: Unexpected("Enter point in Intro::Widget::Widget.");
 	}
 #endif
-	switch (point) {
-	case EnterPoint::Start:
-		getNearestDC();
-		go(StepType::Start);
-		break;
-	case EnterPoint::Phone:
-		go(StepType::Phone);
-		break;
-	case EnterPoint::Qr:
-		go(StepType::Qr);
-		break;
-	default: Unexpected("Enter point in Intro::Widget::Widget.");
-	}
+	const auto stepType = [&] {
+		switch (point) {
+		case EnterPoint::Start: getNearestDC(); return StepType::Start;
+		case EnterPoint::Phone: return StepType::Phone;
+		case EnterPoint::Qr: return StepType::Qr;
+		default: Unexpected("Enter point in Intro::Widget::Widget.");
+		}
+	}();
+	const auto went = go(stepType);
+	Assert(went);
 
 	fixOrder();
 
@@ -513,15 +510,15 @@ std::unique_ptr<details::Step> Widget::makeStep() {
 	return std::make_unique<WidgetType>(this, _account, getData());
 }
 
-void Widget::go(StepType type) {
+bool Widget::go(StepType type) {
 	if (type == StepType::Start) {
 		if (const auto parent
 			= Core::App().domain().maybeLastOrSomeAuthedAccount()) {
 			Core::App().domain().activate(parent);
+			return false;
 		}
-		return;
 	} else if (!_stepHistory.empty() && getStep()->type() == type) {
-		return;
+		return false;
 	}
 	const auto wasStep = _stepHistory.empty() ? nullptr : getStep().get();
 	auto nowStep = begin(_stepHistory);
@@ -555,6 +552,7 @@ void Widget::go(StepType type) {
 		nowStep = (_stepHistory.end() - 1);
 	}
 	historyMove(wasStep, nowStep);
+	return true;
 }
 
 #if 0 // mtp

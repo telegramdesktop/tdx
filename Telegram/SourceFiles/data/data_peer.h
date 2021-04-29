@@ -30,6 +30,11 @@ class Account;
 class Session;
 } // namespace Main
 
+namespace Tdb {
+class TLprofilePhoto;
+class TLchatPhotoInfo;
+} // namespace Tdb
+
 namespace Data {
 
 class Forum;
@@ -308,6 +313,7 @@ public:
 		return _nameFirstLetters;
 	}
 
+	void clearPhoto();
 	void setUserpic(
 		PhotoId photoId,
 		const ImageLocation &location,
@@ -488,9 +494,15 @@ protected:
 		const QString &newName,
 		const QString &newNameOrPhone,
 		const QString &newUsername);
+#if 0 // #TODO legacy
 	void updateUserpic(PhotoId photoId, MTP::DcId dcId, bool hasVideo);
+#endif
 	void clearUserpic();
 	void invalidateEmptyUserpic();
+
+	void updateUserpic(FileId fileId, PhotoId photoId = 0);
+	void updateUserpic(const Tdb::TLchatPhotoInfo &photo);
+	void updateUserpic(const Tdb::TLprofilePhoto &photo);
 
 private:
 	void fillNames();

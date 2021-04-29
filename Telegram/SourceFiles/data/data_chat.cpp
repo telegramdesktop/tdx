@@ -17,11 +17,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/notify/data_notify_settings.h"
 #include "history/history.h"
 #include "main/main_session.h"
+#include "tdb/tdb_tl_scheme.h"
 #include "apiwrap.h"
 #include "api/api_invite_links.h"
 
 namespace {
 
+using namespace Tdb;
 using UpdateFlag = Data::PeerUpdate::Flag;
 
 } // namespace
@@ -39,6 +41,7 @@ ChatData::ChatData(not_null<Data::Session*> owner, PeerId id)
 	}, _lifetime);
 }
 
+#if 0 // #TODO legacy
 void ChatData::setPhoto(const MTPChatPhoto &photo) {
 	photo.match([&](const MTPDchatPhoto &data) {
 		updateUserpic(
@@ -48,6 +51,11 @@ void ChatData::setPhoto(const MTPChatPhoto &photo) {
 	}, [&](const MTPDchatPhotoEmpty &) {
 		clearUserpic();
 	});
+}
+#endif
+
+void ChatData::setPhoto(const TLchatPhotoInfo &photo) {
+	updateUserpic(photo);
 }
 
 ChatAdminRightsInfo ChatData::defaultAdminRights(not_null<UserData*> user) {

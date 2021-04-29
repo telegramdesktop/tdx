@@ -169,8 +169,13 @@ public:
 	void setName(const QString &name, const QString &username);
 	void setUsername(const QString &username);
 	void setUsernames(const Data::Usernames &newUsernames);
+
+#if 0 // #TODO legacy
 	void setPhoto(const MTPChatPhoto &photo);
+#endif
 	void setAccessHash(uint64 accessHash);
+
+	void setPhoto(const Tdb::TLchatPhotoInfo &photo);
 
 	void setFlags(ChannelDataFlags which);
 	void addFlags(ChannelDataFlags which);
