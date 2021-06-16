@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_stickers_set.h"
 #include "data/data_messages.h"
 #include "tdb/tdb_sender.h"
+#include "tdb/tdb_resolve_chats.h"
 
 class TaskQueue;
 struct MessageGroupId;
@@ -437,16 +438,7 @@ private:
 		crl::time received = 0;
 	};
 
-	struct DialogsLoadState {
-		TimeId offsetDate = 0;
-		MsgId offsetId = 0;
-		PeerData *offsetPeer = nullptr;
-		mtpRequestId requestId = 0;
-		bool listReceived = false;
-
-		mtpRequestId pinnedRequestId = 0;
-		bool pinnedReceived = false;
-	};
+	struct DialogsLoadState;
 
 	void setupSupportMode();
 	void refreshDialogsLoadBlocked();

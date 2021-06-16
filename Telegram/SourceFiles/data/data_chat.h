@@ -174,7 +174,11 @@ public:
 	const MTPlong inputChat;
 
 	int count = 0;
+
+#if 1 // #TODO legacy?
 	TimeId date = 0;
+#endif
+
 	UserId creator = 0;
 
 	base::flat_set<not_null<UserData*>> participants;

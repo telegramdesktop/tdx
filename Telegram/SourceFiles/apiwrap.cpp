@@ -87,6 +87,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_account.h"
 
 #include "tdb/tdb_sender.h"
+#include "tdb/tdb_account.h"
 
 namespace {
 
@@ -146,6 +147,20 @@ void ShowChannelsLimitBox(not_null<PeerData*> peer) {
 }
 
 } // namespace
+
+struct ApiWrap::DialogsLoadState {
+	TimeId offsetDate = 0;
+	MsgId offsetId = 0;
+	PeerData *offsetPeer = nullptr;
+	RequestId requestId = 0;
+	bool listReceived = false;
+
+	RequestId pinnedRequestId = 0;
+	bool pinnedReceived = false;
+
+	ResolveChatsRequest request;
+	int64 offsetChatId = 0;
+};
 
 ApiWrap::ApiWrap(not_null<Main::Session*> session)
 : MTP::Sender(&session->account().mtp())
@@ -866,17 +881,17 @@ void ApiWrap::requestDialogs(Data::Folder *folder) {
 
 void ApiWrap::requestMoreDialogs(Data::Folder *folder) {
 	const auto state = dialogsLoadState(folder);
-	if (!state) {
+	if (!state || !tdb().ready()) {
 		return;
-	} else if (state->requestId) {
+	} else if (state->requestId || state->request) {
 		return;
 	} else if (_dialogsLoadBlockedByDate.current()) {
 		return;
 	}
 
+#if 0 // #TODO legacy
 	const auto firstLoad = !state->offsetDate;
 	const auto loadCount = firstLoad ? kDialogsFirstLoad : kDialogsPerPage;
-#if 0 // #TODO legacy
 	const auto flags = MTPmessages_GetDialogs::Flag::f_exclude_pinned
 		| MTPmessages_GetDialogs::Flag::f_folder_id;
 	const auto hash = uint64(0);
@@ -930,24 +945,50 @@ void ApiWrap::requestMoreDialogs(Data::Folder *folder) {
 	}).fail([=] {
 		dialogsLoadState(folder)->requestId = 0;
 	}).send();
-#endif
-
-	state->requestId = sender().request(TLgetChats(
-		folder ? tl_chatListArchive() : tl_chatListMain(),
-		tl_int32(loadCount)
-	)).done([=](const TLchats &result) {
-		result.match([&](const TLDchats &data) {
-			for (const auto &chatId : data.vchat_ids().v) {
-				const auto peerId = peerFromTdbChat(chatId);
-			}
-		});
-	}).fail([=](const Error &error) {
-		dialogsLoadState(folder)->requestId = 0;
-	}).send();
 
 	if (!state->pinnedReceived) {
 		requestPinnedDialogs(folder);
 	}
+#endif
+
+	const auto firstLoad = !state->offsetChatId;
+	const auto loadCount = firstLoad ? kDialogsFirstLoad : kDialogsPerPage;
+	state->request.send(sender(), TLgetChats(
+		folder ? tl_chatListArchive() : tl_chatListMain(),
+		tl_int32(loadCount)
+	), [=] {
+		return &dialogsLoadState(folder)->request;
+	}, [=](const ResolvedChats &result) {
+		const auto state = dialogsLoadState(folder);
+		if (!state) {
+			return;
+		}
+		const auto count = result.count;
+		if (result.ids.isEmpty()) {
+			state->listReceived = true;
+			state->pinnedReceived = true;
+			dialogsLoadFinish(folder); // may kill 'state'.
+		} else {
+			state->offsetChatId = result.ids.back().v;
+		}
+		_session->data().processUsers(result.users);
+		_session->data().processChats(result.chats);
+		_session->data().processChannels(result.channels);
+		_session->data().processPeers(result.dialogs);
+		//_session->data().applyDialogs(
+		//	folder,
+		//	data.vmessages().v,
+		//	data.vdialogs().v,
+		//	count);
+
+		if (!folder
+			&& (!_dialogsLoadState || !_dialogsLoadState->listReceived)) {
+			refreshDialogsLoadBlocked();
+		}
+		requestMoreDialogsIfNeeded();
+		_session->data().chatsListChanged(folder);
+	});
+
 	if (!folder) {
 		refreshDialogsLoadBlocked();
 	}
@@ -989,6 +1030,7 @@ void ApiWrap::updateDialogsOffset(
 		Data::Folder *folder,
 		const QVector<MTPDialog> &dialogs,
 		const QVector<MTPMessage> &messages) {
+#if 0 // #TODO legacy
 	auto lastDate = TimeId(0);
 	auto lastPeer = PeerId(0);
 	auto lastMsgId = MsgId(0);
@@ -1030,6 +1072,7 @@ void ApiWrap::updateDialogsOffset(
 			dialogsLoadFinish(folder);
 		}
 	}
+#endif
 }
 
 auto ApiWrap::dialogsLoadState(Data::Folder *folder) -> DialogsLoadState* {

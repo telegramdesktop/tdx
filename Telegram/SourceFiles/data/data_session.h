@@ -211,11 +211,20 @@ public:
 	not_null<UserData*> processUser(const MTPUser &data);
 	not_null<PeerData*> processChat(const MTPChat &data);
 
+	not_null<PeerData*> processPeer(const Tdb::TLchat &dialog);
 	not_null<UserData*> processUser(const Tdb::TLuser &user);
+	not_null<ChatData*> processChat(const Tdb::TLbasicGroup &chat);
+	not_null<ChannelData*> processChannel(const Tdb::TLsupergroup &channel);
 
 	// Returns last user, if there were any.
 	UserData *processUsers(const MTPVector<MTPUser> &data);
 	PeerData *processChats(const MTPVector<MTPChat> &data);
+
+	// Returns last user, if there were any.
+	PeerData *processPeers(const std::vector<Tdb::TLchat> &data);
+	UserData *processUsers(const std::vector<Tdb::TLuser> &data);
+	ChatData *processChats(const std::vector<Tdb::TLbasicGroup> &data);
+	ChannelData *processChannels(const std::vector<Tdb::TLsupergroup> &data);
 
 	void applyMaximumChatVersions(const MTPVector<MTPChat> &data);
 
