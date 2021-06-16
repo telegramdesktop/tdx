@@ -24,6 +24,10 @@ public:
 
 	[[nodiscard]] rpl::producer<TLupdate> updates() const;
 
+	[[nodiscard]] bool ready() const {
+		return _ready;
+	}
+
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
 	}
@@ -34,6 +38,7 @@ private:
 	details::Instance _instance;
 	Sender _sender;
 	rpl::event_stream<TLupdate> _updates;
+	bool _ready = false;
 
 	rpl::lifetime _lifetime;
 
