@@ -32,6 +32,9 @@ bool Account::consumeUpdate(const TLupdate &update) {
 				TLcheckDatabaseEncryptionKey(tl_bytes())
 			).send();
 			return true;
+		}, [&](const TLDauthorizationStateReady &) {
+			_ready = true;
+			return false;
 		}, [&](const auto &) {
 			return false;
 		});
