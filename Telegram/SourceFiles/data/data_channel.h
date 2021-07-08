@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_bot_commands.h"
 #include "data/data_user_names.h"
 
+namespace Tdb {
+class TLDsupergroupFullInfo;
+} // namespace Tdb
+
 struct ChannelLocation {
 	QString address;
 	Data::LocationPoint point;
@@ -566,5 +570,9 @@ void ApplyChannelUpdate(
 void ApplyChannelUpdate(
 	not_null<ChannelData*> channel,
 	const MTPDchannelFull &update);
+
+void ApplyChannelUpdate(
+	not_null<ChannelData*> channel,
+	const Tdb::TLDsupergroupFullInfo &update);
 
 } // namespace Data

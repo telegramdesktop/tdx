@@ -13,6 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class ApiWrap;
 class History;
 
+namespace Tdb {
+class TLupdate;
+} // namespace Tdb
+
 namespace MTP {
 class Error;
 } // namespace MTP
@@ -83,6 +87,8 @@ private:
 		rpl::lifetime lifetime;
 	};
 
+	void applyUpdate(const Tdb::TLupdate &update);
+
 	void channelRangeDifferenceSend(
 		not_null<ChannelData*> channel,
 		MsgRange range,
@@ -121,8 +127,11 @@ private:
 	void failDifferenceStartTimerFor(ChannelData *channel);
 	void feedChannelDifference(const MTPDupdates_channelDifference &data);
 
+#if 0 // #TODO legacy
 	void mtpUpdateReceived(const MTPUpdates &updates);
 	void mtpNewSessionCreated();
+#endif
+
 	void feedUpdateVector(
 		const MTPVector<MTPUpdate> &updates,
 		SkipUpdatePolicy policy = SkipUpdatePolicy::SkipNone);

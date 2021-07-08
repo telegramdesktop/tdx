@@ -590,4 +590,54 @@ void ApplyChatUpdate(
 	});
 }
 
+void ApplyChatUpdate(
+		not_null<ChatData*> chat,
+		const TLDbasicGroupFullInfo &update) {
+	//update.vmembers(); // #TODO tdlib
+	//ApplyChatUpdate(chat, update.vparticipants());
+
+	chat->creator = UserId(update.vcreator_user_id());
+	//if (const auto call = update.vcall()) {
+	//	chat->setGroupCall(*call);
+	//} else {
+	//	chat->clearGroupCall();
+	//}
+	//if (const auto as = update.vgroupcall_default_join_as()) {
+	//	chat->setGroupCallDefaultJoinAs(peerFromMTP(*as));
+	//} else {
+	//	chat->setGroupCallDefaultJoinAs(0);
+	//}
+
+	//chat->setMessagesTTL(update.vttl_period().value_or_empty());
+
+	//update.vbot_commands(); // #TODO tdlib
+	//if (const auto info = update.vbot_info()) {
+	//	chat->setBotCommands(*info);
+	//} else {
+	//	chat->setBotCommands(MTP_vector<MTPBotInfo>());
+	//}
+
+	//chat->setFullFlags(update.vflags().v);
+	if (const auto photo = update.vphoto()) {
+		chat->setPhotoFull(*photo);
+	} else {
+		chat->clearPhoto();
+	}
+	//if (const auto invite = update.vinvite_link()) { // #TODO tdlib
+	//	chat->session().api().inviteLinks().setMyPermanent(chat, *invite);
+	//} else {
+	//	chat->session().api().inviteLinks().clearMyPermanent(chat);
+	//}
+	//if (const auto pinned = update.vpinned_msg_id()) {
+	//	SetTopPinnedMessageId(chat, pinned->v);
+	//}
+	//chat->checkFolder(update.vfolder_id().value_or_empty());
+	chat->fullUpdated();
+	chat->setAbout(update.vdescription().v);
+
+	//chat->session().api().applyNotifySettings(
+	//	MTP_inputNotifyPeer(chat->input),
+	//	update.vnotify_settings());
+}
+
 } // namespace Data

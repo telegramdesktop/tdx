@@ -135,18 +135,38 @@ void CheckForSwitchInlineButton(not_null<HistoryItem*> item) {
 			return tl_is_true(check) ? value : Flag(0);
 		};
 		return Flag(0)
-			| bit(data.vcan_add_web_page_previews(), Flag::f_embed_links)
-			| bit(data.vcan_change_info(), Flag::f_change_info)
-			| bit(data.vcan_invite_users(), Flag::f_invite_users)
-			| bit(data.vcan_pin_messages(), Flag::f_pin_messages)
-			| bit(data.vcan_send_media_messages(), Flag::f_send_media)
-			| bit(data.vcan_send_messages(), Flag::f_send_messages)
-			| bit(data.vcan_send_polls(), Flag::f_send_polls)
-			| bit(data.vcan_send_other_messages(), Flag::f_send_stickers)
-			| bit(data.vcan_send_other_messages(), Flag::f_send_games)
-			| bit(data.vcan_send_other_messages(), Flag::f_send_gifs)
-			| bit(data.vcan_send_other_messages(), Flag::f_send_inline);
+			| bit(data.vcan_add_web_page_previews(), Flag::EmbedLinks)
+			| bit(data.vcan_change_info(), Flag::ChangeInfo)
+			| bit(data.vcan_invite_users(), Flag::InviteUsers)
+			| bit(data.vcan_pin_messages(), Flag::PinMessages)
+			| bit(data.vcan_send_media_messages(), Flag::SendMedia)
+			| bit(data.vcan_send_messages(), Flag::SendMessages)
+			| bit(data.vcan_send_polls(), Flag::SendPolls)
+			| bit(data.vcan_send_other_messages(), Flag::SendStickers)
+			| bit(data.vcan_send_other_messages(), Flag::SendGames)
+			| bit(data.vcan_send_other_messages(), Flag::SendGifs)
+			| bit(data.vcan_send_other_messages(), Flag::SendInline);
 	});
+}
+
+[[nodiscard]] ChatAdminRights AdminRightsFromChatMemberStatus(
+		const TLDchatMemberStatusAdministrator &data) {
+	using Flag = ChatAdminRight;
+	const auto bit = [&](const TLbool &check, Flag value) {
+		return tl_is_true(check) ? value : Flag(0);
+	};
+	return Flag(0)
+		| bit(data.vcan_manage_chat(), Flag::Other)
+		| bit(data.vcan_change_info(), Flag::ChangeInfo)
+		| bit(data.vcan_delete_messages(), Flag::DeleteMessages)
+		| bit(data.vcan_edit_messages(), Flag::EditMessages)
+		| bit(data.vcan_invite_users(), Flag::InviteUsers)
+		| bit(data.vcan_manage_voice_chats(), Flag::ManageCall)
+		| bit(data.vcan_pin_messages(), Flag::PinMessages)
+		| bit(data.vcan_post_messages(), Flag::PostMessages)
+		| bit(data.vcan_promote_members(), Flag::AddAdmins)
+		| bit(data.vcan_restrict_members(), Flag::BanUsers)
+		| bit(data.vis_anonymous(), Flag::Anonymous);
 }
 
 [[nodiscard]] InlineImageLocation FindInlineThumbnail(
@@ -1147,8 +1167,8 @@ not_null<UserData*> Session::processUser(const TLuser &user) {
 		result->clearPhoto();
 	}
 	result->setUnavailableReasons({}); // #TODO tdlib
-	//result->setFlags(MTPDuser_ClientFlag::f_inaccessible | 0);
-	//result->setFlags(MTPDuser::Flag::f_deleted);
+	//result->setFlags(UserDataFlag::Inaccessible);
+	//result->setFlags(UserDataFlag::Deleted);
 	result->setBotInfoVersion(-1); // #TODO tdlib
 	result->setIsContact(tl_is_true(data.vis_contact()));
 	if (canShareThisContact != result->canShareThisContactFast()) {
@@ -1208,15 +1228,13 @@ not_null<PeerData*> Session::processPeer(const TLchat &dialog) {
 		} else {
 			chat->clearPhoto();
 		}
-		const auto flags = RestrictionsFromPermissions(data.vpermissions());
-		chat->setDefaultRestrictions(MTP_chatBannedRights(
-			MTP_flags(flags),
-			MTP_int(flags ? ChannelData::kRestrictUntilForever : 0)));
+		chat->setDefaultRestrictions(
+			RestrictionsFromPermissions(data.vpermissions()));
 		data.vvoice_chat().match([&](const TLDvoiceChat &data) {
-			const auto callFlag = MTPDchat::Flag::f_call_not_empty;
+			const auto callFlag = ChatDataFlag::CallNotEmpty;
 			const auto callNotEmpty = tl_is_true(data.vhas_participants());
 			chat->setFlags(chat->flags() // #TODO tdlib
-				| (callNotEmpty ? callFlag : MTPDchat::Flag(0)));
+				| (callNotEmpty ? callFlag : ChatDataFlag(0)));
 		});
 
 		if (canAddMembers != chat->canAddMembers()) {
@@ -1228,27 +1246,8 @@ not_null<PeerData*> Session::processPeer(const TLchat &dialog) {
 		const auto canViewMembers = channel->canViewMembers();
 		const auto canAddMembers = channel->canAddMembers();
 
-		data.vpermissions().match([&](const TLDchatPermissions &data) {
-			using Flag = ChatRestriction;
-			const auto bit = [&](const TLbool &check, Flag value) {
-				return tl_is_true(check) ? value : Flag(0);
-			};
-			const auto flags = Flag(0)
-				| bit(data.vcan_add_web_page_previews(), Flag::f_embed_links)
-				| bit(data.vcan_change_info(), Flag::f_change_info)
-				| bit(data.vcan_invite_users(), Flag::f_invite_users)
-				| bit(data.vcan_pin_messages(), Flag::f_pin_messages)
-				| bit(data.vcan_send_media_messages(), Flag::f_send_media)
-				| bit(data.vcan_send_messages(), Flag::f_send_messages)
-				| bit(data.vcan_send_polls(), Flag::f_send_polls)
-				| bit(data.vcan_send_other_messages(), Flag::f_send_stickers)
-				| bit(data.vcan_send_other_messages(), Flag::f_send_games)
-				| bit(data.vcan_send_other_messages(), Flag::f_send_gifs)
-				| bit(data.vcan_send_other_messages(), Flag::f_send_inline);
-			channel->setDefaultRestrictions(MTP_chatBannedRights(
-				MTP_flags(flags),
-				MTP_int(flags ? ChannelData::kRestrictUntilForever : 0)));
-		});
+		channel->setDefaultRestrictions(
+			RestrictionsFromPermissions(data.vpermissions()));
 		channel->setName(data.vtitle().v, channel->username);
 
 		if (const auto photo = data.vphoto()) {
@@ -1281,60 +1280,44 @@ not_null<ChatData*> Session::processChat(const TLbasicGroup &chat) {
 		return data;
 	});
 	const auto result = this->chat(data.vid().v);
-	using Flag = MTPDchat::Flag;
-	const auto setting = Flag::f_deactivated
-		| Flag::f_left
-		| Flag::f_kicked;
+	using Flag = ChatDataFlag;
+	const auto setting = Flag::Deactivated
+		| Flag::Left
+		| Flag::Kicked;
 	auto flags = (result->flags() & ~setting)
-		| (!tl_is_true(data.vis_active()) ? Flag::f_deactivated : Flag());
+		| (!tl_is_true(data.vis_active()) ? Flag::Deactivated : Flag());
 	result->count = data.vmember_count().v;
 	if (const auto migratedTo = data.vupgraded_to_supergroup_id().v) {
 		const auto channel = this->channel(migratedTo);
-		channel->addFlags(MTPDchannel::Flag::f_megagroup);
+		channel->addFlags(ChannelDataFlag::Megagroup);
 		ApplyMigration(result, channel);
 	}
 	data.vstatus().match([&](const TLDchatMemberStatusCreator &data) {
 		if (!tl_is_true(data.vis_member())) {
-			flags |= Flag::f_left;
+			flags |= Flag::Left;
 		}
 		result->creator = session().userId();
-		result->setAdminRights(MTP_chatAdminRights(MTP_flags(
-			(tl_is_true(data.vis_anonymous())
-				? ChatAdminRight::f_anonymous
-				: ChatAdminRight()))));
+		result->setAdminRights(tl_is_true(data.vis_anonymous())
+			? ChatAdminRight::Anonymous
+			: ChatAdminRight());
 		//data.vcustom_title().v; // #TODO tdlib
 	}, [&](const TLDchatMemberStatusAdministrator &data) {
-		using Flag = ChatAdminRight;
-		const auto bit = [&](const TLbool &check, Flag value) {
-			return tl_is_true(check) ? value : Flag(0);
-		};
-		result->setAdminRights(MTP_chatAdminRights(MTP_flags(Flag(0)
-			| bit(data.vcan_manage_chat(), Flag::f_other)
-			| bit(data.vcan_change_info(), Flag::f_change_info)
-			| bit(data.vcan_delete_messages(), Flag::f_delete_messages)
-			| bit(data.vcan_edit_messages(), Flag::f_edit_messages)
-			| bit(data.vcan_invite_users(), Flag::f_invite_users)
-			| bit(data.vcan_manage_voice_chats(), Flag::f_manage_call)
-			| bit(data.vcan_pin_messages(), Flag::f_pin_messages)
-			| bit(data.vcan_post_messages(), Flag::f_post_messages)
-			| bit(data.vcan_promote_members(), Flag::f_add_admins)
-			| bit(data.vcan_restrict_members(), Flag::f_ban_users)
-			| bit(data.vis_anonymous(), Flag::f_anonymous))));
+		result->setAdminRights(AdminRightsFromChatMemberStatus(data));
 		//data.vcustom_title().v; // #TODO tdlib
 	}, [&](const TLDchatMemberStatusMember &data) {
-		result->setAdminRights(MTP_chatAdminRights(MTP_flags(0)));
+		result->setAdminRights(ChatAdminRights());
 	}, [&](const TLDchatMemberStatusRestricted &data) {
 		LOG(("Tdb Error: Should not get restrictions in basic groups."));
-		result->setAdminRights(MTP_chatAdminRights(MTP_flags(0)));
+		result->setAdminRights(ChatAdminRights());
 		if (!tl_is_true(data.vis_member())) {
-			flags |= Flag::f_left;
+			flags |= Flag::Left;
 		}
 	}, [&](const TLDchatMemberStatusLeft &data) {
-		result->setAdminRights(MTP_chatAdminRights(MTP_flags(0)));
-		flags |= Flag::f_left;
+		result->setAdminRights(ChatAdminRights());
+		flags |= Flag::Left;
 	}, [&](const TLDchatMemberStatusBanned &data) {
-		result->setAdminRights(MTP_chatAdminRights(MTP_flags(0)));
-		flags |= Flag::f_kicked;
+		result->setAdminRights(ChatAdminRights());
+		flags |= Flag::Kicked;
 	});
 	result->setFlags(flags);
 	return result;
@@ -1347,95 +1330,78 @@ not_null<ChannelData*> Session::processChannel(
 		return data;
 	});
 	const auto result = this->channel(data.vid().v);
-	using Flag = MTPDchannel::Flag;
+	using Flag = ChannelDataFlag;
 	result->date = data.vdate().v;
-	const auto setting = Flag::f_megagroup
-		| Flag::f_gigagroup
-		| Flag::f_scam
-		| Flag::f_fake
-		| Flag::f_left
-		| Flag::f_signatures
-		| Flag::f_slowmode_enabled
-		| Flag::f_verified
-		| Flag::f_has_geo
-		| Flag::f_has_link
-		| Flag::f_creator;
+	const auto setting = Flag::Megagroup
+		| Flag::Gigagroup
+		| Flag::Scam
+		| Flag::Fake
+		| Flag::Left
+		| Flag::Signatures
+		| Flag::SlowmodeEnabled
+		| Flag::Verified
+		//| Flag::f_has_geo
+		| Flag::HasLink
+		| Flag::Creator;
 	auto flags = (result->flags() & ~setting)
-		| (!tl_is_true(data.vis_channel()) ? Flag::f_megagroup : Flag())
+		| (!tl_is_true(data.vis_channel()) ? Flag::Megagroup : Flag())
 		| (tl_is_true(data.vis_broadcast_group())
-			? Flag::f_gigagroup
+			? Flag::Gigagroup
 			: Flag())
-		| (tl_is_true(data.vis_fake()) ? Flag::f_fake : Flag())
-		| (tl_is_true(data.vis_scam()) ? Flag::f_scam : Flag())
-		| (tl_is_true(data.vis_verified()) ? Flag::f_verified : Flag())
+		| (tl_is_true(data.vis_fake()) ? Flag::Fake : Flag())
+		| (tl_is_true(data.vis_scam()) ? Flag::Scam : Flag())
+		| (tl_is_true(data.vis_verified()) ? Flag::Verified : Flag())
 		| (tl_is_true(data.vis_slow_mode_enabled())
-			? Flag::f_slowmode_enabled
+			? Flag::SlowmodeEnabled
 			: Flag())
-		| (tl_is_true(data.vsign_messages()) ? Flag::f_signatures : Flag())
-		| (tl_is_true(data.vhas_linked_chat()) ? Flag::f_has_link : Flag())
-		| (tl_is_true(data.vhas_location()) ? Flag::f_has_geo : Flag())
+		| (tl_is_true(data.vsign_messages()) ? Flag::Signatures : Flag())
+		| (tl_is_true(data.vhas_linked_chat()) ? Flag::HasLink : Flag())
+		//| (tl_is_true(data.vhas_location()) ? Flag::f_has_geo : Flag())
 		| ((data.vstatus().type() == id_chatMemberStatusCreator)
-			? Flag::f_creator
+			? Flag::Creator
 			: Flag());
 	result->setMembersCount(data.vmember_count().v);
 	result->setName(result->name, data.vusername().v);
 	//data.vrestriction_reason(); // #TODO tdlib
 	data.vstatus().match([&](const TLDchatMemberStatusCreator &data) {
 		if (!tl_is_true(data.vis_member())) {
-			flags |= Flag::f_left;
+			flags |= Flag::Left;
 		}
-		result->setAdminRights(MTP_chatAdminRights(MTP_flags(
-			(tl_is_true(data.vis_anonymous())
-				? ChatAdminRight::f_anonymous
-				: ChatAdminRight()))));
-		result->setRestrictions(
-			MTP_chatBannedRights(MTP_flags(0), MTP_int(0)));
+		result->setAdminRights(tl_is_true(data.vis_anonymous())
+			? ChatAdminRight::Anonymous
+			: ChatAdminRight());
+		result->setRestrictions(ChatRestrictionsInfo());
 		//data.vcustom_title().v; // #TODO tdlib
 	}, [&](const TLDchatMemberStatusAdministrator &data) {
 		using Flag = ChatAdminRight;
 		const auto bit = [&](const TLbool &check, Flag value) {
 			return tl_is_true(check) ? value : Flag(0);
 		};
-		result->setAdminRights(MTP_chatAdminRights(MTP_flags(Flag(0)
-			| bit(data.vcan_manage_chat(), Flag::f_other)
-			| bit(data.vcan_change_info(), Flag::f_change_info)
-			| bit(data.vcan_delete_messages(), Flag::f_delete_messages)
-			| bit(data.vcan_edit_messages(), Flag::f_edit_messages)
-			| bit(data.vcan_invite_users(), Flag::f_invite_users)
-			| bit(data.vcan_manage_voice_chats(), Flag::f_manage_call)
-			| bit(data.vcan_pin_messages(), Flag::f_pin_messages)
-			| bit(data.vcan_post_messages(), Flag::f_post_messages)
-			| bit(data.vcan_promote_members(), Flag::f_add_admins)
-			| bit(data.vcan_restrict_members(), Flag::f_ban_users)
-			| bit(data.vis_anonymous(), Flag::f_anonymous))));
-		result->setRestrictions(
-			MTP_chatBannedRights(MTP_flags(0), MTP_int(0)));
+		result->setAdminRights(AdminRightsFromChatMemberStatus(data));
+		result->setRestrictions(ChatRestrictionsInfo());
 		//data.vcustom_title().v; // #TODO tdlib
 	}, [&](const TLDchatMemberStatusMember &data) {
-		result->setAdminRights(MTP_chatAdminRights(MTP_flags(0)));
-		result->setRestrictions(
-			MTP_chatBannedRights(MTP_flags(0), MTP_int(0)));
+		result->setAdminRights(ChatAdminRights());
+		result->setRestrictions(ChatRestrictionsInfo());
 	}, [&](const TLDchatMemberStatusRestricted &data) {
-		result->setAdminRights(MTP_chatAdminRights(MTP_flags(0)));
-		result->setRestrictions(MTP_chatBannedRights(
-			MTP_flags(RestrictionsFromPermissions(data.vpermissions())),
-			MTP_int(data.vrestricted_until_date().v)));
+		result->setAdminRights(ChatAdminRights());
+		result->setRestrictions({
+			RestrictionsFromPermissions(data.vpermissions()),
+			data.vrestricted_until_date().v,
+		});
 		if (!tl_is_true(data.vis_member())) {
-			flags |= Flag::f_left;
+			flags |= Flag::Left;
 		}
 	}, [&](const TLDchatMemberStatusLeft &data) {
-		result->setAdminRights(MTP_chatAdminRights(MTP_flags(0)));
-		result->setRestrictions(
-			MTP_chatBannedRights(MTP_flags(0), MTP_int(0)));
-		flags |= Flag::f_left;
+		result->setAdminRights(ChatAdminRights());
+		result->setRestrictions(ChatRestrictionsInfo());
+		flags |= Flag::Left;
 	}, [&](const TLDchatMemberStatusBanned &data) {
-		result->setAdminRights(MTP_chatAdminRights(MTP_flags(0)));
+		result->setAdminRights(ChatAdminRights());
 		const auto flags = ChannelData::KickedRestrictedRights(
 			session().user()
-		).c_chatBannedRights().vflags();
-		result->setRestrictions(MTP_chatBannedRights(
-			flags,
-			MTP_int(data.vbanned_until_date().v)));
+		).flags;
+		result->setRestrictions({ flags, data.vbanned_until_date().v });
 	});
 	result->setFlags(flags);
 	return result;
