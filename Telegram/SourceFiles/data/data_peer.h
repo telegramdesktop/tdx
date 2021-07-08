@@ -33,6 +33,7 @@ class Session;
 namespace Tdb {
 class TLprofilePhoto;
 class TLchatPhotoInfo;
+class TLchatPhoto;
 } // namespace Tdb
 
 namespace Data {
@@ -259,6 +260,8 @@ public:
 	[[nodiscard]] const base::flat_set<QChar> &nameFirstLetters() const {
 		return _nameFirstLetters;
 	}
+
+	void setPhotoFull(const Tdb::TLchatPhoto &data);
 
 	void clearPhoto();
 	void setUserpic(
