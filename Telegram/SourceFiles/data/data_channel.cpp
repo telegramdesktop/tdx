@@ -1295,4 +1295,155 @@ void ApplyChannelUpdate(
 	channel->owner().sendHistoryChangeNotifications();
 }
 
+void ApplyChannelUpdate(
+		not_null<ChannelData*> channel,
+		const TLDsupergroupFullInfo &update) {
+	const auto session = &channel->session();
+
+	//if (channel->isMegagroup()) { // #TODO tdlib
+	//	const auto suggestions = update.vpending_suggestions().value_or_empty();
+	//	channel->owner().setSuggestToGigagroup(
+	//		channel,
+	//		ranges::contains(
+	//			suggestions,
+	//			"convert_to_gigagroup"_q,
+	//			&MTPstring::v));
+	//}
+
+	//channel->setAvailableMinId(update.vavailable_min_id().value_or_empty());
+	auto canViewAdmins = channel->canViewAdmins();
+	auto canViewMembers = channel->canViewMembers();
+	auto canEditStickers = channel->canEditStickers();
+
+	//if (const auto call = update.vcall()) {
+	//	channel->setGroupCall(*call);
+	//} else {
+	//	channel->clearGroupCall();
+	//}
+	//if (const auto as = update.vgroupcall_default_join_as()) {
+	//	channel->setGroupCallDefaultJoinAs(peerFromMTP(*as));
+	//} else {
+	//	channel->setGroupCallDefaultJoinAs(0);
+	//}
+
+	//channel->setMessagesTTL(update.vttl_period().value_or_empty());
+
+	// #TODO tdlib
+	//update.vcan_get_members();
+	//update.vcan_get_statistics();
+	//update.vcan_set_location();
+	//update.vcan_set_sticker_set();
+	//update.vcan_set_username();
+	//update.vis_all_history_available();
+	//channel->setFullFlags(update.vflags().v);
+
+	if (const auto photo = update.vphoto()) {
+		channel->setPhotoFull(*photo);
+	} else {
+		channel->clearPhoto();
+	}
+	if (const auto from = update.vupgraded_from_basic_group_id().v) {
+		channel->addFlags(ChannelDataFlag::Megagroup);
+		const auto chat = channel->owner().chat(ChatId(from));
+		Data::ApplyMigration(chat, channel);
+	}
+	channel->setAbout(update.vdescription().v);
+	channel->setMembersCount(update.vmember_count().v);
+	channel->setAdminsCount(update.vadministrator_count().v);
+	channel->setRestrictedCount(update.vrestricted_count().v);
+	channel->setKickedCount(update.vbanned_count().v);
+
+	channel->setSlowmodeSeconds(update.vslow_mode_delay().v);
+	if (const auto in = update.vslow_mode_delay_expires_in().v; in > 0.) {
+		// #TODO tdlib better slowmode management
+		channel->growSlowmodeLastMessage(
+			base::unixtime::now() + int(std::round(in * 1000)) - channel->slowmodeSeconds());
+	}
+
+	// #TODO tdlib
+	//if (const auto invite = update.vinvite_link()) {
+	//	channel->session().api().inviteLinks().setMyPermanent(
+	//		channel,
+	//		*invite);
+	//} else {
+	//	channel->session().api().inviteLinks().clearMyPermanent(channel);
+	//}
+	//if (const auto location = update.vlocation()) {
+	//	channel->setLocation(*location);
+	//} else {
+	//	channel->setLocation(MTP_channelLocationEmpty());
+	//}
+
+	const auto linkedChatId = peerToChannel(
+		peerFromTdbChat(update.vlinked_chat_id()));
+	channel->setLinkedChat(linkedChatId
+		? channel->owner().channelLoaded(linkedChatId)
+		: nullptr);
+
+	//if (const auto history = channel->owner().historyLoaded(channel)) {
+	//	if (const auto available = update.vavailable_min_id()) {
+	//		history->clearUpTill(available->v);
+	//	}
+	//	const auto folderId = update.vfolder_id().value_or_empty();
+	//	const auto folder = folderId
+	//		? channel->owner().folderLoaded(folderId)
+	//		: nullptr;
+	//	auto &histories = channel->owner().histories();
+	//	if (folder && history->folder() != folder) {
+	//		// If history folder is unknown or not synced, request both.
+	//		histories.requestDialogEntry(history);
+	//		histories.requestDialogEntry(folder);
+	//	} else if (!history->folderKnown()
+	//		|| channel->pts() != update.vpts().v) {
+	//		histories.requestDialogEntry(history);
+	//	} else {
+	//		history->applyDialogFields(
+	//			history->folder(),
+	//			update.vunread_count().v,
+	//			update.vread_inbox_max_id().v,
+	//			update.vread_outbox_max_id().v);
+	//	}
+	//}
+	//if (const auto pinned = update.vpinned_msg_id()) {
+	//	SetTopPinnedMessageId(channel, pinned->v);
+	//}
+	if (channel->isMegagroup()) {
+		//update.vbot_commands(); // #TODO tdlib
+		//if (channel->mgInfo->updateBotCommands(update.vbot_info())) {
+		//	channel->owner().botCommandsChanged(channel);
+		//}
+
+		//update.vsticker_set_id();// #TODO tdlib
+		//const auto stickerSet = update.vstickerset();
+		//const auto set = stickerSet ? &stickerSet->c_stickerSet() : nullptr;
+		//const auto newSetId = (set ? set->vid().v : 0);
+		//const auto oldSetId = (channel->mgInfo->stickerSet.type() == mtpc_inputStickerSetID)
+		//	? channel->mgInfo->stickerSet.c_inputStickerSetID().vid().v
+		//	: 0;
+		//const auto stickersChanged = (canEditStickers != channel->canEditStickers())
+		//	|| (oldSetId != newSetId);
+		//if (oldSetId != newSetId) {
+		//	channel->mgInfo->stickerSet = set
+		//		? MTP_inputStickerSetID(set->vid(), set->vaccess_hash())
+		//		: MTP_inputStickerSetEmpty();
+		//}
+		//if (stickersChanged) {
+		//	session->changes().peerUpdated(channel, UpdateFlag::StickersSet);
+		//}
+	}
+	channel->fullUpdated();
+
+	if (canViewAdmins != channel->canViewAdmins()
+		|| canViewMembers != channel->canViewMembers()) {
+		session->changes().peerUpdated(channel, UpdateFlag::Rights);
+	}
+
+	//session->api().applyNotifySettings(
+	//	MTP_inputNotifyPeer(channel->input),
+	//	update.vnotify_settings());
+
+	// For clearUpTill() call.
+	channel->owner().sendHistoryChangeNotifications();
+}
+
 } // namespace Data

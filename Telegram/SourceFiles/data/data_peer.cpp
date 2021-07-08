@@ -564,6 +564,22 @@ void PeerData::updateUserpic(const TLprofilePhoto &photo) {
 	});
 }
 
+void PeerData::setPhotoFull(const TLchatPhoto &data) {
+	data.match([&](const TLDchatPhoto &data) {
+		// #TODO tdlib animated avatars.
+		if (data.vsizes().v.isEmpty()) {
+			clearPhoto();
+		} else {
+			const auto &size = data.vsizes().v.front();
+			updateUserpic(size.match([&](const TLDphotoSize &data) {
+				return data.vphoto().match([&](const TLDfile &data) {
+					return data.vid().v;
+				});
+			}), data.vid().v); // #TODO tdlib set data to view.
+		}
+	});
+}
+
 void PeerData::clearPhoto() {
 	clearUserpic();
 }

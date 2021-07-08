@@ -675,4 +675,55 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 	user->fullUpdated();
 }
 
+void ApplyUserUpdate(
+		not_null<UserData*> user,
+		const TLDuserFullInfo &update) {
+	if (const auto photo = update.vphoto()) {
+		user->setPhotoFull(*photo);
+	} else {
+		user->clearPhoto();
+	}
+	//const auto settings = update.vsettings().match([&]( // #TODO tdlib
+	//	const MTPDpeerSettings &data) {
+	//	return data.vflags().v;
+	//});
+
+	//MTPDpeerSettings::Flag::f_need_contacts_exception; // #TODO tdlib
+	//update.vneed_phone_number_privacy_exception();
+	//user->setSettings(settings);
+
+	//user->session().api().applyNotifySettings(
+	//	MTP_inputNotifyPeer(user->input),
+	//	update.vnotify_settings());
+
+	//user->setMessagesTTL(update.vttl_period().value_or_empty());
+
+	//update.vcommands(); // #TODO tdlib
+	//update.vdescription();
+	//if (const auto info = update.vbot_info()) {
+	//	user->setBotInfo(*info);
+	//} else {
+	//	user->setBotInfoVersion(-1);
+	//}
+
+	//if (const auto pinned = update.vpinned_msg_id()) {
+	//	SetTopPinnedMessageId(user, pinned->v);
+	//}
+
+	//MTPDuserFull::Flag::f_video_calls_available; // #TODO tdlib
+	//update.vsupports_video_calls();
+	//user->setFullFlags(update.vflags().v);
+	user->setIsBlocked(tl_is_true(update.vis_blocked()));
+	user->setCallsStatus(tl_is_true(update.vhas_private_calls())
+		? UserData::CallsStatus::Private
+		: tl_is_true(update.vcan_be_called())
+		? UserData::CallsStatus::Enabled
+		: UserData::CallsStatus::Disabled);
+	user->setAbout(update.vbio().v);
+	//update.vshare_text(); // #TODO tdlib
+	user->setCommonChatsCount(update.vgroup_in_common_count().v);
+	//user->checkFolder(update.vfolder_id().value_or_empty());
+	user->fullUpdated();
+}
+
 } // namespace Data

@@ -64,6 +64,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "ui/text/format_values.h" // Ui::FormatPhone
 
+#include "tdb/tdb_account.h"
+
 namespace Api {
 namespace {
 
@@ -77,6 +79,8 @@ constexpr auto kNoUpdatesTimeout = 60 * 1000;
 
 // If nothing is received in 1 min when was a sleepmode we ping.
 constexpr auto kNoUpdatesAfterSleepTimeout = 60 * crl::time(1000);
+
+using namespace Tdb;
 
 enum class DataIsLoadedResult {
 	NotLoaded = 0,
@@ -240,6 +244,7 @@ Updates::Updates(not_null<Main::Session*> session)
 , _idleFinishTimer([=] { checkIdleFinish(); }) {
 	_ptsWaiter.setRequesting(true);
 
+#if 0 // #TODO legacy
 	session->account().mtpUpdates(
 	) | rpl::start_with_next([=](const MTPUpdates &updates) {
 		mtpUpdateReceived(updates);
@@ -254,6 +259,12 @@ Updates::Updates(not_null<Main::Session*> session)
 	)).done([=](const MTPupdates_State &result) {
 		stateDone(result);
 	}).send();
+#endif
+
+	session->tdb().updates(
+	) | rpl::start_with_next([=](const TLupdate &update) {
+		applyUpdate(update);
+	}, _lifetime);
 
 	using namespace rpl::mappers;
 	session->changes().peerUpdates(
@@ -861,6 +872,7 @@ void Updates::channelRangeDifferenceDone(
 	}
 }
 
+#if 0 // #TODO legacy
 void Updates::mtpNewSessionCreated() {
 	Core::App().checkAutoLock();
 	_updatesSeq = 0;
@@ -880,6 +892,7 @@ void Updates::mtpUpdateReceived(const MTPUpdates &updates) {
 		applyGroupCallParticipantUpdates(updates);
 	}
 }
+#endif
 
 void Updates::applyGroupCallParticipantUpdates(const MTPUpdates &updates) {
 	updates.match([&](const MTPDupdates &data) {
@@ -2657,6 +2670,50 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 
 bool IsWithdrawalNotification(const MTPDupdateServiceNotification &data) {
 	return qs(data.vtype()).startsWith(u"API_WITHDRAWAL_FEATURE_DISABLED_"_q);
+}
+
+void Updates::applyUpdate(const TLupdate &update) {
+	update.match([&](const TLDupdateAuthorizationState &data) {
+		const auto type = data.vauthorization_state().type();
+		if (type == id_authorizationStateReady) {
+			session().api().requestMoreDialogsIfNeeded();
+		}
+	}, [&](const TLDupdateUser &data) {
+		session().data().processUser(data.vuser());
+	}, [&](const TLDupdateBasicGroup &data) {
+		session().data().processChat(data.vbasic_group());
+	}, [&](const TLDupdateSupergroup &data) {
+		session().data().processChannel(data.vsupergroup());
+	}, [&](const TLDupdateNewChat &data) {
+		session().data().processPeer(data.vchat());
+	}, [&](const TLDupdateChatLastMessage &data) {
+		//data.vchat_id();
+		//data.vlast_message();
+		//data.vpositions();
+	}, [&](const TLDupdateChatPosition &data) {
+		//data.vchat_id();
+		//data.vposition();
+	}, [&](const TLDupdateUserFullInfo &data) {
+		const auto user = session().data().user(UserId(data.vuser_id()));
+		data.vuser_full_info().match([&](const TLDuserFullInfo &data) {
+			::Data::ApplyUserUpdate(user, data);
+		});
+	}, [&](const TLDupdateBasicGroupFullInfo &data) {
+		const auto chat = session().data().chat(
+			ChatId(data.vbasic_group_id()));
+		data.vbasic_group_full_info().match([&](
+				const TLDbasicGroupFullInfo &data) {
+			::Data::ApplyChatUpdate(chat, data);
+		});
+	}, [&](const TLDupdateSupergroupFullInfo &data) {
+		const auto channel = session().data().channel(
+			ChannelId(data.vsupergroup_id()));
+		data.vsupergroup_full_info().match([&](
+				const TLDsupergroupFullInfo &data) {
+			::Data::ApplyChannelUpdate(channel, data);
+		});
+	}, [](const auto &) {
+	});
 }
 
 } // namespace Api

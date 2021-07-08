@@ -13,6 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 enum class ChatAdminRight;
 
+namespace Tdb {
+class TLDbasicGroupFullInfo;
+} // namespace Tdb
+
 enum class ChatDataFlag {
 	Left = (1 << 0),
 	//Kicked = (1 << 1),
@@ -232,5 +236,9 @@ void ApplyChatUpdate(
 void ApplyChatUpdate(
 	not_null<ChatData*> chat,
 	const MTPChatParticipants &update);
+
+void ApplyChatUpdate(
+	not_null<ChatData*> chat,
+	const Tdb::TLDbasicGroupFullInfo &update);
 
 } // namespace Data
