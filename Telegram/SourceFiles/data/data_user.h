@@ -19,6 +19,10 @@ struct BotCommand;
 struct BusinessDetails;
 } // namespace Data
 
+namespace Tdb {
+class TLDuserFullInfo;
+} // namespace Tdb
+
 struct BotInfo {
 	BotInfo();
 
@@ -95,6 +99,7 @@ public:
 #endif
 
 	void setPhoto(const Tdb::TLprofilePhoto &photo);
+	void setPhoto(const Tdb::TLchatPhoto &photo);
 
 	void setName(
 		const QString &newFirstName,
@@ -245,5 +250,9 @@ private:
 namespace Data {
 
 void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update);
+
+void ApplyUserUpdate(
+	not_null<UserData*> user,
+	const Tdb::TLDuserFullInfo &update);
 
 } // namespace Data
