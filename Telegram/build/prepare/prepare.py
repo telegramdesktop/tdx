@@ -1902,10 +1902,10 @@ win:
 #     cmake --build . $MAKE_THREADS_CNT
 
 stage('td', """
-win:
     git clone https://github.com/tdlib/td.git
     cd td
     git checkout 9f44816a62
+win:
     SET OPENSSL_DIR=%LIBS_DIR%\\openssl
     SET OPENSSL_LIBS_DIR=%OPENSSL_DIR%\\out
     SET ZLIB_DIR=%LIBS_DIR%\\zlib
@@ -1946,6 +1946,29 @@ release:
         -DTD_ENABLE_MULTI_PROCESSOR_COMPILATION=ON ^
         ../..
     cmake --build . --config Release --target tdclient
+mac:
+    buildTd() {
+        BUILD_CONFIG=$1
+        mkdir -p out/$BUILD_CONFIG
+        cd out/$BUILD_CONFIG
+        cmake -G Ninja \
+            -DCMAKE_BUILD_TYPE=$BUILD_CONFIG \
+            -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
+            -DOPENSSL_FOUND=1 \
+            -DOPENSSL_INCLUDE_DIR=$LIBS_DIR/openssl/include \
+            -DOPENSSL_SSL_LIBRARY=$LIBS_DIR/openssl/libssl.a \
+            -DOPENSSL_CRYPTO_LIBRARY=$LIBS_DIR/openssl/libcrypto.a \
+            -DZLIB_FOUND=1 \
+            -DZLIB_LIBRARIES=$USED_PREFIX/lib/libz.a \
+            ../..
+        cmake --build . --config $BUILD_CONFIG --target tdclient $MAKE_THREADS_CNT
+        cd ../..
+    }
+
+    buildTd Debug
+release:
+    buildTd Release
+
 """)
 
 if win:
