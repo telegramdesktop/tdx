@@ -2106,6 +2106,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		}
 	} break;
 
+#if 0 // goodToRemove
 	case mtpc_updatePrivacy: {
 		auto &d = update.c_updatePrivacy();
 		const auto allChatsLoaded = [&](const MTPVector<MTPlong> &ids) {
@@ -2136,6 +2137,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 			d.vrules(),
 			allLoaded());
 	} break;
+#endif
 
 	case mtpc_updatePinnedDialogs: {
 		const auto &d = update.c_updatePinnedDialogs();
@@ -2696,6 +2698,10 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateGroupCallParticipant &data) {
 	}, [&](const TLDupdateNewCallSignalingData &data) {
 	}, [&](const TLDupdateUserPrivacySettingRules &data) {
+		data.vsetting().match([&](const TLDuserPrivacySettingShowStatus &) {
+			session().api().updatePrivacyLastSeens();
+		}, [](const auto &) {
+		});
 	}, [&](const TLDupdateUnreadMessageCount &data) {
 		data.vchat_list().match([&](const TLDchatListMain &) {
 			const auto list = owner.chatsList();
