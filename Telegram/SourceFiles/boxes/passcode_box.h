@@ -8,7 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "boxes/abstract_box.h"
+#include "api/api_cloud_password.h"
 #include "mtproto/sender.h"
+#include "tdb/tdb_sender.h"
 #include "core/core_cloud_password.h"
 
 namespace MTP {
@@ -37,7 +39,9 @@ public:
 		static CloudFields From(const Core::CloudPasswordState &current);
 
 		struct Mtp {
+#if 0 // goodToRemove
 			Core::CloudPasswordCheckRequest curRequest;
+#endif
 			Core::CloudPasswordAlgo newAlgo;
 			Core::SecureSecretAlgo newSecureSecretAlgo;
 		};
@@ -58,7 +62,10 @@ public:
 	};
 	PasscodeBox(
 		QWidget*,
+#if 0 // goodToRemove
 		not_null<MTP::Instance*> mtp,
+#endif
+		Tdb::Sender &sender,
 		Main::Session *session,
 		const CloudFields &fields);
 	PasscodeBox(
@@ -98,34 +105,48 @@ private:
 	bool onlyCheckCurrent() const;
 
 	void setPasswordDone(const QByteArray &newPasswordBytes);
+#if 0 // goodToRemove
 	void recoverPasswordDone(
 		const QByteArray &newPasswordBytes,
 		const MTPauth_Authorization &result);
+#endif
+	void recoverPasswordDone(const QByteArray &newPasswordBytes);
+	void setPasswordFail(
+		const QByteArray &newPasswordBytes,
+		const QString &email,
+		const QString &errorMessage);
 	void setPasswordFail(const QString &type);
+#if 0 // goodToRemove
 	void setPasswordFail(
 		const QByteArray &newPasswordBytes,
 		const QString &email,
 		const MTP::Error &error);
+#endif
 	void validateEmail(
 		const QString &email,
 		int codeLength,
 		const QByteArray &newPasswordBytes);
 
+#if 0 // goodToRemove
 	void recoverStarted(const MTPauth_PasswordRecovery &result);
 	void recoverStartFail(const MTP::Error &error);
+#endif
 
 	void recover();
 	void submitOnlyCheckCloudPassword(const QString &oldPassword);
 	void setNewCloudPassword(const QString &newPassword);
 
+#if 0 // goodToRemove
 	void checkPassword(
 		const QString &oldPassword,
 		CheckPasswordCallback callback);
 	void checkPasswordHash(CheckPasswordCallback callback);
+#endif
 
 	void changeCloudPassword(
 		const QString &oldPassword,
 		const QString &newPassword);
+#if 0 // goodToRemove
 	void changeCloudPassword(
 		const QString &oldPassword,
 		const Core::CloudPasswordResult &check,
@@ -135,22 +156,34 @@ private:
 		const Core::CloudPasswordResult &check,
 		const QString &newPassword,
 		const QByteArray &secureSecret);
+#endif
+#if 0 // goodToRemove - unneeded due TDLib?
 	void suggestSecretReset(const QString &newPassword);
 	void resetSecret(
 		const Core::CloudPasswordResult &check,
 		const QString &newPassword,
 		Fn<void()> callback);
+#endif
 
 	void sendOnlyCheckCloudPassword(const QString &oldPassword);
+	void sendClearCloudPassword(const QString &oldPassword);
+#if 0 // goodToRemove
 	void sendClearCloudPassword(const Core::CloudPasswordResult &check);
 
 	void handleSrpIdInvalid();
 	void requestPasswordData();
+#endif
 	void passwordChecked();
 	void serverError();
 
 	Main::Session *_session = nullptr;
+#if 0 // goodToRemove
 	MTP::Sender _api;
+#endif
+	Tdb::Sender &_api;
+	std::optional<Api::CloudPassword> _unauthCloudPassword = std::nullopt;
+
+	Api::CloudPassword &cloudPassword();
 
 	QString _pattern;
 
@@ -190,7 +223,10 @@ class RecoverBox final : public Ui::BoxContent {
 public:
 	RecoverBox(
 		QWidget*,
+		Tdb::Sender &sender,
+#if 0 // goodToRemove
 		not_null<MTP::Instance*> mtp,
+#endif
 		Main::Session *session,
 		const QString &pattern,
 		const PasscodeBox::CloudFields &fields,
@@ -214,12 +250,19 @@ private:
 	void codeChanged();
 	void proceedToClear();
 	void proceedToChange(const QString &code);
+#if 0 // goodToRemove
 	void checkSubmitFail(const MTP::Error &error);
+#endif
+	void codeSubmitFail(const QString &error);
 	void setError(const QString &error);
 
 	Main::Session *_session = nullptr;
+#if 0 // goodToRemove
 	MTP::Sender _api;
 	mtpRequestId _submitRequest = 0;
+#endif
+	Tdb::Sender &_api;
+	Tdb::RequestId _submitRequest = 0;
 
 	QString _pattern;
 
