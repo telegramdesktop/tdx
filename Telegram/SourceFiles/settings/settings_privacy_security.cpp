@@ -64,6 +64,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QGuiApplication>
 #include <QtSvg/QSvgRenderer>
 
+#include "tdb/tdb_sender.h"
+
 namespace Settings {
 namespace {
 
@@ -646,6 +648,38 @@ void ClearPaymentInfoBoxBuilder(
 			st::defaultBoxCheckbox),
 		checkboxPadding);
 
+	struct ClearInfo {
+		bool credentials = false;
+		bool orderInfo = false;
+	};
+	const auto clearInfo = box->lifetime().make_state<ClearInfo>();
+
+	box->addButton(tr::lng_clear_payment_info_clear(), [=] {
+		clearInfo->credentials = payment->checked();
+		clearInfo->orderInfo = shipping->checked();
+		delete label;
+		delete shipping;
+		delete payment;
+		box->addRow(object_ptr<Ui::FlatLabel>(
+			box,
+			tr::lng_clear_payment_info_confirm(),
+			st::boxLabel));
+		box->clearButtons();
+		box->addButton(tr::lng_clear_payment_info_clear(), [=] {
+			auto &sender = session->api().sender();
+			if (clearInfo->credentials) {
+				sender.request(Tdb::TLdeleteSavedCredentials()).send();
+			}
+			if (clearInfo->orderInfo) {
+				sender.request(Tdb::TLdeleteSavedOrderInfo()).send();
+			}
+			box->closeBox();
+		}, st::attentionBoxButton);
+		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+	}, st::attentionBoxButton);
+	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+
+#if 0 // goodToRemove
 	using Flags = MTPpayments_ClearSavedInfo::Flags;
 	const auto flags = box->lifetime().make_state<Flags>();
 
@@ -670,6 +704,7 @@ void ClearPaymentInfoBoxBuilder(
 		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 	}, st::attentionBoxButton);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+#endif
 }
 
 auto ClearPaymentInfoBox(not_null<Main::Session*> session) {
