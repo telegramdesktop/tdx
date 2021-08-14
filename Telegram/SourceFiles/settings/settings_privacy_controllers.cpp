@@ -560,7 +560,9 @@ object_ptr<Ui::RpWidget> PhoneNumberPrivacyController::setupMiddleWidget(
 		not_null<QWidget*> parent,
 		rpl::producer<Option> optionValue) {
 	const auto key = UserPrivacy::Key::AddedByPhone;
+#if 0 // goodToRemove
 	controller->session().api().userPrivacy().reload(key);
+#endif
 
 	_phoneNumberOption = std::move(optionValue);
 
