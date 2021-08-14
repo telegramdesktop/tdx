@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "base/algorithm.h"
 
+#include "tdb/tdb_sender.h"
+
 namespace Ui {
 struct ColorIndicesCompressed;
 } // namespace Ui
@@ -86,10 +88,15 @@ private:
 		std::vector<int> &&fallback) const;
 
 	const not_null<Account*> _account;
+#if 0 // goodToRemove
 	std::optional<MTP::Sender> _api;
 	mtpRequestId _requestId = 0;
 	int32 _hash = 0;
 	base::flat_map<QString, MTPJSONValue> _data;
+#endif
+	std::optional<Tdb::Sender> _api;
+	Tdb::RequestId _requestId = 0;
+	base::flat_map<QString, Tdb::TLjsonValue> _data;
 	rpl::event_stream<> _refreshed;
 	base::flat_set<QString> _dismissedSuggestions;
 
