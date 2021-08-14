@@ -1000,7 +1000,10 @@ void FormController::recoverPassword() {
 		const auto force = fields.mtp.newSecureSecretAlgo;
 
 		const auto box = _view->show(Box<RecoverBox>(
+#if 0 // goodToRemove
 			&_controller->session().mtp(),
+#endif
+			_controller->session().sender(),
 			&_controller->session(),
 			pattern,
 			fields));

@@ -18,6 +18,37 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Api {
 namespace {
 
+using namespace Tdb;
+
+int TLToCodeLength(const TLDpasswordState &data) {
+	if (const auto email = data.vrecovery_email_address_code_info()) {
+		return email->match([](
+				const TLDemailAddressAuthenticationCodeInfo &data) {
+			return data.vlength().v;
+		});
+	}
+	return 0;
+}
+
+Core::CloudPasswordState TLToCloudPasswordState(
+		const TLDpasswordState &data) {
+	auto result = Core::CloudPasswordState();
+	result.hasPassword = data.vhas_password().v;
+	result.hasRecovery = data.vhas_recovery_email_address().v;
+	result.notEmptyPassport = data.vhas_passport_data().v;
+	result.hint = data.vpassword_hint().v;
+	result.pendingResetDate = data.vpending_reset_date().v;
+
+	if (const auto email = data.vrecovery_email_address_code_info()) {
+		result.unconfirmedPattern = email->match([](
+				const TLDemailAddressAuthenticationCodeInfo &data) {
+			return data.vemail_address_pattern().v;
+		});
+	}
+
+	return result;
+}
+
 [[nodiscard]] Core::CloudPasswordState ProcessMtpState(
 		const MTPaccount_password &state) {
 	return state.match([&](const MTPDaccount_password &data) {
@@ -28,8 +59,14 @@ namespace {
 
 } // namespace
 
+// #TODO Add ability to set recovery email separately.
+
 CloudPassword::CloudPassword(not_null<ApiWrap*> api)
 : _api(&api->instance()) {
+}
+
+CloudPassword::CloudPassword(Tdb::Sender &sender)
+: _api(&sender) {
 }
 
 void CloudPassword::apply(Core::CloudPasswordState state) {
@@ -45,6 +82,7 @@ void CloudPassword::reload() {
 	if (_requestId) {
 		return;
 	}
+#if 0 // goodToRemove
 	_requestId = _api.request(MTPaccount_GetPassword(
 	)).done([=](const MTPaccount_Password &result) {
 		_requestId = 0;
@@ -52,9 +90,40 @@ void CloudPassword::reload() {
 	}).fail([=] {
 		_requestId = 0;
 	}).send();
+#endif
+
+	_api.request(TLgetPasswordState(
+	)).done([=](const TLpasswordState &result) {
+		apply(result);
+	}).fail([=](const Error &error) {
+		if (!_state) {
+			_state = std::make_unique<Core::CloudPasswordState>();
+		}
+		// See: td/telegram/PasswordManager.cpp.
+		_state->outdatedClient = ((error.code == 400)
+			&& (error.message == u"Please update client to continue"_q));
+	}).send();
 }
 
 void CloudPassword::clearUnconfirmedPassword() {
+	// There is no direct replacement for MTPaccount_CancelPasswordEmail,
+	// but we can pass an empty info to Td::TLsetPassword
+	// to clear an unconfirmed password.
+	_requestId = _api.request(TLsetPassword(
+		tl_string(),
+		tl_string(),
+		tl_string(),
+		tl_bool(true),
+		tl_string()
+	)).done([=](const TLpasswordState &result) {
+		_requestId = 0;
+		apply(result);
+	}).fail([=](const Error &error) {
+		_requestId = 0;
+		reload();
+	}).send();
+
+#if 0 // goodToRemove
 	_requestId = _api.request(MTPaccount_CancelPasswordEmail(
 	)).done([=] {
 		_requestId = 0;
@@ -63,6 +132,7 @@ void CloudPassword::clearUnconfirmedPassword() {
 		_requestId = 0;
 		reload();
 	}).send();
+#endif
 }
 
 rpl::producer<Core::CloudPasswordState> CloudPassword::state() const {
@@ -78,6 +148,7 @@ auto CloudPassword::stateCurrent() const
 		: std::nullopt;
 }
 
+#if 0 // goodToRemove
 auto CloudPassword::resetPassword()
 -> rpl::producer<CloudPassword::ResetRetryDate, QString> {
 	return [=](auto consumer) {
@@ -106,16 +177,208 @@ auto CloudPassword::resetPassword()
 		return rpl::lifetime();
 	};
 }
+#endif
+
+auto CloudPassword::resetPassword()
+-> rpl::producer<CloudPassword::ResetRetryDate, QString> {
+	return [=](auto consumer) {
+		_api.request(TLresetPassword(
+		)).done([=](const TLresetPasswordResult &result) {
+			result.match([&](const TLDresetPasswordResultOk &data) {
+				reload();
+			}, [&](const TLDresetPasswordResultPending &data) {
+				if (!_state) {
+					reload();
+					return;
+				}
+				const auto until = data.vpending_reset_date().v;
+				if (_state->pendingResetDate != until) {
+					_state->pendingResetDate = until;
+					_stateChanges.fire_copy(*_state);
+				}
+			}, [&](const TLDresetPasswordResultDeclined &data) {
+				consumer.put_next_copy(data.vretry_date().v);
+			});
+			consumer.put_done();
+		}).fail([=](const Error &error) {
+			consumer.put_error_copy(error.message);
+		}).send();
+
+		return rpl::lifetime();
+	};
+}
 
 auto CloudPassword::cancelResetPassword()
 -> rpl::producer<rpl::no_value, QString> {
 	return [=](auto consumer) {
+#if 0 // goodToRemove
 		_api.request(MTPaccount_DeclinePasswordReset(
 		)).done([=] {
 			reload();
 			consumer.put_done();
 		}).fail([=](const MTP::Error &error) {
 			consumer.put_error_copy(error.type());
+		}).send();
+#endif
+		_api.request(TLcancelPasswordReset(
+		)).done([=] {
+			reload();
+			consumer.put_done();
+		}).fail([=](const Error &error) {
+			consumer.put_error_copy(error.message);
+		}).send();
+
+		return rpl::lifetime();
+	};
+}
+
+void CloudPassword::apply(const TLpasswordState &state) {
+	auto parsed = TLToCloudPasswordState(state.data());
+	if (_state) {
+		*_state = std::move(parsed);
+	} else {
+		_state = std::make_unique<Core::CloudPasswordState>(
+			std::move(parsed));
+	}
+	_state->outdatedClient = false;
+	_stateChanges.fire_copy(*_state);
+}
+
+rpl::producer<rpl::no_value, QString> CloudPassword::set(
+		const QString &oldPassword,
+		const QString &newPassword,
+		const QString &hint,
+		bool hasRecoveryEmail,
+		const QString &recoveryEmail) {
+	return [=](auto consumer) {
+		_api.request(TLsetPassword(
+			tl_string(oldPassword),
+			tl_string(newPassword),
+			tl_string(hint),
+			tl_bool(hasRecoveryEmail),
+			tl_string(recoveryEmail)
+		)).done([=](const TLpasswordState &result) {
+			// When a new password is set with a recovery email,
+			// the server returns an error EMAIL_UNCONFIRMED_#
+			// requiring email confirmation, but TDLib returns a success with
+			// the given vrecovery_email_address_code_info optional parameter.
+			// We simulate this error to keep an external behavior the same.
+			const auto codeLength = TLToCodeLength(result.data());
+			if (codeLength) {
+				consumer.put_error(
+					QString("EMAIL_UNCONFIRMED_%1").arg(codeLength));
+			} else {
+				consumer.put_done();
+				apply(result);
+			}
+		}).fail([=](const Error &error) {
+			consumer.put_error_copy(error.message);
+		}).send();
+#if 0 // doLater
+		// }).handleFloodErrors().send();
+#endif
+
+		return rpl::lifetime();
+	};
+}
+
+rpl::producer<rpl::no_value, QString> CloudPassword::confirmEmail(
+		const QString &code) {
+	return [=](auto consumer) {
+		_api.request(TLcheckRecoveryEmailAddressCode(
+			tl_string(code)
+		)).done([=](const TLpasswordState &result) {
+			consumer.put_done();
+			apply(result);
+		}).fail([=](const Error &error) {
+			consumer.put_error_copy(error.message);
+		}).send();
+#if 0 // doLater
+		// }).handleFloodErrors().send();
+#endif
+
+		return rpl::lifetime();
+	};
+}
+
+rpl::producer<rpl::no_value, QString> CloudPassword::resendEmailCode() {
+	return [=](auto consumer) {
+		_api.request(TLresendRecoveryEmailAddressCode(
+		)).done([=](const TLpasswordState &result) {
+			consumer.put_done();
+			apply(result);
+		}).fail([=](const Error &error) {
+			consumer.put_error_copy(error.message);
+		}).send();
+
+		return rpl::lifetime();
+	};
+}
+
+rpl::producer<rpl::no_value, QString> CloudPassword::recoverPassword(
+		const QString &code,
+		const QString &newPassword,
+		const QString &newHint) {
+	return [=](auto consumer) {
+		_api.request(TLrecoverPassword(
+			tl_string(code),
+			tl_string(newPassword),
+			tl_string(newHint)
+		)).done([=](const TLpasswordState &result) {
+			consumer.put_done();
+			apply(result);
+		}).fail([=](const Error &error) {
+			consumer.put_error_copy(error.message);
+		}).send();
+
+		return rpl::lifetime();
+	};
+}
+
+rpl::producer<QString, QString> CloudPassword::requestPasswordRecovery() {
+	return [=](auto consumer) {
+		_api.request(TLrequestPasswordRecovery(
+		)).done([=](const TLemailAddressAuthenticationCodeInfo &result) {
+			result.match([&](
+					const TLDemailAddressAuthenticationCodeInfo &data) {
+				consumer.put_next_copy(data.vemail_address_pattern().v);
+			});
+			consumer.put_done();
+		}).fail([=](const Error &error) {
+			consumer.put_error_copy(error.message);
+		}).send();
+
+		return rpl::lifetime();
+	};
+}
+
+auto CloudPassword::checkRecoveryEmailAddressCode(const QString &code)
+-> rpl::producer<rpl::no_value, QString> {
+	return [=](auto consumer) {
+		_api.request(TLcheckRecoveryEmailAddressCode(
+			tl_string(code)
+		)).done([=](const TLpasswordState &) {
+			consumer.put_done();
+		}).fail([=](const Error &error) {
+			consumer.put_error_copy(error.message);
+		}).send();
+#if 0 // doLater
+		// }).handleFloodErrors().send();
+#endif
+
+		return rpl::lifetime();
+	};
+}
+
+rpl::producer<rpl::no_value, QString> CloudPassword::check(
+		const QString &password) {
+	return [=](auto consumer) {
+		_api.request(Tdb::TLgetRecoveryEmailAddress(
+			tl_string(password)
+		)).done([=] {
+			consumer.put_done();
+		}).fail([=](const Error &error) {
+			consumer.put_error_copy(error.message);
 		}).send();
 
 		return rpl::lifetime();
