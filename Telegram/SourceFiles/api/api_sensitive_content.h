@@ -32,7 +32,9 @@ public:
 private:
 	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
+#if 0 // goodToRemove
 	mtpRequestId _requestId = 0;
+#endif
 	rpl::variable<bool> _enabled = false;
 	rpl::variable<bool> _canChange = false;
 	base::Timer _appConfigReloadTimer;
