@@ -104,7 +104,9 @@ QString PrivacyBase(Privacy::Key key, Privacy::Option option) {
 rpl::producer<QString> PrivacyString(
 		not_null<::Main::Session*> session,
 		Privacy::Key key) {
+#if 0 // goodToRemove
 	session->api().userPrivacy().reload(key);
+#endif
 	return session->api().userPrivacy().value(
 		key
 	) | rpl::map([=](const Privacy::Rule &value) {
@@ -308,7 +310,9 @@ void SetupPrivacy(
 		Key::Voices,
 		[=] { return std::make_unique<VoicesPrivacyController>(session); });
 
+#if 0 // goodToRemove
 	session->api().userPrivacy().reload(Api::UserPrivacy::Key::AddedByPhone);
+#endif
 
 	Ui::AddSkip(container, st::settingsPrivacySecurityPadding);
 	Ui::AddDivider(container);
