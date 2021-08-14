@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_lists_box.h"
 #include "ui/boxes/confirm_box.h"
 #include "lang/lang_keys.h"
+#include "tdb/tdb_sender.h"
 #include "main/main_session.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/fields/input_field.h"
@@ -847,6 +848,7 @@ void SessionsContent::terminate(Fn<void()> terminateRequest, QString message) {
 	_controller->show(std::move(box));
 }
 
+#if 0 // goodToRemove
 void SessionsContent::terminateOne(uint64 hash) {
 	const auto weak = Ui::MakeWeak(this);
 	auto callback = [=] {
@@ -875,6 +877,33 @@ void SessionsContent::terminateOne(uint64 hash) {
 	};
 	terminate(std::move(callback), tr::lng_settings_reset_one_sure(tr::now));
 }
+#endif
+
+void SessionsContent::terminateOne(uint64 hash) {
+	const auto weak = Ui::MakeWeak(this);
+	auto callback = [=] {
+		auto done = crl::guard(weak, [=](const Tdb::TLok &result) {
+			_inner->terminatingOne(hash, false);
+			const auto removeByHash = [&](std::vector<Entry> &list) {
+				list.erase(
+					ranges::remove(list, hash, &Entry::hash),
+					end(list));
+			};
+			removeByHash(_data.incomplete);
+			removeByHash(_data.list);
+			_inner->showData(_data);
+		});
+		auto fail = crl::guard(weak, [=](const Tdb::Error &error) {
+			_inner->terminatingOne(hash, false);
+		});
+		_authorizations->requestTerminate(
+			std::move(done),
+			std::move(fail),
+			hash);
+		_inner->terminatingOne(hash, true);
+	};
+	terminate(std::move(callback), tr::lng_settings_reset_one_sure(tr::now));
+}
 
 void SessionsContent::terminateAll() {
 	const auto weak = Ui::MakeWeak(this);
@@ -884,8 +913,12 @@ void SessionsContent::terminateAll() {
 			_authorizations->reload();
 		});
 		_authorizations->requestTerminate(
+#if 0 // goodToRemove
 			[=](const MTPBool &result) { reset(); },
 			[=](const MTP::Error &result) { reset(); });
+#endif
+			[=](const Tdb::TLok &result) { reset(); },
+			[=](const Tdb::Error &result) { reset(); });
 		_loading = true;
 	};
 	terminate(std::move(callback), tr::lng_settings_reset_sure(tr::now));

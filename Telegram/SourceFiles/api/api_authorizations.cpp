@@ -21,6 +21,7 @@ constexpr auto TestApiId = 17349;
 constexpr auto SnapApiId = 611335;
 constexpr auto DesktopApiId = 2040;
 
+#if 0 // goodToRemove
 Authorizations::Entry ParseEntry(const MTPDauthorization &data) {
 	auto result = Authorizations::Entry();
 
@@ -79,6 +80,73 @@ Authorizations::Entry ParseEntry(const MTPDauthorization &data) {
 
 	return result;
 }
+#endif
+
+Authorizations::Entry ParseEntry(const Tdb::TLDsession &data) {
+	auto result = Authorizations::Entry();
+
+	result.hash = data.vis_current().v ? 0 : data.vid().v;
+	result.incomplete = data.vis_password_pending().v;
+
+	const auto apiId = data.vapi_id().v;
+	const auto isTest = (apiId == TestApiId);
+	const auto isDesktop = (apiId == DesktopApiId) || isTest;
+
+	const auto appName = isDesktop
+		? QString("Telegram Desktop%1").arg(isTest ? " (GitHub)" : QString())
+		: data.vapplication_name().v;
+	const auto appVer = [&] {
+		const auto version = data.vapplication_version().v;
+		if (isDesktop) {
+			const auto verInt = version.toInt();
+			if (version == QString::number(verInt)) {
+				return Core::FormatVersionDisplay(verInt);
+			}
+		} else {
+			if (const auto index = version.indexOf('('); index >= 0) {
+				return version.mid(index);
+			}
+		}
+		return version;
+	}();
+
+	result.name = QString("%1%2").arg(
+		appName,
+		appVer.isEmpty() ? QString() : (' ' + appVer));
+
+	const auto country = data.vcountry().v;
+	const auto platform = data.vplatform().v;
+
+	result.activeTime = data.vlast_active_date().v
+		? data.vlast_active_date().v
+		: data.vlog_in_date().v;
+	result.info = QString("%1, %2%3").arg(
+		data.vdevice_model().v,
+		platform.isEmpty() ? QString() : platform + ' ',
+		data.vsystem_version().v);
+	result.ip = data.vip().v
+		+ (country.isEmpty()
+			? QString()
+			: QString::fromUtf8(" \xe2\x80\x93 ") + country);
+	if (!result.hash) {
+		result.active = tr::lng_status_online(tr::now);
+	} else {
+		const auto now = QDateTime::currentDateTime();
+		const auto lastTime = base::unixtime::parse(result.activeTime);
+		const auto nowDate = now.date();
+		const auto lastDate = lastTime.date();
+		if (lastDate == nowDate) {
+			result.active = lastTime.toString(cTimeFormat());
+		} else if (lastDate.year() == nowDate.year()
+			&& lastDate.weekNumber() == nowDate.weekNumber()) {
+			result.active = langDayOfWeek(lastDate);
+		} else {
+			result.active = lastDate.toString(qsl("d.MM.yy"));
+		}
+	}
+
+	return result;
+}
 
 } // namespace
 
@@ -108,6 +176,7 @@ void Authorizations::reload() {
 		return;
 	}
 
+#if 0 // goodToRemove
 	_requestId = _api.request(MTPaccount_GetAuthorizations(
 	)).done([=](const MTPaccount_Authorizations &result) {
 		_requestId = 0;
@@ -124,10 +193,29 @@ void Authorizations::reload() {
 	}).fail([=] {
 		_requestId = 0;
 	}).send();
+#endif
+
+	using namespace Tdb;
+	_requestId = _api.request(TLgetActiveSessions(
+	)).done([=](const TLDsessions &data) {
+		_requestId = 0;
+		_lastReceived = crl::now();
+		_list = (
+			data.vsessions().v
+		) | ranges::views::transform([](const TLsession &d) {
+			return ParseEntry(d.c_session());
+		}) | ranges::to<List>;
+		refreshCallsDisabledHereFromCloud();
+		_listChanges.fire({});
+	}).fail([=](const Error &error) {
+		_requestId = 0;
+	}).send();
 }
 
 void Authorizations::cancelCurrentRequest() {
+#if 0 // goodToRemove
 	_api.request(base::take(_requestId)).cancel();
+#endif
 }
 
 void Authorizations::refreshCallsDisabledHereFromCloud() {
@@ -138,6 +226,7 @@ void Authorizations::refreshCallsDisabledHereFromCloud() {
 	}
 }
 
+#if 0 // goodToRemove
 void Authorizations::requestTerminate(
 		Fn<void(const MTPBool &result)> &&done,
 		Fn<void(const MTP::Error &error)> &&fail,
@@ -165,6 +254,35 @@ void Authorizations::requestTerminate(
 		send(MTPaccount_ResetAuthorization(MTP_long(*hash)));
 	} else {
 		send(MTPauth_ResetAuthorizations());
+	}
+}
+#endif
+
+void Authorizations::requestTerminate(
+		Fn<void(const Tdb::TLok &result)> &&done,
+		Fn<void(const Tdb::Error &error)> &&fail,
+		std::optional<uint64> hash) {
+	const auto send = [&](auto request) {
+		_api.request(
+			std::move(request)
+		).done([=, done = std::move(done)](const Tdb::TLok &result) {
+			done(result);
+			if (hash) {
+				_list.erase(
+					ranges::remove(_list, *hash, &Entry::hash),
+					end(_list));
+			} else {
+				_list.clear();
+			}
+			_listChanges.fire({});
+		}).fail(
+			std::move(fail)
+		).send();
+	};
+	if (hash) {
+		send(Tdb::TLterminateSession(Tdb::tl_int64(*hash)));
+	} else {
+		send(Tdb::TLterminateAllOtherSessions());
 	}
 }
 
