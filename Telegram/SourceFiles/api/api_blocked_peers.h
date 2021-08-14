@@ -37,8 +37,10 @@ public:
 
 	explicit BlockedPeers(not_null<ApiWrap*> api);
 
+#if 0 // goodToRemove
 	void reload();
 	rpl::producer<Slice> slice();
+#endif
 	void request(int offset, Fn<void(Slice)> done);
 
 	void block(not_null<PeerData*> peer);
@@ -46,6 +48,8 @@ public:
 		not_null<PeerData*> peer,
 		Fn<void(bool success)> done = nullptr,
 		bool force = false);
+
+	rpl::producer<int> total();
 
 private:
 	struct Request {
@@ -59,14 +63,23 @@ private:
 		bool blocking,
 		Fn<void(bool success)> done = nullptr);
 
+	void changeBlockState(
+		not_null<PeerData*> peer,
+		bool blocked,
+		bool force = false,
+		Fn<void(bool success)> done = nullptr);
+
 	const not_null<Main::Session*> _session;
 
 	MTP::Sender _api;
-
 	base::flat_map<not_null<PeerData*>, Request> _blockRequests;
+	int _total = 0;
+
+#if 0 // goodToRemove
 	mtpRequestId _requestId = 0;
 	std::optional<Slice> _slice;
 	rpl::event_stream<Slice> _changes;
+#endif
 
 
 };

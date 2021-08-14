@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_id.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
+#include "tdb/tdb_account.h"
 
 namespace Api {
 namespace {
@@ -21,6 +22,9 @@ namespace {
 constexpr auto kBlockedFirstSlice = 16;
 constexpr auto kBlockedPerPage = 40;
 
+using namespace Tdb;
+
+#if 0 // goodToRemove
 BlockedPeers::Slice TLToSlice(
 		const MTPcontacts_Blocked &blocked,
 		Data::Session &owner) {
@@ -48,6 +52,25 @@ BlockedPeers::Slice TLToSlice(
 		return create(0, data.vblocked().v);
 	});
 }
+#endif
+
+BlockedPeers::Slice TLToSlice(const TLDmessageSenders &data) {
+	auto slice = BlockedPeers::Slice();
+	slice.total = data.vtotal_count().v;
+	slice.list.reserve(data.vsenders().v.size());
+	for (const auto &sender : data.vsenders().v) {
+		const auto peerId = peerFromSender(sender);
+#if 0 // doLater
+		owner.processUsers(data.vusers());
+		owner.processChats(data.vchats());
+#endif
+		slice.list.push_back({
+			.id = peerId,
+			.date = 0, // No info from TDLib.
+		});
+	}
+	return slice;
+}
 
 } // namespace
 
@@ -72,6 +95,7 @@ bool BlockedPeers::Slice::operator!=(const BlockedPeers::Slice &other) const {
 	return !(*this == other);
 }
 
+#if 0 // goodToRemove
 void BlockedPeers::block(not_null<PeerData*> peer) {
 	if (peer->isBlocked()) {
 		_session->changes().peerUpdated(
@@ -164,6 +188,7 @@ void BlockedPeers::unblock(
 		i->second.callbacks.push_back(std::move(done));
 	}
 }
+#endif
 
 bool BlockedPeers::blockAlreadySent(
 		not_null<PeerData*> peer,
@@ -186,6 +211,7 @@ bool BlockedPeers::blockAlreadySent(
 	return false;
 }
 
+#if 0 // mtp
 void BlockedPeers::reload() {
 	if (_requestId) {
 		return;
@@ -220,6 +246,104 @@ void BlockedPeers::request(int offset, Fn<void(BlockedPeers::Slice)> done) {
 		done(TLToSlice(result, _session->data()));
 	}).fail([=] {
 		_requestId = 0;
+	}).send();
+}
+#endif
+
+void BlockedPeers::changeBlockState(
+		not_null<PeerData*> peer,
+		bool blocked,
+		bool force,
+		Fn<void(bool success)> done) {
+	if (!force && peer->isBlocked() == blocked) {
+		_session->changes().peerUpdated(
+			peer,
+			Data::PeerUpdate::Flag::IsBlocked);
+		if (done) {
+			done(true);
+		}
+		return;
+	} else if (blockAlreadySent(peer, blocked, done)) {
+		return;
+	}
+	const auto requestId = _api.request(TLsetMessageSenderBlockList(
+		tl_messageSenderChat(peerToTdbChat(peer->id)),
+		blocked ? tl_blockListMain() : std::optional<TLblockList>()
+	)).done([=](const TLok &ok) {
+		if (const auto data = _blockRequests.take(peer)) {
+			for (const auto &callback : data->callbacks) {
+				callback(true);
+			}
+		}
+	}).fail([=](const Error &error) {
+		if (const auto data = _blockRequests.take(peer)) {
+			for (const auto &callback : data->callbacks) {
+				callback(false);
+			}
+		}
+	}).send();
+	const auto i = _blockRequests.emplace(peer, Request{
+		.requestId = requestId,
+		.blocking = blocked,
+	}).first;
+	if (done) {
+		i->second.callbacks.push_back(std::move(done));
+	}
+}
+
+void BlockedPeers::block(not_null<PeerData*> peer) {
+	changeBlockState(peer, true);
+}
+
+void BlockedPeers::unblock(
+		not_null<PeerData*> peer,
+		Fn<void(bool success)> done,
+		bool force) {
+	changeBlockState(peer, false, force, std::move(done));
+}
+
+rpl::producer<int> BlockedPeers::total() {
+	return [=](auto consumer) {
+		auto lifetime = rpl::lifetime();
+
+		_api.request(TLgetBlockedMessageSenders(
+			tl_blockListMain(),
+			tl_int32(0),
+			tl_int32(1)
+		)).done([=](const TLmessageSenders &result) {
+			_total = result.data().vtotal_count().v;
+			consumer.put_next_copy(_total);
+		}).send();
+
+		_session->tdb().updates(
+		) | rpl::start_with_next([=](const TLupdate &update) {
+			update.match([=](const TLDupdateChatBlockList &data) {
+				if (data.vblock_list()
+					&& data.vblock_list()->type() == id_blockListMain) {
+					_total++;
+				} else if (_total > 0) {
+					_total--;
+				}
+				consumer.put_next_copy(_total);
+			}, [](const auto &) {
+			});
+		}, lifetime);
+
+		if (_total) {
+			consumer.put_next_copy(_total);
+		}
+
+		return lifetime;
+	};
+}
+
+void BlockedPeers::request(int offset, Fn<void(BlockedPeers::Slice)> onDone) {
+	_api.request(TLgetBlockedMessageSenders(
+		tl_blockListMain(),
+		tl_int32(offset),
+		tl_int32(offset ? kBlockedPerPage : kBlockedFirstSlice)
+	)).done([=](const TLDmessageSenders &data) {
+		onDone(TLToSlice(data));
 	}).send();
 }
 
