@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mtproto/sender.h"
 #include "base/timer.h"
+#include "tdb/tdb_sender.h"
 
 class ApiWrap;
 
@@ -31,8 +32,11 @@ public:
 
 private:
 	const not_null<Main::Session*> _session;
+#if 0 // goodToRemove
 	MTP::Sender _api;
 	mtpRequestId _requestId = 0;
+#endif
+	Tdb::Sender _api;
 	rpl::variable<bool> _enabled = false;
 	rpl::variable<bool> _canChange = false;
 	base::Timer _appConfigReloadTimer;

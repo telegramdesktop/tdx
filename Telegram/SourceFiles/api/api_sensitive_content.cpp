@@ -8,22 +8,30 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_sensitive_content.h"
 
 #include "apiwrap.h"
+#include "base/const_string.h"
+#include "tdb/tdb_option.h"
 #include "main/main_session.h"
 #include "main/main_app_config.h"
 
 namespace Api {
 namespace {
 
+constexpr auto kSensitiveContentOption =
+	"ignore_sensitive_content_restrictions"_cs;
 constexpr auto kRefreshAppConfigTimeout = 3 * crl::time(1000);
 
 } // namespace
 
 SensitiveContent::SensitiveContent(not_null<ApiWrap*> api)
 : _session(&api->session())
+#if 0 // goodToRemove
 , _api(&api->instance())
+#endif
+, _api(&api->sender())
 , _appConfigReloadTimer([=] { _session->appConfig().refresh(); }) {
 }
 
+#if 0 // goodToRemove
 void SensitiveContent::reload() {
 	if (_requestId) {
 		return;
@@ -39,6 +47,25 @@ void SensitiveContent::reload() {
 		_requestId = 0;
 	}).send();
 }
+#endif
+
+void SensitiveContent::reload() {
+	using namespace Tdb;
+
+	const auto getOption = [&](
+			const QString &name,
+			not_null<rpl::variable<bool>*> variable) {
+		_api.request(TLgetOption(
+			tl_string(name)
+		)).done([=](const TLoptionValue &result) {
+			*variable = Tdb::OptionValue<bool>(result);
+		}).fail([](const Error &error) {
+		}).send();
+	};
+
+	getOption(kSensitiveContentOption.utf8(), &_enabled);
+	getOption(u"can_ignore_sensitive_content_restrictions"_q, &_canChange);
+}
 
 bool SensitiveContent::enabledCurrent() const {
 	return _enabled.current();
@@ -52,6 +79,7 @@ rpl::producer<bool> SensitiveContent::canChange() const {
 	return _canChange.value();
 }
 
+#if 0 // goodToRemove
 void SensitiveContent::update(bool enabled) {
 	if (!_canChange.current()) {
 		return;
@@ -65,6 +93,22 @@ void SensitiveContent::update(bool enabled) {
 	}).fail([=] {
 		_requestId = 0;
 	}).send();
+	_enabled = enabled;
+
+	_appConfigReloadTimer.callOnce(kRefreshAppConfigTimeout);
+}
+#endif
+
+void SensitiveContent::update(bool enabled) {
+	if (!_canChange.current()) {
+		return;
+	}
+	using namespace Tdb;
+	_api.request(TLsetOption(
+		tl_string(kSensitiveContentOption.utf8()),
+		tl_optionValueBoolean(tl_bool(enabled))
+	)).send();
+
 	_enabled = enabled;
 
 	_appConfigReloadTimer.callOnce(kRefreshAppConfigTimeout);
