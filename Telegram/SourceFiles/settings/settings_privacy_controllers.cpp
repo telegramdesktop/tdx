@@ -350,6 +350,14 @@ void BlockedBoxController::prepare() {
 		handleBlockedEvent(update.peer);
 	}, lifetime());
 
+	session().api().blockedPeers().request(
+		_offset,
+		crl::guard(&_guard, [=](const Api::BlockedPeers::Slice &slice) {
+			setDescriptionText(tr::lng_blocked_list_about(tr::now));
+			applySlice(slice);
+			loadMoreRows();
+		}));
+#if 0 // goodToRemove
 	session().api().blockedPeers().slice(
 	) | rpl::take(
 		1
@@ -358,6 +366,7 @@ void BlockedBoxController::prepare() {
 		applySlice(result);
 		loadMoreRows();
 	}, lifetime());
+#endif
 }
 
 void BlockedBoxController::loadMoreRows() {
