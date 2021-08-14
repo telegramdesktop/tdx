@@ -64,6 +64,7 @@ CloudPasswordCheckRequest ParseCloudPasswordCheckRequest(
 
 struct CloudPasswordResult {
 	MTPInputCheckPasswordSRP result;
+	QByteArray password;
 
 	explicit operator bool() const;
 };
@@ -123,12 +124,26 @@ bytes::vector ComputeSecureSecretHash(
 
 struct CloudPasswordState {
 	struct Mtp {
+#if 0 // goodToRemove
 		CloudPasswordCheckRequest request;
 		bool unknownAlgorithm = false;
+#endif
 		CloudPasswordAlgo newPassword;
 		SecureSecretAlgo newSecureSecret;
 	};
 	Mtp mtp;
+	bool hasPassword = false;
+#if 0 // goodToRemove
+	bool hasRecovery = false;
+	bool notEmptyPassport = false;
+	bool outdatedClient = false;
+	QString hint;
+	QString unconfirmedPattern;
+	TimeId pendingResetDate = 0;
+#endif
+	// CloudPasswordCheckRequest request; // replacement: has_password
+	// CloudPasswordAlgo newPassword; // always true?
+	// SecureSecretAlgo newSecureSecret; // always true?
 	bool hasPassword = false;
 	bool hasRecovery = false;
 	bool notEmptyPassport = false;
