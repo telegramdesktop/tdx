@@ -88,6 +88,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "tdb/tdb_sender.h"
 #include "tdb/tdb_account.h"
+#include "tdb/tdb_option.h"
+#include "tdb/tdb_tl_scheme.h"
+#include "data/data_secret_chat.h"
+#include "data/data_saved_messages.h"
 
 namespace {
 
@@ -476,6 +480,18 @@ void ApiWrap::savePinnedOrder(not_null<Data::Forum*> forum) {
 
 void ApiWrap::savePinnedOrder(not_null<Data::SavedMessages*> saved) {
 	const auto &order = _session->data().pinnedChatsOrder(saved);
+	const auto input = [&](Dialogs::Key key) {
+		if (const auto sublist = key.sublist()) {
+			return tl_int53(saved->sublistId(sublist));
+		}
+		Unexpected("Key type in pinnedDialogsOrder().");
+	};
+	sender().request(TLsetPinnedSavedMessagesTopics(
+		tl_vector<TLint53>(order
+			| ranges::views::transform(input)
+			| ranges::to<QVector>)
+	)).send();
+#if 0 // mtp
 	const auto input = [](Dialogs::Key key) {
 		if (const auto sublist = key.sublist()) {
 			return MTP_inputDialogPeer(sublist->peer()->input);
@@ -492,6 +508,7 @@ void ApiWrap::savePinnedOrder(not_null<Data::SavedMessages*> saved) {
 		MTP_flags(MTPmessages_ReorderPinnedSavedDialogs::Flag::f_force),
 		MTP_vector(peers)
 	)).send();
+#endif
 }
 
 void ApiWrap::toggleHistoryArchived(
@@ -1017,7 +1034,9 @@ void ApiWrap::requestMoreDialogsIfNeeded() {
 		}
 	}
 	requestContacts();
+#if 0 // mtp
 	_session->data().shortcutMessages().preloadShortcuts();
+#endif
 }
 
 void ApiWrap::updateDialogsOffset(
@@ -2000,7 +2019,9 @@ void ApiWrap::sendNotifySettingsUpdates() {
 			settings.defaultSettings(type).serialize()
 		)).afterDelay(kSmallDelayMs).send();
 	}
+#if 0 // mtp
 	session().mtp().sendAnything();
+#endif
 }
 
 void ApiWrap::saveDraftToCloudDelayed(not_null<Data::Thread*> thread) {
