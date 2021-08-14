@@ -204,7 +204,9 @@ QString PrivacyBase(Privacy::Key key, const Privacy::Rule &rule) {
 rpl::producer<QString> PrivacyString(
 		not_null<::Main::Session*> session,
 		Privacy::Key key) {
+#if 0 // goodToRemove
 	session->api().userPrivacy().reload(key);
+#endif
 	return session->api().userPrivacy().value(
 		key
 	) | rpl::map([=](const Privacy::Rule &value) {
@@ -442,7 +444,9 @@ void SetupPrivacy(
 	}
 	AddMessagesPrivacyButton(controller, container);
 
+#if 0 // goodToRemove
 	session->api().userPrivacy().reload(Api::UserPrivacy::Key::AddedByPhone);
+#endif
 
 	Ui::AddSkip(container, st::settingsPrivacySecurityPadding);
 	Ui::AddDivider(container);
