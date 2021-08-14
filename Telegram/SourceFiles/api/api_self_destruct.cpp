@@ -15,6 +15,7 @@ SelfDestruct::SelfDestruct(not_null<ApiWrap*> api)
 : _api(&api->instance()) {
 }
 
+#if 0 // goodToRemove
 void SelfDestruct::reload() {
 	if (!_accountTTL.requestId) {
 		_accountTTL.requestId = _api.request(MTPaccount_GetAccountTTL(
@@ -36,6 +37,21 @@ void SelfDestruct::reload() {
 		}).send();
 	}
 }
+#endif
+
+void SelfDestruct::reload() {
+	if (_requestId) {
+		return;
+	}
+	using namespace Tdb;
+	_requestId = _api.request(TLgetAccountTtl(
+	)).done([=](const TLDaccountTtl &data) {
+		_requestId = 0;
+		_days = data.vdays().v;
+	}).fail([=](const Error &error) {
+		_requestId = 0;
+	}).send();
+}
 
 rpl::producer<int> SelfDestruct::daysAccountTTL() const {
 	return _accountTTL.days.value() | rpl::filter(rpl::mappers::_1 != 0);
@@ -49,6 +65,7 @@ TimeId SelfDestruct::periodDefaultHistoryTTLCurrent() const {
 	return _defaultHistoryTTL.period.current();
 }
 
+#if 0 // goodToRemove
 void SelfDestruct::updateAccountTTL(int days) {
 	_api.request(_accountTTL.requestId).cancel();
 	_accountTTL.requestId = _api.request(MTPaccount_SetAccountTTL(
@@ -71,6 +88,19 @@ void SelfDestruct::updateDefaultHistoryTTL(TimeId period) {
 		_defaultHistoryTTL.requestId = 0;
 	}).send();
 	_defaultHistoryTTL.period = period;
+}
+#endif
+
+void SelfDestruct::update(int days) {
+	using namespace Tdb;
+	_requestId = _api.request(TLsetAccountTtl(
+		tl_accountTtl(tl_int32(days))
+	)).done([=](const TLok &result) {
+		_requestId = 0;
+	}).fail([=](const Error &result) {
+		_requestId = 0;
+	}).send();
+	_days = days;
 }
 
 } // namespace Api
