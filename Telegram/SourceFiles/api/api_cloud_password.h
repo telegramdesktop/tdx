@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "mtproto/sender.h"
+#include "tdb/tdb_sender.h"
 
 namespace Core {
 struct CloudPasswordState;
@@ -29,6 +30,7 @@ public:
 
 	using ResetRetryDate = int;
 	explicit CloudPassword(not_null<ApiWrap*> api);
+	explicit CloudPassword(Tdb::Sender &sender);
 
 	void reload();
 	void clearUnconfirmedPassword();
@@ -63,7 +65,10 @@ public:
 private:
 	void apply(Core::CloudPasswordState state);
 
+#if 0 // goodToRemove
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 	mtpRequestId _requestId = 0;
 	std::unique_ptr<Core::CloudPasswordState> _state;
 	rpl::event_stream<Core::CloudPasswordState> _stateChanges;
