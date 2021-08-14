@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "mtproto/sender.h"
+#include "tdb/tdb_sender.h"
 
 class ApiWrap;
 
@@ -50,17 +51,20 @@ public:
 	void save(
 		Key key,
 		const UserPrivacy::Rule &rule);
+#if 0 // goodToRemove
 	void apply(
 		mtpTypeId type,
 		const MTPVector<MTPPrivacyRule> &rules,
 		bool allLoaded);
 
 	void reload(Key key);
+#endif
 	rpl::producer<Rule> value(Key key);
 
 private:
 	const not_null<Main::Session*> _session;
-
+	Tdb::Sender _api;
+#if 0 // goodToRemove
 	void pushPrivacy(Key key, const MTPVector<MTPPrivacyRule> &rules);
 
 	base::flat_map<mtpTypeId, mtpRequestId> _privacySaveRequests;
@@ -70,6 +74,7 @@ private:
 	std::map<Key, rpl::event_stream<Rule>> _privacyChanges;
 
 	MTP::Sender _api;
+#endif
 
 };
 
