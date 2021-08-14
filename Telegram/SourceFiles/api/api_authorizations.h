@@ -18,7 +18,10 @@ public:
 	explicit Authorizations(not_null<ApiWrap*> api);
 
 	struct Entry {
+#if 0 // goodToRemove
 		uint64 hash = 0;
+#endif
+		int64 hash = 0;
 
 		bool incomplete = false;
 		bool callsDisabled = false;
@@ -31,8 +34,12 @@ public:
 	void reload();
 	void cancelCurrentRequest();
 	void requestTerminate(
+#if 0 // goodToRemove
 		Fn<void(const MTPBool &result)> &&done,
 		Fn<void(const MTP::Error &error)> &&fail,
+#endif
+		Fn<void(const Tdb::TLok &result)> &&done,
+		Fn<void(const Tdb::Error &error)> &&fail,
 		std::optional<uint64> hash = std::nullopt);
 
 	[[nodiscard]] crl::time lastReceivedTime();
