@@ -29,6 +29,7 @@ public:
 
 	using ResetRetryDate = int;
 	explicit CloudPassword(not_null<ApiWrap*> api);
+	explicit CloudPassword(Tdb::Sender &sender);
 
 	void reload();
 	void clearUnconfirmedPassword();
@@ -63,6 +64,9 @@ public:
 private:
 	void apply(Core::CloudPasswordState state);
 
+	void apply(const Tdb::TLpasswordState &state);
+
+	const bool _authorized = true;
 	MTP::Sender _api;
 	mtpRequestId _requestId = 0;
 	std::unique_ptr<Core::CloudPasswordState> _state;

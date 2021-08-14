@@ -353,7 +353,9 @@ CheckoutProcess::CheckoutProcess(
 	if (mode == Mode::Payment) {
 		_session->api().cloudPassword().state(
 		) | rpl::start_with_next([=](const Core::CloudPasswordState &state) {
+#if 0 // goodToRemove
 			_form->setHasPassword(state.hasPassword);
+#endif
 		}, _lifetime);
 	}
 }

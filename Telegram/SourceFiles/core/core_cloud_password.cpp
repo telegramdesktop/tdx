@@ -303,16 +303,22 @@ bytes::vector ComputeSecureSecretHash(
 CloudPasswordState ParseCloudPasswordState(
 		const MTPDaccount_password &data) {
 	auto result = CloudPasswordState();
+#if 0 // goodToRemove
 	result.mtp.request = ParseCloudPasswordCheckRequest(data);
+#endif
 	result.hasPassword = (!!result.mtp.request);
+#if 0 // goodToRemove
 	result.mtp.unknownAlgorithm = data.vcurrent_algo() && !result.hasPassword;
+#endif
 	result.hasRecovery = data.is_has_recovery();
 	result.notEmptyPassport = data.is_has_secure_values();
 	result.hint = qs(data.vhint().value_or_empty());
+#if 0 // goodToRemove
 	result.mtp.newPassword = ValidateNewCloudPasswordAlgo(
 		ParseCloudPasswordAlgo(data.vnew_algo()));
 	result.mtp.newSecureSecret = ValidateNewSecureSecretAlgo(
 		ParseSecureSecretAlgo(data.vnew_secure_algo()));
+#endif
 	result.unconfirmedPattern = qs(
 		data.vemail_unconfirmed_pattern().value_or_empty());
 	result.pendingResetDate = data.vpending_reset_date().value_or_empty();
