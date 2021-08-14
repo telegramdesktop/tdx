@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_global_privacy.h"
 
 #include "apiwrap.h"
+#include "base/const_string.h"
+#include "tdb/tdb_option.h"
 #include "main/main_session.h"
 #include "main/main_app_config.h"
 
@@ -18,6 +20,29 @@ GlobalPrivacy::GlobalPrivacy(not_null<ApiWrap*> api)
 , _api(&api->instance()) {
 }
 
+bool GlobalPrivacy::apply(const Tdb::TLDupdateOption &option) {
+	if (option.vname().v
+			== u"can_archive_and_mute_new_chats_from_unknown_users"_q) {
+		_showArchiveAndMute = option.vvalue().match([](
+				const Tdb::TLDoptionValueBoolean &data) {
+			return data.vvalue().v;
+		}, [](const auto &) {
+			return false;
+		});
+		return true;
+	} else if (option.vname().v == u"is_paid_reaction_anonymous"_q) {
+		_paidReactionAnonymous = option.vvalue().match([](
+				const Tdb::TLDoptionValueBoolean &data) {
+			return data.vvalue().v;
+		}, [](const auto &) {
+			return false;
+		});
+		return true;
+	}
+	return false;
+}
+
+#if 0 // goodToRemove
 void GlobalPrivacy::reload(Fn<void()> callback) {
 	if (callback) {
 		_callbacks.push_back(std::move(callback));
@@ -45,6 +70,48 @@ void GlobalPrivacy::reload(Fn<void()> callback) {
 			u"autoarchive_setting_available"_q,
 			false);
 	}, _session->lifetime());
+}
+#endif
+
+void GlobalPrivacy::reload(Fn<void()> callback) {
+	if (callback) {
+		_callbacks.push_back(std::move(callback));
+	}
+	if (_requesting) {
+		return;
+	}
+	_requesting = true;
+
+	const auto finish = [=] {
+		_requesting = false;
+		for (const auto &callback : base::take(_callbacks)) {
+			callback();
+		}
+	};
+
+	const auto requestNewChats = [=] {
+		_api.request(Tdb::TLgetNewChatPrivacySettings(
+		)).done([=](const Tdb::TLDnewChatPrivacySettings &data) {
+			_newRequirePremium
+				= !data.vallow_new_chats_from_unknown_users().v;
+			finish();
+		}).fail(finish).send();
+	};
+
+	const auto requestReadDate = [=] {
+		_api.request(Tdb::TLgetReadDatePrivacySettings(
+		)).done([=](const Tdb::TLDreadDatePrivacySettings &data) {
+			_hideReadTime = !data.vshow_read_date().v;
+			requestNewChats();
+		}).fail(requestNewChats).send();
+	};
+
+	_api.request(Tdb::TLgetArchiveChatListSettings(
+	)).done([=](const Tdb::TLDarchiveChatListSettings &data) {
+		_archiveAndMute
+			= data.varchive_and_mute_new_chats_from_unknown_users().v;
+		requestReadDate();
+	}).fail(requestReadDate).send();
 }
 
 bool GlobalPrivacy::archiveAndMuteCurrent() const {
@@ -120,10 +187,12 @@ void GlobalPrivacy::loadPaidReactionAnonymous() {
 		return;
 	}
 	_paidReactionAnonymousLoaded = true;
+#if 0 // mtp
 	_api.request(MTPmessages_GetPaidReactionPrivacy(
 	)).done([=](const MTPUpdates &result) {
 		_session->api().applyUpdates(result);
 	}).send();
+#endif
 }
 
 void GlobalPrivacy::updatePaidReactionAnonymous(bool value) {
@@ -155,6 +224,7 @@ void GlobalPrivacy::updateUnarchiveOnNewMessage(
 		newRequirePremiumCurrent());
 }
 
+#if 0 // goodToRemove
 void GlobalPrivacy::update(
 		bool archiveAndMute,
 		UnarchiveOnNewMessage unarchiveOnNewMessage,
@@ -195,7 +265,29 @@ void GlobalPrivacy::update(
 	_hideReadTime = hideReadTime;
 	_newRequirePremium = newRequirePremium;
 }
+#endif
 
+void GlobalPrivacy::update(
+		bool archiveAndMute,
+		UnarchiveOnNewMessage unarchiveOnNewMessage,
+		bool hideReadTime,
+		bool newRequirePremium) {
+	using Unarchive = UnarchiveOnNewMessage;
+	_api.request(Tdb::TLsetArchiveChatListSettings(
+		Tdb::tl_archiveChatListSettings(
+			Tdb::tl_bool(archiveAndMute),
+			Tdb::tl_bool(unarchiveOnNewMessage == Unarchive::None),
+			Tdb::tl_bool(unarchiveOnNewMessage != Unarchive::AnyUnmuted))
+	)).send();
+	_api.request(Tdb::TLsetReadDatePrivacySettings(
+		Tdb::tl_readDatePrivacySettings(Tdb::tl_bool(!hideReadTime))
+	)).send();
+	_api.request(Tdb::TLsetNewChatPrivacySettings(
+		Tdb::tl_newChatPrivacySettings(Tdb::tl_bool(!newRequirePremium))
+	)).send();
+}
+
+#if 0 // goodToRemove
 void GlobalPrivacy::apply(const MTPGlobalPrivacySettings &data) {
 	data.match([&](const MTPDglobalPrivacySettings &data) {
 		_archiveAndMute = data.is_archive_and_mute_new_noncontact_peers();
@@ -208,5 +300,6 @@ void GlobalPrivacy::apply(const MTPGlobalPrivacySettings &data) {
 		_newRequirePremium = data.is_new_noncontact_peers_require_premium();
 	});
 }
+#endif
 
 } // namespace Api
