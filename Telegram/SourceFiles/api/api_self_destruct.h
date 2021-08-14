@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "mtproto/sender.h"
+#include "tdb/tdb_sender.h"
 
 class ApiWrap;
 
@@ -26,7 +26,10 @@ public:
 	[[nodiscard]] TimeId periodDefaultHistoryTTLCurrent() const;
 
 private:
+#if 0 // goodToRemove
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 	struct {
 		mtpRequestId requestId = 0;
 		rpl::variable<int> days = 0;
