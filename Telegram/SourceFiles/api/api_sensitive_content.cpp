@@ -8,12 +8,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_sensitive_content.h"
 
 #include "apiwrap.h"
+#include "base/const_string.h"
+#include "tdb/tdb_option.h"
 #include "main/main_session.h"
 #include "main/main_app_config.h"
 
 namespace Api {
 namespace {
 
+constexpr auto kSensitiveContentOption =
+	"ignore_sensitive_content_restrictions"_cs;
 constexpr auto kRefreshAppConfigTimeout = crl::time(1);
 
 } // namespace
@@ -30,6 +34,7 @@ void SensitiveContent::preload() {
 	}
 }
 
+#if 0 // goodToRemove
 void SensitiveContent::reload(bool force) {
 	if (_loadRequestId) {
 		if (force) {
@@ -60,6 +65,25 @@ void SensitiveContent::reload(bool force) {
 		_loadRequestId = 0;
 	}).send();
 }
+#endif
+
+void SensitiveContent::reload(bool force) {
+	using namespace Tdb;
+
+	const auto getOption = [&](
+			const QString &name,
+			not_null<rpl::variable<bool>*> variable) {
+		_api.request(TLgetOption(
+			tl_string(name)
+		)).done([=](const TLoptionValue &result) {
+			*variable = Tdb::OptionValue<bool>(result);
+		}).fail([](const Error &error) {
+		}).send();
+	};
+
+	getOption(kSensitiveContentOption.utf8(), &_enabled);
+	getOption(u"can_ignore_sensitive_content_restrictions"_q, &_canChange);
+}
 
 bool SensitiveContent::enabledCurrent() const {
 	return _enabled.current();
@@ -73,6 +97,7 @@ rpl::producer<bool> SensitiveContent::canChange() const {
 	return _canChange.value();
 }
 
+#if 0 // goodToRemove
 void SensitiveContent::update(bool enabled) {
 	if (!_canChange.current()) {
 		return;
@@ -96,6 +121,22 @@ void SensitiveContent::update(bool enabled) {
 		MTP_flags(enabled ? Flag::f_sensitive_enabled : Flag(0))
 	)).done(finish).fail(finish).send();
 	_enabled = enabled;
+}
+#endif
+
+void SensitiveContent::update(bool enabled) {
+	if (!_canChange.current()) {
+		return;
+	}
+	using namespace Tdb;
+	_api.request(TLsetOption(
+		tl_string(kSensitiveContentOption.utf8()),
+		tl_optionValueBoolean(tl_bool(enabled))
+	)).send();
+
+	_enabled = enabled;
+
+	_appConfigReloadTimer.callOnce(kRefreshAppConfigTimeout);
 }
 
 } // namespace Api
