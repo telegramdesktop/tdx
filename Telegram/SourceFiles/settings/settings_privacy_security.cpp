@@ -244,12 +244,14 @@ void AddPremiumPrivacyButton(
 	});
 }
 
+#if 0 // goodToRemove
 rpl::producer<int> BlockedPeersCount(not_null<::Main::Session*> session) {
 	return session->api().blockedPeers().slice(
 	) | rpl::map([](const Api::BlockedPeers::Slice &data) {
 		return data.total;
 	});
 }
+#endif
 
 void SetupPrivacy(
 		not_null<Window::SessionController*> controller,
@@ -435,11 +437,14 @@ void SetupSensitiveContent(
 
 	const auto session = &controller->session();
 
+#if 0 // goodToRemove
 	std::move(
 		updateTrigger
 	) | rpl::start_with_next([=] {
 		session->api().sensitiveContent().reload();
 	}, container->lifetime());
+#endif
+
 	AddButton(
 		inner,
 		tr::lng_settings_sensitive_disable_filtering(),
@@ -577,7 +582,10 @@ void SetupBlockedList(
 		Fn<void(Type)> showOther) {
 	const auto session = &controller->session();
 	auto blockedCount = rpl::combine(
+#if 0 // goodToRemove
 		BlockedPeersCount(session),
+#endif
+		session->api().blockedPeers().total(),
 		tr::lng_settings_no_blocked_users()
 	) | rpl::map([](int count, const QString &none) {
 		return count ? QString::number(count) : none;
@@ -591,11 +599,14 @@ void SetupBlockedList(
 	blockedPeers->addClickHandler([=] {
 		showOther(Blocked::Id());
 	});
+
+#if 0 // goodToRemove
 	std::move(
 		updateTrigger
 	) | rpl::start_with_next([=] {
 		session->api().blockedPeers().reload();
 	}, blockedPeers->lifetime());
+#endif
 }
 
 void SetupWebsitesList(
