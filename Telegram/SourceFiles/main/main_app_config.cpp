@@ -17,6 +17,8 @@ namespace {
 
 constexpr auto kRefreshTimeout = 3600 * crl::time(1000);
 
+using namespace Tdb;
+
 } // namespace
 
 AppConfig::AppConfig(not_null<Account*> account) : _account(account) {
@@ -31,17 +33,20 @@ AppConfig::AppConfig(not_null<Account*> account) : _account(account) {
 AppConfig::~AppConfig() = default;
 
 void AppConfig::start() {
+#if 0 // goodToRemove
 	_account->mtpMainSessionValue(
 	) | rpl::start_with_next([=](not_null<MTP::Instance*> instance) {
 		_api.emplace(instance);
 		refresh();
 	}, _lifetime);
+#endif
 }
 
 int AppConfig::quoteLengthMax() const {
 	return get<int>(u"quote_length_max"_q, 1024);
 }
 
+#if 0 // goodToRemove
 void AppConfig::refresh(bool force) {
 	if (_requestId || !_api) {
 		if (force) {
@@ -86,6 +91,32 @@ void AppConfig::refresh(bool force) {
 		refreshDelayed();
 	}).send();
 }
+#endif
+
+void AppConfig::refresh(bool force) {
+	if (_requestId || !_api) {
+		return;
+	}
+	_requestId = _api->request(TLgetApplicationConfig(
+	)).done([=](const TLjsonValue &result) {
+		_requestId = 0;
+		refreshDelayed();
+		result.match([&](const TLDjsonValueObject &d) {
+			_data.clear();
+			for (const auto &element : d.vmembers().v) {
+				element.match([&](const TLDjsonObjectMember &data) {
+					_data.emplace_or_assign(data.vkey().v, data.vvalue());
+				});
+			}
+			DEBUG_LOG(("getAppConfig result handled."));
+		}, [](const auto &) {
+		});
+		_refreshed.fire({});
+	}).fail([=](const Error &error) {
+		_requestId = 0;
+		refreshDelayed();
+	}).send();
+}
 
 void AppConfig::refreshDelayed() {
 	base::call_delayed(kRefreshTimeout, _account, [=] {
@@ -119,6 +150,7 @@ rpl::producer<> AppConfig::value() const {
 	return _refreshed.events_starting_with({});
 }
 
+#if 0 // goodToRemove
 template <typename Extractor>
 auto AppConfig::getValue(const QString &key, Extractor &&extractor) const {
 	const auto i = _data.find(key);
@@ -202,6 +234,122 @@ base::flat_map<QString, QString> AppConfig::getStringMap(
 		});
 	});
 }
+#endif
+
+template <typename Extractor>
+auto AppConfig::getValue(const QString &key, Extractor &&extractor) const {
+	const auto i = _data.find(key);
+	return extractor((i != end(_data))
+		? i->second
+		: tl_jsonValueNull());
+}
+
+bool AppConfig::getBool(const QString &key, bool fallback) const {
+	return getValue(key, [&](const TLjsonValue &value) {
+		return value.match([&](const TLDjsonValueBoolean &data) {
+			return data.vvalue().v;
+		}, [&](const auto &data) {
+			return fallback;
+		});
+	});
+}
+
+double AppConfig::getDouble(const QString &key, double fallback) const {
+	return getValue(key, [&](const TLjsonValue &value) {
+		return value.match([&](const TLDjsonValueNumber &data) {
+			return data.vvalue().v;
+		}, [&](const auto &data) {
+			return fallback;
+		});
+	});
+}
+
+QString AppConfig::getString(
+		const QString &key,
+		const QString &fallback) const {
+	return getValue(key, [&](const TLjsonValue &value) {
+		return value.match([&](const TLDjsonValueString &data) {
+			return data.vvalue().v;
+		}, [&](const auto &data) {
+			return fallback;
+		});
+	});
+}
+
+std::vector<QString> AppConfig::getStringArray(
+		const QString &key,
+		std::vector<QString> &&fallback) const {
+	return getValue(key, [&](const TLjsonValue &value) {
+		return value.match([&](const TLDjsonValueArray &data) {
+			auto result = std::vector<QString>();
+			result.reserve(data.vvalues().v.size());
+			for (const auto &entry : data.vvalues().v) {
+				if (entry.type() != id_jsonValueString) {
+					return std::move(fallback);
+				}
+				result.push_back(entry.c_jsonValueString().vvalue().v);
+			}
+			return result;
+		}, [&](const auto &data) {
+			return std::move(fallback);
+		});
+	});
+}
+
+base::flat_map<QString, QString> AppConfig::getStringMap(
+		const QString &key,
+		base::flat_map<QString, QString> &&fallback) const {
+	return getValue(key, [&](const TLjsonValue &value) {
+		return value.match([&](const TLDjsonValueObject &data) {
+			auto result = base::flat_map<QString, QString>();
+			result.reserve(data.vmembers().v.size());
+			for (const auto &entry : data.vmembers().v) {
+				const auto &data = entry.data();
+				const auto &value = data.vvalue();
+				if (value.type() != id_jsonValueString) {
+					return std::move(fallback);
+				}
+				result.emplace(
+					qs(data.vkey()),
+					qs(value.c_jsonValueString().vvalue()));
+			}
+			return result;
+		}, [&](const auto &data) {
+			return std::move(fallback);
+		});
+	});
+}
+
+std::vector<std::map<QString, QString>> AppConfig::getStringMapArray(
+		const QString &key,
+		std::vector<std::map<QString, QString>> &&fallback) const {
+	auto handleArray = [&](const TLDjsonValueArray &data) {
+		auto result = std::vector<std::map<QString, QString>>();
+		result.reserve(data.vvalues().v.size());
+		for (const auto &entry : data.vvalues().v) {
+			if (entry.type() != id_jsonValueObject) {
+				return std::move(fallback);
+			}
+			auto element = std::map<QString, QString>();
+			for (const auto &field : entry.c_jsonValueObject().vmembers().v) {
+				const auto &data = field.c_jsonObjectMember();
+				if (data.vvalue().type() != id_jsonValueString) {
+					return std::move(fallback);
+				}
+				element.emplace(
+					data.vkey().v,
+					data.vvalue().c_jsonValueString().vvalue().v);
+			}
+			result.push_back(std::move(element));
+		}
+		return result;
+	};
+	return getValue(key, [&](const TLjsonValue &value) {
+		return value.match(std::move(handleArray), [&](const auto &data) {
+			return std::move(fallback);
+		});
+	});
+}
 
 std::vector<int> AppConfig::getIntArray(
 		const QString &key,
@@ -246,10 +394,12 @@ void AppConfig::dismissSuggestion(const QString &key) {
 	if (!_dismissedSuggestions.emplace(key).second) {
 		return;
 	}
+#if 0 // goodToRemove
 	_api->request(MTPhelp_DismissSuggestion(
 		MTP_inputPeerEmpty(),
 		MTP_string(key)
 	)).send();
+#endif
 }
 
 bool AppConfig::newRequirePremiumFree() const {
