@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "tdb/tdb_account.h"
 #include "mtproto/sender.h"
 
 class ApiWrap;
@@ -49,8 +50,12 @@ public:
 	[[nodiscard]] bool newRequirePremiumCurrent() const;
 	[[nodiscard]] rpl::producer<bool> newRequirePremium() const;
 
+	bool apply(const Tdb::TLDupdateOption &option);
+
 private:
+#if 0 // goodToRemove
 	void apply(const MTPGlobalPrivacySettings &data);
+#endif
 
 	void update(
 		bool archiveAndMute,
@@ -59,8 +64,11 @@ private:
 		bool newRequirePremium);
 
 	const not_null<Main::Session*> _session;
+#if 0 // goodToRemove
 	MTP::Sender _api;
 	mtpRequestId _requestId = 0;
+#endif
+	Tdb::Sender _api;
 	rpl::variable<bool> _archiveAndMute = false;
 	rpl::variable<UnarchiveOnNewMessage> _unarchiveOnNewMessage
 		= UnarchiveOnNewMessage::None;
