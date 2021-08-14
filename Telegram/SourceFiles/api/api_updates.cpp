@@ -2732,6 +2732,10 @@ void Updates::applyUpdate(const TLupdate &update) {
 			history->setUnreadMark(data.vis_marked_as_unread().v);
 		}
 	}, [&](const TLDupdateChatIsBlocked &data) {
+		const auto peerId = peerFromTdbChat(data.vchat_id());
+		if (const auto peer = session().data().peerLoaded(peerId)) {
+			peer->setIsBlocked(data.vis_blocked().v);
+		}
 	}, [&](const TLDupdateChatHasScheduledMessages &data) {
 	}, [&](const TLDupdateChatVoiceChat &data) {
 	}, [&](const TLDupdateChatDefaultDisableNotification &data) {
