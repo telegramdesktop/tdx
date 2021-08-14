@@ -54,8 +54,12 @@ public:
 	[[nodiscard]] bool paidReactionAnonymousCurrent() const;
 	[[nodiscard]] rpl::producer<bool> paidReactionAnonymous() const;
 
+	bool apply(const Tdb::TLDupdateOption &option);
+
 private:
+#if 0 // goodToRemove
 	void apply(const MTPGlobalPrivacySettings &data);
+#endif
 
 	void update(
 		bool archiveAndMute,
@@ -65,7 +69,9 @@ private:
 
 	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
+#if 0 // goodToRemove
 	mtpRequestId _requestId = 0;
+#endif
 	rpl::variable<bool> _archiveAndMute = false;
 	rpl::variable<UnarchiveOnNewMessage> _unarchiveOnNewMessage
 		= UnarchiveOnNewMessage::None;
@@ -75,6 +81,8 @@ private:
 	rpl::variable<bool> _paidReactionAnonymous = false;
 	std::vector<Fn<void()>> _callbacks;
 	bool _paidReactionAnonymousLoaded = false;
+
+	bool _requesting = false;
 
 };
 
