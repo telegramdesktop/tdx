@@ -30,4 +30,14 @@ struct Error {
 
 };
 
+inline bool IsFloodError(const QString &type) {
+	// See: td/telegram/net/NetQueryDelayer.cpp.
+	return type.startsWith(u"Too Many Requests:"_q);
+}
+
+inline bool IsFloodError(const Error &error) {
+	// See: td/telegram/net/NetQueryDelayer.cpp.
+	return error.code == 429;
+}
+
 } // namespace Tdb
