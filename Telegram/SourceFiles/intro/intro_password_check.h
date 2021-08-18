@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "api/api_cloud_password.h"
 #include "intro/intro_step.h"
 #include "core/core_cloud_password.h"
 #include "mtproto/sender.h"
@@ -78,8 +79,11 @@ private:
 	void handleAuthorizationState(
 		const Tdb::TLauthorizationState &state) override;
 
-	void passwordSubmitFail(const Tdb::Error &error);
-	void recoverFail(const Tdb::Error &error);
+	void passwordSubmitFail(const QString &error);
+	void codeSubmitFail(const QString &type);
+	void codeSubmitDone(const QString &code);
+
+	std::optional<Api::CloudPassword> _unauthCloudPassword;
 
 	Core::CloudPasswordState _passwordState;
 #if 0 // mtp

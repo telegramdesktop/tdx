@@ -35,6 +35,7 @@ PasswordCheckWidget::PasswordCheckWidget(
 	not_null<Main::Account*> account,
 	not_null<Data*> data)
 : Step(parent, account, data)
+, _unauthCloudPassword(api())
 , _passwordState(getData()->pwdState)
 , _pwdField(this, st::introPassword, tr::lng_signin_password())
 , _pwdHint(this, st::introPasswordHint)
@@ -314,9 +315,8 @@ void PasswordCheckWidget::toRecover() {
 		_codeField->setFocus();
 		updateDescriptionText();
 		if (_emailPattern.isEmpty()) {
-			api().request(
-				TLrequestAuthenticationPasswordRecovery()
-			).fail([=](const Error &error) {
+			_unauthCloudPassword->requestPasswordRecovery(
+			) | rpl::start_with_error([=](const QString &error) {
 				_pwdField->show();
 				_pwdHint->show();
 				_codeField->hide();
@@ -324,7 +324,7 @@ void PasswordCheckWidget::toRecover() {
 				updateDescriptionText();
 				update();
 				hideError();
-			}).send();
+			}, lifetime());
 #if 0 // mtp
 			api().request(
 				MTPauth_RequestPasswordRecovery()
@@ -390,13 +390,13 @@ void PasswordCheckWidget::submit() {
 		}
 		const auto send = crl::guard(this, [=] {
 			_sentRequest = true;
-			api().request(TLrecoverAuthenticationPassword(
-				tl_string(code),
-				tl_string(), // new_password
-				tl_string() // new_hint
-			)).fail([=](const Error &error) {
-				recoverFail(error);
-			}).send();
+			_unauthCloudPassword->checkRecoveryEmailAddressCode(
+				code
+			) | rpl::start_with_error_done([=](const QString &error) {
+				codeSubmitFail(error);
+			}, [=] {
+				codeSubmitDone(code);
+			}, lifetime());
 
 #if 0 // mtp
 			_sentRequest = api().request(MTPauth_CheckRecoveryPassword(
@@ -425,13 +425,15 @@ void PasswordCheckWidget::submit() {
 	} else {
 		hideError();
 
-		_sentRequest = true;
 		const auto password = _pwdField->getLastText();
-		api().request(TLcheckAuthenticationPassword(
-			tl_string(password)
-		)).fail([=](const Error &error) {
+		_sentRequest = true;
+		_unauthCloudPassword->check(
+			password
+		) | rpl::start_with_error_done([=](const QString &error) {
 			passwordSubmitFail(error);
-		}).send();
+		}, [=] {
+			_sentRequest = false;
+		}, lifetime());
 #if 0 // mtp
 		_passwordHash = Core::ComputeCloudPasswordHash(
 			_passwordState.mtp.request.algo,
@@ -441,20 +443,19 @@ void PasswordCheckWidget::submit() {
 	}
 }
 
-void PasswordCheckWidget::passwordSubmitFail(const Error &error) {
+void PasswordCheckWidget::passwordSubmitFail(const QString &error) {
 	_sentRequest = false;
-	if (error.message.contains(u"PASSWORD_HASH_INVALID")) {
+	if (error.contains(u"PASSWORD_HASH_INVALID")) {
 		showError(tr::lng_signin_bad_password());
 		_pwdField->selectAll();
 		_pwdField->showError();
 	} else {
-		showError(rpl::single(error.message));
+		showError(rpl::single(error));
 	}
 }
 
-void PasswordCheckWidget::recoverFail(const Error &error) {
+void PasswordCheckWidget::codeSubmitFail(const QString &type) {
 	_sentRequest = false;
-	const auto &type = error.message;
 	if (type == u"PASSWORD_EMPTY"
 		|| type == u"AUTH_KEY_UNREGISTERED") {
 #if 0 // mtp
@@ -482,6 +483,19 @@ void PasswordCheckWidget::recoverFail(const Error &error) {
 	}
 }
 
+void PasswordCheckWidget::codeSubmitDone(const QString &code) {
+	_sentRequest = false;
+	auto fields = PasscodeBox::CloudFields::From(_passwordState);
+	fields.fromRecoveryCode = code;
+	fields.hasRecovery = false;
+	fields.hasPassword = false;
+	const auto box = Ui::show(Box<PasscodeBox>(api(), nullptr, fields));
+	box->newPasswordSet(
+	) | rpl::start_with_next([=] {
+		cSetPasswordRecovered(true);
+	}, box->lifetime());
+}
+
 void PasswordCheckWidget::handleAuthorizationState(
 		const TLauthorizationState &state) {
 	state.match([&](const TLDauthorizationStateWaitPassword &data) {
@@ -501,6 +515,8 @@ void PasswordCheckWidget::handleAuthorizationState(
 			_emailPattern = data.vrecovery_email_address_pattern().v;
 			updateDescriptionText();
 		}
+	}, [&](const TLDauthorizationStateReady &data) {
+		finish();
 	}, [&](const auto &) {
 		Step::handleAuthorizationState(state);
 	});
