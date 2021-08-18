@@ -68,6 +68,7 @@ private:
 #if 0 // goodToRemove
 	MTP::Sender _api;
 #endif
+	const bool _authorized;
 	Tdb::Sender _api;
 	mtpRequestId _requestId = 0;
 	std::unique_ptr<Core::CloudPasswordState> _state;
