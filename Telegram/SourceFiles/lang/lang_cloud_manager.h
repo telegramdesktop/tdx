@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "mtproto/sender.h"
+#include "tdb/tdb_sender.h"
 #include "base/weak_ptr.h"
 
 namespace MTP {
@@ -20,7 +21,10 @@ class Instance;
 enum class Pack;
 struct Language;
 
+#if 0 // goodToRemove
 Language ParseLanguage(const MTPLangPackLanguage &data);
+#endif
+Language ParseLanguage(const Tdb::TLlanguagePackInfo &result);
 
 class CloudManager : public base::has_weak_ptr {
 public:
@@ -34,9 +38,14 @@ public:
 	}
 	[[nodiscard]] rpl::producer<> languageListChanged() const;
 	[[nodiscard]] rpl::producer<> firstLanguageSuggestion() const;
+	void requestLangPackStrings(const QString &langId);
+#if 0 // goodToRemove
 	void requestLangPackDifference(const QString &langId);
 	void applyLangPackDifference(const MTPLangPackDifference &difference);
 	void setCurrentVersions(int version, int baseVersion);
+#endif
+	void apply(const Tdb::TLDupdateLanguagePackStrings &result);
+	bool apply(const Tdb::TLDupdateOption &result);
 
 	void resetToDefault();
 	void switchWithWarning(const QString &id);
@@ -49,10 +58,18 @@ public:
 	}
 
 private:
+	void init();
 	mtpRequestId &packRequestId(Pack pack);
 	mtpRequestId packRequestId(Pack pack) const;
 	Pack packTypeFromId(const QString &id) const;
+	void requestLangPackStrings(Pack pack);
+#if 0 // goodToRemove
 	void requestLangPackDifference(Pack pack);
+#endif
+	void applyStrings(
+		Pack pack,
+		// Instance::TLStrings.
+		const Tdb::TLvector<Tdb::TLlanguagePackString> &strings);
 	bool canApplyWithoutRestart(const QString &id) const;
 	void performSwitchToCustom();
 	void performSwitch(const Language &data);
@@ -64,14 +81,19 @@ private:
 	Language findOfferedLanguage() const;
 
 	void requestLanguageAndSwitch(const QString &id, bool warning);
+#if 0 // goodToRemove
 	void applyLangPackData(Pack pack, const MTPDlangPackDifference &data);
+#endif
 	void switchLangPackId(const Language &data);
 	void changeIdAndReInitConnection(const Language &data);
 
 	void sendSwitchingToLanguageRequest();
 	void resendRequests();
 
+#if 0 // goodToRemove
 	std::optional<MTP::Sender> _api;
+#endif
+	std::optional<Tdb::Sender> _api;
 	Instance &_langpack;
 	Languages _languages;
 	mtpRequestId _langPackRequestId = 0;
