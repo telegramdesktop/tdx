@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang_auto.h"
 #include "base/const_string.h"
 #include "base/weak_ptr.h"
+#include "tdb/tdb_tl_scheme.h"
 
 namespace Lang {
 
@@ -48,6 +49,7 @@ class Instance {
 	struct PrivateTag;
 
 public:
+	using TLStrings = Tdb::TLvector<Tdb::TLlanguagePackString>;
 	Instance();
 	Instance(not_null<Instance*> derived, const PrivateTag &);
 
@@ -77,11 +79,16 @@ public:
 	bool supportChoosingStickerReplacement() const;
 	int rightIndexChoosingStickerReplacement(bool named) const;
 
+#if 0 // goodToRemove
 	void applyDifference(
 		Pack pack,
 		const MTPDlangPackDifference &difference);
 	static std::map<ushort, QString> ParseStrings(
 		const MTPVector<MTPLangPackString> &strings);
+#endif
+	void apply(Pack pack, const TLStrings &result);
+	static std::map<ushort, QString> ParseStrings(
+		const Tdb::TLlanguagePackStrings &strings);
 
 	[[nodiscard]] rpl::producer<> updated() const {
 		return _updated.events();
@@ -108,7 +115,10 @@ public:
 private:
 	void setBaseId(const QString &baseId, const QString &pluralId);
 
+	void applyToMe(const TLStrings &result);
+#if 0 // goodToRemove
 	void applyDifferenceToMe(const MTPDlangPackDifference &difference);
+#endif
 	void applyValue(const QByteArray &key, const QByteArray &value);
 	void resetValue(const QByteArray &key);
 	void reset(const Language &language);

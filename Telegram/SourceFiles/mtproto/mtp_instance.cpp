@@ -921,11 +921,13 @@ void Instance::Private::configLoadDone(const MTPConfig &result) {
 	const auto &data = result.c_config();
 	_config->apply(data);
 
+#if 0 // goodToRemove
 	const auto lang = qs(data.vsuggested_lang_code().value_or_empty());
 	Lang::CurrentCloudManager().setSuggestedLanguage(lang);
 	Lang::CurrentCloudManager().setCurrentVersions(
 		data.vlang_pack_version().value_or_empty(),
 		data.vbase_lang_pack_version().value_or_empty());
+#endif
 	if (const auto prefix = data.vautoupdate_url_prefix()) {
 		Local::writeAutoupdatePrefix(qs(*prefix));
 	}

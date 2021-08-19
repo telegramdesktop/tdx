@@ -317,16 +317,14 @@ void Widget::createLanguageLink() {
 			defaultId);
 	} else if (!suggested.isEmpty() && suggested != currentId/* && _api*/) {
 		_api.request(TLgetLanguagePackStrings(
-			tl_string(Lang::CloudLangPackName()),
+			tl_string(suggested),
 			tl_vector<TLstring>(1, tl_string("lng_switch_to_this"))
 		)).done([=](const TLlanguagePackStrings &result) {
-#if 0 // todo lang
 			const auto strings = Lang::Instance::ParseStrings(result);
 			const auto i = strings.find(tr::lng_switch_to_this.base);
 			if (i != strings.end()) {
 				createLink(i->second, suggested);
 			}
-#endif
 		}).send();
 	}
 }
