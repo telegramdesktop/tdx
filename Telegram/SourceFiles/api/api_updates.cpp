@@ -2603,6 +2603,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		});
 	} break;
 
+#if 0 // goodToRemove
 	////// Cloud langpacks
 	case mtpc_updateLangPack: {
 		const auto &data = update.c_updateLangPack();
@@ -2616,6 +2617,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 			Lang::CurrentCloudManager().requestLangPackDifference(code);
 		}
 	} break;
+#endif
 
 	////// Cloud themes
 	case mtpc_updateTheme: {
@@ -2826,6 +2828,8 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateOption &data) {
 		if (session().api().globalPrivacy().apply(data)) {
 			return;
+		} else if (Lang::CurrentCloudManager().apply(data)) {
+			return;
 		}
 	}, [&](const TLDupdateStickerSet &data) {
 	}, [&](const TLDupdateInstalledStickerSets &data) {
@@ -2836,6 +2840,7 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateSelectedBackground &data) {
 	}, [&](const TLDupdateChatThemes &data) {
 	}, [&](const TLDupdateLanguagePackStrings &data) {
+		Lang::CurrentCloudManager().apply(data);
 	}, [&](const TLDupdateConnectionState &data) {
 	}, [&](const TLDupdateTermsOfService &data) {
 	}, [&](const TLDupdateUsersNearby &data) {

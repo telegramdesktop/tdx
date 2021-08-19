@@ -603,6 +603,10 @@ void Step::paintCover(QPainter &p, int top) {
 void Step::handleUpdate(const TLupdate &update) {
 	update.match([&](const TLDupdateAuthorizationState &data) {
 		handleAuthorizationState(data.vauthorization_state());
+	}, [&](const TLDupdateOption &data) {
+		if (Lang::CurrentCloudManager().apply(data)) {
+			return;
+		}
 	}, [](const auto &) {
 	});
 }
