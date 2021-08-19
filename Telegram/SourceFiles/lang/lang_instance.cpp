@@ -628,6 +628,7 @@ int Instance::rightIndexChoosingStickerReplacement(bool named) const {
 		: _choosingStickerReplacement.rightIndex;
 }
 
+#if 0 // goodToRemove
 // SetCallback takes two QByteArrays: key, value.
 // It is called for all key-value pairs in string.
 // ResetCallback takes one QByteArray: key.
@@ -703,6 +704,92 @@ std::map<ushort, QString> Instance::ParseStrings(
 		const MTPVector<MTPLangPackString> &strings) {
 	auto result = std::map<ushort, QString>();
 	for (const auto &string : strings.v) {
+		HandleString(string, [&](auto &&key, auto &&value) {
+			ParseKeyValue(key, value, [&](ushort key, QString &&value) {
+				result[key] = std::move(value);
+			});
+		}, [&](auto &&key) {
+			auto keyIndex = GetKeyIndex(QLatin1String(key));
+			if (keyIndex != kKeysCount) {
+				result.erase(keyIndex);
+			}
+		});
+	}
+	return result;
+}
+#endif
+
+template <typename SetCallback, typename ResetCallback>
+void HandleString(
+		const Tdb::TLlanguagePackString &string,
+		SetCallback setCallback,
+		ResetCallback resetCallback) {
+	string.match([&](const Tdb::TLDlanguagePackString &stringData) {
+		if (!stringData.vvalue()) {
+			return;
+		}
+		const auto key = stringData.vkey().v.toUtf8();
+		stringData.vvalue()->match([&](
+				const Tdb::TLDlanguagePackStringValueOrdinary &data) {
+			setCallback(key, data.vvalue().v.toUtf8());
+		}, [&](const Tdb::TLDlanguagePackStringValuePluralized &data) {
+			setCallback(key + "#zero", data.vzero_value().v.toUtf8());
+			setCallback(key + "#one", data.vone_value().v.toUtf8());
+			setCallback(key + "#two", data.vtwo_value().v.toUtf8());
+			setCallback(key + "#few", data.vfew_value().v.toUtf8());
+			setCallback(key + "#many", data.vmany_value().v.toUtf8());
+			setCallback(key + "#other", data.vother_value().v.toUtf8());
+		}, [&](const Tdb::TLDlanguagePackStringValueDeleted &data) {
+			auto resetedKey = key;
+			resetCallback(resetedKey);
+			const auto postfixes = {
+				"#zero",
+				"#one",
+				"#two",
+				"#few",
+				"#many",
+				"#other"
+			};
+			for (const auto plural : postfixes) {
+				resetCallback(resetedKey + plural);
+			}
+		});
+	});
+}
+
+void Instance::apply(Pack pack, const Instance::TLStrings &result) {
+	switch (pack) {
+	case Pack::Current:
+		applyToMe(result);
+		break;
+	case Pack::Base:
+		Assert(_base != nullptr);
+		_base->apply(Pack::Current, result);
+		break;
+	default:
+		Unexpected("Pack in Instance::apply.");
+	}
+}
+
+void Instance::applyToMe(const Instance::TLStrings &result) {
+	for (const auto &string : result.v) {
+		HandleString(string, [&](auto &&key, auto &&value) {
+			applyValue(key, value);
+		}, [&](auto &&key) {
+			resetValue(key);
+		});
+	}
+	if (!_derived) {
+		_updated.fire({});
+	} else {
+		_derived->_updated.fire({});
+	}
+}
+
+std::map<ushort, QString> Instance::ParseStrings(
+		const Tdb::TLlanguagePackStrings &strings) {
+	auto result = std::map<ushort, QString>();
+	for (const auto &string : strings.data().vstrings().v) {
 		HandleString(string, [&](auto &&key, auto &&value) {
 			ParseKeyValue(key, value, [&](ushort key, QString &&value) {
 				result[key] = std::move(value);
