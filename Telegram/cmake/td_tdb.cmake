@@ -21,6 +21,7 @@ PRIVATE
     tdb/tdb_file_generator.h
     tdb/tdb_file_proxy.cpp
     tdb/tdb_file_proxy.h
+    tdb/tdb_option.h
     tdb/tdb_request_id.h
     tdb/tdb_resolve_chats.cpp
     tdb/tdb_resolve_chats.h
