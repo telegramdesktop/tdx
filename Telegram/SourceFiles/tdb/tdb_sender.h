@@ -43,6 +43,7 @@ class Sender final {
 				auto onstack = std::move(handler);
 				sender->senderRequestHandled(requestId);
 
+				using SingleDataType = typename Result::SingleDataType;
 				if (!onstack) {
 					return;
 				} else if constexpr (IsCallable<
@@ -54,6 +55,19 @@ class Sender final {
 					onstack(result);
 				} else if constexpr (IsCallable<Handler>) {
 					onstack();
+				} else if constexpr (IsCallable<
+						Handler,
+						const SingleDataType&,
+						RequestId>) {
+					result.match([&](const SingleDataType &data) {
+						onstack(data, requestId);
+					});
+				} else if constexpr (IsCallable<
+						Handler,
+						const SingleDataType&>) {
+					result.match([&](const SingleDataType &data) {
+						onstack(data);
+					});
 				} else {
 					static_assert(false_t(Handler{}), "Bad done handler.");
 				}
@@ -104,7 +118,7 @@ public:
 	explicit Sender(Sender &other) noexcept;
 
 	template <typename Request>
-	class SpecificRequestBuilder final  : public RequestBuilder {
+	class SpecificRequestBuilder final : public RequestBuilder {
 	private:
 		friend class Sender;
 		SpecificRequestBuilder(
@@ -117,6 +131,7 @@ public:
 
 	public:
 		using Result = typename Request::ResponseType;
+		using SingleDataType = typename Result::SingleDataType;
 		[[nodiscard]] SpecificRequestBuilder &done(
 				FnMut<void()> callback) {
 			_done = makeDoneHandler<Result>(std::move(callback));
@@ -131,6 +146,18 @@ public:
 		}
 		[[nodiscard]] SpecificRequestBuilder &done(
 				FnMut<void(const Result &result)> callback) {
+			_done = makeDoneHandler<Result>(std::move(callback));
+			return *this;
+		}
+		[[nodiscard]] SpecificRequestBuilder &done(
+			FnMut<void(
+				const SingleDataType &result,
+				RequestId requestId)> callback) {
+			_done = makeDoneHandler<Result>(std::move(callback));
+			return *this;
+		}
+		[[nodiscard]] SpecificRequestBuilder &done(
+				FnMut<void(const SingleDataType &result)> callback) {
 			_done = makeDoneHandler<Result>(std::move(callback));
 			return *this;
 		}

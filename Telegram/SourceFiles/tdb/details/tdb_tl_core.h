@@ -26,6 +26,9 @@ namespace Tdb {
 
 inline constexpr auto null = std::nullopt;
 
+struct NotSingleDataTypePlaceholder {
+};
+
 using TLint32 = tl::int_type;
 using TLint53 = tl::int64_type;
 using TLint64 = tl::int64_type;
