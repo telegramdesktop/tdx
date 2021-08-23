@@ -30,7 +30,7 @@ TLdouble tl_from_simple(double value) {
 }
 
 TLbool tl_from_simple(bool value) {
-	return value ? tl_boolTrue() : tl_boolFalse();
+	return tl_bool(value);
 }
 
 } // namespace Tdb
