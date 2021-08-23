@@ -65,5 +65,6 @@ generate({
     'builtinIncludeFrom': 'tdb/details/tdb_tl_core_conversion_from.h',
     'builtinIncludeTo': 'tdb/details/tdb_tl_core_conversion_to.h',
   },
+  'optimizeSingleData': True,
 
 })
