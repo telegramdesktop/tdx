@@ -37,6 +37,9 @@ generate({
     'bytes = Bytes;',
 
     'vector {t:Type} # [ t ] = Vector t;',
+
+    'boolFalse = Bool;',
+    'boolTrue = Bool;'
   ],
   'builtin': [
     'double',

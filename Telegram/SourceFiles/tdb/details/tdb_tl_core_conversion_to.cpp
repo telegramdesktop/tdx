@@ -30,7 +30,7 @@ double tl_to_simple(const TLdouble &value) {
 }
 
 bool tl_to_simple(const TLbool &value) {
-	return (value.type() == id_boolTrue);
+	return value.v;
 }
 
 } // namespace Tdb
