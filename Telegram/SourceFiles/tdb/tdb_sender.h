@@ -59,15 +59,11 @@ class Sender final {
 						Handler,
 						const SingleDataType&,
 						RequestId>) {
-					result.match([&](const SingleDataType &data) {
-						onstack(data, requestId);
-					});
+					onstack(result.data(), requestId);
 				} else if constexpr (IsCallable<
 						Handler,
 						const SingleDataType&>) {
-					result.match([&](const SingleDataType &data) {
-						onstack(data);
-					});
+					onstack(result.data());
 				} else {
 					static_assert(false_t(Handler{}), "Bad done handler.");
 				}
