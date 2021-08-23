@@ -621,8 +621,7 @@ void Step::handleAuthorizationState(const TLauthorizationState &state) {
 		fillTerms(data.vterms_of_service());
 		go(StepType::SignUp);
 	}, [&](const TLDauthorizationStateWaitPassword &data) {
-		getData()->pwdState.hasRecovery = tl_is_true(
-			data.vhas_recovery_email_address());
+		getData()->pwdState.hasRecovery = data.vhas_recovery_email_address().v;
 		getData()->pwdState.hint = data.vpassword_hint().v;
 		//getData()->pwdState.notEmptyPassport = data.is_has_secure_values(); // #TODO tdlib
 		go(StepType::Password);

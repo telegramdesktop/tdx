@@ -713,10 +713,10 @@ void ApplyUserUpdate(
 	//MTPDuserFull::Flag::f_video_calls_available; // #TODO tdlib
 	//update.vsupports_video_calls();
 	//user->setFullFlags(update.vflags().v);
-	user->setIsBlocked(tl_is_true(update.vis_blocked()));
-	user->setCallsStatus(tl_is_true(update.vhas_private_calls())
+	user->setIsBlocked(update.vis_blocked().v);
+	user->setCallsStatus(update.vhas_private_calls().v
 		? UserData::CallsStatus::Private
-		: tl_is_true(update.vcan_be_called())
+		: update.vcan_be_called().v
 		? UserData::CallsStatus::Enabled
 		: UserData::CallsStatus::Disabled);
 	user->setAbout(update.vbio().v);
