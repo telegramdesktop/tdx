@@ -11,14 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Tdb {
 
-[[nodiscard]] inline TLbool tl_bool(bool value) {
-	return value ? tl_boolTrue() : tl_boolFalse();
-}
-
-[[nodiscard]] inline bool tl_is_true(const TLbool &value) {
-	return (value.type() == id_boolTrue);
-}
-
 struct Error {
 	explicit Error(const TLerror &error)
 	: code(error.c_error().vcode().v)
