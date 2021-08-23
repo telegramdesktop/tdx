@@ -487,7 +487,7 @@ void PasswordCheckWidget::recoverFail(const Error &error) {
 void PasswordCheckWidget::handleAuthorizationState(
 		const TLauthorizationState &state) {
 	state.match([&](const TLDauthorizationStateWaitPassword &data) {
-		const auto has = tl_is_true(data.vhas_recovery_email_address());
+		const auto has = data.vhas_recovery_email_address().v;
 		if (_passwordState.hasRecovery != has
 			|| _passwordState.hint != data.vpassword_hint().v) {
 			getData()->pwdState.hasRecovery = has;
