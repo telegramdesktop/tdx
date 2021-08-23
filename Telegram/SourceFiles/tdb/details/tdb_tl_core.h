@@ -22,6 +22,14 @@ class Object;
 class Function;
 } // namespace td::td_api
 
+namespace tl {
+
+enum {
+	id_bool = 0x8f99dbc7,
+};
+
+} // namespace tl
+
 namespace Tdb {
 
 inline constexpr auto null = std::nullopt;
@@ -83,6 +91,26 @@ inline TLvector<T> tl_vector(QVector<T> &&v) {
 template <typename T>
 inline TLvector<T> tl_vector() {
 	return tl::make_vector<T>();
+}
+
+class TLbool {
+public:
+	bool v = false;
+
+	constexpr TLbool() noexcept = default;
+
+	constexpr uint32 type() const noexcept {
+		return tl::id_bool;
+	}
+
+private:
+	explicit constexpr TLbool(bool val) noexcept : v(val) {
+	}
+
+	friend constexpr TLbool tl_bool(bool v) noexcept;
+};
+inline constexpr TLbool tl_bool(bool v) noexcept {
+	return TLbool(v);
 }
 
 class TLstring {
