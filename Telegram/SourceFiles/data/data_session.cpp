@@ -132,7 +132,7 @@ void CheckForSwitchInlineButton(not_null<HistoryItem*> item) {
 	return permissions.match([&](const TLDchatPermissions &data) {
 		using Flag = ChatRestriction;
 		const auto bit = [&](const TLbool &check, Flag value) {
-			return tl_is_true(check) ? value : Flag(0);
+			return check.v ? value : Flag(0);
 		};
 		return Flag(0)
 			| bit(data.vcan_add_web_page_previews(), Flag::EmbedLinks)
@@ -153,7 +153,7 @@ void CheckForSwitchInlineButton(not_null<HistoryItem*> item) {
 		const TLDchatMemberStatusAdministrator &data) {
 	using Flag = ChatAdminRight;
 	const auto bit = [&](const TLbool &check, Flag value) {
-		return tl_is_true(check) ? value : Flag(0);
+		return check.v ? value : Flag(0);
 	};
 	return Flag(0)
 		| bit(data.vcan_manage_chat(), Flag::Other)
@@ -1144,10 +1144,10 @@ not_null<UserData*> Session::processUser(const TLuser &user) {
 	}
 	const auto isSelf = (UserId(data.vid().v) == session().userId());
 	const auto showPhone = !result->isServiceUser()
-		&& !tl_is_true(data.vis_support())
+		&& !data.vis_support().v
 		&& !isSelf
-		&& !tl_is_true(data.vis_contact())
-		&& !tl_is_true(data.vis_mutual_contact());
+		&& !data.vis_contact().v
+		&& !data.vis_mutual_contact().v;
 	const auto showPhoneChanged = !result->isServiceUser()
 		&& !isSelf
 		&& ((showPhone && result->isContact())
@@ -1170,7 +1170,7 @@ not_null<UserData*> Session::processUser(const TLuser &user) {
 	//result->setFlags(UserDataFlag::Inaccessible);
 	//result->setFlags(UserDataFlag::Deleted);
 	result->setBotInfoVersion(-1); // #TODO tdlib
-	result->setIsContact(tl_is_true(data.vis_contact()));
+	result->setIsContact(data.vis_contact().v);
 	if (canShareThisContact != result->canShareThisContactFast()) {
 		flags |= UpdateFlag::CanShareContact;
 	}
@@ -1232,7 +1232,7 @@ not_null<PeerData*> Session::processPeer(const TLchat &dialog) {
 			RestrictionsFromPermissions(data.vpermissions()));
 		data.vvoice_chat().match([&](const TLDvoiceChat &data) {
 			const auto callFlag = ChatDataFlag::CallNotEmpty;
-			const auto callNotEmpty = tl_is_true(data.vhas_participants());
+			const auto callNotEmpty = data.vhas_participants().v;
 			chat->setFlags(chat->flags() // #TODO tdlib
 				| (callNotEmpty ? callFlag : ChatDataFlag(0)));
 		});
@@ -1285,7 +1285,7 @@ not_null<ChatData*> Session::processChat(const TLbasicGroup &chat) {
 		| Flag::Left
 		| Flag::Kicked;
 	auto flags = (result->flags() & ~setting)
-		| (!tl_is_true(data.vis_active()) ? Flag::Deactivated : Flag());
+		| (!data.vis_active().v ? Flag::Deactivated : Flag());
 	result->count = data.vmember_count().v;
 	if (const auto migratedTo = data.vupgraded_to_supergroup_id().v) {
 		const auto channel = this->channel(migratedTo);
@@ -1293,11 +1293,11 @@ not_null<ChatData*> Session::processChat(const TLbasicGroup &chat) {
 		ApplyMigration(result, channel);
 	}
 	data.vstatus().match([&](const TLDchatMemberStatusCreator &data) {
-		if (!tl_is_true(data.vis_member())) {
+		if (!data.vis_member().v) {
 			flags |= Flag::Left;
 		}
 		result->creator = session().userId();
-		result->setAdminRights(tl_is_true(data.vis_anonymous())
+		result->setAdminRights(data.vis_anonymous().v
 			? ChatAdminRight::Anonymous
 			: ChatAdminRight());
 		//data.vcustom_title().v; // #TODO tdlib
@@ -1309,7 +1309,7 @@ not_null<ChatData*> Session::processChat(const TLbasicGroup &chat) {
 	}, [&](const TLDchatMemberStatusRestricted &data) {
 		LOG(("Tdb Error: Should not get restrictions in basic groups."));
 		result->setAdminRights(ChatAdminRights());
-		if (!tl_is_true(data.vis_member())) {
+		if (!data.vis_member().v) {
 			flags |= Flag::Left;
 		}
 	}, [&](const TLDchatMemberStatusLeft &data) {
@@ -1344,19 +1344,19 @@ not_null<ChannelData*> Session::processChannel(
 		| Flag::HasLink
 		| Flag::Creator;
 	auto flags = (result->flags() & ~setting)
-		| (!tl_is_true(data.vis_channel()) ? Flag::Megagroup : Flag())
-		| (tl_is_true(data.vis_broadcast_group())
+		| (!data.vis_channel().v ? Flag::Megagroup : Flag())
+		| (data.vis_broadcast_group().v
 			? Flag::Gigagroup
 			: Flag())
-		| (tl_is_true(data.vis_fake()) ? Flag::Fake : Flag())
-		| (tl_is_true(data.vis_scam()) ? Flag::Scam : Flag())
-		| (tl_is_true(data.vis_verified()) ? Flag::Verified : Flag())
-		| (tl_is_true(data.vis_slow_mode_enabled())
+		| (data.vis_fake().v ? Flag::Fake : Flag())
+		| (data.vis_scam().v ? Flag::Scam : Flag())
+		| (data.vis_verified().v ? Flag::Verified : Flag())
+		| (data.vis_slow_mode_enabled().v
 			? Flag::SlowmodeEnabled
 			: Flag())
-		| (tl_is_true(data.vsign_messages()) ? Flag::Signatures : Flag())
-		| (tl_is_true(data.vhas_linked_chat()) ? Flag::HasLink : Flag())
-		//| (tl_is_true(data.vhas_location()) ? Flag::f_has_geo : Flag())
+		| (data.vsign_messages().v ? Flag::Signatures : Flag())
+		| (data.vhas_linked_chat().v ? Flag::HasLink : Flag())
+		//| (data.vhas_location().v ? Flag::f_has_geo : Flag())
 		| ((data.vstatus().type() == id_chatMemberStatusCreator)
 			? Flag::Creator
 			: Flag());
@@ -1364,10 +1364,10 @@ not_null<ChannelData*> Session::processChannel(
 	result->setName(result->name, data.vusername().v);
 	//data.vrestriction_reason(); // #TODO tdlib
 	data.vstatus().match([&](const TLDchatMemberStatusCreator &data) {
-		if (!tl_is_true(data.vis_member())) {
+		if (!data.vis_member().v) {
 			flags |= Flag::Left;
 		}
-		result->setAdminRights(tl_is_true(data.vis_anonymous())
+		result->setAdminRights(data.vis_anonymous().v
 			? ChatAdminRight::Anonymous
 			: ChatAdminRight());
 		result->setRestrictions(ChatRestrictionsInfo());
@@ -1375,7 +1375,7 @@ not_null<ChannelData*> Session::processChannel(
 	}, [&](const TLDchatMemberStatusAdministrator &data) {
 		using Flag = ChatAdminRight;
 		const auto bit = [&](const TLbool &check, Flag value) {
-			return tl_is_true(check) ? value : Flag(0);
+			return check.v ? value : Flag(0);
 		};
 		result->setAdminRights(AdminRightsFromChatMemberStatus(data));
 		result->setRestrictions(ChatRestrictionsInfo());
@@ -1389,7 +1389,7 @@ not_null<ChannelData*> Session::processChannel(
 			RestrictionsFromPermissions(data.vpermissions()),
 			data.vrestricted_until_date().v,
 		});
-		if (!tl_is_true(data.vis_member())) {
+		if (!data.vis_member().v) {
 			flags |= Flag::Left;
 		}
 	}, [&](const TLDchatMemberStatusLeft &data) {

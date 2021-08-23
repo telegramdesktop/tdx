@@ -338,7 +338,7 @@ TermsLock TermsLock::FromTL(
 		{}, // #TODO legacy
 		std::move(text),
 		(minAge ? std::make_optional(minAge) : std::nullopt),
-		Tdb::tl_is_true(data.vshow_popup())
+		data.vshow_popup().v
 	};
 }
 
