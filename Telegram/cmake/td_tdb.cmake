@@ -28,6 +28,8 @@ PRIVATE
     tdb/tdb_sender.cpp
     tdb/tdb_sender.h
     tdb/tdb_tl_scheme.h
+    tdb/tdb_upload_bytes.cpp
+    tdb/tdb_upload_bytes.h
 
     tdb/tdb_pch.h
 
