@@ -13,10 +13,10 @@ PeerId peerFromTdbChat(Tdb::TLint53 id) noexcept {
 	//constexpr int64 MIN_SECRET_ID = -2002147483648ll; // From TDLib.
 	//constexpr int64 ZERO_SECRET_ID = -2000000000000ll;
 	//constexpr int64 MAX_SECRET_ID = -1997852516353ll;
-	constexpr int64 MIN_CHANNEL_ID = -1002147483647ll;
+	constexpr int64 MIN_CHANNEL_ID = -1997852516352ll;
 	constexpr int64 MAX_CHANNEL_ID = -1000000000000ll;
-	constexpr int64 MIN_CHAT_ID = -2147483647ll;
-	//constexpr int64 MAX_USER_ID = 2147483647ll;
+	constexpr int64 MIN_CHAT_ID = -999999999999ll;
+	//constexpr int64 MAX_USER_ID = 999999999999ll;
 	if (id.v > 0) {
 		return UserId(BareId(id.v));
 	} else if (id.v < 0 && id.v > MIN_CHAT_ID) {
@@ -31,10 +31,10 @@ Tdb::TLint53 peerToTdbChat(PeerId id) noexcept {
 	//constexpr int64 MIN_SECRET_ID = -2002147483648ll; // From TDLib.
 	//constexpr int64 ZERO_SECRET_ID = -2000000000000ll;
 	//constexpr int64 MAX_SECRET_ID = -1997852516353ll;
-	//constexpr int64 MIN_CHANNEL_ID = -1002147483647ll;
+	//constexpr int64 MIN_CHANNEL_ID = -1997852516352ll;
 	constexpr int64 MAX_CHANNEL_ID = -1000000000000ll;
-	//constexpr int64 MIN_CHAT_ID = -2147483647ll;
-	//constexpr int64 MAX_USER_ID = 2147483647ll;
+	//constexpr int64 MIN_CHAT_ID = -999999999999ll;
+	//constexpr int64 MAX_USER_ID = 999999999999ll;
 	if (const auto userId = peerToUser(id)) {
 		return Tdb::tl_int53(int64(userId.bare));
 	} else if (const auto chatId = peerToChat(id)) {
