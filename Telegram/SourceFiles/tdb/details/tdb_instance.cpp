@@ -60,7 +60,15 @@ private:
 		FnMut<void()> &&handler);
 
 	const not_null<ClientManager*> _manager;
+
+	// Lives on the main thread.
 	base::flat_map<ClientId, not_null<Impl*>> _clients;
+
+	// Lives on the main thread before _stopRequested, on _thread - after.
+	base::flat_set<ClientId> _waiting;
+
+	// Lives on _thread.
+	base::flat_set<ClientId> _closed;
 
 	QMutex _mutex;
 	base::flat_map<RequestId, ExternalCallback> _callbacks;
@@ -153,8 +161,10 @@ Instance::Manager::Manager(PrivateTag)
 
 Instance::Manager::~Manager() {
 	Expects(_stopRequested);
-
-	_thread.join();
+	Expects(!_thread.joinable());
+	Expects(_clients.empty());
+	Expects(_waiting.empty());
+	Expects(_closed.empty());
 }
 
 std::shared_ptr<Instance::Manager> Instance::Manager::Instance() {
@@ -167,21 +177,31 @@ std::shared_ptr<Instance::Manager> Instance::Manager::Instance() {
 
 [[nodiscard]] ClientId Instance::Manager::createClient(
 		not_null<Impl*> impl) {
+	Expects(!_stopRequested);
+
 	const auto result = _manager->create_client_id();
 	_clients.emplace(result, impl);
 	return result;
 }
 
 void Instance::Manager::destroyClient(ClientId id) {
-	sendToExternal(id, api::make_object<api::close>());
+	Expects(!_stopRequested);
+
+	LOG(("Tdb Info: Destroying client %1.").arg(id));
+
 	_clients.remove(id);
+	_waiting.emplace(id);
 
-	if (_clients.empty()) {
+	const auto finishing = _clients.empty();
+	if (finishing) {
 		_stopRequested = true;
-
-		// Force wake.
-		sendToExternal(id, api::make_object<api::testCallEmpty>());
 	}
+	sendToExternal(id, api::make_object<api::close>());
+	if (finishing) {
+		_thread.join();
+	}
+
+	Ensures(!finishing || _waiting.empty());
 }
 
 RequestId Instance::Manager::allocateRequestId() {
@@ -214,10 +234,17 @@ void Instance::Manager::sendToExternal(
 }
 
 void Instance::Manager::loop() {
-	while (!_stopRequested) {
+	auto stopping = false;
+	while (!stopping || !_waiting.empty()) {
 		auto response = _manager->receive(60.);
 		if (!response.object) {
 			continue;
+		}
+		if (!stopping && _stopRequested) {
+			stopping = true;
+			for (const auto clientId : base::take(_closed)) {
+				_waiting.remove(clientId);
+			}
 		}
 		if (response.object->get_id() == api::error::ID) {
 			const auto error = static_cast<api::error*>(
@@ -231,10 +258,19 @@ void Instance::Manager::loop() {
 		const auto requestId = RequestId(response.request_id);
 		const auto object = response.object.get();
 		if (!requestId) {
+			auto update = tl_from<TLupdate>(object);
+			if (ClientClosedUpdate(update)) {
+				LOG(("Tdb Info: Client %1 finished closing.").arg(clientId));
+				if (stopping) {
+					_waiting.remove(clientId);
+				} else {
+					_closed.emplace(clientId);
+				}
+			}
 			crl::on_main(weak_from_this(), [
 				this,
 				clientId,
-				update = tl_from<TLupdate>(object)
+				update = std::move(update)
 			]() mutable {
 				handleUpdateOnMain(clientId, std::move(update));
 			});
@@ -264,12 +300,16 @@ void Instance::Manager::loop() {
 void Instance::Manager::handleUpdateOnMain(
 		ClientId clientId,
 		TLupdate &&update) {
+	const auto closed = ClientClosedUpdate(update);
+	if (closed) {
+		_waiting.remove(clientId);
+	}
 	const auto i = _clients.find(clientId);
 	if (i == end(_clients)) {
 		return;
 	}
 	const auto instance = i->second;
-	if (ClientClosedUpdate(update)) {
+	if (closed) {
 		_clients.erase(i);
 	}
 	instance->handleUpdate(std::move(update));
