@@ -1905,9 +1905,7 @@ stage('td', """
 win:
     git clone https://github.com/tdlib/td.git
     cd td
-    git checkout c582ab0bbf
-depends:patches/tdlib/*.patch
-    for /r %%i in (..\\patches\\tdlib\\*) do git apply %%i
+    git checkout 2ce0be4fe7
     SET OPENSSL_DIR=%LIBS_DIR%\\openssl
     SET OPENSSL_LIBS_DIR=%OPENSSL_DIR%\\out
     SET ZLIB_DIR=%LIBS_DIR%\\zlib
@@ -1916,7 +1914,7 @@ depends:patches/tdlib/*.patch
     cd out
     mkdir Debug
     cd Debug
-    cmake -A Win32 ^
+    cmake -A %WIN32X64% ^
         -DOPENSSL_FOUND=1 ^
         -DOPENSSL_INCLUDE_DIR=%OPENSSL_DIR%\include ^
         -DOPENSSL_CRYPTO_LIBRARY="%OPENSSL_LIBS_DIR%.dbg\libcrypto.lib" ^
@@ -1930,10 +1928,11 @@ depends:patches/tdlib/*.patch
         -DTD_ENABLE_MULTI_PROCESSOR_COMPILATION=ON ^
         ../..
     cmake --build . --config Debug --target tdclient
+release:
     cd ..
     mkdir Release
     cd Release
-    cmake -A Win32 ^
+    cmake -A %WIN32X64% ^
         -DOPENSSL_FOUND=1 ^
         -DOPENSSL_INCLUDE_DIR=%OPENSSL_DIR%\include ^
         -DOPENSSL_CRYPTO_LIBRARY="%OPENSSL_LIBS_DIR%\libcrypto.lib" ^
