@@ -31,6 +31,8 @@ class Instance::Manager final
 
 public:
 	Manager(PrivateTag);
+	~Manager();
+
 	[[nodiscard]] static std::shared_ptr<Manager> Instance();
 
 	[[nodiscard]] ClientId createClient(not_null<Impl*> impl);
@@ -67,7 +69,8 @@ private:
 	std::atomic<ClientId> _closingId = 0;
 	crl::semaphore _closing;
 
-	std::jthread _thread;
+	std::thread _thread;
+	std::atomic<bool> _stopRequested = false;
 
 };
 
@@ -148,6 +151,12 @@ Instance::Manager::Manager(PrivateTag)
 , _thread([=] { loop(); }) {
 }
 
+Instance::Manager::~Manager() {
+	Expects(_stopRequested);
+
+	_thread.join();
+}
+
 std::shared_ptr<Instance::Manager> Instance::Manager::Instance() {
 	auto result = ManagerInstance.lock();
 	if (!result) {
@@ -168,7 +177,7 @@ void Instance::Manager::destroyClient(ClientId id) {
 	_clients.remove(id);
 
 	if (_clients.empty()) {
-		_thread.request_stop();
+		_stopRequested = true;
 
 		// Force wake.
 		sendToExternal(id, api::make_object<api::testCallEmpty>());
@@ -205,7 +214,7 @@ void Instance::Manager::sendToExternal(
 }
 
 void Instance::Manager::loop() {
-	while (!_thread.get_stop_source().stop_requested()) {
+	while (!_stopRequested) {
 		auto response = _manager->receive(60.);
 		if (!response.object) {
 			continue;
