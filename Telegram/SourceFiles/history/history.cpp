@@ -73,6 +73,7 @@ namespace {
 constexpr auto kNewBlockEachMessage = 50;
 constexpr auto kSkipCloudDraftsFor = TimeId(2);
 
+using namespace Tdb;
 using UpdateFlag = Data::HistoryUpdate::Flag;
 
 [[nodiscard]] HistoryItemCommonFields WithLocalFlag(
@@ -468,6 +469,20 @@ std::vector<not_null<HistoryItem*>> History::createItems(
 	return result;
 }
 
+HistoryItem *History::createItem(
+		MsgId id,
+		const TLmessage &message,
+		MessageFlags localFlags,
+		bool detachExistingItem) {
+	if (const auto result = owner().message(peer, id)) {
+		if (detachExistingItem) {
+			result->removeMainView();
+		}
+		return result;
+	}
+	return makeMessage(id, message.data(), localFlags);
+}
+
 not_null<HistoryItem*> History::addNewMessage(
 		MsgId id,
 		const MTPMessage &message,
@@ -488,6 +503,26 @@ not_null<HistoryItem*> History::addNewMessage(
 		applyMessageChanges(item, message);
 	}
 	return addNewItem(item, newMessage);
+}
+
+HistoryItem *History::addNewMessage(
+		MsgId id,
+		const TLmessage &msg,
+		MessageFlags localFlags,
+		NewMessageType type) {
+	const auto detachExistingItem = (type == NewMessageType::Unread);
+	const auto item = createItem(id, msg, localFlags, detachExistingItem);
+	if (!item) {
+		return nullptr;
+	}
+	if (type == NewMessageType::Existing || item->mainView()) {
+		return item;
+	}
+	const auto unread = (type == NewMessageType::Unread);
+	if (unread && item->isHistoryEntry()) {
+		applyMessageChanges(item, msg);
+	}
+	return addNewItem(item, unread);
 }
 
 not_null<HistoryItem*> History::insertItem(
@@ -1198,6 +1233,19 @@ void History::applyServiceChanges(
 	}, [](const auto &) {
 	});
 #endif
+}
+
+void History::applyMessageChanges(
+		not_null<HistoryItem*> item,
+		const TLmessage &data) {
+	//data.data().vcontent().match(); // #TODO tdlib
+	//if (data.type() == mtpc_messageService) {
+	//	applyServiceChanges(item, data.c_messageService());
+	//}
+	owner().stickers().checkSavedGif(item);
+	session().changes().messageUpdated(
+		item,
+		Data::MessageUpdate::Flag::NewAdded);
 }
 
 void History::mainViewRemoved(
@@ -2815,6 +2863,38 @@ void History::applyDialog(
 	if (const auto ttl = data.vttl_period()) {
 		peer->setMessagesTTL(ttl->v);
 	}
+	owner().histories().dialogEntryApplied(this);
+}
+
+void History::applyPosition(const TLDchatPosition &data) {
+	const auto pinned = data.vis_pinned().v;
+	const auto order = data.vorder().v;
+	if (const auto source = data.vsource()) {
+		source->match([&](const TLDchatSourceMtprotoProxy &) {
+			owner().setTopPromoted(this, QString(), QString());
+		}, [&](const TLDchatSourcePublicServiceAnnouncement &data) {
+			owner().setTopPromoted(this, data.vtype().v, data.vtext().v);
+		});
+	}
+	data.vlist().match([&](const TLDchatListMain &) {
+		clearFolder();
+	}, [&](const TLDchatListArchive &) {
+		setFolder(owner().folder(Data::Folder::kId));
+	}, [&](const TLDchatListFilter &data) {
+		const auto filterId = data.vchat_filter_id().v;
+	});
+}
+
+void History::applyLastMessage(const TLmessage &data) {
+	const auto &message = data.data();
+	const auto id = message.vid().v;
+	addNewMessage(id, data, MessageFlags(), NewMessageType::Last);
+	applyDialogTopMessage(id);
+	owner().histories().dialogEntryApplied(this);
+}
+
+void History::clearLastMessage() {
+	applyDialogTopMessage(0);
 	owner().histories().dialogEntryApplied(this);
 }
 

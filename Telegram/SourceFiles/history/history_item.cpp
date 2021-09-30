@@ -74,6 +74,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
+using namespace Tdb;
+
 constexpr auto kNotificationTextLimit = 255;
 constexpr auto kPinnedMessageTextLimit = 16;
 

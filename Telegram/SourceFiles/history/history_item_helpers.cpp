@@ -44,7 +44,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/item_text_options.h"
 #include "lang/lang_keys.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace {
+
+using namespace Tdb;
 
 bool PeerCallKnown(not_null<PeerData*> peer) {
 	if (peer->groupCall() != nullptr) {
@@ -58,6 +62,31 @@ bool PeerCallKnown(not_null<PeerData*> peer) {
 }
 
 } // namespace
+
+MessageFlags FlagsFromTdb(const TLDmessage &data) {
+	using Flag = MessageFlag;
+	const auto mediaUnread = data.vcontent().match([&](
+			const TLDmessageVoiceNote &data) {
+		return !data.vis_listened().v;
+	}, [&](const TLDmessageVideoNote &data) {
+		return !data.vis_viewed().v;
+	}, [](const auto &) {
+		return false;
+	});
+	return Flag()
+		| (data.vis_outgoing().v ? Flag::Outgoing : Flag())
+		| (data.vcontains_unread_mention().v ? Flag::MentionsMe : Flag())
+		| (mediaUnread ? Flag::MediaIsUnread : Flag())
+		//| ((flags & MTP::f_silent) ? Flag::Silent : Flag()) // #TODO tdlib
+		| (data.vis_channel_post().v ? Flag::Post : Flag())
+		//| ((flags & MTP::f_legacy) ? Flag::Legacy : Flag()) // #TODO tdlib
+		| (data.vis_pinned().v ? Flag::Pinned : Flag())
+		//| ((flags & MTP::f_from_id) ? Flag::HasFromId : Flag()) // #TODO tdlib
+		| (data.vreply_to_message_id().v ? Flag::HasReplyInfo : Flag())
+		| (data.vreply_markup() ? Flag::HasReplyMarkup : Flag())
+		| (data.vscheduling_state() ? Flag::IsOrWasScheduled : Flag()) // #TODO tdlib was scheduled, but now isn't?
+		| (data.vinteraction_info() ? Flag::HasViews : Flag());
+}
 
 QString GetErrorTextForSending(
 		not_null<PeerData*> peer,

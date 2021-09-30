@@ -102,7 +102,7 @@ constexpr auto kFileLoaderQueueStopTimeout = crl::time(5000);
 constexpr auto kStickersByEmojiInvalidateTimeout = crl::time(6 * 1000);
 constexpr auto kNotifySettingSaveTimeout = crl::time(1000);
 constexpr auto kDialogsFirstLoad = 20;
-constexpr auto kDialogsPerPage = 500;
+constexpr auto kDialogsPerPage = 100;
 constexpr auto kStatsSessionKillTimeout = 10 * crl::time(1000);
 
 using namespace Tdb;
@@ -158,8 +158,7 @@ struct ApiWrap::DialogsLoadState {
 	RequestId pinnedRequestId = 0;
 	bool pinnedReceived = false;
 
-	ResolveChatsRequest request;
-	int64 offsetChatId = 0;
+	bool firstRequested = false;
 };
 
 ApiWrap::ApiWrap(not_null<Main::Session*> session)
@@ -883,7 +882,7 @@ void ApiWrap::requestMoreDialogs(Data::Folder *folder) {
 	const auto state = dialogsLoadState(folder);
 	if (!state || !tdb().ready()) {
 		return;
-	} else if (state->requestId || state->request) {
+	} else if (state->requestId) {
 		return;
 	} else if (_dialogsLoadBlockedByDate.current()) {
 		return;
@@ -951,43 +950,50 @@ void ApiWrap::requestMoreDialogs(Data::Folder *folder) {
 	}
 #endif
 
-	const auto firstLoad = !state->offsetChatId;
+	const auto firstLoad = !state->firstRequested;
 	const auto loadCount = firstLoad ? kDialogsFirstLoad : kDialogsPerPage;
-	state->request.send(sender(), TLgetChats(
+	state->requestId = sender().request(TLloadChats(
 		folder ? tl_chatListArchive() : tl_chatListMain(),
 		tl_int32(loadCount)
-	), [=] {
-		return &dialogsLoadState(folder)->request;
-	}, [=](const ResolvedChats &result) {
+	)).done([=] {
 		const auto state = dialogsLoadState(folder);
 		if (!state) {
 			return;
 		}
-		const auto count = result.count;
-		if (result.ids.isEmpty()) {
-			state->listReceived = true;
-			state->pinnedReceived = true;
-			dialogsLoadFinish(folder); // may kill 'state'.
-		} else {
-			state->offsetChatId = result.ids.back().v;
-		}
-		_session->data().processUsers(result.users);
-		_session->data().processChats(result.chats);
-		_session->data().processChannels(result.channels);
-		_session->data().processPeers(result.dialogs);
+		state->firstRequested = true;
+		state->requestId = 0;
+		//const auto count = result.count;
+		//if (result.ids.isEmpty()) {
+		//	state->listReceived = true;
+		//	state->pinnedReceived = true;
+		//	dialogsLoadFinish(folder); // may kill 'state'.
+		//} else {
+		//	state->offsetChatId = result.ids.back().v;
+		//}
+		//_session->data().processUsers(result.users);
+		//_session->data().processChats(result.chats);
+		//_session->data().processChannels(result.channels);
+		//_session->data().processPeers(result.dialogs);
 		//_session->data().applyDialogs(
 		//	folder,
 		//	data.vmessages().v,
 		//	data.vdialogs().v,
 		//	count);
 
-		if (!folder
-			&& (!_dialogsLoadState || !_dialogsLoadState->listReceived)) {
-			refreshDialogsLoadBlocked();
+		//if (!folder
+		//	&& (!_dialogsLoadState || !_dialogsLoadState->listReceived)) {
+		//	refreshDialogsLoadBlocked();
+		//}
+		//requestMoreDialogsIfNeeded();
+		//_session->data().chatsListChanged(folder);
+	}).fail([=] {
+		const auto state = dialogsLoadState(folder);
+		if (!state) {
+			return;
 		}
-		requestMoreDialogsIfNeeded();
-		_session->data().chatsListChanged(folder);
-	});
+		state->firstRequested = true;
+		state->requestId = 0;
+	}).send();
 
 	if (!folder) {
 		refreshDialogsLoadBlocked();
