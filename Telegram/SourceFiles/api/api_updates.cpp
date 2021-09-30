@@ -2687,12 +2687,9 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateNewChat &data) {
 		session().data().processPeer(data.vchat());
 	}, [&](const TLDupdateChatLastMessage &data) {
-		//data.vchat_id();
-		//data.vlast_message();
-		//data.vpositions();
+		session().data().applyLastMessage(data);
 	}, [&](const TLDupdateChatPosition &data) {
-		//data.vchat_id();
-		//data.vposition();
+		session().data().applyDialogPosition(data);
 	}, [&](const TLDupdateUserFullInfo &data) {
 		const auto user = session().data().user(UserId(data.vuser_id()));
 		data.vuser_full_info().match([&](const TLDuserFullInfo &data) {

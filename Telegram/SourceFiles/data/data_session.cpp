@@ -2568,6 +2568,29 @@ void Session::applyDialog(
 	setPinnedFromEntryList(folder, data.is_pinned());
 }
 
+void Session::applyLastMessage(const TLDupdateChatLastMessage &data) {
+	const auto history = this->history(peerFromTdbChat(data.vchat_id()));
+	for (const auto &position : data.vpositions().v) {
+		history->applyPosition(position.data());
+	}
+	if (const auto message = data.vlast_message()) {
+		history->applyLastMessage(*message);
+	} else {
+		history->clearLastMessage();
+	}
+}
+
+void Session::applyDialogPosition(const TLDupdateChatPosition &data) {
+	const auto &position = data.vposition().data();
+	const auto peerId = peerFromTdbChat(data.vchat_id());
+	const auto history = position.vorder().v
+		? this->history(peerId).get()
+		: this->historyLoaded(peerId);
+	if (history) {
+		history->applyPosition(position);
+	}
+}
+
 bool Session::pinnedCanPin(not_null<Dialogs::Entry*> entry) const {
 	if (const auto sublist = entry->asSublist()) {
 		const auto saved = &savedMessages();
@@ -3095,6 +3118,24 @@ HistoryItem *Session::addNewMessage(
 		localFlags,
 		type);
 	if (type == NewMessageType::Unread) {
+		CheckForSwitchInlineButton(result);
+	}
+	return result;
+}
+
+HistoryItem *Session::addNewMessage(
+		const TLmessage &data,
+		MessageFlags localFlags,
+		NewMessageType type) {
+	const auto peerId = peerFromTdbChat(data.data().vchat_id());
+	Assert(peerId != 0);
+
+	const auto result = history(peerId)->addNewMessage(
+		data.data().vid().v,
+		data,
+		localFlags,
+		type);
+	if (result && type == NewMessageType::Unread) {
 		CheckForSwitchInlineButton(result);
 	}
 	return result;

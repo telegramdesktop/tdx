@@ -16,6 +16,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flat_set.h"
 #include "base/flags.h"
 
+namespace Tdb {
+class TLDchatPosition;
+class TLmessage;
+} // namespace Tdb
+
 class History;
 class HistoryBlock;
 class HistoryTranslation;
@@ -186,6 +191,12 @@ public:
 		Data::SponsoredFrom from,
 		const TextWithEntities &textWithEntities); // sponsored
 
+	HistoryItem *addNewMessage(
+		MsgId id,
+		const Tdb::TLmessage &msg,
+		MessageFlags localFlags,
+		NewMessageType type);
+
 	// Used only internally and for channel admin log.
 	not_null<HistoryItem*> createItem(
 		MsgId id,
@@ -195,6 +206,12 @@ public:
 		bool newMessage = false);
 	std::vector<not_null<HistoryItem*>> createItems(
 		const QVector<MTPMessage> &data);
+
+	HistoryItem *createItem(
+		MsgId id,
+		const Tdb::TLmessage &message,
+		MessageFlags localFlags,
+		bool detachExistingItem);
 
 	void addOlderSlice(const QVector<MTPMessage> &slice);
 	void addNewerSlice(const QVector<MTPMessage> &slice);
@@ -258,6 +275,11 @@ public:
 	void applyDialogTopMessage(MsgId topMessageId);
 	void applyDialog(Data::Folder *requestFolder, const MTPDdialog &data);
 	void applyPinnedUpdate(const MTPDupdateDialogPinned &data);
+
+	void applyPosition(const Tdb::TLDchatPosition &data);
+	void applyLastMessage(const Tdb::TLmessage &data);
+	void clearLastMessage();
+
 	void applyDialogFields(
 		Data::Folder *folder,
 		int unreadCount,
@@ -529,6 +551,10 @@ private:
 	void applyServiceChanges(
 		not_null<HistoryItem*> item,
 		const MTPDmessageService &data);
+
+	void applyMessageChanges(
+		not_null<HistoryItem*> item,
+		const Tdb::TLmessage &original);
 
 	// After adding a new history slice check lastMessage / loadedAtBottom.
 	void checkLastMessage();
