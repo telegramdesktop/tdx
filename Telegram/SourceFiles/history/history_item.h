@@ -15,6 +15,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <any>
 
+namespace Tdb {
+class TLmessage;
+class TLDmessage;
+} // namespace Tdb
+
 class HiddenSenderInfo;
 class History;
 struct HistoryMessageReply;
@@ -181,6 +186,12 @@ public:
 		HistoryMessageMarkupData &&markup);
 	HistoryItem(not_null<History*> history, not_null<Data::Story*> story);
 	~HistoryItem();
+
+	HistoryItem(
+		not_null<History*> history,
+		MsgId id,
+		const Tdb::TLDmessage &data,
+		MessageFlags localFlags);
 
 	struct Destroyer {
 		void operator()(HistoryItem *value);

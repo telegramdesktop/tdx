@@ -481,6 +481,11 @@ public:
 		MessageFlags localFlags,
 		NewMessageType type);
 
+	HistoryItem *addNewMessage(
+		const Tdb::TLmessage &data,
+		MessageFlags localFlags,
+		NewMessageType type);
+
 	[[nodiscard]] int unreadBadge() const;
 	[[nodiscard]] bool unreadBadgeMuted() const;
 	[[nodiscard]] int unreadBadgeIgnoreOne(Dialogs::Key key) const;
@@ -734,6 +739,9 @@ public:
 	[[nodiscard]] rpl::producer<WebViewResultSent> webViewResultSent() const;
 
 	void clearLocalStorage();
+
+	void applyLastMessage(const Tdb::TLDupdateChatLastMessage &data);
+	void applyDialogPosition(const Tdb::TLDupdateChatPosition &data);
 
 private:
 	using Messages = std::unordered_map<MsgId, not_null<HistoryItem*>>;
