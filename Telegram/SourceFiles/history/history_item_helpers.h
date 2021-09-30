@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class History;
 
+namespace Tdb {
+class TLDmessage;
+} // namespace Tdb
+
 namespace Api {
 struct SendOptions;
 struct SendAction;
@@ -22,6 +26,8 @@ class Thread;
 namespace Main {
 class Session;
 } // namespace Main
+
+[[nodiscard]] MessageFlags FlagsFromTdb(const Tdb::TLDmessage &data);
 
 struct PreparedServiceText {
 	TextWithEntities text;
