@@ -15,6 +15,7 @@ class int64_type;
 
 namespace Tdb {
 using TLint53 = tl::int64_type;
+class TLmessageSender;
 } // namespace Tdb
 
 struct PeerIdZeroHelper {
@@ -224,6 +225,8 @@ bool operator>=(PeerIdZero, PeerId) = delete;
 }
 
 [[nodiscard]] PeerId peerFromTdbChat(Tdb::TLint53 id) noexcept;
+[[nodiscard]] PeerId peerFromSender(
+	const Tdb::TLmessageSender &sender) noexcept;
 
 [[nodiscard]] inline constexpr UserId peerToUser(PeerId id) noexcept {
 	return id.to<UserId>();
