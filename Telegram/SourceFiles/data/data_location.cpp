@@ -9,9 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/image/image.h"
 #include "data/data_file_origin.h"
+#include "tdb/tdb_tl_scheme.h"
 
 namespace Data {
 namespace {
+
+using namespace Tdb;
 
 [[nodiscard]] QString AsString(float64 value) {
 	constexpr auto kPrecision = 6;
@@ -24,6 +27,11 @@ LocationPoint::LocationPoint(const MTPDgeoPoint &point)
 : _lat(point.vlat().v)
 , _lon(point.vlong().v)
 , _access(point.vaccess_hash().v) {
+}
+
+LocationPoint::LocationPoint(const TLlocation &point)
+: _lat(point.data().vlatitude().v)
+, _lon(point.data().vlongitude().v) {
 }
 
 QString LocationPoint::latAsString() const {
