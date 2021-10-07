@@ -11,6 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_location.h"
 #include "data/data_wall_paper.h"
 
+namespace Tdb {
+class TLDmessageInvoice;
+class TLDmessageCall;
+} // namespace Tdb
+
 class Image;
 class History;
 class HistoryItem;
@@ -614,5 +619,11 @@ private:
 	const MTPDmessageMediaInvoice &data);
 
 [[nodiscard]] Call ComputeCallData(const MTPDmessageActionPhoneCall &call);
+
+[[nodiscard]] Invoice ComputeInvoiceData(
+	not_null<HistoryItem*> item,
+	const Tdb::TLDmessageInvoice &data);
+
+[[nodiscard]] Call ComputeCallData(const Tdb::TLDmessageCall &call);
 
 } // namespace Data

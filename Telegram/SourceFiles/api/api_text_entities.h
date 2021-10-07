@@ -34,4 +34,8 @@ enum class ConvertOption {
 	Main::Session *session,
 	const QVector<Tdb::TLtextEntity> &entities);
 
+[[nodiscard]] TextWithEntities FormattedTextFromTL(
+	Main::Session *session,
+	const Tdb::TLformattedText &text);
+
 } // namespace Api

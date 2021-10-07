@@ -628,6 +628,8 @@ private:
 	[[nodiscard]] PreparedServiceText prepareCallScheduledText(
 		TimeId scheduleDate);
 
+	void applyTTL(const Tdb::TLDmessage &data);
+
 	const not_null<History*> _history;
 	const not_null<PeerData*> _from;
 	MessageFlags _flags = 0;
