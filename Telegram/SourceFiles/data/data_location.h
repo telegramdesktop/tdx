@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Tdb {
+class TLlocation;
+} // namespace Tdb
+
 namespace Data {
 
 struct FileOrigin;
@@ -20,6 +24,8 @@ public:
 		NoAccessHash,
 	};
 	LocationPoint(float64 lat, float64 lon, IgnoreAccessHash);
+
+	explicit LocationPoint(const Tdb::TLlocation &point);
 
 	[[nodiscard]] QString latAsString() const;
 	[[nodiscard]] QString lonAsString() const;
