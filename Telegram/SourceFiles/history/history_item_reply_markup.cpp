@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
+using namespace Tdb;
+
 [[nodiscard]] InlineBots::PeerTypes PeerTypesFromMTP(
 		const MTPvector<MTPInlineQueryPeerType> &types) {
 	using namespace InlineBots;
@@ -231,6 +233,90 @@ void HistoryMessageMarkupData::fillRows(
 	}
 }
 
+template <typename TdbButtonType>
+void HistoryMessageMarkupData::fillRows(
+		const QVector<TLvector<TdbButtonType>> &list) {
+	rows.clear();
+	if (list.isEmpty()) {
+		return;
+	}
+
+	rows.reserve(list.size());
+	for (const auto &buttons : list) {
+		auto row = std::vector<Button>();
+		row.reserve(buttons.v.size());
+		for (const auto &button : buttons.v) {
+			const auto text = button.data().vtext().v;
+			const auto data = buttonData(button);
+			if (data.type == Button::Type::SwitchInline) {
+				// Optimization flag.
+				// Fast check on all new messages if there is a switch button
+				// to auto-click it.
+				flags |= ReplyMarkupFlag::HasSwitchInlineButton;
+			}
+			row.emplace_back(
+				data.type,
+				text,
+				data.data,
+				data.forwardText,
+				data.buttonId);
+		}
+		if (!row.empty()) {
+			rows.push_back(std::move(row));
+		}
+	}
+}
+
+auto HistoryMessageMarkupData::buttonData(const TLkeyboardButton &button)
+-> ButtonData {
+	using Type = Button::Type;
+	return button.data().vtype().match([&](
+		const TLDkeyboardButtonTypeText &data) {
+		return ButtonData{ Type::Default };
+	}, [&](const TLDkeyboardButtonTypeRequestPoll &data) {
+		const auto quiz = data.vforce_regular().v
+			? QByteArray(1, 0)
+			: data.vforce_quiz().v
+			? QByteArray(1, 1)
+			: QByteArray();
+		return ButtonData{ Type::RequestPoll, quiz };
+	}, [&](const TLDkeyboardButtonTypeRequestLocation &data) {
+		return ButtonData{ Type::RequestLocation };
+	}, [&](const TLDkeyboardButtonTypeRequestPhoneNumber &data) {
+		return ButtonData{ Type::RequestPhone };
+	});
+}
+
+auto HistoryMessageMarkupData::buttonData(
+	const TLinlineKeyboardButton &button)
+-> ButtonData {
+	using Type = Button::Type;
+	return button.data().vtype().match([&](
+			const TLDinlineKeyboardButtonTypeUrl &data) {
+		return ButtonData{ Type::Url, data.vurl().v.toUtf8() };
+	}, [&](const TLDinlineKeyboardButtonTypeLoginUrl &data) {
+		return ButtonData{
+			Type::Auth,
+			data.vurl().v.toUtf8(),
+			data.vforward_text().v,
+			data.vid().v,
+		};
+	}, [&](const TLDinlineKeyboardButtonTypeCallback &data) {
+		return ButtonData{ Type::Callback, data.vdata().v };
+	}, [&](const TLDinlineKeyboardButtonTypeCallbackWithPassword &data) {
+		return ButtonData{ Type::CallbackWithPassword, data.vdata().v };
+	}, [&](const TLDinlineKeyboardButtonTypeCallbackGame &data) {
+		return ButtonData{ Type::Game };
+	}, [&](const TLDinlineKeyboardButtonTypeSwitchInline &data) {
+		const auto type = data.vin_current_chat().v
+			? Type::SwitchInlineSame
+			: Type::SwitchInline;
+		return ButtonData{ type, data.vquery().v.toUtf8() };
+	}, [&](const TLDinlineKeyboardButtonTypeBuy &data) {
+		return ButtonData{ Type::Buy };
+	});
+}
+
 HistoryMessageMarkupData::HistoryMessageMarkupData(
 		const MTPReplyMarkup *data) {
 	if (!data) {
@@ -257,6 +343,33 @@ HistoryMessageMarkupData::HistoryMessageMarkupData(
 			| (data.is_selective() ? Flag::Selective : Flag())
 			| (data.is_single_use() ? Flag::SingleUse : Flag());
 		placeholder = qs(data.vplaceholder().value_or_empty());
+	});
+}
+
+HistoryMessageMarkupData::HistoryMessageMarkupData(
+		const TLreplyMarkup *data) {
+	if (!data) {
+		return;
+	}
+	using Flag = ReplyMarkupFlag;
+	data->match([&](const TLDreplyMarkupShowKeyboard &data) {
+		flags = (data.vresize_keyboard().v ? Flag::Resize : Flag())
+			| (data.vis_personal().v ? Flag::Selective : Flag())
+			| (data.vone_time().v ? Flag::SingleUse : Flag());
+		placeholder = data.vinput_field_placeholder().v;
+		fillRows(data.vrows().v);
+	}, [&](const TLDreplyMarkupInlineKeyboard &data) {
+		flags = Flag::Inline;
+		placeholder = QString();
+		fillRows(data.vrows().v);
+	}, [&](const TLDreplyMarkupRemoveKeyboard &data) {
+		flags = Flag::None
+			| (data.vis_personal().v ? Flag::Selective : Flag());
+		placeholder = QString();
+	}, [&](const TLDreplyMarkupForceReply &data) {
+		flags = Flag::ForceReply
+			| (data.vis_personal().v ? Flag::Selective : Flag());
+		placeholder = data.vinput_field_placeholder().v;
 	});
 }
 
@@ -325,4 +438,22 @@ HistoryMessageRepliesData::HistoryMessageRepliesData(
 	maxId = fields.vmax_id().value_or_empty();
 	isNull = false;
 	pts = fields.vreplies_pts().v;
+}
+
+HistoryMessageRepliesData::HistoryMessageRepliesData(
+		const TLmessageReplyInfo *data) {
+	if (!data) {
+		return;
+	}
+	const auto &fields = data->data();
+	const auto &repliers = fields.vrecent_repliers().v;
+	recentRepliers.reserve(repliers.size());
+	for (const auto &sender : repliers) {
+		recentRepliers.push_back(peerFromSender(sender));
+	}
+	repliesCount = fields.vreply_count().v;
+	//channelId = ChannelId(fields.vchannel_id().value_or_empty()); // #TODO tdlib
+	readMaxId = fields.vlast_read_inbox_message_id().v;
+	maxId = fields.vlast_message_id().v;
+	isNull = false;
 }

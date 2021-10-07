@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_peer_id.h"
 
-#include "tdb/details/tdb_tl_core.h"
+#include "tdb/tdb_tl_scheme.h"
 
 PeerId peerFromTdbChat(Tdb::TLint53 id) noexcept {
 	//constexpr int64 MIN_SECRET_ID = -2002147483648ll; // From TDLib.
@@ -43,6 +43,14 @@ Tdb::TLint53 peerToTdbChat(PeerId id) noexcept {
 		return Tdb::tl_int53(MAX_CHANNEL_ID - int64(channelId.bare));
 	}
 	return Tdb::tl_int53(0);
+}
+
+PeerId peerFromSender(const Tdb::TLmessageSender &sender) noexcept {
+	return sender.match([&](const Tdb::TLDmessageSenderUser &data) {
+		return peerFromUser(data.vuser_id());
+	}, [&](const Tdb::TLDmessageSenderChat &data) {
+		return peerFromTdbChat(data.vchat_id());
+	});
 }
 
 PeerId peerFromMTP(const MTPPeer &peer) {

@@ -993,6 +993,7 @@ void ApiWrap::requestMoreDialogs(Data::Folder *folder) {
 		}
 		state->firstRequested = true;
 		state->requestId = 0;
+		state->listReceived = true;
 	}).send();
 
 	if (!folder) {
