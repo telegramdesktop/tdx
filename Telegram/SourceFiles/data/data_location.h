@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Tdb {
+class TLlocation;
+} // namespace Tdb
+
 namespace Data {
 
 struct FileOrigin;
@@ -15,6 +19,8 @@ class LocationPoint {
 public:
 	LocationPoint() = default;
 	explicit LocationPoint(const MTPDgeoPoint &point);
+
+	explicit LocationPoint(const Tdb::TLlocation &point);
 
 	[[nodiscard]] QString latAsString() const;
 	[[nodiscard]] QString lonAsString() const;

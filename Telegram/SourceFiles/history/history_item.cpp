@@ -2922,6 +2922,12 @@ bool HistoryItem::hasExtendedMediaPreview() const {
 	return false;
 }
 
+void HistoryItem::applyTTL(const TLDmessage &data) {
+	if (const auto period = data.vttl().v) {
+		applyTTL(data.vdate().v + period);
+	}
+}
+
 void HistoryItem::sendFailed() {
 	Expects(_flags & MessageFlag::BeingSent);
 	Expects(!(_flags & MessageFlag::SendingFailed));
