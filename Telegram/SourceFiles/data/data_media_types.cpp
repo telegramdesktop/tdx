@@ -76,12 +76,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 #include "styles/style_dialogs.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Data {
 namespace {
 
 constexpr auto kFastRevokeRestriction = 24 * 60 * TimeId(60);
 constexpr auto kMaxPreviewImages = 3;
 constexpr auto kLoadingStoryPhotoId = PhotoId(0x7FFF'DEAD'FFFF'FFFFULL);
+
+using namespace Tdb;
 
 using ItemPreview = HistoryView::ItemPreview;
 using ItemPreviewImage = HistoryView::ItemPreviewImage;
@@ -405,6 +409,7 @@ TextForMimeData WithCaptionClipboardText(
 
 } // namespace
 
+#if 0 // mtp
 Invoice ComputeInvoiceData(
 		not_null<HistoryItem*> item,
 		const MTPDmessageMediaInvoice &data) {
@@ -516,6 +521,42 @@ GiveawayResults ComputeGiveawayResultsData(
 	if (const auto additional = data.vprize_description()) {
 		result.additionalPrize = qs(*additional);
 	}
+	return result;
+}
+#endif
+
+Invoice ComputeInvoiceData(
+		not_null<HistoryItem*> item,
+		const TLDmessageInvoice &data) {
+	return {
+		.receiptMsgId = data.vreceipt_message_id().v,
+		.amount = uint64(data.vtotal_amount().v),
+		.currency = data.vcurrency().v,
+		.title = TextUtilities::SingleLine(data.vtitle().v),
+		.description = data.vdescription().v,
+		.photo = nullptr/*(data.vphoto()
+			? item->history()->owner().processPhoto(*data.vphoto())
+			: nullptr)*/,
+		.isTest = data.vis_test().v,
+	};
+}
+
+Call ComputeCallData(const TLDmessageCall &call) {
+	auto result = Call();
+	result.finishReason = call.vdiscard_reason().match([](
+			const TLDcallDiscardReasonDeclined &) {
+		return CallFinishReason::Busy;
+	}, [](const TLDcallDiscardReasonDisconnected &) {
+		return CallFinishReason::Disconnected;
+	}, [](const TLDcallDiscardReasonHungUp &) {
+		return CallFinishReason::Hangup;
+	}, [](const TLDcallDiscardReasonMissed &) {
+		return CallFinishReason::Missed;
+	}, [](const TLDcallDiscardReasonEmpty &) {
+		return CallFinishReason::Hangup;
+	});
+	result.duration = call.vduration().v;
+	result.video = call.vis_video().v;
 	return result;
 }
 

@@ -409,4 +409,14 @@ EntitiesInText EntitiesFromTL(
 	return result;
 }
 
+TextWithEntities FormattedTextFromTL(
+		Main::Session *session,
+		const TLformattedText &text) {
+	const auto &formatted = text.data();
+	return TextWithEntities{
+		formatted.vtext().v,
+		Api::EntitiesFromTL(session, formatted.ventities().v)
+	};
+}
+
 } // namespace Api

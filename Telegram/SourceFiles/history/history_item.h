@@ -670,6 +670,8 @@ private:
 	void flagSensitiveContent();
 	[[nodiscard]] PeerData *computeDisplayFrom() const;
 
+	void applyTTL(const Tdb::TLDmessage &data);
+
 	const not_null<History*> _history;
 	const not_null<PeerData*> _from;
 	mutable PeerData *_displayFrom = nullptr;

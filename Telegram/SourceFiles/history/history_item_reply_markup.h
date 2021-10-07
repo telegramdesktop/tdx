@@ -10,6 +10,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flags.h"
 #include "data/data_chat_participant_status.h"
 
+namespace tl {
+template <typename T>
+class vector_type;
+} // namespace tl
+
+namespace Tdb {
+class TLmessageReplyInfo;
+class TLreplyMarkup;
+class TLkeyboardButton;
+class TLinlineKeyboardButton;
+template <typename T>
+using TLvector = tl::vector_type<T>;
+} // namespace Tdb
+
 namespace Data {
 class Session;
 } // namespace Data
@@ -106,6 +120,8 @@ struct HistoryMessageMarkupData {
 	HistoryMessageMarkupData() = default;
 	explicit HistoryMessageMarkupData(const MTPReplyMarkup *data);
 
+	explicit HistoryMessageMarkupData(const Tdb::TLreplyMarkup *data);
+
 	void fillForwardedData(const HistoryMessageMarkupData &original);
 
 	[[nodiscard]] bool isNull() const;
@@ -117,13 +133,29 @@ struct HistoryMessageMarkupData {
 	QString placeholder;
 
 private:
+	struct ButtonData {
+		Button::Type type;
+		QByteArray data;
+		QString forwardText;
+		int64 buttonId = 0;
+	};
+
 	void fillRows(const QVector<MTPKeyboardButtonRow> &v);
+
+	template <typename TdbButtonType>
+	void fillRows(const QVector<Tdb::TLvector<TdbButtonType>> &v);
+
+	[[nodiscard]] ButtonData buttonData(const Tdb::TLkeyboardButton &data);
+	[[nodiscard]] ButtonData buttonData(
+		const Tdb::TLinlineKeyboardButton &data);
 
 };
 
 struct HistoryMessageRepliesData {
 	HistoryMessageRepliesData() = default;
 	explicit HistoryMessageRepliesData(const MTPMessageReplies *data);
+
+	explicit HistoryMessageRepliesData(const Tdb::TLmessageReplyInfo *data);
 
 	std::vector<PeerId> recentRepliers;
 	ChannelId channelId = 0;
