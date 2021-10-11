@@ -138,6 +138,7 @@ void WebpageResolver::request(const QString &link, bool force) {
 	if (_requestLink == link && !force) {
 		return;
 	}
+#if 0 // todo
 	const auto done = [=](const MTPDmessageMediaWebPage &data) {
 		const auto page = _session->data().processWebpage(data.vwebpage());
 		if (page->pendingTill > 0
@@ -173,6 +174,7 @@ void WebpageResolver::request(const QString &link, bool force) {
 		}
 		fail();
 	}).send();
+#endif
 }
 
 void WebpageResolver::cancel(const QString &link) {
