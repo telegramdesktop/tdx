@@ -22,6 +22,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 struct ClickContext;
 struct ClickHandlerContext;
 
+namespace Tdb {
+class TLmessage;
+} // namespace Tdb
+
 namespace Data {
 struct Group;
 } // namespace Data
@@ -107,12 +111,21 @@ public:
 
 	Ui::ChatPaintContext preparePaintContext(const QRect &clip) const;
 
+#if 0 // #TODO legacy
 	void messagesReceived(
 		not_null<PeerData*> peer,
 		const QVector<MTPMessage> &messages);
 	void messagesReceivedDown(
 		not_null<PeerData*> peer,
 		const QVector<MTPMessage> &messages);
+#endif
+
+	void messagesReceived(
+		not_null<PeerData*> peer,
+		const QVector<std::optional<Tdb::TLmessage>> &messages);
+	void messagesReceivedDown(
+		not_null<PeerData*> peer,
+		const QVector<std::optional<Tdb::TLmessage>> &messages);
 
 	[[nodiscard]] TextForMimeData getSelectedText() const;
 

@@ -452,6 +452,7 @@ not_null<HistoryItem*> History::createItem(
 	return result;
 }
 
+#if 0 // #TODO legacy
 std::vector<not_null<HistoryItem*>> History::createItems(
 		const QVector<MTPMessage> &data) {
 	auto result = std::vector<not_null<HistoryItem*>>();
@@ -465,6 +466,29 @@ std::vector<not_null<HistoryItem*>> History::createItems(
 			data,
 			localFlags,
 			detachExistingItem));
+	}
+	return result;
+}
+#endif
+
+std::vector<not_null<HistoryItem*>> History::createItems(
+		const QVector<std::optional<TLmessage>> &data) {
+	auto result = std::vector<not_null<HistoryItem*>>();
+	result.reserve(data.size());
+	const auto localFlags = MessageFlags();
+	const auto detachExistingItem = true;
+	for (auto i = data.cend(), e = data.cbegin(); i != e;) {
+		const auto &data = *--i;
+		const auto item = data
+			? createItem(
+				data->data().vid().v,
+				*data,
+				localFlags,
+				detachExistingItem)
+			: nullptr;
+		if (item) {
+			result.emplace_back(item);
+		}
 	}
 	return result;
 }
@@ -1417,6 +1441,7 @@ void History::addEdgesToSharedMedia() {
 	}
 }
 
+#if 0 // #TODO legacy
 void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 	if (slice.isEmpty()) {
 		_loadedAtTop = true;
@@ -1434,6 +1459,7 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 	checkLocalMessages();
 	checkLastMessage();
 }
+#endif
 
 void History::addCreatedOlderSlice(
 		const std::vector<not_null<HistoryItem*>> &items) {
@@ -1456,7 +1482,59 @@ void History::addCreatedOlderSlice(
 	addToSharedMedia(items);
 }
 
+#if 0 // #TODO legacy
 void History::addNewerSlice(const QVector<MTPMessage> &slice) {
+	bool wasLoadedAtBottom = loadedAtBottom();
+
+	if (slice.isEmpty()) {
+		_loadedAtBottom = true;
+		if (!lastMessage()) {
+			setLastMessage(lastAvailableMessage());
+		}
+	}
+
+	if (const auto added = createItems(slice); !added.empty()) {
+		Assert(!isBuildingFrontBlock());
+
+		for (const auto &item : added) {
+			addItemToBlock(item);
+		}
+
+		addToSharedMedia(added);
+	} else {
+		_loadedAtBottom = true;
+		setLastMessage(lastAvailableMessage());
+		addEdgesToSharedMedia();
+	}
+
+	if (!wasLoadedAtBottom) {
+		checkAddAllToUnreadMentions();
+	}
+
+	checkLocalMessages();
+	checkLastMessage();
+}
+#endif
+
+void History::addOlderSlice(const QVector<std::optional<TLmessage>> &slice) {
+	if (slice.isEmpty()) {
+		_loadedAtTop = true;
+		checkLocalMessages();
+		return;
+	}
+
+	if (const auto added = createItems(slice); !added.empty()) {
+		addCreatedOlderSlice(added);
+	} else {
+		// If no items were added it means we've loaded everything old.
+		_loadedAtTop = true;
+		addEdgesToSharedMedia();
+	}
+	checkLocalMessages();
+	checkLastMessage();
+}
+
+void History::addNewerSlice(const QVector<std::optional<TLmessage>> &slice) {
 	bool wasLoadedAtBottom = loadedAtBottom();
 
 	if (slice.isEmpty()) {
@@ -2912,8 +2990,8 @@ void History::dialogEntryApplied() {
 	}
 	if (!chatListMessage()) {
 		clear(ClearType::Unload);
-		addNewerSlice(QVector<MTPMessage>());
-		addOlderSlice(QVector<MTPMessage>());
+		addNewerSlice({});
+		addOlderSlice({});
 		if (const auto channel = peer->asChannel()) {
 			const auto inviter = channel->inviter;
 			if (inviter && channel->amIn()) {
