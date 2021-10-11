@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Tdb {
+class TLpoll;
+} // namespace Tdb
+
 namespace Data {
 class Session;
 } // namespace Data
@@ -35,6 +39,8 @@ inline bool operator!=(const PollAnswer &a, const PollAnswer &b) {
 struct PollData {
 	PollData(not_null<Data::Session*> owner, PollId id);
 
+	[[nodiscard]] static PollId IdFromTdb(const Tdb::TLpoll &data);
+
 	[[nodiscard]] Data::Session &owner() const;
 	[[nodiscard]] Main::Session &session() const;
 
@@ -51,6 +57,8 @@ struct PollData {
 	bool applyChanges(const MTPDpoll &poll);
 	bool applyResults(const MTPPollResults &results);
 	[[nodiscard]] bool checkResultsReload(crl::time now);
+
+	bool applyChanges(const Tdb::TLpoll &data);
 
 	[[nodiscard]] PollAnswer *answerByOption(const QByteArray &option);
 	[[nodiscard]] const PollAnswer *answerByOption(
