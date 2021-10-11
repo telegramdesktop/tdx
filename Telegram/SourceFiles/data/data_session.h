@@ -16,6 +16,28 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "tdb/tdb_tl_scheme.h"
 
+namespace Tdb {
+class TLphoto;
+class TLdocument;
+class TLvideo;
+class TLanimation;
+class TLsticker;
+class TLvoiceNote;
+class TLvideoNote;
+class TLgame;
+class TLlinkPreview;
+class TLfile;
+class TLmessage;
+class TLquickReplyMessage;
+class TLpoll;
+class TLDupdateChatPosition;
+class TLDupdateChatLastMessage;
+class TLDupdateChatPermissions;
+class TLDupdateChatTitle;
+class TLDupdateChatPhoto;
+class TLDupdateChatAccentColors;
+} // namespace Tdb
+
 class Image;
 class HistoryItem;
 struct WebPageCollage;
@@ -656,6 +678,22 @@ public:
 
 	[[nodiscard]] not_null<CloudImage*> location(
 		const LocationPoint &point);
+
+	not_null<PhotoData*> processPhoto(const Tdb::TLphoto &data);
+	template <
+		typename T,
+		typename = decltype(DocumentData::IdFromTdb(std::declval<T>()))>
+	not_null<DocumentData*> processDocument(const T &data) {
+		const auto result = document(DocumentData::IdFromTdb(data));
+		result->setFromTdb(data);
+		return result;
+	}
+	not_null<DocumentData*> processPlainDocument(
+		const Tdb::TLfile &data,
+		SimpleDocumentType type);
+	not_null<WebPageData*> processWebpage(const Tdb::TLlinkPreview &data);
+	not_null<GameData*> processGame(const Tdb::TLgame &data);
+	not_null<PollData*> processPoll(const Tdb::TLpoll &data);
 
 	void registerPhotoItem(
 		not_null<const PhotoData*> photo,
