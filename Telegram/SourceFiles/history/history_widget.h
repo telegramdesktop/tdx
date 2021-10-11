@@ -19,11 +19,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "base/flags.h"
 
+#include "tdb/tdb_sender.h"
+
 struct FileLoadResult;
 enum class SendMediaType;
 class MessageLinksParser;
 struct InlineBotQuery;
 struct AutocompleteQuery;
+
+namespace Tdb {
+class TLmessages;
+class TLmessage;
+struct Error;
+} // namespace Tdb
 
 namespace MTP {
 class Error;
@@ -539,11 +547,25 @@ private:
 
 	void checkPreview();
 	void requestPreview();
+#if 0 // #TODO legacy
 	void gotPreview(QString links, const MTPMessageMedia &media, mtpRequestId req);
 	void messagesReceived(not_null<PeerData*> peer, const MTPmessages_Messages &messages, int requestId);
 	void messagesFailed(const MTP::Error &error, int requestId);
 	void addMessagesToFront(not_null<PeerData*> peer, const QVector<MTPMessage> &messages);
 	void addMessagesToBack(not_null<PeerData*> peer, const QVector<MTPMessage> &messages);
+#endif // #TODO legacy
+
+	void messagesReceived(
+		not_null<PeerData*> peer,
+		const Tdb::TLmessages &messages,
+		Tdb::RequestId requestId);
+	void messagesFailed(const Tdb::Error &error, Tdb::RequestId requestId);
+	void addMessagesToFront(
+		not_null<PeerData*> peer,
+		const QVector<std::optional<Tdb::TLmessage>> &messages);
+	void addMessagesToBack(
+		not_null<PeerData*> peer,
+		const QVector< std::optional<Tdb::TLmessage>> &messages);
 
 	void updateHistoryGeometry(bool initial = false, bool loadedDown = false, const ScrollChange &change = { ScrollChangeNone, 0 });
 	void updateListSize();
@@ -632,7 +654,10 @@ private:
 
 	void searchInChat();
 
+#if 0 // mtp
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 	MsgId _replyToId = 0;
 	Ui::Text::String _replyToName;
 	int _replyToNameVersion = 0;
@@ -690,12 +715,21 @@ private:
 	bool _canSendTexts = false;
 	MsgId _showAtMsgId = ShowAtUnreadMsgId;
 
+#if 0 // #TODO legacy
 	int _firstLoadRequest = 0; // Not real mtpRequestId.
 	int _preloadRequest = 0; // Not real mtpRequestId.
 	int _preloadDownRequest = 0; // Not real mtpRequestId.
 
 	MsgId _delayedShowAtMsgId = -1;
 	int _delayedShowAtRequest = 0; // Not real mtpRequestId.
+#endif
+
+	Tdb::RequestId _firstLoadRequest = 0;
+	Tdb::RequestId _preloadRequest = 0;
+	Tdb::RequestId _preloadDownRequest = 0;
+
+	MsgId _delayedShowAtMsgId = -1;
+	Tdb::RequestId _delayedShowAtRequest = 0;
 
 	History *_supportPreloadHistory = nullptr;
 	int _supportPreloadRequest = 0; // Not real mtpRequestId.
