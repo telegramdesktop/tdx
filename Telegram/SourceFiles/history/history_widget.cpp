@@ -165,6 +165,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
+using namespace Tdb;
+
 constexpr auto kMessagesPerPageFirst = 30;
 constexpr auto kMessagesPerPage = 50;
 constexpr auto kPreloadHeightsCount = 3; // when 3 screens to scroll left make a preload request
@@ -201,7 +203,7 @@ HistoryWidget::HistoryWidget(
 	parent,
 	controller,
 	ActivePeerValue(controller))
-, _api(&controller->session().mtp())
+, _api(&controller->session().sender())
 , _updateEditTimeLeftDisplay([=] { updateField(); })
 , _fieldBarCancel(this, st::historyReplyCancel)
 , _previewTimer([=] { requestPreview(); })
@@ -1404,6 +1406,7 @@ void HistoryWidget::updateInlineBotQuery() {
 			_inlineBot = nullptr;
 			_inlineLookingUpBot = true;
 			const auto username = _inlineBotUsername;
+#if 0 // #TODO tdlib
 			_inlineBotResolveRequestId = _api.request(MTPcontacts_ResolveUsername(
 				MTP_string(username)
 			)).done([=](const MTPcontacts_ResolvedPeer &result) {
@@ -1437,6 +1440,7 @@ void HistoryWidget::updateInlineBotQuery() {
 					clearInlineBot();
 				}
 			}).send();
+#endif
 		} else {
 			applyInlineBotQuery(query.bot, query.query);
 		}
@@ -3125,6 +3129,7 @@ void HistoryWidget::closeCurrent() {
 	}
 }
 
+#if 0 // #TODO legacy
 void HistoryWidget::messagesFailed(const MTP::Error &error, int requestId) {
 	if (error.type() == u"CHANNEL_PRIVATE"_q
 		&& _peer->isChannel()
@@ -3279,6 +3284,124 @@ void HistoryWidget::messagesReceived(
 		crl::on_main(this, [=] { checkSupportPreload(); });
 	}
 }
+#endif
+
+void HistoryWidget::messagesFailed(const Error &error, RequestId requestId) {
+	if (error.message == qstr("CHANNEL_PRIVATE") // #TODO tdlib
+		&& _peer->isChannel()
+		&& _peer->asChannel()->invitePeekExpires()) {
+		_peer->asChannel()->privateErrorReceived();
+	} else if (error.message == qstr("CHANNEL_PRIVATE") // #TODO tdlib
+		|| error.message == qstr("CHANNEL_PUBLIC_GROUP_NA")
+		|| error.message == qstr("USER_BANNED_IN_CHANNEL")) {
+		const auto was = _peer;
+		const auto controller = this->controller();
+		controller->showBackFromStack();
+		controller->showToast({ (was && was->isMegagroup())
+			? tr::lng_group_not_accessible(tr::now)
+			: tr::lng_channel_not_accessible(tr::now)
+		});
+		return;
+	}
+	if (_preloadRequest == requestId) {
+		_preloadRequest = 0;
+	} else if (_preloadDownRequest == requestId) {
+		_preloadDownRequest = 0;
+	} else if (_firstLoadRequest == requestId) {
+		_firstLoadRequest = 0;
+		controller()->showBackFromStack();
+	} else if (_delayedShowAtRequest == requestId) {
+		_delayedShowAtRequest = 0;
+	}
+}
+
+void HistoryWidget::messagesReceived(
+		not_null<PeerData*> peer,
+		const TLmessages &messages,
+		RequestId requestId) {
+	Expects(_history != nullptr);
+
+	const auto toMigrated = (peer == _peer->migrateFrom());
+	if (peer != _peer && !toMigrated) {
+		if (_preloadRequest == requestId) {
+			_preloadRequest = 0;
+		} else if (_preloadDownRequest == requestId) {
+			_preloadDownRequest = 0;
+		} else if (_firstLoadRequest == requestId) {
+			_firstLoadRequest = 0;
+		} else if (_delayedShowAtRequest == requestId) {
+			_delayedShowAtRequest = 0;
+		}
+		return;
+	}
+
+	const auto &data = messages.data();
+	const auto count = data.vtotal_count().v;
+	const auto &list = data.vmessages().v;
+
+	if (_preloadRequest == requestId) {
+		addMessagesToFront(peer, list);
+		_preloadRequest = 0;
+		preloadHistoryIfNeeded();
+	} else if (_preloadDownRequest == requestId) {
+		addMessagesToBack(peer, list);
+		_preloadDownRequest = 0;
+		preloadHistoryIfNeeded();
+		if (_history->loadedAtBottom()) {
+			checkHistoryActivation();
+		}
+	} else if (_firstLoadRequest == requestId) {
+		if (toMigrated) {
+			_history->clear(History::ClearType::Unload);
+		} else if (_migrated) {
+			_migrated->clear(History::ClearType::Unload);
+		}
+		addMessagesToFront(peer, list);
+		_firstLoadRequest = 0;
+		if (_history->loadedAtTop() && _history->isEmpty() && count > 0) {
+			firstLoadMessages();
+			return;
+		}
+
+		historyLoaded();
+	} else if (_delayedShowAtRequest == requestId) {
+		if (toMigrated) {
+			_history->clear(History::ClearType::Unload);
+		} else if (_migrated) {
+			_migrated->clear(History::ClearType::Unload);
+		}
+
+		clearAllLoadRequests();
+		_firstLoadRequest = -1; // hack - don't updateListSize yet
+		_history->getReadyFor(_delayedShowAtMsgId);
+		if (_history->isEmpty()) {
+			addMessagesToFront(peer, list);
+		}
+		_firstLoadRequest = 0;
+
+		if (_history->loadedAtTop()
+			&& _history->isEmpty()
+			&& count > 0) {
+			firstLoadMessages();
+			return;
+		}
+		while (_replyReturn) {
+			if (_replyReturn->history() == _history
+				&& _replyReturn->id == _delayedShowAtMsgId) {
+				calcNextReplyReturn();
+			} else if (_replyReturn->history() == _migrated
+				&& -_replyReturn->id == _delayedShowAtMsgId) {
+				calcNextReplyReturn();
+			} else {
+				break;
+			}
+		}
+
+		_delayedShowAtRequest = 0;
+		setMsgId(_delayedShowAtMsgId);
+		historyLoaded();
+	}
+}
 
 void HistoryWidget::historyLoaded() {
 	_historyInited = false;
@@ -3349,11 +3472,23 @@ void HistoryWidget::firstLoadMessages() {
 		}
 	}
 
+	_firstLoadRequest = _api.request(TLgetChatHistory(
+		peerToTdbChat(from->peer->id),
+		tl_int53(offsetId.bare),
+		tl_int32(offset),
+		tl_int32(loadCount),
+		tl_bool(false)
+	)).done([=](const TLmessages &result) {
+		messagesReceived(from->peer, result, _firstLoadRequest);
+	}).fail([=](const Error &error) {
+		messagesFailed(error, _firstLoadRequest);
+	}).send();
+
+#if 0 // #TODO legacy
 	const auto offsetDate = 0;
 	const auto maxId = 0;
 	const auto minId = 0;
 	const auto historyHash = uint64(0);
-
 	const auto history = from;
 	const auto type = Data::Histories::RequestType::History;
 	auto &histories = history->owner().histories();
@@ -3375,6 +3510,7 @@ void HistoryWidget::firstLoadMessages() {
 			finish();
 		}).send();
 	});
+#endif
 }
 
 void HistoryWidget::loadMessages() {
@@ -3405,6 +3541,19 @@ void HistoryWidget::loadMessages() {
 	const auto minId = 0;
 	const auto historyHash = uint64(0);
 
+	_preloadRequest = _api.request(TLgetChatHistory(
+		peerToTdbChat(from->peer->id),
+		tl_int53(offsetId.bare),
+		tl_int32(addOffset),
+		tl_int32(loadCount),
+		tl_bool(false)
+	)).done([=](const TLmessages &result) {
+		messagesReceived(from->peer, result, _preloadRequest);
+	}).fail([=](const Error &error) {
+		messagesFailed(error, _preloadRequest);
+	}).send();
+
+#if 0 // #TODO legacy
 	DEBUG_LOG(("JumpToEnd(%1, %2, %3): Loading up before %4."
 		).arg(_history->peer->name()
 		).arg(_history->inboxReadTillId().bare
@@ -3432,6 +3581,7 @@ void HistoryWidget::loadMessages() {
 			finish();
 		}).send();
 	});
+#endif
 }
 
 void HistoryWidget::loadMessagesDown() {
@@ -3465,6 +3615,19 @@ void HistoryWidget::loadMessagesDown() {
 	const auto minId = 0;
 	const auto historyHash = uint64(0);
 
+	_preloadDownRequest = _api.request(TLgetChatHistory(
+		peerToTdbChat(from->peer->id),
+		tl_int53(offsetId.bare),
+		tl_int32(addOffset),
+		tl_int32(loadCount),
+		tl_bool(false)
+	)).done([=](const TLmessages &result) {
+		messagesReceived(from->peer, result, _preloadDownRequest);
+	}).fail([=](const Error &error) {
+		messagesFailed(error, _preloadDownRequest);
+	}).send();
+
+#if 0 // #TODO legacy
 	DEBUG_LOG(("JumpToEnd(%1, %2, %3): Loading down after %4."
 		).arg(_history->peer->name()
 		).arg(_history->inboxReadTillId().bare
@@ -3492,6 +3655,7 @@ void HistoryWidget::loadMessagesDown() {
 			finish();
 		}).send();
 	});
+#endif
 }
 
 void HistoryWidget::delayedShowAt(MsgId showAtMsgId) {
@@ -3541,6 +3705,19 @@ void HistoryWidget::delayedShowAt(MsgId showAtMsgId) {
 	const auto minId = 0;
 	const auto historyHash = uint64(0);
 
+	_delayedShowAtRequest = _api.request(TLgetChatHistory(
+		peerToTdbChat(from->peer->id),
+		tl_int53(offsetId.bare),
+		tl_int32(offset),
+		tl_int32(loadCount),
+		tl_bool(false)
+	)).done([=](const TLmessages &result) {
+		messagesReceived(from->peer, result, _delayedShowAtRequest);
+	}).fail([=](const Error &error) {
+		messagesFailed(error, _delayedShowAtRequest);
+	}).send();
+
+#if 0 // #TODO legacy
 	const auto history = from;
 	const auto type = Data::Histories::RequestType::History;
 	auto &histories = history->owner().histories();
@@ -3562,6 +3739,7 @@ void HistoryWidget::delayedShowAt(MsgId showAtMsgId) {
 			finish();
 		}).send();
 	});
+#endif
 }
 
 void HistoryWidget::handleScroll() {
@@ -5951,6 +6129,7 @@ std::optional<int> HistoryWidget::unreadBarTop() const {
 	return std::nullopt;
 }
 
+#if 0 // #TODO legacy
 void HistoryWidget::addMessagesToFront(
 		not_null<PeerData*> peer,
 		const QVector<MTPMessage> &messages) {
@@ -5980,6 +6159,37 @@ void HistoryWidget::addMessagesToBack(
 		updateHistoryGeometry(false, true, { ScrollChangeNoJumpToBottom, 0 });
 	}
 	injectSponsoredMessages();
+}
+#endif
+
+void HistoryWidget::addMessagesToFront(
+		not_null<PeerData*> peer,
+		const QVector<std::optional<TLmessage>> &messages) {
+	_list->messagesReceived(peer, messages);
+	if (!_firstLoadRequest) {
+		updateHistoryGeometry();
+		updateBotKeyboard();
+	}
+}
+
+void HistoryWidget::addMessagesToBack(
+		not_null<PeerData*> peer,
+		const QVector<std::optional<TLmessage>> &messages) {
+	const auto checkForUnreadStart = [&] {
+		if (_history->unreadBar() || !_history->trackUnreadMessages()) {
+			return false;
+		}
+		_history->calculateFirstUnreadMessage();
+		return !_history->firstUnreadMessage();
+	}();
+	_list->messagesReceivedDown(peer, messages);
+	if (checkForUnreadStart) {
+		_history->calculateFirstUnreadMessage();
+		createUnreadBarAndResize();
+	}
+	if (!_firstLoadRequest) {
+		updateHistoryGeometry(false, true, { ScrollChangeNoJumpToBottom, 0 });
+	}
 }
 
 void HistoryWidget::updateBotKeyboard(History *h, bool force) {
@@ -7404,6 +7614,7 @@ void HistoryWidget::checkPreview() {
 		} else {
 			const auto i = _previewCache.constFind(links);
 			if (i == _previewCache.cend()) {
+#if 0 // #TODO tdlib
 				_previewRequest = _api.request(MTPmessages_GetWebPagePreview(
 					MTP_flags(0),
 					MTP_string(links),
@@ -7411,6 +7622,7 @@ void HistoryWidget::checkPreview() {
 				)).done([=](const MTPMessageMedia &result, mtpRequestId requestId) {
 					gotPreview(links, result, requestId);
 				}).send();
+#endif
 			} else if (i.value()) {
 				_previewData = session().data().webpage(i.value());
 				updatePreview();
@@ -7428,6 +7640,7 @@ void HistoryWidget::requestPreview() {
 		return;
 	}
 	const auto links = _previewLinks;
+#if 0 // #TODO tdlib
 	_previewRequest = _api.request(MTPmessages_GetWebPagePreview(
 		MTP_flags(0),
 		MTP_string(links),
@@ -7435,8 +7648,10 @@ void HistoryWidget::requestPreview() {
 	)).done([=](const MTPMessageMedia &result, mtpRequestId requestId) {
 		gotPreview(links, result, requestId);
 	}).send();
+#endif
 }
 
+#if 0 // #TODO legacy
 void HistoryWidget::gotPreview(
 		QString links,
 		const MTPMessageMedia &result,
@@ -7469,6 +7684,7 @@ void HistoryWidget::gotPreview(
 		}
 	}
 }
+#endif
 
 void HistoryWidget::updatePreview() {
 	_previewTimer.cancel();
