@@ -26,6 +26,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_download.h"
 #include "ui/chat/attach/attach_prepare.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 #include <QtCore/QBuffer>
 #include <QtGui/QImageReader>
 
@@ -204,12 +206,21 @@ Image *DocumentMedia::thumbnailInline() const {
 }
 
 const QPainterPath &DocumentMedia::thumbnailPath() const {
-	if (_pathThumbnail.isEmpty() && _owner->inlineThumbnailIsPath()) {
-		const auto bytes = _owner->inlineThumbnailBytes();
-		if (!bytes.isEmpty()) {
-			_pathThumbnail = Images::PathFromInlineBytes(bytes);
-			if (_pathThumbnail.isEmpty()) {
-				_owner->clearInlineThumbnailBytes();
+	if (_pathThumbnail.isEmpty()) {
+		if (_owner->inlineThumbnailIsPath()) {
+			const auto bytes = _owner->inlineThumbnailBytes();
+			if (!bytes.isEmpty()) {
+				_pathThumbnail = Images::PathFromInlineBytes(bytes);
+				if (_pathThumbnail.isEmpty()) {
+					_owner->clearInlineThumbnailBytes();
+				}
+			}
+		} else if (const auto sticker = _owner->sticker()) {
+			if (const auto &generator = sticker->outlineGenerator) {
+				_pathThumbnail = generator();
+				if (_pathThumbnail.isEmpty()) {
+					sticker->outlineGenerator = nullptr;
+				}
 			}
 		}
 	}

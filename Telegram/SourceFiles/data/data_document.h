@@ -13,6 +13,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_cloud_file.h"
 #include "core/file_location.h"
 
+namespace Tdb {
+class TLdocument;
+class TLvideo;
+class TLaudio;
+class TLanimation;
+class TLsticker;
+class TLvoiceNote;
+class TLvideoNote;
+class TLthumbnail;
+class TLminithumbnail;
+class TLclosedVectorPath;
+} // namespace Tdb
+
 enum class ChatRestriction;
 class mtpFileLoader;
 
@@ -79,6 +92,8 @@ struct StickerData : public DocumentAdditionalData {
 	StickerSetIdentifier set;
 	StickerType type = StickerType::Webp;
 	Data::StickersType setType = Data::StickersType();
+
+	Fn<QPainterPath()> outlineGenerator;
 };
 
 struct SongData : public DocumentAdditionalData {
@@ -102,6 +117,21 @@ class DocumentData final {
 public:
 	DocumentData(not_null<Data::Session*> owner, DocumentId id);
 	~DocumentData();
+
+	[[nodiscard]] static DocumentId IdFromTdb(const Tdb::TLdocument &data);
+	void setFromTdb(const Tdb::TLdocument &data);
+	[[nodiscard]] static DocumentId IdFromTdb(const Tdb::TLvideo &data);
+	void setFromTdb(const Tdb::TLvideo &data);
+	[[nodiscard]] static DocumentId IdFromTdb(const Tdb::TLaudio &data);
+	void setFromTdb(const Tdb::TLaudio &data);
+	[[nodiscard]] static DocumentId IdFromTdb(const Tdb::TLanimation &data);
+	void setFromTdb(const Tdb::TLanimation &data);
+	[[nodiscard]] static DocumentId IdFromTdb(const Tdb::TLsticker &data);
+	void setFromTdb(const Tdb::TLsticker &data);
+	[[nodiscard]] static DocumentId IdFromTdb(const Tdb::TLvoiceNote &data);
+	void setFromTdb(const Tdb::TLvoiceNote &data);
+	[[nodiscard]] static DocumentId IdFromTdb(const Tdb::TLvideoNote &data);
+	void setFromTdb(const Tdb::TLvideoNote &data);
 
 	[[nodiscard]] Data::Session &owner() const;
 	[[nodiscard]] Main::Session &session() const;
@@ -351,6 +381,11 @@ private:
 
 	void refreshPossibleCoverThumbnail();
 
+	void updateThumbnails(
+		const Tdb::TLminithumbnail *inlineThumbnail,
+		const Tdb::TLthumbnail *thumbnail);
+	void setTdbLocation(const Tdb::TLfile &file);
+
 	const not_null<Data::Session*> _owner;
 
 	int _videoPreloadPrefix = 0;
@@ -362,6 +397,9 @@ private:
 	QString _filename;
 	QString _mimeString;
 	WebFileLocation _urlLocation;
+
+	// TDLib location type.
+	FileId _tdbFileId = 0;
 
 	QByteArray _inlineThumbnailBytes;
 	Data::CloudFile _thumbnail;

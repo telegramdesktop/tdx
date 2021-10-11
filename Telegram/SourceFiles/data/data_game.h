@@ -10,8 +10,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_document.h"
 
+namespace Tdb {
+class TLgame;
+} // namespace Tdb
+
 struct GameData {
 	GameData(not_null<Data::Session*> owner, const GameId &id);
+
+	[[nodiscard]] static GameId IdFromTdb(const Tdb::TLgame &data);
+	void setFromTdb(const Tdb::TLgame &data);
 
 	const not_null<Data::Session*> owner;
 	GameId id = 0;
