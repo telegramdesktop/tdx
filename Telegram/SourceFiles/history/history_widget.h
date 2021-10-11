@@ -23,6 +23,12 @@ enum class SendMediaType;
 class MessageLinksParser;
 struct InlineBotQuery;
 
+namespace Tdb {
+class TLmessages;
+class TLmessage;
+struct Error;
+} // namespace Tdb
+
 namespace MTP {
 class Error;
 } // namespace MTP
@@ -554,10 +560,24 @@ private:
 	void editDraftOptions();
 	void jumpToReply(FullReplyTo to);
 
+#if 0 // mtp
 	void messagesReceived(not_null<PeerData*> peer, const MTPmessages_Messages &messages, int requestId);
 	void messagesFailed(const MTP::Error &error, int requestId);
 	void addMessagesToFront(not_null<PeerData*> peer, const QVector<MTPMessage> &messages);
 	void addMessagesToBack(not_null<PeerData*> peer, const QVector<MTPMessage> &messages);
+#endif
+
+	void messagesReceived(
+		not_null<PeerData*> peer,
+		const Tdb::TLmessages &messages,
+		Tdb::RequestId requestId);
+	void messagesFailed(const Tdb::Error &error, Tdb::RequestId requestId);
+	void addMessagesToFront(
+		not_null<PeerData*> peer,
+		const QVector<std::optional<Tdb::TLmessage>> &messages);
+	void addMessagesToBack(
+		not_null<PeerData*> peer,
+		const QVector< std::optional<Tdb::TLmessage>> &messages);
 
 	void updateSendRestriction();
 	[[nodiscard]] QString computeSendRestriction() const;
@@ -704,14 +724,23 @@ private:
 	TextWithEntities _showAtMsgHighlightPart;
 	int _showAtMsgHighlightPartOffsetHint = 0;
 
+#if 0 // #TODO legacy
 	int _firstLoadRequest = 0; // Not real mtpRequestId.
 	int _preloadRequest = 0; // Not real mtpRequestId.
 	int _preloadDownRequest = 0; // Not real mtpRequestId.
 
 	MsgId _delayedShowAtMsgId = -1;
 	TextWithEntities _delayedShowAtMsgHighlightPart;
+#endif
 	int _delayedShowAtMsgHighlightPartOffsetHint = 0;
 	int _delayedShowAtRequest = 0; // Not real mtpRequestId.
+
+	Tdb::RequestId _firstLoadRequest = 0;
+	Tdb::RequestId _preloadRequest = 0;
+	Tdb::RequestId _preloadDownRequest = 0;
+
+	MsgId _delayedShowAtMsgId = -1;
+	TextWithEntities _delayedShowAtMsgHighlightPart;
 
 	History *_supportPreloadHistory = nullptr;
 	int _supportPreloadRequest = 0; // Not real mtpRequestId.

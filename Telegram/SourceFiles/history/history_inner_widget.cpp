@@ -662,6 +662,7 @@ bool HistoryInner::hasSelectRestriction() const {
 	return true;
 }
 
+#if 0 // #TODO legacy
 void HistoryInner::messagesReceived(
 		not_null<PeerData*> peer,
 		const QVector<MTPMessage> &messages) {
@@ -691,6 +692,39 @@ void HistoryInner::messagesReceivedDown(
 		_history->addNewerSlice(messages);
 		if (oldLoaded) {
 			_history->addOlderSlice(QVector<MTPMessage>());
+		}
+	} else if (_migrated && _migrated->peer == peer) {
+		_migrated->addNewerSlice(messages);
+	}
+}
+#endif
+
+void HistoryInner::messagesReceived(
+		not_null<PeerData*> peer,
+		const QVector<std::optional<Tdb::TLmessage>> &messages) {
+	if (_history->peer == peer) {
+		_history->addOlderSlice(messages);
+	} else if (_migrated && _migrated->peer == peer) {
+		const auto newLoaded = _migrated
+			&& _migrated->isEmpty()
+			&& !_history->isEmpty();
+		_migrated->addOlderSlice(messages);
+		if (newLoaded) {
+			_migrated->addNewerSlice({});
+		}
+	}
+}
+
+void HistoryInner::messagesReceivedDown(
+		not_null<PeerData*> peer,
+		const QVector<std::optional<Tdb::TLmessage>> &messages) {
+	if (_history->peer == peer) {
+		const auto oldLoaded = _migrated
+			&& _history->isEmpty()
+			&& !_migrated->isEmpty();
+		_history->addNewerSlice(messages);
+		if (oldLoaded) {
+			_history->addOlderSlice({});
 		}
 	} else if (_migrated && _migrated->peer == peer) {
 		_migrated->addNewerSlice(messages);
