@@ -14,11 +14,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "api/api_text_entities.h"
 #include "ui/text/text_options.h"
+#include "tdb/tdb_tl_scheme.h"
 
 namespace {
 
 constexpr auto kShortPollTimeout = 30 * crl::time(1000);
 constexpr auto kReloadAfterAutoCloseDelay = crl::time(1000);
+
+using namespace Tdb;
 
 const PollAnswer *AnswerByOption(
 		const std::vector<PollAnswer> &list,
@@ -43,6 +46,10 @@ PollAnswer *AnswerByOption(
 PollData::PollData(not_null<Data::Session*> owner, PollId id)
 : id(id)
 , _owner(owner) {
+}
+
+PollId PollData::IdFromTdb(const TLpoll &data) {
+	return data.data().vid().v;
 }
 
 Data::Session &PollData::owner() const {
@@ -123,6 +130,58 @@ bool PollData::applyChanges(const MTPDpoll &poll) {
 				current->correct = old.correct;
 			}
 		}
+	}
+	++version;
+	return true;
+}
+
+bool PollData::applyChanges(const TLpoll &poll) {
+	Expects(poll.data().vid().v == id);
+
+	const auto &fields = poll.data();
+	const auto newQuestion = fields.vquestion().v;
+	const auto typeFlag = fields.vtype().match([&](const TLDpollTypeQuiz &) {
+		return Flag::Quiz;
+	}, [&](const TLDpollTypeRegular &data) {
+		return data.vallow_multiple_answers().v
+			? Flag::MultiChoice
+			: Flag(0);
+	});
+	const auto newFlags = typeFlag
+		| (fields.vis_closed().v ? Flag::Closed : Flag(0))
+		| (fields.vis_anonymous().v ? Flag(0) : Flag::PublicVotes);
+	const auto newCloseDate = fields.vclose_date().v;
+	const auto newClosePeriod = fields.vopen_period().v;
+	auto newAnswers = ranges::views::all(
+		fields.voptions().v
+	) | ranges::views::transform([](const TLpollOption &data) {
+		auto result = PollAnswer();
+		result.option = data.data().vtext().v.toUtf8();
+		result.text = data.data().vtext().v;
+		result.votes = data.data().vvoter_count().v;
+		result.chosen = data.data().vis_chosen().v
+			|| data.data().vis_being_chosen().v;
+		return result;
+	}) | ranges::views::take(
+		kMaxOptions
+	) | ranges::to_vector;
+
+	const auto changed1 = (question != newQuestion)
+		|| (closeDate != newCloseDate)
+		|| (closePeriod != newClosePeriod)
+		|| (_flags != newFlags);
+	const auto changed2 = (answers != newAnswers);
+	if (!changed1 && !changed2) {
+		return false;
+	}
+	if (changed1) {
+		question = newQuestion;
+		closeDate = newCloseDate;
+		closePeriod = newClosePeriod;
+		_flags = newFlags;
+	}
+	if (changed2) {
+		std::swap(answers, newAnswers);
 	}
 	++version;
 	return true;

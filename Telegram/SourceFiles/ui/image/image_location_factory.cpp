@@ -9,11 +9,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/image/image.h"
 #include "main/main_session.h"
+#include "tdb/tdb_tl_scheme.h"
 
 #include <QtCore/QBuffer>
 
 namespace Images {
 namespace {
+
+using namespace Tdb;
 
 QSize GetSizeForDocument(const QVector<MTPDocumentAttribute> &attributes) {
 	for (const auto &attribute : attributes) {
@@ -381,6 +384,41 @@ ImageWithLocation FromVideoSize(
 	}, [](const MTPDvideoSizeStickerMarkup &) {
 		return ImageWithLocation();
 	});
+}
+
+ImageWithLocation FromPhotoSize(const TLphotoSize &size) {
+	const auto &data = size.data();
+	return ImageWithLocation{
+		.location = ImageLocation(
+			DownloadLocation{ TdbFileLocation(data.vphoto()) },
+			data.vwidth().v,
+			data.vheight().v),
+		.bytesCount = data.vphoto().data().vsize().v,
+	};
+}
+
+ImageWithLocation FromProgressiveSize(
+		const Tdb::TLphotoSize &size,
+		int index) {
+	const auto &data = size.data().vprogressive_sizes().v;
+	if (data.size() <= index) {
+		return ImageWithLocation();
+	}
+	return ImageWithLocation{
+		.progressivePartSize = data[index].v,
+	};
+}
+
+[[nodiscard]] ImageWithLocation FromThumbnail(
+		const Tdb::TLthumbnail &thumbnail) {
+	const auto &fields = thumbnail.data();
+	return ImageWithLocation{
+		.location = ImageLocation(
+			DownloadLocation{ TdbFileLocation(fields.vfile()) },
+			fields.vwidth().v,
+			fields.vheight().v),
+		.bytesCount = fields.vfile().data().vsize().v,
+	};
 }
 
 } // namespace Images

@@ -9,6 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/image/image_location.h"
 
+namespace Tdb {
+class TLphotoSize;
+class TLthumbnail;
+} // namespace Tdb
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -44,5 +49,12 @@ namespace Images {
 	const char *format,
 	QByteArray bytes = QByteArray());
 [[nodiscard]] ImageLocation FromWebDocument(const MTPWebDocument &document);
+
+[[nodiscard]] ImageWithLocation FromPhotoSize(const Tdb::TLphotoSize &size);
+[[nodiscard]] ImageWithLocation FromProgressiveSize(
+	const Tdb::TLphotoSize &size,
+	int index);
+[[nodiscard]] ImageWithLocation FromThumbnail(
+	const Tdb::TLthumbnail &thumbnail);
 
 } // namespace Images

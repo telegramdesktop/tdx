@@ -18,10 +18,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_download.h"
 #include "core/application.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "ui/image/image_location_factory.h"
+
 namespace {
 
 constexpr auto kPhotoSideLimit = 2560;
 
+using namespace Tdb;
 using Data::PhotoMedia;
 using Data::PhotoSize;
 using Data::PhotoSizeIndex;
@@ -80,6 +84,65 @@ std::optional<TimeId> PhotoData::extendedMediaVideoDuration() const {
 	return (_extendedMediaPreview && _dateOrExtendedVideoDuration)
 		? TimeId(_dateOrExtendedVideoDuration - 1)
 		: std::optional<TimeId>();
+}
+
+PhotoId PhotoData::IdFromTdb(const TLphoto &data) {
+	const auto &sizes = data.data().vsizes().v;
+	return sizes.isEmpty()
+		? 0
+		: sizes.front().data().vphoto().data().vid().v;
+}
+
+void PhotoData::setFromTdb(const TLphoto &data) {
+	const auto &fields = data.data();
+	setHasAttachedStickers(fields.vhas_stickers().v);
+
+	const auto &sizes = fields.vsizes().v;
+	const auto i = ranges::find_if(sizes, [](const TLphotoSize &data) {
+		return !data.data().vprogressive_sizes().v.isEmpty();
+	});
+	const auto useProgressive = (i != sizes.end());
+	const auto find = [&](const QByteArray &levels) {
+		const auto kInvalidIndex = int(levels.size());
+		const auto level = [&](const TLphotoSize &size) {
+			const auto type = size.data().vtype().v;
+			const auto letter = type.isEmpty()
+				? char(0)
+				: char(type[0].unicode());
+			const auto index = levels.indexOf(letter);
+			return (index >= 0) ? index : kInvalidIndex;
+		};
+		const auto result = ranges::max_element(
+			sizes,
+			std::greater<>(),
+			level);
+		return (level(*result) == kInvalidIndex) ? sizes.end() : result;
+	};
+	const auto image = [&](const QByteArray &levels) {
+		const auto i = find(levels);
+		return (i == sizes.end())
+			? ImageWithLocation()
+			: Images::FromPhotoSize(*i);
+	};
+	const auto large = useProgressive
+		? Images::FromPhotoSize(*i)
+		: image("ydxcwmbsa"_q);
+	if (!large.location.valid()) {
+		return;
+	}
+	updateImages(
+		(fields.vminithumbnail()
+			? fields.vminithumbnail()->data().vdata().v
+			: QByteArray()),
+		(useProgressive
+			? ImageWithLocation()
+			: image("sa"_q)),
+		(useProgressive
+			? Images::FromProgressiveSize(*i, 1)
+			: image("mbsa"_q)),
+		large,
+		ImageWithLocation(), // #TODO tdlib video in photo
+		crl::time());
 }
 
 Data::Session &PhotoData::owner() const {
