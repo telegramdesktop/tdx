@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_document.h"
 
+namespace Tdb {
+class TLwebPage;
+} // namespace Tdb
+
 class ChannelData;
 
 namespace Data {
@@ -61,6 +65,9 @@ struct WebPageCollage {
 
 struct WebPageData {
 	WebPageData(not_null<Data::Session*> owner, const WebPageId &id);
+
+	[[nodiscard]] static WebPageId IdFromTdb(const Tdb::TLwebPage &data);
+	void setFromTdb(const Tdb::TLwebPage &data);
 
 	[[nodiscard]] Data::Session &owner() const;
 	[[nodiscard]] Main::Session &session() const;

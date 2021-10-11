@@ -16,8 +16,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "ui/image/image.h"
 #include "ui/text/text_entity.h"
+#include "tdb/tdb_tl_scheme.h"
+#include "api/api_text_entities.h"
+
+#include <xxhash.h>
 
 namespace {
+
+using namespace Tdb;
 
 QString SiteNameFromUrl(const QString &url) {
 	const auto u = QUrl(url);
@@ -201,6 +207,47 @@ WebPageCollage::WebPageCollage(
 WebPageData::WebPageData(not_null<Data::Session*> owner, const WebPageId &id)
 : id(id)
 , _owner(owner) {
+}
+
+WebPageId WebPageData::IdFromTdb(const TLwebPage &data) {
+	const auto &url = data.data().vurl().v;
+	return XXH64(url.data(), url.size() * sizeof(ushort), 0);
+}
+
+void WebPageData::setFromTdb(const TLwebPage &data) {
+	const auto &fields = data.data();
+	applyChanges(
+		ParseWebPageType(
+			fields.vtype().v,
+			fields.vembed_url().v,
+			fields.vinstant_view_version().v > 0),
+		fields.vurl().v,
+		fields.vdisplay_url().v,
+		fields.vsite_name().v,
+		fields.vtitle().v,
+		Api::FormattedTextFromTL(&_owner->session(), fields.vdescription()),
+		(fields.vphoto()
+			? _owner->processPhoto(*fields.vphoto()).get()
+			: nullptr),
+		(fields.vanimation()
+			? _owner->processDocument(*fields.vanimation()).get()
+			: fields.vaudio()
+			? _owner->processDocument(*fields.vaudio()).get()
+			: fields.vdocument()
+			? _owner->processDocument(*fields.vdocument()).get()
+			: fields.vsticker()
+			? _owner->processDocument(*fields.vsticker()).get()
+			: fields.vvideo()
+			? _owner->processDocument(*fields.vvideo()).get()
+			: fields.vvideo_note()
+			? _owner->processDocument(*fields.vvideo_note()).get()
+			: fields.vvoice_note()
+			? _owner->processDocument(*fields.vvoice_note()).get()
+			: nullptr),
+		WebPageCollage(), // #TODO tdlib
+		fields.vduration().v,
+		fields.vauthor().v,
+		0);
 }
 
 Data::Session &WebPageData::owner() const {
