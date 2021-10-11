@@ -18,10 +18,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/fields/input_field.h"
 #include "mtproto/sender.h"
 
+#include "tdb/tdb_sender.h"
+
 enum class SendMediaType;
 class MessageLinksParser;
 struct InlineBotQuery;
 struct AutocompleteQuery;
+
+namespace Tdb {
+class TLmessages;
+class TLmessage;
+struct Error;
+} // namespace Tdb
 
 namespace MTP {
 class Error;
@@ -553,10 +561,24 @@ private:
 	void editDraftOptions();
 	void jumpToReply(FullReplyTo to);
 
+#if 0 // mtp
 	void messagesReceived(not_null<PeerData*> peer, const MTPmessages_Messages &messages, int requestId);
 	void messagesFailed(const MTP::Error &error, int requestId);
 	void addMessagesToFront(not_null<PeerData*> peer, const QVector<MTPMessage> &messages);
 	void addMessagesToBack(not_null<PeerData*> peer, const QVector<MTPMessage> &messages);
+#endif
+
+	void messagesReceived(
+		not_null<PeerData*> peer,
+		const Tdb::TLmessages &messages,
+		Tdb::RequestId requestId);
+	void messagesFailed(const Tdb::Error &error, Tdb::RequestId requestId);
+	void addMessagesToFront(
+		not_null<PeerData*> peer,
+		const QVector<std::optional<Tdb::TLmessage>> &messages);
+	void addMessagesToBack(
+		not_null<PeerData*> peer,
+		const QVector< std::optional<Tdb::TLmessage>> &messages);
 
 	void updateSendRestriction();
 	[[nodiscard]] QString computeSendRestriction() const;
@@ -650,7 +672,10 @@ private:
 	void checkCharsCount();
 	void checkCharsLimitation();
 
+#if 0 // mtp
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 	FullReplyTo _replyTo;
 	Ui::Text::String _replyToName;
 
@@ -702,6 +727,7 @@ private:
 	TextWithEntities _showAtMsgHighlightPart;
 	int _showAtMsgHighlightPartOffsetHint = 0;
 
+#if 0 // #TODO legacy
 	int _firstLoadRequest = 0; // Not real mtpRequestId.
 	int _preloadRequest = 0; // Not real mtpRequestId.
 	int _preloadDownRequest = 0; // Not real mtpRequestId.
@@ -710,6 +736,15 @@ private:
 	TextWithEntities _delayedShowAtMsgHighlightPart;
 	int _delayedShowAtMsgHighlightPartOffsetHint = 0;
 	int _delayedShowAtRequest = 0; // Not real mtpRequestId.
+#endif
+
+	Tdb::RequestId _firstLoadRequest = 0;
+	Tdb::RequestId _preloadRequest = 0;
+	Tdb::RequestId _preloadDownRequest = 0;
+
+	MsgId _delayedShowAtMsgId = -1;
+	TextWithEntities _delayedShowAtMsgHighlightPart;
+	Tdb::RequestId _delayedShowAtRequest = 0;
 
 	History *_supportPreloadHistory = nullptr;
 	int _supportPreloadRequest = 0; // Not real mtpRequestId.

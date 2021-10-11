@@ -201,8 +201,13 @@ public:
 		const MTPMessage &message,
 		MessageFlags localFlags,
 		bool detachExistingItem);
+#if 0 // #TODO legacy
 	std::vector<not_null<HistoryItem*>> createItems(
 		const QVector<MTPMessage> &data);
+#endif
+
+	std::vector<not_null<HistoryItem*>> createItems(
+		const QVector<std::optional<Tdb::TLmessage>> &data);
 
 	HistoryItem *createItem(
 		MsgId id,
@@ -210,8 +215,13 @@ public:
 		MessageFlags localFlags,
 		bool detachExistingItem);
 
+#if 0 // #TODO legacy
 	void addOlderSlice(const QVector<MTPMessage> &slice);
 	void addNewerSlice(const QVector<MTPMessage> &slice);
+#endif
+
+	void addOlderSlice(const QVector<std::optional<Tdb::TLmessage>> &slice);
+	void addNewerSlice(const QVector<std::optional<Tdb::TLmessage>> &slice);
 
 	void newItemAdded(not_null<HistoryItem*> item);
 
