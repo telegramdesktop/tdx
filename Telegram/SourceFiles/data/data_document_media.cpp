@@ -194,7 +194,7 @@ Image *DocumentMedia::thumbnailInline() const {
 	if (!_inlineThumbnail && !_owner->inlineThumbnailIsPath()) {
 		const auto bytes = _owner->inlineThumbnailBytes();
 		if (!bytes.isEmpty()) {
-			auto image = Images::FromInlineBytes(bytes);
+			auto image = Images::Read({ .content = bytes }).image;
 			if (image.isNull()) {
 				_owner->clearInlineThumbnailBytes();
 			} else {
