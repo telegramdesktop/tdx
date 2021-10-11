@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_types.h"
 #include "data/data_cloud_file.h"
 
+namespace Tdb {
+class TLphoto;
+} // namespace Tdb
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -46,6 +50,9 @@ class PhotoData final {
 public:
 	PhotoData(not_null<Data::Session*> owner, PhotoId id);
 	~PhotoData();
+
+	[[nodiscard]] static PhotoId IdFromTdb(const Tdb::TLphoto &data);
+	void setFromTdb(const Tdb::TLphoto &data);
 
 	[[nodiscard]] Data::Session &owner() const;
 	[[nodiscard]] Main::Session &session() const;

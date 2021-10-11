@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_peer_id.h"
 
+namespace Tdb {
+class TLfile;
+} // namespace Tdb
+
 class FileLoader;
 
 namespace Storage {
@@ -457,6 +461,11 @@ inline bool operator>=(
 }
 
 struct TdbFileLocation {
+	TdbFileLocation() = default;
+	explicit TdbFileLocation(FileId id) : fileId(id) {
+	}
+	explicit TdbFileLocation(const Tdb::TLfile &data);
+
 	FileId fileId = 0;
 };
 

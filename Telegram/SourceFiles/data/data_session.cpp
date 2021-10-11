@@ -4407,6 +4407,37 @@ not_null<Data::CloudImage*> Session::location(const LocationPoint &point) {
 			prepared)).first->second.get();
 }
 
+not_null<PhotoData*> Session::processPhoto(const TLphoto &data) {
+	const auto result = photo(PhotoData::IdFromTdb(data));
+	result->setFromTdb(data);
+	return result;
+}
+
+not_null<WebPageData*> Session::processWebpage(const Tdb::TLwebPage &data) {
+	const auto result = webpage(WebPageData::IdFromTdb(data));
+	result->setFromTdb(data);
+	return result;
+}
+
+not_null<GameData*> Session::processGame(const Tdb::TLgame &data) {
+	const auto result = game(GameData::IdFromTdb(data));
+	result->setFromTdb(data);
+	return result;
+}
+
+not_null<PollData*> Session::processPoll(const Tdb::TLpoll &data) {
+	const auto result = poll(PollData::IdFromTdb(data));
+	const auto changed = result->applyChanges(data);
+	if (changed) {
+		notifyPollUpdateDelayed(result);
+	}
+	if (result->closeDate > 0 && !result->closed()) {
+		_pollsClosings.emplace(result->closeDate, result);
+		checkPollsClosings();
+	}
+	return result;
+}
+
 void Session::registerPhotoItem(
 		not_null<const PhotoData*> photo,
 		not_null<HistoryItem*> item) {

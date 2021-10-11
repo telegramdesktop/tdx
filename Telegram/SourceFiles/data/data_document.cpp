@@ -40,11 +40,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_animation.h"
 #include "boxes/abstract_box.h" // Ui::hideLayer().
 
+#include "tdb/tdb_tl_scheme.h"
+#include "ui/image/image_location_factory.h"
+
 #include <QtCore/QBuffer>
 #include <QtCore/QMimeType>
 #include <QtCore/QMimeDatabase>
 
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kDefaultCoverThumbnailSize = 100;
 constexpr auto kMaxAllowedPreloadPrefix = 6 * 1024 * 1024;
@@ -55,7 +60,9 @@ const auto kLottieStickerDimensions = QSize(
 	kStickerSideSize,
 	kStickerSideSize);
 
-QString JoinStringList(const QStringList &list, const QString &separator) {
+[[nodiscard]] QString JoinStringList(
+		const QStringList &list,
+		const QString &separator) {
 	const auto count = list.size();
 	if (!count) {
 		return QString();
@@ -85,6 +92,45 @@ void UpdateStickerSetIdentifier(
 	}, [](const auto &) {
 		return StickerSetIdentifier();
 	});
+}
+
+[[nodiscard]] QPainterPath PathFromOutline(
+		const QVector<TLclosedVectorPath> &outline) {
+	auto result = QPainterPath();
+	const auto point = [](const Tdb::TLpoint &data) {
+		return QPointF(data.data().vx().v, data.data().vy().v);
+	};
+	for (const auto &path : outline) {
+		const auto &commands = path.data().vcommands().v;
+		if (commands.isEmpty()) {
+			continue;
+		}
+		const auto start = commands.back().match([&](const auto &data) {
+			return data.vend_point();
+		});
+		result.moveTo(point(start));
+		for (const auto &command : commands) {
+			command.match([&](const Tdb::TLDvectorPathCommandLine &data) {
+				result.lineTo(point(data.vend_point()));
+			}, [&](const Tdb::TLDvectorPathCommandCubicBezierCurve &data) {
+				result.cubicTo(
+					point(data.vstart_control_point()),
+					point(data.vend_control_point()),
+					point(data.vend_point()));
+			});
+		}
+	}
+	return result;
+}
+
+[[nodiscard]] Fn<QPainterPath()> PathFromOutlineGenerator(
+		const QVector<TLclosedVectorPath> &outline) {
+	if (outline.isEmpty()) {
+		return nullptr;
+	}
+	return [outline] {
+		return PathFromOutline(outline);
+	};
 }
 
 } // namespace
@@ -310,6 +356,211 @@ DocumentData::~DocumentData() {
 	base::take(_thumbnail.loader).reset();
 	base::take(_videoThumbnail.loader).reset();
 	destroyLoader();
+}
+
+DocumentId DocumentData::IdFromTdb(const TLdocument &data) {
+	return data.data().vdocument().data().vid().v;
+}
+
+void DocumentData::updateThumbnails(
+		const TLminithumbnail *inlineThumbnail,
+		const TLthumbnail *thumbnail) {
+	const auto inlineThumbnailBytes = inlineThumbnail
+		? inlineThumbnail->data().vdata().v
+		: QByteArray();
+	auto thumbnailLocation = ImageWithLocation();
+	auto videoThumbnailLocation = ImageWithLocation();
+	if (thumbnail) {
+		const auto &fields = thumbnail->data();
+		fields.vformat().match([&](const auto &data) {
+			using T = decltype(data);
+			if constexpr (TLDthumbnailFormatJpeg::Is<T>()
+				|| TLDthumbnailFormatPng::Is<T>()
+				|| TLDthumbnailFormatWebp::Is<T>()) {
+				thumbnailLocation = Images::FromThumbnail(*thumbnail);
+			} else if constexpr (TLDthumbnailFormatGif::Is<T>()
+				|| TLDthumbnailFormatMpeg4::Is<T>()) {
+				videoThumbnailLocation = Images::FromThumbnail(*thumbnail);
+			}
+		});
+	}
+	updateThumbnails(InlineImageLocation{
+		.bytes = inlineThumbnailBytes,
+	}, thumbnailLocation, videoThumbnailLocation);
+}
+
+void DocumentData::setFromTdb(const TLdocument &data) {
+	const auto &fields = data.data();
+	setFileName(fields.vfile_name().v);
+	setMimeString(fields.vmime_type().v);
+	updateThumbnails(fields.vminithumbnail(), fields.vthumbnail());
+	setTdbLocation(fields.vdocument());
+	recountIsImage();
+	dimensions = QSize();
+	type = FileDocument;
+	_additional = nullptr;
+	_flags = (_flags | kStreamingSupportedUnknown)
+		& ~Flag::HasAttachedStickers;
+}
+
+DocumentId DocumentData::IdFromTdb(const TLvideo &data) {
+	return data.data().vvideo().data().vid().v;
+}
+
+void DocumentData::setFromTdb(const TLvideo &data) {
+	const auto &fields = data.data();
+	setFileName(fields.vfile_name().v);
+	setMimeString(fields.vmime_type().v);
+	updateThumbnails(fields.vminithumbnail(), fields.vthumbnail());
+	setTdbLocation(fields.vvideo());
+	recountIsImage();
+	setMaybeSupportsStreaming(fields.vsupports_streaming().v);
+	dimensions = QSize(fields.vwidth().v, fields.vheight().v);
+	type = VideoDocument;
+	_additional = nullptr;
+	_duration = fields.vduration().v;
+	if (fields.vhas_stickers().v) {
+		_flags |= Flag::HasAttachedStickers;
+	} else {
+		_flags &= ~Flag::HasAttachedStickers;
+	}
+}
+
+DocumentId DocumentData::IdFromTdb(const TLaudio &data) {
+	return data.data().vaudio().data().vid().v;
+}
+
+void DocumentData::setFromTdb(const TLaudio &data) {
+	const auto &fields = data.data();
+	setFileName(fields.vfile_name().v);
+	setMimeString(fields.vmime_type().v);
+	updateThumbnails(
+		fields.valbum_cover_minithumbnail(),
+		fields.valbum_cover_thumbnail());
+	setTdbLocation(fields.vaudio());
+	recountIsImage();
+	setMaybeSupportsStreaming(true);
+	dimensions = QSize();
+	type = SongDocument;
+	_additional = std::make_unique<SongData>();
+	_duration = -1; // For audio files duration in _additional.
+	_flags &= ~Flag::HasAttachedStickers;
+	const auto songData = song();
+	songData->duration = fields.vduration().v;
+	songData->title = fields.vtitle().v;
+	songData->performer = fields.vperformer().v;
+	if (!hasThumbnail()
+		&& !songData->title.isEmpty()
+		&& !songData->performer.isEmpty()) {
+		Storage::CloudSongCover::LoadThumbnailFromExternal(this);
+	}
+}
+
+DocumentId DocumentData::IdFromTdb(const TLanimation &data) {
+	return data.data().vanimation().data().vid().v;
+}
+
+void DocumentData::setFromTdb(const TLanimation &data) {
+	const auto &fields = data.data();
+	setFileName(fields.vfile_name().v);
+	setMimeString(fields.vmime_type().v);
+	updateThumbnails(fields.vminithumbnail(), fields.vthumbnail());
+	setTdbLocation(fields.vanimation());
+	recountIsImage();
+	setMaybeSupportsStreaming(true);
+	dimensions = QSize(fields.vwidth().v, fields.vheight().v);
+	type = AnimatedDocument;
+	_additional = nullptr;
+	_duration = fields.vduration().v;
+	if (fields.vhas_stickers().v) {
+		_flags |= Flag::HasAttachedStickers;
+	} else {
+		_flags &= ~Flag::HasAttachedStickers;
+	}
+}
+
+DocumentId DocumentData::IdFromTdb(const TLsticker &data) {
+	return data.data().vsticker().data().vid().v;
+}
+
+void DocumentData::setFromTdb(const TLsticker &data) {
+	const auto &fields = data.data();
+	const auto animated = fields.vis_animated().v;
+	setFileName(QString());// animated ? u"sticker.tgs"_q : u"sticker.webp"_q
+	setMimeString(animated ? u"application/x-tgsticker"_q : u"image/webp"_q);
+	updateThumbnails(nullptr, fields.vthumbnail());
+	setTdbLocation(fields.vsticker());
+	recountIsImage();
+	dimensions = animated
+		? kLottieStickerDimensions
+		: QSize(fields.vwidth().v, fields.vheight().v);
+	type = StickerDocument;
+	_additional = std::make_unique<StickerData>();
+	_duration = -1;
+	_flags = (_flags | kStreamingSupportedUnknown)
+		& ~Flag::HasAttachedStickers;
+	const auto stickerData = sticker();
+	stickerData->type = animated ? StickerType::Tgs : StickerType::Webp;
+	stickerData->alt = fields.vemoji().v;
+	stickerData->outlineGenerator = PathFromOutlineGenerator(
+		fields.voutline().v);
+	if (!sticker()->set.id) {
+		sticker()->set = StickerSetIdentifier{
+			.id = uint64(fields.vset_id().v),
+		};
+	}
+	if ((size > Storage::kMaxStickerBytesSize)
+			|| (!sticker()->isLottie()
+				&& !GoodStickerDimensions(
+					dimensions.width(),
+					dimensions.height()))) {
+		type = FileDocument;
+		_additional = nullptr;
+	}
+}
+
+DocumentId DocumentData::IdFromTdb(const TLvoiceNote &data) {
+	return data.data().vvoice().data().vid().v;
+}
+
+void DocumentData::setFromTdb(const TLvoiceNote &data) {
+	const auto &fields = data.data();
+	setFileName(QString());
+	setMimeString(fields.vmime_type().v);
+	updateThumbnails(nullptr, nullptr);
+	setTdbLocation(fields.vvoice());
+	recountIsImage();
+	setMaybeSupportsStreaming(true);
+	dimensions = QSize();
+	type = VoiceDocument;
+	_additional = std::make_unique<VoiceData>();
+	_duration = -1;
+	_flags &= ~Flag::HasAttachedStickers;
+	const auto voiceData = voice();
+	voiceData->duration = fields.vduration().v;
+	voiceData->waveform = documentWaveformDecode(fields.vwaveform().v);
+	voiceData->wavemax = voiceData->waveform.empty()
+		? uchar(0)
+		: *ranges::max_element(voiceData->waveform);
+}
+
+DocumentId DocumentData::IdFromTdb(const TLvideoNote &data) {
+	return data.data().vvideo().data().vid().v;
+}
+
+void DocumentData::setFromTdb(const TLvideoNote &data) {
+	const auto &fields = data.data();
+	setFileName(QString());
+	setMimeString(u"video/mp4"_q);
+	updateThumbnails(fields.vminithumbnail(), fields.vthumbnail());
+	setTdbLocation(fields.vvideo());
+	recountIsImage();
+	setMaybeSupportsStreaming(true);
+	dimensions = QSize(fields.vlength().v, fields.vlength().v);
+	type = RoundVideoDocument;
+	_additional = nullptr;
+	_duration = fields.vduration().v;
+	_flags &= ~Flag::HasAttachedStickers;
 }
 
 Data::Session &DocumentData::owner() const {
@@ -592,6 +843,12 @@ void DocumentData::updateThumbnails(
 		owner().cache(),
 		Data::kAnimationCacheTag,
 		[&](Data::FileOrigin origin) { loadVideoThumbnail(origin); });
+}
+
+void DocumentData::setTdbLocation(const TLfile &file) {
+	const auto &fields = file.data();
+	_tdbFileId = fields.vid().v;
+	size = fields.vsize().v;
 }
 
 bool DocumentData::isWallPaper() const {
@@ -1385,6 +1642,9 @@ const RoundData *DocumentData::round() const {
 }
 
 bool DocumentData::hasRemoteLocation() const {
+	if (_tdbFileId) {
+		return true;
+	}
 	return (_dc != 0 && _access != 0);
 }
 

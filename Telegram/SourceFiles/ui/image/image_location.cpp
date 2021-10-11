@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "base/overload.h"
 #include "main/main_session.h"
+#include "tdb/tdb_tl_scheme.h"
 
 #include <QtCore/QBuffer>
 
@@ -677,6 +678,10 @@ bool operator<(const StorageFileLocation &a, const StorageFileLocation &b) {
 			< std::tie(b._id, b._localId, b._dcId, b._sizeLetter);
 	};
 	Unexpected("Type in StorageFileLocation::operator==.");
+}
+
+TdbFileLocation::TdbFileLocation(const Tdb::TLfile &data)
+: fileId(data.data().vid().v) {
 }
 
 InMemoryKey inMemoryKey(const StorageFileLocation &location) {
