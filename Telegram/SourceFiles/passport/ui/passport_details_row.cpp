@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "base/platform/base_platform_info.h"
+#include "passport/passport_common.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/fields/masked_input_field.h"
 #include "ui/widgets/labels.h"
@@ -22,8 +23,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_passport.h"
 #include "base/qt/qt_common_adapters.h"
-
-#include <QtCore/QRegularExpression>
 
 namespace Passport::Ui {
 namespace {
@@ -413,27 +412,6 @@ void CountryRow::chooseCountry() {
 	_showBox(std::move(box));
 }
 
-QDate ValidateDate(const QString &value) {
-	const auto match = QRegularExpression(
-		"^([0-9]{2})\\.([0-9]{2})\\.([0-9]{4})$").match(value);
-	if (!match.hasMatch()) {
-		return QDate();
-	}
-	auto result = QDate();
-	const auto readInt = [](const QString &value) {
-		auto view = QStringView(value);
-		while (!view.isEmpty() && view.at(0) == '0') {
-			view = base::StringViewMid(view, 1);
-		}
-		return view.toInt();
-	};
-	result.setDate(
-		readInt(match.captured(3)),
-		readInt(match.captured(2)),
-		readInt(match.captured(1)));
-	return result;
-}
-
 QString GetDay(const QString &value) {
 	if (const auto date = ValidateDate(value); date.isValid()) {
 		return QString("%1").arg(date.day(), 2, 10, QChar('0'));
@@ -669,11 +647,7 @@ int DateRow::year() const {
 }
 
 QString DateRow::valueCurrent() const {
-	const auto result = QString("%1.%2.%3"
-		).arg(day(), 2, 10, QChar('0')
-		).arg(month(), 2, 10, QChar('0')
-		).arg(year(), 4, 10, QChar('0'));
-	return ValidateDate(result).isValid() ? result : QString();
+	return FormatDate(day(), month(), year());
 }
 
 rpl::producer<QString> DateRow::value() const {
