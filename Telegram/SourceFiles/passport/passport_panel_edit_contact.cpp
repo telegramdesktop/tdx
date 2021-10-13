@@ -31,6 +31,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_passport.h"
 #include "styles/style_layers.h"
 
+#include "tdb/tdb_format_phone.h"
+
 namespace Passport {
 namespace {
 

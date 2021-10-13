@@ -151,6 +151,8 @@ struct CloudPasswordState {
 	QString hint;
 	QString unconfirmedPattern;
 	TimeId pendingResetDate = 0;
+
+	QString serverError;
 };
 
 CloudPasswordState ParseCloudPasswordState(

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "passport/passport_form_controller.h"
 
+#include "passport/passport_common.h"
 #include "passport/passport_encryption.h"
 #include "passport/passport_panel_controller.h"
 #include "passport/passport_panel_edit_document.h"
@@ -14,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/passcode_box.h"
 #include "lang/lang_keys.h"
 #include "lang/lang_hardcoded.h"
+#include "tdb/tdb_account.h"
+#include "tdb/tdb_upload_bytes.h"
 #include "base/random.h"
 #include "base/qthelp_url.h"
 #include "base/unixtime.h"
@@ -28,12 +31,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "storage/localimageloader.h"
 #include "storage/localstorage.h"
+#if 0 // goodToRemove
 #include "storage/file_upload.h"
 #include "storage/file_download_mtproto.h"
 
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonArray>
 #include <QtCore/QJsonObject>
+#endif
 
 namespace Passport {
 namespace {
@@ -42,6 +47,23 @@ constexpr auto kDocumentScansLimit = 20;
 constexpr auto kTranslationScansLimit = 20;
 constexpr auto kShortPollTimeout = crl::time(3000);
 constexpr auto kRememberCredentialsDelay = crl::time(1800 * 1000);
+
+// See td/telegram/SecureValue.cpp@get_secure_value_data_field_name.
+QString FieldKeyFromTDBtoMTP(const QString &key) {
+	return (key == u"native_first_name"_q)
+		? "first_name_native"
+		: (key == u"native_middle_name"_q)
+		? "middle_name_native"
+		: (key == u"native_last_name"_q)
+		? "last_name_native"
+		: (key == u"birthdate"_q)
+		? "birth_date"
+		: (key == u"number"_q)
+		? "document_no"
+		: (key == u"postal_code"_q)
+		? "post_code"
+		: key;
+}
 
 bool ForwardServiceErrorRequired(const QString &error) {
 	return (error == u"BOT_INVALID"_q)
@@ -64,6 +86,7 @@ bool AcceptErrorRequiresRestart(const QString &error) {
 		|| (error == u"SECURE_VALUE_HASH_INVALID"_q);
 }
 
+#if 0 // goodToRemove
 std::map<QString, QString> GetTexts(const ValueMap &map) {
 	auto result = std::map<QString, QString>();
 	for (const auto &[key, value] : map.fields) {
@@ -71,6 +94,7 @@ std::map<QString, QString> GetTexts(const ValueMap &map) {
 	}
 	return result;
 }
+#endif
 
 QImage ReadImage(bytes::const_span buffer) {
 	return Images::Read({
@@ -81,6 +105,357 @@ QImage ReadImage(bytes::const_span buffer) {
 	}).image;
 }
 
+Tdb::TLinputPassportElement ValueToTLInputElement(const Value &value) {
+	using namespace Tdb;
+	using Type = Value::Type;
+	const auto field = [&](const QString &fieldName) {
+		const auto &fields = value.data.parsedInEdit.fields;
+		const auto it = fields.find(fieldName);
+		if (it == fields.end()) {
+			return QString();
+		}
+		return it->second.text;
+	};
+	const auto tlField = [&](const QString &fieldName) {
+		return tl_string(field(fieldName));
+	};
+	const auto tlDate = [&](const QString &string) -> std::optional<TLdate> {
+		const auto date = ValidateDate(string);
+		if (!date.isValid()) {
+			return std::nullopt;
+		}
+		return tl_date(
+			tl_int32(date.day()),
+			tl_int32(date.month()),
+			tl_int32(date.year()));
+	};
+	const auto tlInputFile = [&](FileType t) -> std::optional<TLinputFile> {
+		const auto i = value.specialScansInEdit.find(t);
+		if (i != end(value.specialScansInEdit) && !i->second.deleted) {
+			return tl_inputFileId(tl_int32(i->second.fields.id));
+		}
+		return std::nullopt;
+	};
+	const auto tlInputFiles = [&](FileType type) {
+		auto result = QVector<TLinputFile>();
+		for (const auto &scan : value.filesInEdit(type)) {
+			if (scan.deleted) {
+				continue;
+			}
+			result.push_back(tl_inputFileId(tl_int32(scan.fields.id)));
+		}
+		return tl_vector<TLinputFile>(result);
+	};
+	const auto tlIdentityDocument = [&] {
+		return tl_inputIdentityDocument(
+			tlField("document_no"),
+			tlDate(field("expiry_date")),
+			*tlInputFile(FileType::FrontSide), // Not really optional.
+			tlInputFile(FileType::ReverseSide),
+			tlInputFile(FileType::Selfie),
+			tlInputFiles(FileType::Translation));
+	};
+	const auto tlPersonalDocument = [&] {
+		return tl_inputPersonalDocument(
+			tlInputFiles(FileType::Scan),
+			tlInputFiles(FileType::Translation));
+	};
+
+	switch (value.type) {
+	case Type::PersonalDetails:
+		return tl_inputPassportElementPersonalDetails(tl_personalDetails(
+			tlField("first_name"),
+			tlField("middle_name"),
+			tlField("last_name"),
+			tlField("first_name_native"),
+			tlField("middle_name_native"),
+			tlField("last_name_native"),
+			*tlDate(field("birth_date")), // Not really optional.
+			tlField("gender"),
+			tlField("country_code"),
+			tlField("residence_country_code")));
+	case Type::Passport:
+		return tl_inputPassportElementPassport(tlIdentityDocument());
+	case Type::DriverLicense:
+		return tl_inputPassportElementDriverLicense(tlIdentityDocument());
+	case Type::IdentityCard:
+		return tl_inputPassportElementIdentityCard(tlIdentityDocument());
+	case Type::InternalPassport:
+		return tl_inputPassportElementInternalPassport(tlIdentityDocument());
+	case Type::Address:
+		return tl_inputPassportElementAddress(tl_address(
+			tlField("country_code"),
+			tlField("state"),
+			tlField("city"),
+			tlField("street_line1"),
+			tlField("street_line2"),
+			tlField("post_code")));
+	case Type::UtilityBill:
+		return tl_inputPassportElementUtilityBill(tlPersonalDocument());
+	case Type::BankStatement:
+		return tl_inputPassportElementBankStatement(tlPersonalDocument());
+	case Type::RentalAgreement:
+		return tl_inputPassportElementRentalAgreement(tlPersonalDocument());
+	case Type::PassportRegistration:
+		return tl_inputPassportElementPassportRegistration(
+			tlPersonalDocument());
+	case Type::TemporaryRegistration:
+		return tl_inputPassportElementTemporaryRegistration(
+			tlPersonalDocument());
+	case Type::Phone:
+		return tl_inputPassportElementPhoneNumber(tlField("value"));
+	case Type::Email:
+		return tl_inputPassportElementEmailAddress(tlField("value"));
+	}
+	Unexpected("Type in ValueToTLInputElement.");
+}
+
+Value::Type ConvertType(const Tdb::TLpassportElementType &type) {
+	using Type = Value::Type;
+	return type.match([&](
+			const Tdb::TLDpassportElementTypePersonalDetails &) {
+		return Type::PersonalDetails;
+	}, [&](const Tdb::TLDpassportElementTypePassport &) {
+		return Type::Passport;
+	}, [&](const Tdb::TLDpassportElementTypeDriverLicense &) {
+		return Type::DriverLicense;
+	}, [&](const Tdb::TLDpassportElementTypeIdentityCard &) {
+		return Type::IdentityCard;
+	}, [&](const Tdb::TLDpassportElementTypeInternalPassport &) {
+		return Type::InternalPassport;
+	}, [&](const Tdb::TLDpassportElementTypeAddress &) {
+		return Type::Address;
+	}, [&](const Tdb::TLDpassportElementTypeUtilityBill &) {
+		return Type::UtilityBill;
+	}, [&](const Tdb::TLDpassportElementTypeBankStatement &) {
+		return Type::BankStatement;
+	}, [&](const Tdb::TLDpassportElementTypeRentalAgreement &) {
+		return Type::RentalAgreement;
+	}, [&](const Tdb::TLDpassportElementTypePassportRegistration &) {
+		return Type::PassportRegistration;
+	}, [&](const Tdb::TLDpassportElementTypeTemporaryRegistration &) {
+		return Type::TemporaryRegistration;
+	}, [&](const Tdb::TLDpassportElementTypePhoneNumber &) {
+		return Type::Phone;
+	}, [&](const Tdb::TLDpassportElementTypeEmailAddress &) {
+		return Type::Email;
+	});
+};
+
+Value::Type ConvertType(const Tdb::TLpassportElement &element) {
+	using Type = Value::Type;
+	return element.match([&](const Tdb::TLDpassportElementPersonalDetails &) {
+		return Type::PersonalDetails;
+	}, [&](const Tdb::TLDpassportElementPassport &) {
+		return Type::Passport;
+	}, [&](const Tdb::TLDpassportElementDriverLicense &) {
+		return Type::DriverLicense;
+	}, [&](const Tdb::TLDpassportElementIdentityCard &) {
+		return Type::IdentityCard;
+	}, [&](const Tdb::TLDpassportElementInternalPassport &) {
+		return Type::InternalPassport;
+	}, [&](const Tdb::TLDpassportElementAddress &) {
+		return Type::Address;
+	}, [&](const Tdb::TLDpassportElementUtilityBill &) {
+		return Type::UtilityBill;
+	}, [&](const Tdb::TLDpassportElementBankStatement &) {
+		return Type::BankStatement;
+	}, [&](const Tdb::TLDpassportElementRentalAgreement &) {
+		return Type::RentalAgreement;
+	}, [&](const Tdb::TLDpassportElementPassportRegistration &) {
+		return Type::PassportRegistration;
+	}, [&](const Tdb::TLDpassportElementTemporaryRegistration &) {
+		return Type::TemporaryRegistration;
+	}, [&](const Tdb::TLDpassportElementPhoneNumber &) {
+		return Type::Phone;
+	}, [&](const Tdb::TLDpassportElementEmailAddress &) {
+		return Type::Email;
+	});
+};
+
+auto FillFields(const Tdb::TLpassportElement &element) {
+	auto value = ValueMap();
+	auto &fields = value.fields;
+
+	const auto add = [&](const QString &key, const QString &value) {
+		fields.emplace(key, ValueField{ value, QString() });
+	};
+
+	const auto processDate = [](const Tdb::TLDdate &date) {
+		return FormatDate(date.vday().v, date.vmonth().v, date.vyear().v);
+	};
+	// See td/telegram/SecureValue.cpp@get_secure_value_data_field_name.
+	const auto processDocument = [&](const Tdb::TLDidentityDocument &data) {
+		add("document_no", data.vnumber().v);
+		add("expiry_date", [&] {
+			if (const auto date = data.vexpiration_date()) {
+				return date->match(processDate);
+			} else {
+				return QString();
+			}
+		}());
+	};
+	const auto processAddress = [&](const Tdb::TLDaddress &data) {
+		add("country_code", data.vcountry_code().v);
+		add("state", data.vstate().v);
+		add("city", data.vcity().v);
+		add("street_line1", data.vstreet_line1().v);
+		add("street_line2", data.vstreet_line2().v);
+		add("post_code", data.vpostal_code().v);
+	};
+	const auto processPersonal = [&](const Tdb::TLDpersonalDetails &data) {
+		add("first_name", data.vfirst_name().v);
+		add("middle_name", data.vmiddle_name().v);
+		add("last_name", data.vlast_name().v);
+		add("first_name_native", data.vnative_first_name().v);
+		add("middle_name_native", data.vnative_middle_name().v);
+		add("last_name_native", data.vnative_last_name().v);
+		add("birth_date", data.vbirthdate().match(processDate));
+		add("gender", data.vgender().v);
+		add("country_code", data.vcountry_code().v);
+		add("residence_country_code", data.vresidence_country_code().v);
+	};
+
+	element.match([&](const Tdb::TLDpassportElementPersonalDetails &data) {
+		data.vpersonal_details().match(processPersonal);
+	}, [&](const Tdb::TLDpassportElementPassport &data) {
+		data.vpassport().match(processDocument);
+	}, [&](const Tdb::TLDpassportElementDriverLicense &data) {
+		data.vdriver_license().match(processDocument);
+	}, [&](const Tdb::TLDpassportElementIdentityCard &data) {
+		data.videntity_card().match(processDocument);
+	}, [&](const Tdb::TLDpassportElementInternalPassport &data) {
+		data.vinternal_passport().match(processDocument);
+	}, [&](const Tdb::TLDpassportElementAddress &data) {
+		data.vaddress().match(processAddress);
+	}, [](const Tdb::TLDpassportElementUtilityBill &data) {
+	}, [](const Tdb::TLDpassportElementBankStatement &data) {
+	}, [](const Tdb::TLDpassportElementRentalAgreement &data) {
+	}, [](const Tdb::TLDpassportElementPassportRegistration &data) {
+	}, [](const Tdb::TLDpassportElementTemporaryRegistration &data) {
+	}, [&](const Tdb::TLDpassportElementPhoneNumber &data) {
+		add("value", data.vphone_number().v);
+	}, [&](const Tdb::TLDpassportElementEmailAddress &data) {
+		add("value", data.vemail_address().v);
+	});
+
+	return value;
+}
+
+auto FillFiles(Value &value, const Tdb::TLpassportElement &element) {
+	using namespace Tdb;
+
+	const auto parseTLFile = [](const Tdb::TLdatedFile &datedFile) {
+		auto result = File();
+		const auto &fileData = datedFile.data().vfile().data();
+		result.id = fileData.vid().v;
+		result.size = std::max(
+			fileData.vexpected_size().v,
+			fileData.vsize().v);
+		result.accessHash = -1;
+		result.date = datedFile.data().vdate().v;
+		return result;
+	};
+
+	const auto parseTLFiles = [&](const QVector<Tdb::TLdatedFile> &data) {
+		auto files = std::vector<File>();
+		files.reserve(data.size());
+
+		for (const auto &file : data) {
+			files.push_back(parseTLFile(file));
+		}
+
+		return files;
+	};
+
+	const auto fillSpecialScan = [&](FileType type, const TLdatedFile &file) {
+		value.specialScans.emplace(type, parseTLFile(file));
+	};
+
+	const auto parseIdentityDocumentFiles = [&](
+			const TLDidentityDocument &data) {
+		fillSpecialScan(FileType::FrontSide, data.vfront_side());
+		if (const auto side = data.vreverse_side()) {
+			fillSpecialScan(FileType::ReverseSide, *side);
+		}
+		if (const auto selfie = data.vselfie()) {
+			fillSpecialScan(FileType::Selfie, *selfie);
+		}
+		value.files(FileType::Translation) = parseTLFiles(
+			data.vtranslation().v);
+	};
+
+	const auto parsePersonalDocumentFiles = [&](
+			const TLDpersonalDocument &data) {
+		value.files(FileType::Scan) = parseTLFiles(data.vfiles().v);
+		value.files(FileType::Translation) = parseTLFiles(
+			data.vtranslation().v);
+	};
+
+	element.match([](const Tdb::TLDpassportElementPersonalDetails &data) {
+	}, [&](const Tdb::TLDpassportElementPassport &data) {
+		parseIdentityDocumentFiles(data.vpassport().data());
+	}, [&](const Tdb::TLDpassportElementDriverLicense &data) {
+		parseIdentityDocumentFiles(data.vdriver_license().data());
+	}, [&](const Tdb::TLDpassportElementIdentityCard &data) {
+		parseIdentityDocumentFiles(data.videntity_card().data());
+	}, [&](const Tdb::TLDpassportElementInternalPassport &data) {
+		parseIdentityDocumentFiles(data.vinternal_passport().data());
+	}, [](const Tdb::TLDpassportElementAddress &data) {
+	}, [&](const Tdb::TLDpassportElementUtilityBill &data) {
+		parsePersonalDocumentFiles(data.vutility_bill().data());
+	}, [&](const Tdb::TLDpassportElementBankStatement &data) {
+		parsePersonalDocumentFiles(data.vbank_statement().data());
+	}, [&](const Tdb::TLDpassportElementRentalAgreement &data) {
+		parsePersonalDocumentFiles(data.vrental_agreement().data());
+	}, [&](const Tdb::TLDpassportElementPassportRegistration &data) {
+		parsePersonalDocumentFiles(data.vpassport_registration().data());
+	}, [&](const Tdb::TLDpassportElementTemporaryRegistration &data) {
+		parsePersonalDocumentFiles(data.vtemporary_registration().data());
+	}, [](const Tdb::TLDpassportElementPhoneNumber &data) {
+	}, [](const Tdb::TLDpassportElementEmailAddress &data) {
+	});
+}
+
+void FillValue(Value &result, const Tdb::TLpassportElement &element) {
+	result.data.parsed = FillFields(element);
+	FillFiles(result, element);
+}
+
+Tdb::TLpassportElementType ConvertType(Value::Type type) {
+	using Type = Value::Type;
+	switch (type) {
+	case Type::PersonalDetails:
+		return Tdb::tl_passportElementTypePersonalDetails();
+	case Type::Passport:
+		return Tdb::tl_passportElementTypePassport();
+	case Type::DriverLicense:
+		return Tdb::tl_passportElementTypeDriverLicense();
+	case Type::IdentityCard:
+		return Tdb::tl_passportElementTypeIdentityCard();
+	case Type::InternalPassport:
+		return Tdb::tl_passportElementTypeInternalPassport();
+	case Type::Address:
+		return Tdb::tl_passportElementTypeAddress();
+	case Type::UtilityBill:
+		return Tdb::tl_passportElementTypeUtilityBill();
+	case Type::BankStatement:
+		return Tdb::tl_passportElementTypeBankStatement();
+	case Type::RentalAgreement:
+		return Tdb::tl_passportElementTypeRentalAgreement();
+	case Type::PassportRegistration:
+		return Tdb::tl_passportElementTypePassportRegistration();
+	case Type::TemporaryRegistration:
+		return Tdb::tl_passportElementTypeTemporaryRegistration();
+	case Type::Phone:
+		return Tdb::tl_passportElementTypePhoneNumber();
+	case Type::Email:
+		return Tdb::tl_passportElementTypeEmailAddress();
+	}
+	Unexpected("Type in FormController::submit.");
+}
+
+#if 0 // goodToRemove
 Value::Type ConvertType(const MTPSecureValueType &type) {
 	using Type = Value::Type;
 	switch (type.type()) {
@@ -163,6 +538,23 @@ void CollectToRequestedRow(
 		}
 	});
 }
+#endif
+
+void FillRequestedRow(
+		RequestedRow &row,
+		const Tdb::TLpassportRequiredElement &result) {
+	result.match([&](const Tdb::TLDpassportRequiredElement &data) {
+		for (const auto &suitable : data.vsuitable_elements().v) {
+			suitable.match([&](const Tdb::TLDpassportSuitableElement &data) {
+				row.values.emplace_back(ConvertType(data.vtype()));
+				auto &value = row.values.back();
+				value.selfieRequired = data.vis_selfie_required().v;
+				value.translationRequired = data.vis_translation_required().v;
+				value.nativeNames = data.vis_native_name_required().v;
+			});
+		}
+	});
+}
 
 void ApplyDataChanges(ValueData &data, ValueMap &&changes) {
 	data.parsedInEdit = data.parsed;
@@ -171,6 +563,7 @@ void ApplyDataChanges(ValueData &data, ValueMap &&changes) {
 	}
 }
 
+#if 0 // goodToRemove
 RequestedRow CollectRequestedRow(const MTPSecureRequiredType &data) {
 	auto result = RequestedRow();
 	CollectToRequestedRow(result, data);
@@ -195,6 +588,7 @@ QJsonObject GetJSONFromFile(const File &file) {
 		{ "secret", file.secret }
 		});
 }
+#endif
 
 FormRequest PreprocessRequest(const FormRequest &request) {
 	auto result = request;
@@ -202,6 +596,7 @@ FormRequest PreprocessRequest(const FormRequest &request) {
 	return result;
 }
 
+#if 0 // goodToRemove
 QString ValueCredentialsKey(Value::Type type) {
 	using Type = Value::Type;
 	switch (type) {
@@ -230,6 +625,7 @@ QString SpecialScanCredentialsKey(FileType type) {
 	}
 	Unexpected("Type in SpecialScanCredentialsKey.");
 }
+#endif
 
 QString ValidateUrl(const QString &url) {
 	const auto result = qthelp::validate_url(url);
@@ -239,6 +635,7 @@ QString ValidateUrl(const QString &url) {
 		: QString();
 }
 
+#if 0 // goodToRemove
 auto ParseConfig(const QByteArray &json) {
 	auto languagesByCountryCode = std::map<QString, QString>();
 	auto error = QJsonParseError{ 0, QJsonParseError::NoError };
@@ -265,6 +662,7 @@ auto ParseConfig(const QByteArray &json) {
 	}
 	return languagesByCountryCode;
 }
+#endif
 
 } // namespace
 
@@ -333,15 +731,25 @@ EditFile::EditFile(
 : value(value)
 , type(type)
 , fields(std::move(fields))
+#if 0 // goodToRemove
 , uploadData(session, std::move(uploadData))
+#endif
+, uploadData(std::move(uploadData))
 , guard(std::make_shared<bool>(true)) {
 }
 
+#if 0 // goodToRemove
 UploadScanDataPointer::UploadScanDataPointer(
 	not_null<Main::Session*> session,
 	std::unique_ptr<UploadScanData> &&value)
 : _session(session)
 , _value(std::move(value)) {
+}
+#endif
+
+UploadScanDataPointer::UploadScanDataPointer(
+	std::unique_ptr<UploadScanData> &&value)
+: _value(std::move(value)) {
 }
 
 UploadScanDataPointer::UploadScanDataPointer(
@@ -350,6 +758,7 @@ UploadScanDataPointer::UploadScanDataPointer(
 UploadScanDataPointer &UploadScanDataPointer::operator=(
 	UploadScanDataPointer &&other) = default;
 
+#if 0 // goodToRemove
 UploadScanDataPointer::~UploadScanDataPointer() {
 	if (const auto value = _value.get()) {
 		if (const auto fullId = value->fullId) {
@@ -357,6 +766,7 @@ UploadScanDataPointer::~UploadScanDataPointer() {
 		}
 	}
 }
+#endif
 
 UploadScanData *UploadScanDataPointer::get() const {
 	return _value.get();
@@ -484,7 +894,10 @@ void Value::clearEditData() {
 bool Value::uploadingScan() const {
 	const auto uploading = [](const EditFile &file) {
 		return file.uploadData
+			&& file.uploadData->uploader
+#if 0 // goodToRemove
 			&& file.uploadData->fullId
+#endif
 			&& !file.deleted;
 	};
 	const auto uploadingInList = [&](FileType type) {
@@ -612,9 +1025,22 @@ FormController::FormController(
 	const FormRequest &request)
 : _controller(controller)
 , _api(&_controller->session().mtp())
+, _apiPassword(&_controller->session().api())
 , _request(PreprocessRequest(request))
 , _shortPollTimer([=] { reloadPassword(); })
 , _view(std::make_unique<PanelController>(this)) {
+	_apiPassword.state(
+	) | rpl::start_with_next([=](const Core::CloudPasswordState &state) {
+		_passwordRequestId = 0;
+
+		_password = state;
+		if (state.serverError.isEmpty()) {
+			showForm();
+		} else {
+			formFail(state.serverError);
+		}
+		shortPollEmailConfirmation();
+	}, _lifetime);
 }
 
 Main::Session &FormController::session() const {
@@ -634,6 +1060,7 @@ QString FormController::privacyPolicyUrl() const {
 	return _form.privacyPolicyUrl;
 }
 
+#if 0 // goodToRemove
 bytes::vector FormController::passwordHashForAuth(
 		bytes::const_span password) const {
 	return Core::ComputeCloudPasswordHash(_password.request.algo, password);
@@ -720,7 +1147,70 @@ auto FormController::prepareFinalData() -> FinalData {
 		errors
 	};
 }
+#endif
 
+std::vector<not_null<const Value*>> FormController::submitGetErrors() {
+	if (_submitRequestId || _submitSuccess|| _cancelled) {
+		return {};
+	}
+
+	auto errors = std::vector<not_null<const Value*>>();
+	auto elementTypes = QVector<Tdb::TLpassportElementType>();
+	const auto scopes = ComputeScopes(_form);
+	for (const auto &scope : scopes) {
+		const auto row = ComputeScopeRow(scope);
+		if (row.ready.isEmpty() || !row.error.isEmpty()) {
+			errors.push_back(scope.details
+				? scope.details
+				: scope.documents[0].get());
+			continue;
+		}
+		if (scope.details) {
+			elementTypes.push_back(ConvertType(scope.details->type));
+		}
+		if (!scope.documents.empty()) {
+			for (const auto &document : scope.documents) {
+				if (document->scansAreFilled()) {
+					elementTypes.push_back(ConvertType(document->type));
+					break;
+				}
+			}
+		}
+	}
+	if (!errors.empty()) {
+		return errors;
+	}
+
+	_submitRequestId = _api.request(Tdb::TLsendPassportAuthorizationForm(
+		Tdb::tl_int32(_form.id),
+		Tdb::tl_vector<Tdb::TLpassportElementType>(elementTypes)
+	)).done([=](const Tdb::TLok &) {
+		_submitRequestId = 0;
+		_submitSuccess = true;
+
+		_view->showToast(tr::lng_passport_success(tr::now));
+
+		base::call_delayed(
+			(st::defaultToast.durationFadeIn
+				+ Ui::Toast::kDefaultDuration
+				+ st::defaultToast.durationFadeOut),
+			this,
+			[=] { cancel(); });
+	}).fail([=](const Tdb::Error &error) {
+		_submitRequestId = 0;
+		if (handleAppUpdateError(error.message)) {
+		} else if (AcceptErrorRequiresRestart(error.message)) {
+			suggestRestart();
+		} else {
+			_view->show(Box<Ui::InformBox>(
+				Lang::Hard::SecureAcceptError() + "\n" + error.message));
+		}
+	}).send();
+
+	return {};
+}
+
+#if 0 // goodToRemove
 std::vector<not_null<const Value*>> FormController::submitGetErrors() {
 	if (_submitRequestId || _submitSuccess|| _cancelled) {
 		return {};
@@ -814,7 +1304,76 @@ void FormController::requestPasswordData(mtpRequestId &guard) {
 		});
 	}).send();
 }
+#endif
 
+void FormController::completeFormWithPassword(const QByteArray &password) {
+	Expects(_password.hasPassword);
+
+	const auto submitSaved = !base::take(_savedPasswordValue).isEmpty();
+	if (_passwordCheckRequestId || !_form.id) {
+		return;
+	} else if (password.isEmpty()) {
+		_passwordError.fire(QString());
+		return;
+	}
+
+	const auto requestEmail = [=] {
+		_api.request(Tdb::TLgetRecoveryEmailAddress(
+			Tdb::tl_string(QString(password))
+		)).done([=](const Tdb::TLDrecoveryEmailAddress &data) {
+			_confirmedEmail = data.vrecovery_email_address().v;
+		}).fail([=](const Tdb::Error &error) {
+			_confirmedEmail = QString();
+		}).send();
+	};
+
+	_passwordCheckRequestId = _api.request(
+		Tdb::TLgetPassportAuthorizationFormAvailableElements(
+			Tdb::tl_int32(_form.id),
+			Tdb::tl_string(QString(password)))
+	).done([=](const Tdb::TLpassportElementsWithErrors &result) {
+		_passwordCheckRequestId = 0;
+		_savedPasswordValue = password;
+		result.match([&](const Tdb::TLDpassportElementsWithErrors &data) {
+			for (const auto &element : data.velements().v) {
+				const auto type = ConvertType(element);
+				const auto [it, ok] = _form.values.emplace(type, Value(type));
+				FillValue(it->second, element);
+			}
+			_form.pendingErrors = data.verrors().v;
+			fillErrors();
+			fillNativeFromFallback();
+			_secretReady.fire({});
+
+			requestEmail();
+
+			auto saved = SavedCredentials();
+			saved.password = password;
+			session().data().rememberPassportCredentials(
+				std::move(saved),
+				kRememberCredentialsDelay);
+		});
+	}).fail([=](const Tdb::Error &error) {
+		_passwordCheckRequestId = 0;
+		// if (error.type() == qstr("SRP_ID_INVALID")) {
+			// handleSrpIdInvalid(_passwordCheckRequestId);
+		session().data().forgetPassportCredentials();
+		if (submitSaved) {
+			// Force reload and show form.
+			_password = PasswordSettings();
+			reloadPassword();
+		} else if (Tdb::IsFloodError(error)) {
+			_passwordError.fire(tr::lng_flood_error(tr::now));
+		} else if ((error.message == u"PASSWORD_HASH_INVALID"_q)
+			|| (error.message == u"SRP_PASSWORD_CHANGED"_q)) {
+			_passwordError.fire(tr::lng_passport_password_wrong(tr::now));
+		} else {
+			_passwordError.fire_copy(error.message);
+		}
+	}).send();
+}
+
+#if 0 // goodToRemove
 void FormController::submitPassword(const QByteArray &password) {
 	Expects(!!_password.request);
 
@@ -912,11 +1471,13 @@ bool FormController::handleSrpIdInvalid(mtpRequestId &guard) {
 		return true;
 	}
 }
+#endif
 
 void FormController::passwordServerError() {
 	_view->showCriticalError(Lang::Hard::ServerError());
 }
 
+#if 0 // goodToRemove
 void FormController::checkSavedPasswordSettings(
 		const SavedCredentials &credentials) {
 	const auto callback = [=](const Core::CloudPasswordResult &check) {
@@ -969,11 +1530,51 @@ void FormController::checkSavedPasswordSettings(
 		}
 	}).send();
 }
+#endif
 
 void FormController::recoverPassword() {
 	if (!_password.hasRecovery) {
 		_view->show(Ui::MakeInformBox(tr::lng_signin_no_email_forgot()));
 		return;
+	} else if (_recoverRequestLifetime) {
+		return;
+	}
+
+	_apiPassword.requestPasswordRecovery(
+	) | rpl::start_with_next_error([=](const QString &pattern) {
+		_recoverRequestLifetime.destroy();
+
+		auto fields = PasscodeBox::CloudFields{
+			.hasPassword = _password.hasPassword,
+			.hasRecovery = _password.hasRecovery,
+			.pendingResetDate = _password.pendingResetDate,
+		};
+		const auto box = _view->show(Box<RecoverBox>(
+			_controller->session().sender(),
+			&_controller->session(),
+			pattern,
+			fields));
+
+		box->newPasswordSet(
+		) | rpl::start_with_next([=](const QByteArray &password) {
+			if (password.isEmpty()) {
+				reloadPassword();
+			} else {
+				reloadAndSubmitPassword(password);
+			}
+		}, box->lifetime());
+
+		box->recoveryExpired(
+		) | rpl::start_with_next([=] {
+			box->closeBox();
+		}, box->lifetime());
+	}, [=](const QString &error) {
+		_recoverRequestLifetime.destroy();
+		_view->show(Box<Ui::InformBox>(Lang::Hard::ServerError()
+			+ '\n'
+			+ error));
+	}, _recoverRequestLifetime);
+#if 0 // goodToRemove
 	} else if (_recoverRequestId) {
 		return;
 	}
@@ -1000,9 +1601,7 @@ void FormController::recoverPassword() {
 		const auto force = fields.mtp.newSecureSecretAlgo;
 
 		const auto box = _view->show(Box<RecoverBox>(
-#if 0 // goodToRemove
 			&_controller->session().mtp(),
-#endif
 			_controller->session().sender(),
 			&_controller->session(),
 			pattern,
@@ -1026,6 +1625,7 @@ void FormController::recoverPassword() {
 			+ '\n'
 			+ error.type()));
 	}).send();
+#endif
 }
 
 void FormController::reloadPassword() {
@@ -1038,6 +1638,8 @@ void FormController::reloadAndSubmitPassword(const QByteArray &password) {
 }
 
 void FormController::cancelPassword() {
+	_apiPassword.clearUnconfirmedPassword();
+#if 0 // goodToRemove
 	if (_passwordRequestId) {
 		return;
 	}
@@ -1049,8 +1651,10 @@ void FormController::cancelPassword() {
 		_passwordRequestId = 0;
 		reloadPassword();
 	}).send();
+#endif
 }
 
+#if 0 // doLater - unneeded due TDLib?
 void FormController::validateSecureSecret(
 		bytes::const_span encryptedSecret,
 		bytes::const_span passwordHashForSecret,
@@ -1143,7 +1747,9 @@ void FormController::decryptValues() {
 	fillErrors();
 	fillNativeFromFallback();
 }
+#endif
 
+#if 0 // goodToRemove
 void FormController::fillErrors() {
 	const auto find = [&](const MTPSecureValueType &type) -> Value* {
 		const auto i = _form.values.find(ConvertType(type));
@@ -1236,9 +1842,100 @@ void FormController::fillErrors() {
 		});
 	}
 }
+#endif
+
+void FormController::fillErrors() {
+	using namespace Tdb;
+
+	const auto find = [&](const TLpassportElementType &type) -> Value* {
+		const auto i = _form.values.find(ConvertType(type));
+		if (i != end(_form.values)) {
+			return &i->second;
+		}
+		LOG(("API Error: Value not found for error type."));
+		return nullptr;
+	};
+	const auto setSpecialScanError = [&](
+			Value &value,
+			FileType type,
+			const QString &text) {
+		if (value.requiresSpecialScan(type)) {
+			const auto i = value.specialScans.find(type);
+			if (i != value.specialScans.end()) {
+				i->second.error = text;
+			} else {
+				LOG(("API Error: "
+					"Special scan %1 not found for error value."
+					).arg(int(type)));
+			}
+		}
+	};
+
+	const auto processError = [&](const TLDpassportElementError &error) {
+		const auto value = find(error.vtype());
+		if (!value) {
+			return;
+		}
+		const auto message = error.vmessage().v;
+
+		error.vsource().match([&](
+				const TLDpassportElementErrorSourceUnspecified &) {
+			if (CanHaveErrors(value->type)) {
+				value->error = message;
+			}
+		}, [&](const TLDpassportElementErrorSourceDataField &data) {
+			const auto key = FieldKeyFromTDBtoMTP(data.vfield_name().v);
+			if (CanHaveErrors(value->type) && !SkipFieldCheck(value, key)) {
+				value->data.parsed.fields[key].error = message;
+			}
+		}, [&](const TLDpassportElementErrorSourceFrontSide &) {
+			setSpecialScanError(*value, FileType::FrontSide, message);
+		}, [&](const TLDpassportElementErrorSourceReverseSide &) {
+			setSpecialScanError(*value, FileType::ReverseSide, message);
+		}, [&](const TLDpassportElementErrorSourceSelfie &) {
+			setSpecialScanError(*value, FileType::Selfie, message);
+		}, [&](const TLDpassportElementErrorSourceTranslationFile &data) {
+			if (value->requiresScan(FileType::Translation)) {
+				const auto index = data.vfile_index().v;
+				value->files(FileType::Translation)[index].error = message;
+			}
+		}, [&](const TLDpassportElementErrorSourceTranslationFiles &) {
+			if (value->requiresScan(FileType::Translation)) {
+				value->fileMissingError(FileType::Translation) = message;
+			}
+		}, [&](const TLDpassportElementErrorSourceFile &data) {
+			if (value->requiresScan(FileType::Scan)) {
+				const auto index = data.vfile_index().v;
+				value->files(FileType::Translation)[index].error = message;
+			}
+		}, [&](const TLDpassportElementErrorSourceFiles &) {
+			if (value->requiresScan(FileType::Scan)) {
+				value->fileMissingError(FileType::Scan) = message;
+			}
+		});
+	};
+
+	for (const auto &error : std::as_const(_form.pendingErrors)) {
+		error.match(processError);
+	}
+}
 
 rpl::producer<EditDocumentCountry> FormController::preferredLanguage(
 		const QString &countryCode) {
+	return [=](auto consumer) {
+		_api.request(Tdb::TLgetPreferredCountryLanguage(
+			Tdb::tl_string(countryCode)
+		)).done([=](const Tdb::TLDtext &data) {
+			consumer.put_next({ countryCode, data.vtext().v });
+			consumer.put_done();
+		}).fail([=](const Tdb::Error &error) {
+			consumer.put_next({ countryCode, QString() });
+			consumer.put_done();
+		}).send();
+
+		return rpl::lifetime();
+	};
+#if 0 // goodToRemove
 	const auto findLang = [=] {
 		if (countryCode.isEmpty()) {
 			return QString();
@@ -1273,6 +1970,7 @@ rpl::producer<EditDocumentCountry> FormController::preferredLanguage(
 
 		return rpl::lifetime();
 	};
+#endif
 }
 
 void FormController::fillNativeFromFallback() {
@@ -1341,6 +2039,7 @@ void FormController::fillNativeFromFallback() {
 	}, _lifetime);
 }
 
+#if 0 // goodToRemove
 void FormController::decryptValue(Value &value) const {
 	Expects(!_secret.empty());
 
@@ -1405,6 +2104,7 @@ bool FormController::validateValueSecrets(Value &value) const {
 	}
 	return true;
 }
+#endif
 
 void FormController::resetValue(Value &value) const {
 	value.fillDataFrom(Value(value.type));
@@ -1449,12 +2149,21 @@ void FormController::uploadScan(
 		}
 		return std::nullopt;
 	}();
+
+	auto uploadData = UploadScanData();
+	uploadData.content = std::move(content);
+	uploadFile(
+		nonconst->fileInEdit(type, fileIndex),
+		std::move(uploadData));
+
+#if 0 // goodToRemove
 	auto &scan = nonconst->fileInEdit(type, fileIndex);
 	encryptFile(scan, std::move(content), [=](UploadScanData &&result) {
 		uploadEncryptedFile(
 			nonconst->fileInEdit(type, fileIndex),
 			std::move(result));
 	});
+#endif
 }
 
 void FormController::deleteScan(
@@ -1486,6 +2195,7 @@ void FormController::prepareFile(
 	_scanUpdated.fire(&file);
 }
 
+#if 0 // goodToRemove
 void FormController::encryptFile(
 		EditFile &file,
 		QByteArray &&content,
@@ -1518,6 +2228,7 @@ void FormController::encryptFile(
 		});
 	});
 }
+#endif
 
 void FormController::scanDeleteRestore(
 		not_null<const Value*> value,
@@ -1553,6 +2264,7 @@ bool FormController::canAddScan(
 	return (scansCount < limit);
 }
 
+#if 0 // goodToRemove
 void FormController::subscribeToUploader() {
 	if (_uploaderSubscriptions) {
 		return;
@@ -1575,7 +2287,62 @@ void FormController::subscribeToUploader() {
 		scanUploadFail(fullId);
 	}, _uploaderSubscriptions);
 }
+#endif
 
+void FormController::updateFile(const Tdb::TLDfile &data) {
+	const auto key = FileKey{ uint64(data.vid().v) };
+	const auto &remote = data.vremote().data();
+	const auto &local = data.vlocal().data();
+
+	const auto [value, file] = findFile(key);
+	const auto fileInEdit = findEditFile(key);
+
+	if (remote.vis_uploading_completed().v) {
+	} else if (remote.vis_uploading_active().v) {
+		if (fileInEdit) {
+			fileInEdit->uploadData->status.set(
+				LoadStatus::Status::InProgress,
+				remote.vuploaded_size().v);
+		}
+	}
+	if (local.vis_downloading_completed().v) {
+		if (file) {
+			file->downloadStatus.set(LoadStatus::Status::Done);
+			file->image = Images::Read({ .path = local.vpath().v }).image;
+		}
+	} else if (local.vis_downloading_active().v) {
+		if (file) {
+			file->downloadStatus.set(
+				LoadStatus::Status::InProgress,
+				local.vdownloaded_size().v);
+		}
+	}
+	if (fileInEdit) {
+		if (file) {
+			fileInEdit->fields.image = file->image;
+			fileInEdit->fields.downloadStatus = file->downloadStatus;
+		}
+		_scanUpdated.fire(fileInEdit);
+	}
+}
+
+void FormController::subscribeToUploader() {
+	if (_uploaderSubscriptions) {
+		return;
+	}
+
+	using namespace Tdb;
+
+	session().tdb().updates(
+	) | rpl::start_with_next([=](const TLupdate &update) {
+		update.match([&](const TLDupdateFile &result) {
+			updateFile(result.vfile().data());
+		}, [](const auto &) {
+		});
+	}, _uploaderSubscriptions);
+}
+
+#if 0 // goodToRemove
 void FormController::uploadEncryptedFile(
 		EditFile &file,
 		UploadScanData &&data) {
@@ -1605,7 +2372,61 @@ void FormController::uploadEncryptedFile(
 		std::move(prepared));
 #endif
 }
+#endif
 
+void FormController::uploadFile(
+		EditFile &file,
+		UploadScanData &&data) {
+
+	file.uploadData = UploadScanDataPointer(
+		std::make_unique<UploadScanData>(std::move(data)));
+
+	prepareFile(file, file.uploadData->content);
+	const auto key = FileKey{ file.fields.id };
+
+	auto uploader = std::make_shared<Tdb::BytesUploader>(
+		&session().tdb(),
+		file.uploadData->content,
+		Tdb::tl_fileTypeSecure());
+
+	uploader->updates(
+	) | rpl::start_with_next_error_done([=](int offset) {
+		if (const auto file = findEditFile(key)) {
+			Assert(file->uploadData != nullptr);
+
+			file->uploadData->status.set(
+				LoadStatus::Status::InProgress,
+				offset);
+
+			_scanUpdated.fire(file);
+		}
+	}, [=](const QString &error) {
+		if (const auto file = findEditFile(key)) {
+			Assert(file->uploadData != nullptr);
+
+			file->uploadData->status.set(LoadStatus::Status::Failed);
+
+			_scanUpdated.fire(file);
+		}
+	}, [=] {
+		if (const auto file = findEditFile(key)) {
+			Assert(file->uploadData != nullptr);
+
+			if (const auto loader = base::take(file->uploadData->uploader)) {
+				file->fields.id = loader->fileId();
+			}
+			file->uploadData->status.set(LoadStatus::Status::Done);
+
+			_scanUpdated.fire(file);
+		}
+	}, uploader->lifetime());
+
+	uploader->start();
+
+	file.uploadData->uploader = std::move(uploader);
+}
+
+#if 0 // goodToRemove
 void FormController::scanUploadDone(const Storage::UploadSecureDone &data) {
 	if (const auto file = findEditFile(data.fullId)) {
 		Assert(file->uploadData != nullptr);
@@ -1646,13 +2467,17 @@ void FormController::scanUploadFail(const FullMsgId &fullId) {
 		_scanUpdated.fire(file);
 	}
 }
+#endif
 
 rpl::producer<> FormController::secretReadyEvents() const {
 	return _secretReady.events();
 }
 
 QString FormController::defaultEmail() const {
+	return _confirmedEmail;
+#if 0 // goodToRemove
 	return _password.confirmedEmail;
+#endif
 }
 
 QString FormController::defaultPhoneNumber() const {
@@ -1697,9 +2522,26 @@ void FormController::verify(
 		verificationError(nonconst, tr::lng_signin_wrong_code(tr::now));
 		return;
 	}
+	using namespace Tdb;
 	nonconst->verification.requestId = [&] {
 		switch (nonconst->type) {
 		case Value::Type::Phone:
+			return _api.request(TLcheckPhoneNumberCode(
+				tl_string(prepared)
+			)).done([=](const TLok &) {
+				sendSaveRequest(nonconst, ValueToTLInputElement(*nonconst));
+				clearValueVerification(nonconst);
+			}).fail([=](const Error &error) {
+				nonconst->verification.requestId = 0;
+				if (error.message == u"PHONE_CODE_INVALID"_q) {
+					verificationError(
+						nonconst,
+						tr::lng_signin_wrong_code(tr::now));
+				} else {
+					verificationError(nonconst, error.message);
+				}
+			}).send();
+#if 0 // goodToRemove
 			return _api.request(MTPaccount_VerifyPhone(
 				MTP_string(getPhoneFromValue(nonconst)),
 				MTP_string(nonconst->verification.phoneCodeHash),
@@ -1717,7 +2559,24 @@ void FormController::verify(
 					verificationError(nonconst, error.type());
 				}
 			}).send();
+#endif
 		case Value::Type::Email:
+			return _api.request(TLcheckEmailAddressVerificationCode(
+				tl_string(prepared)
+			)).done([=](const TLok &) {
+				sendSaveRequest(nonconst, ValueToTLInputElement(*nonconst));
+				clearValueVerification(nonconst);
+			}).fail([=](const Error &error) {
+				nonconst->verification.requestId = 0;
+				if (error.message == u"CODE_INVALID"_q) {
+					verificationError(
+						nonconst,
+						tr::lng_signin_wrong_code(tr::now));
+				} else {
+					verificationError(nonconst, error.message);
+				}
+			}).send();
+#if 0 // goodToRemove
 			return _api.request(MTPaccount_VerifyEmail(
 				MTP_emailVerifyPurposePassport(),
 				MTP_emailVerificationCode(MTP_string(prepared))
@@ -1734,6 +2593,7 @@ void FormController::verify(
 					verificationError(nonconst, error.type());
 				}
 			}).send();
+#endif
 		}
 		Unexpected("Type in FormController::verify().");
 	}();
@@ -1787,7 +2647,38 @@ void FormController::loadFile(File &file) {
 		return;
 	}
 
+	subscribeToUploader();
+
 	const auto key = FileKey{ file.id };
+
+	using namespace Tdb;
+	_api.request(TLdownloadFile(
+		tl_int32(file.id),
+		tl_int32(1),
+		tl_int32(file.downloadStatus.offset()),
+		tl_int32(0),
+		tl_bool(false))
+	).done([=](const TLDfile &data) {
+		if (const auto [value, file] = findFile(key); file != nullptr) {
+			const auto offset = data.vlocal().data().vdownload_offset().v;
+			file->downloadStatus.set(LoadStatus::Status::InProgress, offset);
+			file->id = data.vid().v;
+			if (const auto fileInEdit = findEditFile(key)) {
+				fileInEdit->fields.id = data.vid().v;
+			}
+		}
+		updateFile(data);
+	}).fail([=](const Error &error) {
+		if (const auto [value, file] = findFile(key); file != nullptr) {
+			file->downloadStatus.set(LoadStatus::Status::Failed);
+			if (const auto fileInEdit = findEditFile(key)) {
+				fileInEdit->fields.downloadStatus = file->downloadStatus;
+				_scanUpdated.fire(fileInEdit);
+			}
+		}
+	}).send();
+
+#if 0 // goodToRemove
 	const auto i = _fileLoaders.find(key);
 	if (i != _fileLoaders.end()) {
 		return;
@@ -1822,8 +2713,10 @@ void FormController::loadFile(File &file) {
 		fileLoadDone(key, loader->bytes());
 	}, loader->lifetime());
 	loader->start();
+#endif
 }
 
+#if 0 // goodToRemove
 void FormController::fileLoadDone(FileKey key, const QByteArray &bytes) {
 	if (const auto &[value, file] = findFile(key); file != nullptr) {
 		const auto decrypted = DecryptData(
@@ -1863,6 +2756,7 @@ void FormController::fileLoadFail(FileKey key) {
 		}
 	}
 }
+#endif
 
 void FormController::cancelValueEdit(not_null<const Value*> value) {
 	Expects(value->editScreens > 0);
@@ -1898,7 +2792,9 @@ void FormController::cancelValueVerification(not_null<const Value*> value) {
 void FormController::clearValueVerification(not_null<Value*> value) {
 	const auto was = (value->verification.codeLength != 0);
 	if (const auto requestId = base::take(value->verification.requestId)) {
+#if 0 // goodToRemove
 		_api.request(requestId).cancel();
+#endif
 	}
 	value->verification = Verification();
 	if (was) {
@@ -1906,9 +2802,11 @@ void FormController::clearValueVerification(not_null<Value*> value) {
 	}
 }
 
+#if 0 // goodToRemove
 bool FormController::isEncryptedValue(Value::Type type) const {
 	return (type != Value::Type::Phone && type != Value::Type::Email);
 }
+#endif
 
 void FormController::saveValueEdit(
 		not_null<const Value*> value,
@@ -1930,13 +2828,18 @@ void FormController::saveValueEdit(
 		});
 		return;
 	}
+	_uploaderSubscriptions.destroy();
+
 	ApplyDataChanges(nonconst->data, std::move(data));
 
+	sendSaveRequest(nonconst, ValueToTLInputElement(*value));
+#if 0 // goodToRemove
 	if (isEncryptedValue(nonconst->type)) {
 		saveEncryptedValue(nonconst);
 	} else {
 		savePlainTextValue(nonconst);
 	}
+#endif
 }
 
 void FormController::deleteValueEdit(not_null<const Value*> value) {
@@ -1945,6 +2848,17 @@ void FormController::deleteValueEdit(not_null<const Value*> value) {
 	}
 
 	const auto nonconst = findValue(value);
+	nonconst->saveRequestId = _api.request(Tdb::TLdeletePassportElement(
+		ConvertType(nonconst->type)
+	)).done([=](const Tdb::TLok &) {
+		resetValue(*nonconst);
+		_valueSaveFinished.fire_copy(value);
+	}).fail([=](const Tdb::Error &error) {
+		nonconst->saveRequestId = 0;
+		valueSaveShowError(nonconst, error.message);
+	}).send();
+
+#if 0 // goodToRemove
 	nonconst->saveRequestId = _api.request(MTPaccount_DeleteSecureValue(
 		MTP_vector<MTPSecureValueType>(1, ConvertType(nonconst->type))
 	)).done([=] {
@@ -1954,8 +2868,10 @@ void FormController::deleteValueEdit(not_null<const Value*> value) {
 		nonconst->saveRequestId = 0;
 		valueSaveShowError(nonconst, error);
 	}).send();
+#endif
 }
 
+#if 0 // goodToRemove
 void FormController::saveEncryptedValue(not_null<Value*> value) {
 	Expects(isEncryptedValue(value->type));
 
@@ -2086,7 +3002,63 @@ void FormController::savePlainTextValue(not_null<Value*> value) {
 		MTPVector<MTPInputSecureFile>(),
 		plain(MTP_string(text))));
 }
+#endif
 
+void FormController::sendSaveRequest(
+		not_null<Value*> value,
+		const Tdb::TLinputPassportElement &data) {
+	Expects(value->saveRequestId == 0);
+
+	value->saveRequestId = _api.request(Tdb::TLsetPassportElement(
+		data,
+		Tdb::tl_string(QString(_savedPasswordValue))
+	)).done([=](const Tdb::TLpassportElement &result) {
+		auto scansInEdit = value->takeAllFilesInEdit();
+
+		auto refreshedType = ConvertType(result);
+		auto refreshed = Value(refreshedType);
+		FillValue(refreshed, result);
+		value->fillDataFrom(std::move(refreshed));
+
+		_valueSaveFinished.fire_copy(value);
+	}).fail([=](const Tdb::Error &error) {
+		value->saveRequestId = 0;
+		const auto code = error.message;
+		if (handleAppUpdateError(code)) {
+		} else if (code == u"PHONE_VERIFICATION_NEEDED"_q) {
+			if (value->type == Value::Type::Phone) {
+				startPhoneVerification(value);
+				return;
+			}
+		} else if (code == u"PHONE_NUMBER_INVALID"_q) {
+			if (value->type == Value::Type::Phone) {
+				value->data.parsedInEdit.fields["value"].error
+					= tr::lng_bad_phone(tr::now);
+				valueSaveFailed(value);
+				return;
+			}
+		} else if (code == u"EMAIL_VERIFICATION_NEEDED"_q) {
+			if (value->type == Value::Type::Email) {
+				startEmailVerification(value);
+				return;
+			}
+		} else if (code == u"EMAIL_INVALID"_q) {
+			if (value->type == Value::Type::Email) {
+				value->data.parsedInEdit.fields["value"].error
+					= tr::lng_cloud_password_bad_email(tr::now);
+				valueSaveFailed(value);
+				return;
+			}
+		}
+		if (SaveErrorRequiresRestart(code)) {
+			suggestRestart();
+		} else {
+			valueSaveShowError(value, error.message);
+		}
+	}).send();
+}
+
+#if 0 // goodToRemove
 void FormController::sendSaveRequest(
 		not_null<Value*> value,
 		const MTPInputSecureValue &data) {
@@ -2139,6 +3111,7 @@ void FormController::sendSaveRequest(
 		}
 	}).send();
 }
+#endif
 
 QString FormController::getPhoneFromValue(
 		not_null<const Value*> value) const {
@@ -2165,6 +3138,68 @@ QString FormController::getPlainTextFromValue(
 }
 
 void FormController::startPhoneVerification(not_null<Value*> value) {
+	using namespace Tdb;
+	value->verification.requestId = _api.request(
+		TLsendPhoneNumberCode(
+			tl_string(getPhoneFromValue(value)),
+			tl_phoneNumberAuthenticationSettings(
+				tl_bool(false), // allow_flash_call
+				tl_bool(false), // allow_missed_call
+				tl_bool(false), // is_current_phone_number
+				tl_bool(false), // has_unknown_phone_number
+				tl_bool(false), // allow_sms_retriever_api
+				std::nullopt, // firebase_authentication_settings
+				tl_vector<TLstring>()), // authentication_tokens
+			tl_phoneNumberCodeTypeVerify()
+	)).done([=](const TLDauthenticationCodeInfo &data) {
+		value->verification.requestId = 0;
+
+		data.vtype().match([&](
+				const TLDauthenticationCodeTypeTelegramMessage &type) {
+			LOG(("API Error: sentCodeTypeApp not expected "
+				"in FormController::startPhoneVerification."));
+		}, [&](const TLDauthenticationCodeTypeSms &type) {
+			value->verification.codeLength = (type.vlength().v > 0)
+				? type.vlength().v
+				: -1;
+			const auto next = data.vnext_type();
+			if (!next) {
+				return;
+			}
+			next->match([&](const TLDauthenticationCodeTypeCall &nextType) {
+				value->verification.call = std::make_unique<Ui::SentCodeCall>(
+					[=] { requestPhoneCall(value); },
+					[=] { _verificationUpdate.fire_copy(value); });
+				value->verification.call->setStatus({
+					Ui::SentCodeCall::State::Waiting,
+					data.vtimeout().v,
+				});
+			}, [](const auto &) {
+			});
+		}, [&](const TLDauthenticationCodeTypeCall &type) {
+			value->verification.codeLength = (type.vlength().v > 0)
+				? type.vlength().v
+				: -1;
+			value->verification.call = std::make_unique<Ui::SentCodeCall>(
+				[=] { requestPhoneCall(value); },
+				[=] { _verificationUpdate.fire_copy(value); });
+			value->verification.call->setStatus(
+				{ Ui::SentCodeCall::State::Called, 0 });
+			if (data.vnext_type()) {
+				LOG(("API Error: next_type is not supported for calls."));
+			}
+		}, [&](const TLDauthenticationCodeTypeFlashCall &type) {
+			LOG(("API Error: sentCodeTypeFlashCall not expected "
+				"in FormController::startPhoneVerification."));
+		});
+
+		_verificationNeeded.fire_copy(value);
+	}).fail([=](const Error &error) {
+		value->verification.requestId = 0;
+		valueSaveShowError(value, error.message);
+	}).send();
+
+#if 0 // goodToRemove
 	value->verification.requestId = _api.request(MTPaccount_SendVerifyPhoneCode(
 		MTP_string(getPhoneFromValue(value)),
 		MTP_codeSettings(
@@ -2239,10 +3274,24 @@ void FormController::startPhoneVerification(not_null<Value*> value) {
 		value->verification.requestId = 0;
 		valueSaveShowError(value, error);
 	}).send();
+#endif
 }
 
 void FormController::startEmailVerification(not_null<Value*> value) {
 	value->verification.requestId = _api.request(
+		Tdb::TLsendEmailAddressVerificationCode(
+			Tdb::tl_string(getEmailFromValue(value)))
+	).done([=](const Tdb::TLDemailAddressAuthenticationCodeInfo &data) {
+		value->verification.requestId = 0;
+		value->verification.codeLength = (data.vlength().v > 0)
+			? data.vlength().v
+			: -1;
+		_verificationNeeded.fire_copy(value);
+	}).fail([=](const Tdb::Error &error) {
+		valueSaveShowError(value, error.message);
+	}).send();
+
+#if 0 // goodToRemove
 		MTPaccount_SendVerifyEmailCode(
 			MTP_emailVerifyPurposePassport(),
 			MTP_string(getEmailFromValue(value)))
@@ -2258,6 +3307,7 @@ void FormController::startEmailVerification(not_null<Value*> value) {
 	}).fail([=](const MTP::Error &error) {
 		valueSaveShowError(value, error);
 	}).send();
+#endif
 }
 
 
@@ -2266,6 +3316,7 @@ void FormController::requestPhoneCall(not_null<Value*> value) {
 
 	value->verification.call->setStatus(
 		{ Ui::SentCodeCall::State::Calling, 0 });
+#if 0 // goodToRemove
 	_api.request(MTPauth_ResendCode(
 		MTP_flags(0),
 		MTP_string(getPhoneFromValue(value)),
@@ -2274,13 +3325,25 @@ void FormController::requestPhoneCall(not_null<Value*> value) {
 	)).done([=] {
 		value->verification.call->callDone();
 	}).send();
+#endif
+
+	_api.request(Tdb::TLresendPhoneNumberCode(
+	)).done([=](const Tdb::TLauthenticationCodeInfo &) {
+		value->verification.call->callDone();
+	}).send();
 }
 
 void FormController::valueSaveShowError(
 		not_null<Value*> value,
+#if 0 // goodToRemove
 		const MTP::Error &error) {
+#endif
+		const QString &error) {
 	_view->show(Ui::MakeInformBox(
+#if 0 // goodToRemove
 		Lang::Hard::SecureSaveError() + "\n" + error.type()));
+#endif
+		Lang::Hard::SecureSaveError() + "\n" + error));
 	valueSaveFailed(value);
 }
 
@@ -2289,6 +3352,7 @@ void FormController::valueSaveFailed(not_null<Value*> value) {
 	_valueSaveFinished.fire_copy(value);
 }
 
+#if 0 // doLater - unneeded due TDLib?
 void FormController::generateSecret(bytes::const_span password) {
 	Expects(!password.empty());
 
@@ -2351,6 +3415,7 @@ void FormController::saveSecret(
 		}
 	}).send();
 }
+#endif
 
 void FormController::suggestRestart() {
 	_suggestingRestart = true;
@@ -2368,6 +3433,7 @@ void FormController::requestForm() {
 		formFail(NonceNameByScope(_request.scope).toUpper() + "_EMPTY");
 		return;
 	}
+#if 0 // goodToRemove
 	_formRequestId = _api.request(MTPaccount_GetAuthorizationForm(
 		MTP_long(_request.botId.bare),
 		MTP_string(_request.scope),
@@ -2378,8 +3444,29 @@ void FormController::requestForm() {
 	}).fail([=](const MTP::Error &error) {
 		formFail(error.type());
 	}).send();
+#endif
+	_formRequestId = _api.request(Tdb::TLgetPassportAuthorizationForm(
+		Tdb::tl_int53(_request.botId.bare),
+		Tdb::tl_string(_request.scope),
+		Tdb::tl_string(_request.publicKey),
+		Tdb::tl_string(_request.nonce)
+	)).done([=](const Tdb::TLpassportAuthorizationForm &result) {
+		_formRequestId = 0;
+		const auto parsed = result.match([&](
+				const Tdb::TLDpassportAuthorizationForm &data) {
+			return parseForm(data);
+		});
+		if (!parsed) {
+			_view->showCriticalError(tr::lng_passport_form_error(tr::now));
+		} else {
+			showForm();
+		}
+	}).fail([=](const Tdb::Error &error) {
+		formFail(error.message);
+	}).send();
 }
 
+#if 0 // goodToRemove
 auto FormController::parseFiles(
 	const QVector<MTPSecureFile> &data,
 	const std::vector<EditFile> &editData) const
@@ -2498,6 +3585,7 @@ auto FormController::parseValue(
 	}
 	return result;
 }
+#endif
 
 template <typename Condition>
 EditFile *FormController::findEditFileByCondition(Condition &&condition) {
@@ -2525,11 +3613,13 @@ EditFile *FormController::findEditFileByCondition(Condition &&condition) {
 	return nullptr;
 }
 
+#if 0 // goodToRemove
 EditFile *FormController::findEditFile(const FullMsgId &fullId) {
 	return findEditFileByCondition([&](const EditFile &file) {
 		return (file.uploadData && file.uploadData->fullId == fullId);
 	});
 }
+#endif
 
 EditFile *FormController::findEditFile(const FileKey &key) {
 	return findEditFileByCondition([&](const EditFile &file) {
@@ -2566,6 +3656,7 @@ auto FormController::findFile(const FileKey &key)
 	return { nullptr, nullptr };
 }
 
+#if 0 // goodToRemove
 void FormController::formDone(const MTPaccount_AuthorizationForm &result) {
 	if (!parseForm(result)) {
 		_view->showCriticalError(tr::lng_passport_form_error(tr::now));
@@ -2617,6 +3708,38 @@ bool FormController::parseForm(const MTPaccount_AuthorizationForm &result) {
 	_form.pendingErrors = data.verrors().v;
 	return true;
 }
+#endif
+
+bool FormController::parseForm(
+		const Tdb::TLDpassportAuthorizationForm &data) {
+#if 0 // doLater
+	session().data().processUsers(data.vusers());
+#endif
+
+	_form.privacyPolicyUrl = data.vprivacy_policy_url().v;
+	for (const auto &required : data.vrequired_elements().v) {
+		auto row = RequestedRow();
+		FillRequestedRow(row, required);
+		for (const auto &requested : row.values) {
+			const auto type = requested.type;
+			const auto [i, ok] = _form.values.emplace(type, Value(type));
+			auto &value = i->second;
+			value.translationRequired = requested.translationRequired;
+			value.selfieRequired = requested.selfieRequired;
+			value.nativeNames = requested.nativeNames;
+		}
+		_form.request.push_back(row.values
+			| ranges::views::transform([](const RequestedValue &value) {
+				return value.type;
+			}) | ranges::to_vector);
+	}
+	_form.id = data.vid().v;
+	if (!ValidateForm(_form)) {
+		return false;
+	}
+	_bot = session().data().userLoaded(_request.botId);
+	return true;
+}
 
 void FormController::formFail(const QString &error) {
 	_savedPasswordValue = QByteArray();
@@ -2639,6 +3762,7 @@ void FormController::requestPassword() {
 	if (_passwordRequestId) {
 		return;
 	}
+#if 0 // goodToRemove
 	_passwordRequestId = _api.request(MTPaccount_GetPassword(
 	)).done([=](const MTPaccount_Password &result) {
 		_passwordRequestId = 0;
@@ -2646,8 +3770,12 @@ void FormController::requestPassword() {
 	}).fail([=](const MTP::Error &error) {
 		formFail(error.type());
 	}).send();
+#endif
+	_apiPassword.reload();
+	_passwordRequestId = 1;
 }
 
+#if 0 // goodToRemove
 void FormController::passwordDone(const MTPaccount_Password &result) {
 	Expects(result.type() == mtpc_account_password);
 
@@ -2657,6 +3785,7 @@ void FormController::passwordDone(const MTPaccount_Password &result) {
 	}
 	shortPollEmailConfirmation();
 }
+#endif
 
 void FormController::shortPollEmailConfirmation() {
 	if (_password.unconfirmedPattern.isEmpty()) {
@@ -2673,16 +3802,28 @@ void FormController::showForm() {
 		formFail(Lang::Hard::NoAuthorizationBot());
 		return;
 	}
+#if 0 // goodToRemove
 	if (_password.unknownAlgo
 		|| v::is_null(_password.newAlgo)
 		|| v::is_null(_password.newSecureAlgo)) {
+#endif
+	if (_password.outdatedClient) {
 		_view->showUpdateAppBox();
 		return;
+#if 0 // goodToRemove
 	} else if (_password.request) {
+#endif
+	} else if (_password.hasPassword) {
 		if (!_savedPasswordValue.isEmpty()) {
+#if 0 // goodToRemove
 			submitPassword(base::duplicate(_savedPasswordValue));
+#endif
+			completeFormWithPassword(base::duplicate(_savedPasswordValue));
 		} else if (const auto saved = session().data().passportCredentials()) {
+			completeFormWithPassword(saved->password);
+#if 0 // goodToRemove
 			checkSavedPasswordSettings(*saved);
+#endif
 		} else {
 			_view->showAskPassword();
 		}
@@ -2691,6 +3832,7 @@ void FormController::showForm() {
 	}
 }
 
+#if 0 // goodToRemove
 bool FormController::applyPassword(const MTPDaccount_password &result) {
 	auto settings = PasswordSettings();
 	settings.hint = qs(result.vhint().value_or_empty());
@@ -2716,6 +3858,7 @@ bool FormController::applyPassword(PasswordSettings &&settings) {
 	}
 	return false;
 }
+#endif
 
 void FormController::cancel() {
 	if (!_submitSuccess && _serviceErrorText.isEmpty()) {
