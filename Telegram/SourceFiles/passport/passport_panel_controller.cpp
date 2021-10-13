@@ -64,7 +64,10 @@ ScanInfo CollectScanInfo(const EditFile &file) {
 			case LoadStatus::Status::InProgress:
 				return Ui::FormatDownloadText(
 					file.uploadData->status.offset(),
+#if 0 // goodToRemove
 					file.uploadData->bytes.size());
+#endif
+					file.fields.size);
 			case LoadStatus::Status::Done:
 				return tr::lng_passport_scan_uploaded(
 					tr::now,
@@ -647,7 +650,10 @@ void PanelController::submitForm() {
 }
 
 void PanelController::submitPassword(const QByteArray &password) {
+#if 0 // goodToRemove
 	_form->submitPassword(password);
+#endif
+	_form->completeFormWithPassword(password);
 }
 
 void PanelController::recoverPassword() {
@@ -678,6 +684,7 @@ void PanelController::setupPassword() {
 	Expects(_panel != nullptr);
 
 	const auto &settings = _form->passwordSettings();
+#if 0 // goodToRemove
 	if (settings.unknownAlgo
 		|| v::is_null(settings.newAlgo)
 		|| v::is_null(settings.newSecureAlgo)) {
@@ -687,11 +694,21 @@ void PanelController::setupPassword() {
 		showAskPassword();
 		return;
 	}
+#endif
+	if (settings.outdatedClient) {
+		showUpdateAppBox();
+		return;
+	} else if (settings.hasPassword) {
+		showAskPassword();
+		return;
+	}
 
 	auto fields = PasscodeBox::CloudFields{
 		.mtp = PasscodeBox::CloudFields::Mtp{
+#if 0 // goodToRemove
 			.newAlgo = settings.newAlgo,
 			.newSecureSecretAlgo = settings.newSecureAlgo,
+#endif
 		},
 		.hasRecovery = settings.hasRecovery,
 		.pendingResetDate = settings.pendingResetDate,

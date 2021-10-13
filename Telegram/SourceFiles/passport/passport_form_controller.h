@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "api/api_cloud_password.h"
 #include "mtproto/sender.h"
 #include "base/timer.h"
 #include "base/weak_ptr.h"
@@ -31,14 +32,21 @@ namespace Ui {
 class SentCodeCall;
 } // namespace Ui
 
+namespace Tdb {
+class BytesUploader;
+} // namespace Tdb
+
 namespace Passport {
 
 struct EditDocumentCountry;
 
 struct SavedCredentials {
+#if 0 // goodToRemove
 	bytes::vector hashForAuth;
 	bytes::vector hashForSecret;
 	uint64 secretId = 0;
+#endif
+	QByteArray password;
 };
 
 QString NonceNameByScope(const QString &scope);
@@ -91,24 +99,35 @@ private:
 };
 
 struct UploadScanData {
+#if 0 // goodToRemove
 	FullMsgId fullId;
 	uint64 fileId = 0;
 	int partsCount = 0;
 	QByteArray md5checksum;
 	bytes::vector hash;
 	bytes::vector bytes;
+#endif
+	int64 fileId = 0;
+
+	QByteArray content;
 
 	LoadStatus status;
+	std::shared_ptr<Tdb::BytesUploader> uploader = nullptr;
 };
 
 class UploadScanDataPointer {
 public:
+#if 0 // goodToRemove
 	UploadScanDataPointer(
 		not_null<Main::Session*> session,
 		std::unique_ptr<UploadScanData> &&value);
+#endif
+	UploadScanDataPointer(std::unique_ptr<UploadScanData> &&value);
 	UploadScanDataPointer(UploadScanDataPointer &&other);
 	UploadScanDataPointer &operator=(UploadScanDataPointer &&other);
+#if 0 // goodToRemove
 	~UploadScanDataPointer();
+#endif
 
 	UploadScanData *get() const;
 	operator UploadScanData*() const;
@@ -116,7 +135,9 @@ public:
 	UploadScanData *operator->() const;
 
 private:
+#if 0 // goodToRemove
 	not_null<Main::Session*> _session;
+#endif
 	std::unique_ptr<UploadScanData> _value;
 
 };
@@ -294,9 +315,16 @@ struct Form {
 	std::map<Value::Type, Value> values;
 	Request request;
 	QString privacyPolicyUrl;
+#if 0 // goodToRemove
 	QVector<MTPSecureValueError> pendingErrors;
+#endif
+	QVector<Tdb::TLpassportElementError> pendingErrors;
+	int id = 0;
 };
 
+using PasswordSettings = Core::CloudPasswordState;
+
+#if 0 // goodToRemove
 struct PasswordSettings {
 	Core::CloudPasswordCheckRequest request;
 	Core::CloudPasswordAlgo newAlgo;
@@ -331,6 +359,7 @@ struct PasswordSettings {
 		return !(*this == other);
 	}
 };
+#endif
 
 struct FileKey {
 	uint64 id = 0;
@@ -371,7 +400,10 @@ public:
 	UserData *bot() const;
 	QString privacyPolicyUrl() const;
 	std::vector<not_null<const Value*>> submitGetErrors();
+#if 0 // goodToRemove
 	void submitPassword(const QByteArray &password);
+#endif
+	void completeFormWithPassword(const QByteArray &password);
 	void recoverPassword();
 	rpl::producer<QString> passwordError() const;
 	const PasswordSettings &passwordSettings() const;
@@ -425,15 +457,19 @@ private:
 	using PasswordCheckCallback = Fn<void(
 		const Core::CloudPasswordResult &check)>;
 
+#if 0 // goodToRemove
 	struct FinalData {
 		QVector<MTPSecureValueHash> hashes;
 		QByteArray credentials;
 		std::vector<not_null<const Value*>> errors;
 	};
+#endif
 
 	template <typename Condition>
 	EditFile *findEditFileByCondition(Condition &&condition);
+#if 0 // goodToRemove
 	EditFile *findEditFile(const FullMsgId &fullId);
+#endif
 	EditFile *findEditFile(const FileKey &key);
 	std::pair<Value*, File*> findFile(const FileKey &key);
 	not_null<Value*> findValue(not_null<const Value*> value);
@@ -441,10 +477,16 @@ private:
 	void requestForm();
 	void requestPassword();
 
+#if 0 // goodToRemove
 	void formDone(const MTPaccount_AuthorizationForm &result);
+#endif
 	void formFail(const QString &error);
+#if 0 // goodToRemove
 	bool parseForm(const MTPaccount_AuthorizationForm &result);
+#endif
+	bool parseForm(const Tdb::TLDpassportAuthorizationForm &data);
 	void showForm();
+#if 0 // goodToRemove
 	Value parseValue(
 		const MTPSecureValue &value,
 		const std::vector<EditFile> &editData = {}) const;
@@ -457,8 +499,10 @@ private:
 	void fillDownloadedFile(
 		File &destination,
 		const std::vector<EditFile> &source) const;
+#endif
 	bool handleAppUpdateError(const QString &error);
 
+#if 0 // goodToRemove
 	void submitPassword(
 		const Core::CloudPasswordResult &check,
 		const QByteArray &password,
@@ -470,7 +514,9 @@ private:
 	bool handleSrpIdInvalid(mtpRequestId &guard);
 	void requestPasswordData(mtpRequestId &guard);
 	void passwordChecked();
+#endif
 	void passwordServerError();
+#if 0 // goodToRemove
 	void passwordDone(const MTPaccount_Password &result);
 	bool applyPassword(const MTPDaccount_password &settings);
 	bool applyPassword(PasswordSettings &&settings);
@@ -487,11 +533,13 @@ private:
 	void decryptValues();
 	void decryptValue(Value &value) const;
 	bool validateValueSecrets(Value &value) const;
+#endif
 	void resetValue(Value &value) const;
 	void fillErrors();
 	void fillNativeFromFallback();
 
 	void loadFile(File &file);
+#if 0 // goodToRemove
 	void fileLoadDone(FileKey key, const QByteArray &bytes);
 	void fileLoadProgress(FileKey key, int offset);
 	void fileLoadFail(FileKey key);
@@ -500,21 +548,30 @@ private:
 		const Core::CloudPasswordResult &check,
 		const SavedCredentials &saved,
 		const bytes::vector &secret);
+#endif
 
 	void subscribeToUploader();
+	void updateFile(const Tdb::TLDfile &data);
+#if 0 // goodToRemove
 	void encryptFile(
 		EditFile &file,
 		QByteArray &&content,
 		Fn<void(UploadScanData &&result)> callback);
+#endif
 	void prepareFile(
 		EditFile &file,
 		const QByteArray &content);
+	void uploadFile(
+		EditFile &file,
+		UploadScanData &&data);
+#if 0 // goodToRemove
 	void uploadEncryptedFile(
 		EditFile &file,
 		UploadScanData &&data);
 	void scanUploadDone(const Storage::UploadSecureDone &data);
 	void scanUploadProgress(const Storage::UploadSecureProgress &data);
 	void scanUploadFail(const FullMsgId &fullId);
+#endif
 	void scanDeleteRestore(
 		not_null<const Value*> value,
 		FileType type,
@@ -526,7 +583,7 @@ private:
 	QString getPlainTextFromValue(not_null<const Value*> value) const;
 	void startPhoneVerification(not_null<Value*> value);
 	void startEmailVerification(not_null<Value*> value);
-	void valueSaveShowError(not_null<Value*> value, const MTP::Error &error);
+	void valueSaveShowError(not_null<Value*> value, const QString &error);
 	void valueSaveFailed(not_null<Value*> value);
 	void requestPhoneCall(not_null<Value*> value);
 	void verificationError(
@@ -536,13 +593,20 @@ private:
 	void clearValueEdit(not_null<Value*> value);
 	void clearValueVerification(not_null<Value*> value);
 
+#if 0 // goodToRemove
 	bool isEncryptedValue(Value::Type type) const;
 	void saveEncryptedValue(not_null<Value*> value);
 	void savePlainTextValue(not_null<Value*> value);
 	void sendSaveRequest(
 		not_null<Value*> value,
 		const MTPInputSecureValue &data);
+#endif
+	void sendSaveRequest(
+		not_null<Value*> value,
+		const Tdb::TLinputPassportElement &data);
+#if 0 // goodToRemove
 	FinalData prepareFinalData();
+#endif
 
 	void suggestReset(bytes::vector password);
 	void resetSecret(
@@ -554,6 +618,7 @@ private:
 
 	not_null<Window::SessionController*> _controller;
 	MTP::Sender _api;
+	Api::CloudPassword _apiPassword;
 	FormRequest _request;
 	UserData *_bot = nullptr;
 
@@ -568,13 +633,18 @@ private:
 	QByteArray _savedPasswordValue;
 	Form _form;
 	bool _cancelled = false;
+#if 0 // goodToRemove
 	mtpRequestId _recoverRequestId = 0;
 	base::flat_map<FileKey, std::unique_ptr<mtpFileLoader>> _fileLoaders;
+#endif
+	rpl::lifetime _recoverRequestLifetime;
 
+#if 0 // goodToRemove
 	struct {
 		int32 hash = 0;
 		std::map<QString, QString> languagesByCountryCode;
 	} _passportConfig;
+#endif
 
 	rpl::event_stream<not_null<const EditFile*>> _scanUpdated;
 	rpl::event_stream<not_null<const Value*>> _valueSaveFinished;
@@ -592,6 +662,8 @@ private:
 	bool _suggestingRestart = false;
 	QString _serviceErrorText;
 	base::Timer _shortPollTimer;
+
+	QString _confirmedEmail;
 
 	rpl::lifetime _uploaderSubscriptions;
 	rpl::lifetime _lifetime;

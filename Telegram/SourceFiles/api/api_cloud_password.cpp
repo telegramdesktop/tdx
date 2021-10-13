@@ -100,6 +100,7 @@ void CloudPassword::reload() {
 		if (!_state) {
 			_state = std::make_unique<Core::CloudPasswordState>();
 		}
+		_state->serverError = error.message;
 		// See: td/telegram/PasswordManager.cpp.
 		_state->outdatedClient = ((error.code == 400)
 			&& (error.message == u"Please update client to continue"_q));
