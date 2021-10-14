@@ -1449,6 +1449,8 @@ PRIVATE
     storage/file_download.h
     storage/file_download_mtproto.cpp
     storage/file_download_mtproto.h
+    storage/file_download_tdb.cpp
+    storage/file_download_tdb.h
     storage/file_download_web.cpp
     storage/file_download_web.h
     storage/file_upload.cpp
