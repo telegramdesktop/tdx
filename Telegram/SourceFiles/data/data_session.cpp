@@ -1330,6 +1330,14 @@ not_null<ChannelData*> Session::processChannel(
 		return data;
 	});
 	const auto result = this->channel(data.vid().v);
+
+	using UpdateFlag = Data::PeerUpdate::Flag;
+	auto updateFlags = UpdateFlag::None | UpdateFlag::None;
+	const auto wasInChannel = result->amIn();
+	const auto canViewAdmins = result->canViewAdmins();
+	const auto canViewMembers = result->canViewMembers();
+	const auto canAddMembers = result->canAddMembers();
+
 	using Flag = ChannelDataFlag;
 	result->date = data.vdate().v;
 	const auto setting = Flag::Megagroup
@@ -1342,7 +1350,8 @@ not_null<ChannelData*> Session::processChannel(
 		| Flag::Verified
 		//| Flag::f_has_geo
 		| Flag::HasLink
-		| Flag::Creator;
+		| Flag::Creator
+		| Flag::Forbidden;
 	auto flags = (result->flags() & ~setting)
 		| (!data.vis_channel().v ? Flag::Megagroup : Flag())
 		| (data.vis_broadcast_group().v
@@ -1404,6 +1413,19 @@ not_null<ChannelData*> Session::processChannel(
 		result->setRestrictions({ flags, data.vbanned_until_date().v });
 	});
 	result->setFlags(flags);
+
+	if (wasInChannel != result->amIn()) {
+		updateFlags |= UpdateFlag::ChannelAmIn;
+	}
+	if (canViewAdmins != result->canViewAdmins()
+		|| canViewMembers != result->canViewMembers()
+		|| canAddMembers != result->canAddMembers()) {
+		updateFlags |= UpdateFlag::Rights;
+	}
+	if (flags) {
+		session().changes().peerUpdated(result, updateFlags);
+	}
+
 	return result;
 }
 
