@@ -962,30 +962,6 @@ void ApiWrap::requestMoreDialogs(Data::Folder *folder) {
 		}
 		state->firstRequested = true;
 		state->requestId = 0;
-		//const auto count = result.count;
-		//if (result.ids.isEmpty()) {
-		//	state->listReceived = true;
-		//	state->pinnedReceived = true;
-		//	dialogsLoadFinish(folder); // may kill 'state'.
-		//} else {
-		//	state->offsetChatId = result.ids.back().v;
-		//}
-		//_session->data().processUsers(result.users);
-		//_session->data().processChats(result.chats);
-		//_session->data().processChannels(result.channels);
-		//_session->data().processPeers(result.dialogs);
-		//_session->data().applyDialogs(
-		//	folder,
-		//	data.vmessages().v,
-		//	data.vdialogs().v,
-		//	count);
-
-		//if (!folder
-		//	&& (!_dialogsLoadState || !_dialogsLoadState->listReceived)) {
-		//	refreshDialogsLoadBlocked();
-		//}
-		//requestMoreDialogsIfNeeded();
-		//_session->data().chatsListChanged(folder);
 	}).fail([=] {
 		const auto state = dialogsLoadState(folder);
 		if (!state) {
