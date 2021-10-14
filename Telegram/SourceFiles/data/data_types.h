@@ -51,6 +51,7 @@ Storage::Cache::Key UrlCacheKey(const QString &location);
 Storage::Cache::Key GeoPointCacheKey(const GeoPointLocation &location);
 Storage::Cache::Key AudioAlbumThumbCacheKey(
 	const AudioAlbumThumbLocation &location);
+Storage::Cache::Key TdbFileCacheKey(FileId fileId);
 
 constexpr auto kImageCacheTag = uint8(0x01);
 constexpr auto kStickerCacheTag = uint8(0x02);
