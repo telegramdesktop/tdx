@@ -23,6 +23,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/crash_reports.h"
 #include "base/bytes.h"
 
+#include "storage/file_download_tdb.h"
+
 namespace {
 
 class FromMemoryLoader final : public FileLoader {
@@ -547,16 +549,15 @@ std::unique_ptr<FileLoader> CreateFileLoader(
 			autoLoading,
 			cacheTag);
 	}, [&](const TdbFileLocation &data) {
-		// #TODO tdlib
-		result = std::make_unique<FromMemoryLoader>(
+		result = std::make_unique<TdbFileLoader>(
 			session,
-			QByteArray(),
+			data.fileId,
+			locationType,
 			toFile,
 			loadSize,
 			fullSize,
-			locationType,
 			toCache,
-			LoadFromCloudOrLocal,
+			fromCloud,
 			autoLoading,
 			cacheTag);
 	});

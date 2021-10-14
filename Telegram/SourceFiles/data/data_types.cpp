@@ -22,6 +22,7 @@ constexpr auto kAudioAlbumThumbCacheTag = 0x0000000000000300ULL;
 constexpr auto kWebDocumentCacheTag = 0x0000020000000000ULL;
 constexpr auto kUrlCacheTag = 0x0000030000000000ULL;
 constexpr auto kGeoPointCacheTag = 0x0000040000000000ULL;
+constexpr auto kTdbCacheTag = 0x0000050000000000ULL;
 
 } // namespace
 
@@ -92,6 +93,13 @@ Storage::Cache::Key AudioAlbumThumbCacheKey(
 	return Storage::Cache::Key{
 		Data::kAudioAlbumThumbCacheTag,
 		location.documentId,
+	};
+}
+
+Storage::Cache::Key TdbFileCacheKey(FileId fileId) {
+	return Storage::Cache::Key{
+		Data::kTdbCacheTag,
+		uint32(fileId)
 	};
 }
 
