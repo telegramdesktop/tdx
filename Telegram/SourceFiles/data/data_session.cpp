@@ -1121,7 +1121,7 @@ not_null<UserData*> Session::processUser(const TLuser &user) {
 	auto minimal = false;
 
 	using UpdateFlag = PeerUpdate::Flag;
-	auto flags = UpdateFlag::None | UpdateFlag::None;
+	auto updateFlags = UpdateFlag::None | UpdateFlag::None;
 
 	const auto canShareThisContact = result->canShareThisContactFast();
 
@@ -1140,7 +1140,7 @@ not_null<UserData*> Session::processUser(const TLuser &user) {
 	const auto phoneChanged = (result->phone() != data.vphone_number().v);
 	if (phoneChanged) {
 		result->setPhone(data.vphone_number().v);
-		flags |= UpdateFlag::PhoneNumber;
+		updateFlags |= UpdateFlag::PhoneNumber;
 	}
 	const auto isSelf = (UserId(data.vid().v) == session().userId());
 	const auto showPhone = !result->isServiceUser()
@@ -1172,7 +1172,7 @@ not_null<UserData*> Session::processUser(const TLuser &user) {
 	result->setBotInfoVersion(-1); // #TODO tdlib
 	result->setIsContact(data.vis_contact().v);
 	if (canShareThisContact != result->canShareThisContactFast()) {
-		flags |= UpdateFlag::CanShareContact;
+		updateFlags |= UpdateFlag::CanShareContact;
 	}
 
 	if (minimal) {
@@ -1184,28 +1184,34 @@ not_null<UserData*> Session::processUser(const TLuser &user) {
 		result->setLoadedStatus(PeerData::LoadedStatus::Full);
 	}
 
-	const auto oldOnlineTill = result->onlineTill;
-	const auto newOnlineTill = data.vstatus().match([&](
-		const TLDuserStatusEmpty &) {
-		return 0;
-	}, [&](const TLDuserStatusRecently &) {
-		return (oldOnlineTill > -10) ? -2 : oldOnlineTill;
-	}, [&](const TLDuserStatusLastWeek &) {
-		return -3;
-	}, [&](const TLDuserStatusLastMonth &) {
-		return -4;
-	}, [&](const TLDuserStatusOffline &data) {
-		return data.vwas_online().v;
-	}, [&](const TLDuserStatusOnline &data) {
-		return data.vexpires().v;
-	});
-	if (oldOnlineTill != newOnlineTill) {
-		result->onlineTill = newOnlineTill;
-		flags |= UpdateFlag::OnlineStatus;
+	const auto lastseen = LastseenFromTL(data.vstatus(), result->lastseen());
+	if (result->updateLastseen(lastseen)) {
+		updateFlags |= UpdateFlag::OnlineStatus;
+	}
+	if (const auto &status = data.vemoji_status()) {
+		const auto &data = status->data();
+		result->setEmojiStatus(
+			data.vcustom_emoji_id().v,
+			data.vexpiration_date().v);
+	} else {
+		result->setEmojiStatus(0);
+	}
+	auto decorationsUpdated = false;
+	if (result->changeColorIndex(data.vaccent_color_id().v)) {
+		updateFlags |= UpdateFlag::Color;
+		decorationsUpdated = true;
+	}
+	if (result->changeBackgroundEmojiId(
+			data.vbackground_custom_emoji_id().v)) {
+		updateFlags |= UpdateFlag::BackgroundEmoji;
+		decorationsUpdated = true;
+	}
+	if (decorationsUpdated && result->isMinimalLoaded()) {
+		_peerDecorationsUpdated.fire_copy(result);
 	}
 
-	if (flags) {
-		session().changes().peerUpdated(result, flags);
+	if (updateFlags) {
+		session().changes().peerUpdated(result, updateFlags);
 	}
 	return result;
 }

@@ -21,6 +21,9 @@ struct BusinessDetails;
 
 namespace Tdb {
 class TLDuserFullInfo;
+class TLbotInfo;
+class TLbirthdate;
+class TLuserStatus;
 } // namespace Tdb
 
 struct BotInfo {
@@ -85,8 +88,14 @@ enum class UserDataFlag : uint32 {
 inline constexpr bool is_flag_type(UserDataFlag) { return true; };
 using UserDataFlags = base::flags<UserDataFlag>;
 
+#if 0 // mtp
 [[nodiscard]] Data::LastseenStatus LastseenFromMTP(
 	const MTPUserStatus &status,
+	Data::LastseenStatus currentStatus);
+#endif
+
+[[nodiscard]] Data::LastseenStatus LastseenFromTL(
+	const Tdb::TLuserStatus &status,
 	Data::LastseenStatus currentStatus);
 
 class UserData final : public PeerData {
