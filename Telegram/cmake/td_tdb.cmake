@@ -17,6 +17,7 @@ nice_target_sources(td_tdb ${src_loc}
 PRIVATE
     tdb/tdb_account.cpp
     tdb/tdb_account.h
+    tdb/tdb_request_id.h
     tdb/tdb_resolve_chats.cpp
     tdb/tdb_resolve_chats.h
     tdb/tdb_sender.cpp

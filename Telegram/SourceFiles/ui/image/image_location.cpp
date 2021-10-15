@@ -941,11 +941,17 @@ std::optional<DownloadLocation> DownloadLocation::FromSerialized(
 	} break;
 
 	case NonStorageLocationType::Tdb: {
-		qint32 fileId = 0;
-		stream >> fileId;
+		qint32 savedFileId = 0;
+		stream >> savedFileId;
+
+		// Don't provide the savedFileId, because TDLib allows to download
+		// only files that it has sent to the client in that launch.
+		// So you always need to get the right fileId from TDLib first.
+		// For example, if you didn't get updateUser with userpic with
+		// a fileId and try to download the file with that fileId you'll get
+		// "400: Invalid file identifier".
 		return (stream.status() == QDataStream::Ok)
-			? std::make_optional(
-				DownloadLocation{ TdbFileLocation{ fileId } })
+			? std::make_optional(DownloadLocation())
 			: std::nullopt;
 	} break;
 	}
