@@ -43,6 +43,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tdb/tdb_tl_scheme.h"
 #include "ui/image/image_location_factory.h"
 
+#include "storage/file_download_tdb.h"
+
 #include <QtCore/QBuffer>
 #include <QtCore/QMimeType>
 #include <QtCore/QMimeDatabase>
@@ -1315,6 +1317,18 @@ void DocumentData::save(
 				&session(),
 				_url,
 				toFile,
+				fromCloud,
+				autoLoading,
+				cacheTag());
+		} else if (_tdbFileId) {
+			_loader = std::make_unique<TdbFileLoader>(
+				&session(),
+				_tdbFileId,
+				locationType(),
+				toFile,
+				size,
+				size,
+				(saveToCache() ? LoadToCacheAsWell : LoadToFileOnly),
 				fromCloud,
 				autoLoading,
 				cacheTag());
