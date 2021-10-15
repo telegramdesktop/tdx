@@ -41,10 +41,14 @@ public:
 	void applyDialog(const MTPDdialogFolder &data);
 	void applyPinnedUpdate(const MTPDupdateDialogPinned &data);
 
+#if 0 // #TODO legacy
 	TimeId adjustedChatListTimeId() const override;
+#endif
 
 	int fixedOnTopIndex() const override;
+#if 0 // #TODO legacy
 	bool shouldBeInChatList() const override;
+#endif
 	Dialogs::UnreadState chatListUnreadState() const override;
 	Dialogs::BadgesState chatListBadgesState() const override;
 	HistoryItem *chatListMessage() const override;

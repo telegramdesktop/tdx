@@ -216,7 +216,11 @@ public:
 		MsgId id,
 		const Tdb::TLmessage &message,
 		MessageFlags localFlags,
-		bool detachExistingItem);
+		bool detachExistingItem = false,
+		HistoryItem *replacing = nullptr);
+	not_null<HistoryItem*> createItem(
+		BusinessShortcutId shortcutId,
+		const Tdb::TLquickReplyMessage &message);
 
 #if 0 // #mtp
 	void addOlderSlice(const QVector<MTPMessage> &slice);
@@ -396,7 +400,9 @@ public:
 	[[nodiscard]] bool useTopPromotion() const;
 	int fixedOnTopIndex() const override;
 	void updateChatListExistence() override;
+#if 0 // #TODO legacy
 	bool shouldBeInChatList() const override;
+#endif
 	Dialogs::UnreadState chatListUnreadState() const override;
 	Dialogs::BadgesState chatListBadgesState() const override;
 	HistoryItem *chatListMessage() const override;
@@ -414,6 +420,7 @@ public:
 
 	void refreshChatListNameSortKey();
 
+	[[nodiscard]] TimeId chatListTimeId() const;
 	void setFakeChatListMessageFrom(const MTPmessages_Messages &data);
 	void checkChatListMessageRemoved(not_null<HistoryItem*> item);
 
@@ -549,7 +556,10 @@ private:
 		not_null<HistoryBlock*> block,
 		not_null<Element*> view);
 
+#if 0 // #TODO legacy
 	TimeId adjustedChatListTimeId() const override;
+#endif
+
 	void changedChatListPinHook() override;
 
 	void setOutboxReadTill(MsgId upTo);
