@@ -40,6 +40,7 @@ using UpdateFlag = Data::PeerUpdate::Flag;
 
 BotInfo::BotInfo() = default;
 
+#if 0 // mtp
 Data::LastseenStatus LastseenFromMTP(
 		const MTPUserStatus &status,
 		Data::LastseenStatus currentStatus) {
@@ -60,6 +61,33 @@ Data::LastseenStatus LastseenFromMTP(
 		return Data::LastseenStatus::OnlineTill(data.vexpires().v);
 	}, [](const MTPDuserStatusOffline &data) {
 		return Data::LastseenStatus::OnlineTill(data.vwas_online().v);
+	});
+}
+#endif
+
+Data::LastseenStatus LastseenFromTL(
+		const TLuserStatus &status,
+		Data::LastseenStatus currentStatus) {
+	return status.match([&](const TLDuserStatusEmpty &) {
+		return Data::LastseenStatus::LongAgo();
+	}, [&](const TLDuserStatusRecently &data) {
+		return currentStatus.isLocalOnlineValue()
+			? Data::LastseenStatus::OnlineTill(
+				currentStatus.onlineTill(),
+				true,
+				data.vby_my_privacy_settings().v)
+			: Data::LastseenStatus::Recently(
+				data.vby_my_privacy_settings().v);
+	}, [&](const TLDuserStatusLastWeek &data) {
+		return Data::LastseenStatus::WithinWeek(
+			data.vby_my_privacy_settings().v);
+	}, [&](const TLDuserStatusLastMonth &data) {
+		return Data::LastseenStatus::WithinMonth(
+			data.vby_my_privacy_settings().v);
+	}, [&](const TLDuserStatusOffline &data) {
+		return Data::LastseenStatus::OnlineTill(data.vwas_online().v);
+	}, [&](const TLDuserStatusOnline &data) {
+		return Data::LastseenStatus::OnlineTill(data.vexpires().v);
 	});
 }
 

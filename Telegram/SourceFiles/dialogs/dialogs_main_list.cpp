@@ -14,7 +14,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_unread_things.h"
 #include "history/history.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Dialogs {
+namespace {
+
+using namespace Tdb;
+
+} // namespace
 
 MainList::MainList(
 	not_null<Main::Session*> session,
@@ -167,17 +174,54 @@ void MainList::updateCloudUnread(const MTPDdialogFolder &data) {
 	_cloudUnreadState.known = true;
 }
 
+void MainList::updateCloudUnread(const TLDupdateUnreadMessageCount &data) {
+	const auto notifier = unreadStateChangeNotifier(!loaded());
+
+	const auto count = data.vunread_count().v;
+	const auto unmuted = data.vunread_unmuted_count().v;
+
+	_cloudUnreadState.messages = count;
+	_cloudUnreadState.messagesMuted = count - unmuted;
+	finalizeCloudUnread();
+
+	_cloudUnreadState.knownMessages = true;
+	_cloudUnreadState.known = _cloudUnreadState.knownChats;
+}
+
+void MainList::updateCloudUnread(const TLDupdateUnreadChatCount &data) {
+	const auto notifier = unreadStateChangeNotifier(!loaded());
+
+	const auto unreadMarks = data.vmarked_as_unread_count().v;
+	const auto unreadMarksUnmuted = data.vmarked_as_unread_unmuted_count().v;
+	const auto unreadChats = data.vunread_count().v;
+	const auto unreadChatsUnmuted = data.vunread_unmuted_count().v;
+
+	_cloudUnreadState.chats = unreadChats;
+	_cloudUnreadState.chatsMuted = unreadChats - unreadChatsUnmuted;
+	_cloudUnreadState.marks = unreadMarks;
+	_cloudUnreadState.marksMuted = unreadMarks - unreadMarksUnmuted;
+	finalizeCloudUnread();
+
+	_cloudListSize = data.vtotal_count().v;
+	recomputeFullListSize();
+
+	_cloudUnreadState.knownChats = true;
+	_cloudUnreadState.known = _cloudUnreadState.knownMessages;
+}
+
 bool MainList::cloudUnreadKnown() const {
 	return _cloudUnreadState.known;
 }
 
 void MainList::finalizeCloudUnread() {
+#if 0 // #TODO legacy
 	// Cloud state for archive folder always counts everything as muted.
 	_cloudUnreadState.messagesMuted = _cloudUnreadState.messages;
 	_cloudUnreadState.chatsMuted = _cloudUnreadState.chats;
 
 	// We don't know the real value of marked chats counts in cloud unread.
 	_cloudUnreadState.marksMuted = _cloudUnreadState.marks = 0;
+#endif
 }
 
 UnreadState MainList::unreadState() const {

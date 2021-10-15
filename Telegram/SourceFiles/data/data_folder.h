@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_messages.h"
 #include "base/weak_ptr.h"
 
+namespace Tdb {
+class TLDupdateUnreadChatCount;
+} // namespace Tdb
+
 class ChannelData;
 
 namespace Main {
@@ -44,6 +48,7 @@ public:
 #if 0 // #TODO legacy
 	TimeId adjustedChatListTimeId() const override;
 #endif
+	void applyDialog(const Tdb::TLDupdateUnreadChatCount &data);
 
 	int fixedOnTopIndex() const override;
 #if 0 // #TODO legacy
