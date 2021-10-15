@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/ui/payments_panel_data.h"
 #include "base/weak_ptr.h"
 #include "mtproto/sender.h"
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
 
 class Image;
 class QJsonObject;
@@ -41,9 +43,11 @@ enum class Mode;
 struct FormDetails {
 	uint64 formId = 0;
 	QString url;
+#if 0 // goodToRemove
 	QString nativeProvider;
 	QString termsBotUsername;
 	QByteArray nativeParamsJson;
+#endif
 	UserId botId = 0;
 	UserId providerId = 0;
 	bool canSaveCredentials = false;
@@ -140,7 +144,9 @@ struct BotTrustRequired {
 	not_null<UserData*> provider;
 };
 struct PaymentFinished {
+#if 0 // goodToRemove
 	MTPUpdates updates;
+#endif
 };
 struct Error {
 	enum class Type {
@@ -285,6 +291,17 @@ private:
 
 	void requestForm();
 	void requestReceipt();
+	void processForm(const Tdb::TLDpaymentForm &data);
+	void processReceipt(const Tdb::TLDpaymentReceipt &data);
+	void processInvoice(const Tdb::TLDinvoice &data);
+	void processDetails(const Tdb::TLDpaymentForm &data);
+	void processDetails(const Tdb::TLDpaymentReceipt &data);
+	void processSavedInformation(const Tdb::TLDorderInfo &data);
+	void processSavedCredentials(const Tdb::TLDsavedCredentials &data);
+	void processShippingOptions(
+		const QVector<Tdb::TLshippingOption> &options);
+	void fillStripeNativeMethod(const Tdb::TLDpaymentsProviderStripe &data);
+#if 0 // goodToRemove
 	void processForm(const MTPDpayments_paymentForm &data);
 	void processReceipt(const MTPDpayments_paymentReceipt &data);
 	void processInvoice(const MTPDinvoice &data);
@@ -294,9 +311,12 @@ private:
 	void processAdditionalPaymentMethods(
 		const QVector<MTPPaymentFormMethod> &list);
 	void processShippingOptions(const QVector<MTPShippingOption> &data);
+#endif
 	void fillPaymentMethodInformation();
+#if 0 // goodToRemove
 	void fillStripeNativeMethod(QJsonObject object);
 	void fillSmartGlocalNativeMethod(QJsonObject object);
+#endif
 	void refreshPaymentMethodDetails();
 	void refreshSavedPaymentMethodDetails();
 	[[nodiscard]] QString defaultPhone() const;
@@ -328,7 +348,10 @@ private:
 	const InvoiceId _id;
 	const not_null<Main::Session*> _session;
 
+#if 0 // goodToRemove
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 	bool _receiptMode = false;
 
 	Ui::Invoice _invoice;
