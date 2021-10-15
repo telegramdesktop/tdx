@@ -29,8 +29,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "styles/style_dialogs.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Data {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kLoadedChatsMinCount = 20;
 constexpr auto kShowChatNamesCount = 8;
@@ -356,6 +360,17 @@ void Folder::applyDialog(const MTPDdialogFolder &data) {
 		const auto fullId = FullMsgId(peerId, data.vtop_message().v);
 		history->setFolder(this, owner().message(fullId));
 	} else {
+		_chatsList.clear();
+		updateChatListExistence();
+	}
+	if (_chatsList.indexed()->size() < kLoadedChatsMinCount) {
+		session().api().requestDialogs(this);
+	}
+}
+
+void Folder::applyDialog(const TLDupdateUnreadChatCount &data) {
+	_chatsList.updateCloudUnread(data);
+	if (!data.vtotal_count().v) {
 		_chatsList.clear();
 		updateChatListExistence();
 	}
