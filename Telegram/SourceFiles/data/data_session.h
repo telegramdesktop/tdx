@@ -819,6 +819,8 @@ public:
 		const QString &type,
 		const QString &message);
 
+	void setNotTopPromoted(not_null<History*> history);
+
 	bool updateWallpapers(const MTPaccount_WallPapers &data);
 	void removeWallpaper(const WallPaper &paper);
 	const std::vector<WallPaper> &wallpapers() const;

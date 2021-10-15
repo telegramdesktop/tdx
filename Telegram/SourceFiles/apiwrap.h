@@ -179,7 +179,9 @@ public:
 
 	void requestContacts();
 	void requestDialogs(Data::Folder *folder = nullptr);
+#if 0 // #TODO legacy
 	void requestPinnedDialogs(Data::Folder *folder = nullptr);
+#endif
 	void requestMoreBlockedByDateDialogs();
 	void requestMoreDialogsIfNeeded();
 	rpl::producer<bool> dialogsLoadMayBlockByDate() const;

@@ -1538,6 +1538,7 @@ void Updates::applyUpdates(
 }
 
 void Updates::feedUpdate(const MTPUpdate &update) {
+#if 0 // #TODO legacy
 	switch (update.type()) {
 
 	// New messages.
@@ -2666,6 +2667,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	}
+#endif
 }
 
 bool IsWithdrawalNotification(const MTPDupdateServiceNotification &data) {
@@ -2678,6 +2680,16 @@ void Updates::applyUpdate(const TLupdate &update) {
 		if (type == id_authorizationStateReady) {
 			session().api().requestMoreDialogsIfNeeded();
 		}
+	}, [&](const TLDupdateNewMessage &data) {
+		const auto &message = data.vmessage();
+		const auto peerId = peerFromTdbChat(message.data().vchat_id());
+		const auto history = session().data().history(peerId);
+		const auto id = message.data().vid().v;
+		history->addNewMessage(
+			id,
+			message,
+			MessageFlags(),
+			NewMessageType::Unread);
 	}, [&](const TLDupdateUser &data) {
 		session().data().processUser(data.vuser());
 	}, [&](const TLDupdateBasicGroup &data) {
