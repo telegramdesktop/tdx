@@ -1644,5 +1644,29 @@ std::unique_ptr<Ui::ChatTheme> DefaultChatThemeOn(rpl::lifetime &lifetime) {
 	return result;
 }
 
+TLpaymentFormTheme WebViewTheme() {
+	const auto colorToInt = [=](const style::color &color) {
+		const auto value = uint32(0xFF000000U)
+			| (uint32(color->c.red()) << 16)
+			| (uint32(color->c.green()) << 8)
+			| (uint32(color->c.blue()));
+		return tl_int32(*reinterpret_cast<const int32*>(&value));
+	};
+	return tl_paymentFormTheme(
+		colorToInt(st::windowBg), // background_color
+		colorToInt(st::boxDividerBg), // secondary_background_color
+		colorToInt(st::windowBg), // header_background_color
+		colorToInt(st::lightButtonBg), // section_background_color
+		colorToInt(st::windowFg), // text_color
+		colorToInt(st::lightButtonFg), // accent_text_color
+		colorToInt(st::windowActiveTextFg), // section_header_text_color
+		colorToInt(st::windowSubTextFg), // subtitle_text_color
+		colorToInt(st::attentionButtonFg), // destructive_text_color
+		colorToInt(st::windowSubTextFg), // hint_color
+		colorToInt(st::windowActiveTextFg), // link_color
+		colorToInt(st::windowBgActive), // button_color
+		colorToInt(st::windowFgActive)); // button_text_color
+}
+
 } // namespace Theme
 } // namespace Window
