@@ -951,6 +951,7 @@ void ApiWrap::requestMoreDialogs(Data::Folder *folder) {
 		state->firstRequested = true;
 		state->requestId = 0;
 		state->listReceived = true;
+		dialogsLoadFinish(folder); // may kill 'state'.
 	}).send();
 
 	if (!folder) {
