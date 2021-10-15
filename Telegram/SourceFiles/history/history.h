@@ -408,7 +408,9 @@ public:
 	[[nodiscard]] bool useTopPromotion() const;
 	int fixedOnTopIndex() const override;
 	void updateChatListExistence() override;
+#if 0 // #TODO legacy
 	bool shouldBeInChatList() const override;
+#endif
 	Dialogs::UnreadState chatListUnreadState() const override;
 	Dialogs::BadgesState chatListBadgesState() const override;
 	HistoryItem *chatListMessage() const override;
@@ -561,7 +563,10 @@ private:
 		not_null<HistoryBlock*> block,
 		not_null<Element*> view);
 
+#if 0 // #TODO legacy
 	TimeId adjustedChatListTimeId() const override;
+#endif
+
 	void changedChatListPinHook() override;
 
 	void setOutboxReadTill(MsgId upTo);
@@ -577,6 +582,7 @@ private:
 	void applyMessageChanges(
 		not_null<HistoryItem*> item,
 		const Tdb::TLmessage &original);
+	[[nodiscard]] TimeId chatListTimeId() const;
 
 	// After adding a new history slice check lastMessage / loadedAtBottom.
 	void checkLastMessage();

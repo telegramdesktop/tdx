@@ -943,6 +943,7 @@ void ApiWrap::requestMoreDialogs(Data::Folder *folder) {
 		if (!state) {
 			return;
 		}
+		state->pinnedReceived = true;
 		state->firstRequested = true;
 		state->requestId = 0;
 	}).fail([=] {
@@ -950,6 +951,7 @@ void ApiWrap::requestMoreDialogs(Data::Folder *folder) {
 		if (!state) {
 			return;
 		}
+		state->pinnedReceived = true;
 		state->firstRequested = true;
 		state->requestId = 0;
 		state->listReceived = true;
@@ -1068,6 +1070,7 @@ void ApiWrap::dialogsLoadFinish(Data::Folder *folder) {
 	}
 }
 
+#if 0 // #TODO legacy
 void ApiWrap::requestPinnedDialogs(Data::Folder *folder) {
 	const auto state = dialogsLoadState(folder);
 	if (!state || state->pinnedReceived || state->pinnedRequestId) {
@@ -1100,6 +1103,7 @@ void ApiWrap::requestPinnedDialogs(Data::Folder *folder) {
 		finalize();
 	}).send();
 }
+#endif
 
 void ApiWrap::requestMoreBlockedByDateDialogs() {
 	if (!_dialogsLoadState) {
