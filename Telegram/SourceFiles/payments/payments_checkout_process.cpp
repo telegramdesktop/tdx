@@ -408,7 +408,7 @@ void CheckoutProcess::handleFormUpdate(const FormUpdate &update) {
 		}
 	}, [&](const PaymentFinished &data) {
 		const auto weak = base::make_weak(this);
-#if 0 // todo
+#if 0 // goodToRemove
 		_session->api().applyUpdates(data.updates);
 #endif
 		if (weak) {
