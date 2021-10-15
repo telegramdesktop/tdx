@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "storage/file_download.h"
+#include "tdb/tdb_request_id.h"
 
 namespace Tdb {
 class TLfile;
@@ -33,22 +34,30 @@ public:
 	int currentOffset() const override;
 
 private:
+	class FileProxy;
+
 	Storage::Cache::Key cacheKey() const override;
 	std::optional<MediaKey> fileLocationKey() const override;
 	void startLoading() override;
 	void startLoadingWithPartial(const QByteArray &data) override;
 	void cancelHook() override;
+	void increaseLoadSizeHook() override;
+
+	void sendRequest();
+	void cancelRequest();
 
 	void apply(const Tdb::TLfile &file);
 	bool setFinalSize(int size);
 	bool feedPart(int offset, const QByteArray &bytes);
 
-	const FileId _fileId = 0;
-	QFile _reading;
-	bool _loading = false;
-	int _loadOffset = 0;
-	int _ready = 0;
+	[[nodiscard]] static std::unique_ptr<FileProxy> CreateFileProxy(
+		const QString &path);
 
-	rpl::lifetime _lifetime;
+	const FileId _fileId = 0;
+	int _loadOffset = 0;
+	std::unique_ptr<FileProxy> _proxy;
+	Tdb::RequestId _requestId = 0;
+
+	rpl::lifetime _loadingLifetime;
 
 };

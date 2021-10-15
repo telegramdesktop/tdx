@@ -8,11 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_request_id.h"
 #include "base/expected.h"
 
 namespace Tdb::details {
-
-using RequestId = int64;
 
 [[nodiscard]] std::optional<Error> ParseError(ExternalResponse);
 [[nodiscard]] bool ClientClosedUpdate(const TLupdate &update);

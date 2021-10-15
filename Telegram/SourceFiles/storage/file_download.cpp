@@ -201,6 +201,8 @@ void FileLoader::increaseLoadSize(int64 size, bool autoLoading) {
 
 	_loadSize = size;
 	_autoLoading = autoLoading;
+
+	increaseLoadSizeHook();
 }
 
 void FileLoader::notifyAboutProgress() {
@@ -460,12 +462,13 @@ bool FileLoader::finalizeResult() {
 		if ((_toCache == LoadToCacheAsWell)
 			&& (_data.size() <= Storage::kMaxFileInMemory)
 			&& (key.low || key.high)) {
+			const auto written = (!_fullSize || _data.size() == _fullSize)
+				? _data
+				: ("partial:" + _data);
 			_session->data().cache().put(
 				cacheKey(),
 				Storage::Cache::Database::TaggedValue(
-					base::duplicate((!_fullSize || _data.size() == _fullSize)
-						? _data
-						: ("partial:" + _data)),
+					base::duplicate(written),
 					_cacheTag));
 		}
 	}
