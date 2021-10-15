@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_media_types.h"
 #include "data/data_user.h"
+#include "data/data_peer_id.h"
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
 #include "data/data_file_origin.h"
@@ -45,6 +46,18 @@ namespace {
 
 constexpr auto kPasswordPeriod = 15 * TimeId(60);
 
+[[nodiscard]] Ui::Address ParseAddress(const Tdb::TLaddress &address) {
+	return Ui::Address{
+		.address1 = address.data().vstreet_line1().v,
+		.address2 = address.data().vstreet_line2().v,
+		.city = address.data().vcity().v,
+		.state = address.data().vstate().v,
+		.countryIso2 = address.data().vcountry_code().v,
+		.postcode = address.data().vpostal_code().v,
+	};
+}
+
+#if 0 // goodToRemove
 [[nodiscard]] Ui::Address ParseAddress(const MTPPostAddress &address) {
 	return address.match([](const MTPDpostAddress &data) {
 		return Ui::Address{
@@ -57,11 +70,13 @@ constexpr auto kPasswordPeriod = 15 * TimeId(60);
 		};
 	});
 }
+#endif
 
 [[nodiscard]] int64 ParsePriceAmount(uint64 value) {
 	return *reinterpret_cast<const int64*>(&value);
 }
 
+#if 0 // goodToRemove
 [[nodiscard]] std::vector<Ui::LabeledPrice> ParsePrices(
 		const MTPVector<MTPLabeledPrice> &data) {
 	return ranges::views::all(
@@ -96,6 +111,34 @@ constexpr auto kPasswordPeriod = 15 * TimeId(60);
 			MTP_string(information.shippingAddress.state),
 			MTP_string(information.shippingAddress.countryIso2),
 			MTP_string(information.shippingAddress.postcode)));
+}
+#endif
+
+[[nodiscard]] std::vector<Ui::LabeledPrice> ParsePrices(
+		const Tdb::TLvector<Tdb::TLlabeledPricePart> &data) {
+	return ranges::views::all(
+		data.v
+	) | ranges::views::transform([](const Tdb::TLlabeledPricePart &price) {
+		return Ui::LabeledPrice{
+			.label = price.data().vlabel().v,
+			.price = ParsePriceAmount(price.data().vamount().v),
+		};
+	}) | ranges::to_vector;
+}
+
+[[nodiscard]] Tdb::TLorderInfo Serialize(
+		const Ui::RequestedInformation &information) {
+	return Tdb::tl_orderInfo(
+		Tdb::tl_string(information.name),
+		Tdb::tl_string(information.phone),
+		Tdb::tl_string(information.email),
+		Tdb::tl_address(
+			Tdb::tl_string(information.shippingAddress.countryIso2),
+			Tdb::tl_string(information.shippingAddress.state),
+			Tdb::tl_string(information.shippingAddress.city),
+			Tdb::tl_string(information.shippingAddress.address1),
+			Tdb::tl_string(information.shippingAddress.address2),
+			Tdb::tl_string(information.shippingAddress.postcode)));
 }
 
 [[nodiscard]] QString CardTitle(const Stripe::Card &card) {
@@ -441,6 +484,18 @@ MTPInputInvoice Form::inputInvoice() const {
 
 void Form::requestForm() {
 	showProgress();
+	_api.request(Tdb::TLgetPaymentForm(
+		peerToTdbChat(_peer->id),
+		Tdb::tl_int53(_msgId.bare),
+		Window::Theme::WebViewTheme()
+	)).done([=](const Tdb::TLDpaymentForm &data) {
+		hideProgress();
+		processForm(data);
+	}).fail([=](const Tdb::Error &error) {
+		hideProgress();
+		_updates.fire(Error{ Error::Type::Form, error.message });
+	}).send();
+#if 0 // goodToRemove
 	_api.request(MTPpayments_GetPaymentForm(
 		MTP_flags(MTPpayments_GetPaymentForm::Flag::f_theme_params),
 		inputInvoice(),
@@ -516,6 +571,7 @@ void Form::requestForm() {
 		hideProgress();
 		_updates.fire(Error{ Error::Type::Form, error.type() });
 	}).send();
+#endif
 }
 
 void Form::requestReceipt() {
@@ -523,6 +579,17 @@ void Form::requestReceipt() {
 
 	const auto message = v::get<InvoiceMessage>(_id.value);
 	showProgress();
+	_api.request(Tdb::TLgetPaymentReceipt(
+		peerToTdbChat(_peer->id),
+		Tdb::tl_int53(_msgId.bare)
+	)).done([=](const Tdb::TLDpaymentReceipt &data) {
+		hideProgress();
+		processReceipt(data);
+	}).fail([=](const Tdb::Error &error) {
+		hideProgress();
+		_updates.fire(Error{ Error::Type::Form, error.message });
+	}).send();
+#if 0 // goodToRemove
 	_api.request(MTPpayments_GetPaymentReceipt(
 		message.peer->input,
 		MTP_int(message.itemId.bare)
@@ -535,8 +602,10 @@ void Form::requestReceipt() {
 		hideProgress();
 		_updates.fire(Error{ Error::Type::Form, error.type() });
 	}).send();
+#endif
 }
 
+#if 0 // goodToRemove
 void Form::processForm(const MTPDpayments_paymentForm &data) {
 	_session->data().processUsers(data.vusers());
 
@@ -758,6 +827,146 @@ void Form::processSavedInformation(const MTPDpaymentRequestedInfo &data) {
 		.shippingAddress = address ? ParseAddress(*address) : Ui::Address(),
 	};
 }
+#endif
+
+void Form::processForm(const Tdb::TLDpaymentForm &data) {
+	processInvoice(data.vinvoice().data());
+	processDetails(data);
+	if (const auto info = data.vsaved_order_info()) {
+		processSavedInformation(info->data());
+	}
+	if (const auto credentials = data.vsaved_credentials()) {
+		processSavedCredentials(credentials->data());
+	}
+	if (const auto provider = data.vpayments_provider()) {
+#if 0 // doLater - pending smartglocal provider from TDLib.
+#endif
+		fillStripeNativeMethod(provider->data());
+		refreshPaymentMethodDetails();
+	} else {
+		fillPaymentMethodInformation();
+	}
+	_updates.fire(FormReady{});
+}
+
+void Form::processReceipt(const Tdb::TLDpaymentReceipt &data) {
+	processInvoice(data.vinvoice().data());
+	processDetails(data);
+	if (const auto info = data.vorder_info()) {
+		processSavedInformation(info->data());
+	}
+	if (const auto shipping = data.vshipping_option()) {
+		processShippingOptions({ *shipping });
+		if (!_shippingOptions.list.empty()) {
+			_shippingOptions.selectedId = _shippingOptions.list.front().id;
+		}
+	}
+	_paymentMethod.savedCredentials = SavedCredentials{
+		.id = "(used)",
+		.title = data.vcredentials_title().v,
+	};
+	fillPaymentMethodInformation();
+	_updates.fire(FormReady{});
+}
+
+void Form::processInvoice(const Tdb::TLDinvoice &data) {
+	_invoice = Ui::Invoice{
+		.cover = std::move(_invoice.cover),
+
+		.prices = ParsePrices(data.vprice_parts()),
+		.suggestedTips = ranges::views::all(
+			data.vsuggested_tip_amounts().v
+		) | ranges::views::transform(
+			&Tdb::TLint53::v
+		) | ranges::views::transform(
+			ParsePriceAmount
+		) | ranges::to_vector,
+		.tipsMax = ParsePriceAmount(data.vmax_tip_amount().v),
+		.currency = data.vcurrency().v,
+
+		.isNameRequested = data.vneed_name().v,
+		.isPhoneRequested = data.vneed_phone_number().v,
+		.isEmailRequested = data.vneed_email_address().v,
+		.isShippingAddressRequested = data.vneed_shipping_address().v,
+		.isFlexible = data.vis_flexible().v,
+		.isTest = data.vis_test().v,
+
+		.phoneSentToProvider = data.vsend_phone_number_to_provider().v,
+		.emailSentToProvider = data.vsend_email_address_to_provider().v,
+	};
+}
+
+void Form::processDetails(const Tdb::TLDpaymentForm &data) {
+	_details = FormDetails{
+		.formId = static_cast<uint64>(data.vid().v),
+		.url = data.vurl().v,
+		.botId = data.vseller_bot_user_id(),
+		.providerId = data.vpayments_provider_user_id(),
+		.canSaveCredentials = data.vcan_save_credentials().v,
+		.passwordMissing = data.vneed_password().v,
+	};
+	if (const auto botId = _details.botId) {
+		if (const auto bot = _session->data().userLoaded(botId)) {
+			_invoice.cover.seller = bot->name;
+		}
+	}
+	if (const auto providerId = _details.providerId) {
+		if (const auto bot = _session->data().userLoaded(providerId)) {
+			_invoice.provider = bot->name;
+		}
+	}
+}
+
+void Form::processDetails(const Tdb::TLDpaymentReceipt &data) {
+	_invoice.receipt = Ui::Receipt{
+		.date = data.vdate().v,
+		.tipAmount = data.vtip_amount().v,
+		.currency = _invoice.currency,
+		.paid = true,
+	};
+	_details = FormDetails{
+		.botId = data.vseller_bot_user_id(),
+		.providerId = data.vpayments_provider_user_id(),
+	};
+	if (_invoice.cover.title.isEmpty()
+		&& _invoice.cover.description.isEmpty()
+		&& _invoice.cover.thumbnail.isNull()
+		&& !_thumbnailLoadProcess) {
+		_invoice.cover = Ui::Cover{
+			.title = data.vtitle().v,
+			.description = data.vdescription().v,
+		};
+		if (const auto photoPtr = data.vphoto()) {
+			const auto photo = _session->data().processPhoto(*photoPtr);
+			loadThumbnail(photo);
+		}
+	}
+	if (_details.botId) {
+		if (const auto bot = _session->data().userLoaded(_details.botId)) {
+			_invoice.cover.seller = bot->name;
+		}
+	}
+}
+
+void Form::processSavedInformation(const Tdb::TLDorderInfo &data) {
+	const auto address = data.vshipping_address();
+	_savedInformation = _information = Ui::RequestedInformation{
+		.defaultPhone = defaultPhone(),
+		.defaultCountry = defaultCountry(),
+		.name = data.vname().v,
+		.phone = data.vphone_number().v,
+		.email = data.vemail_address().v,
+		.shippingAddress = address ? ParseAddress(*address) : Ui::Address(),
+	};
+}
+
+void Form::processSavedCredentials(const Tdb::TLDsavedCredentials &data) {
+	_paymentMethod.savedCredentials = SavedCredentials{
+		.id = data.vid().v,
+		.title = data.vtitle().v,
+	};
+	refreshPaymentMethodDetails();
+}
 
 void Form::processAdditionalPaymentMethods(
 		const QVector<MTPPaymentFormMethod> &list) {
@@ -812,6 +1021,7 @@ void Form::fillPaymentMethodInformation() {
 	_paymentMethod.ui.native = Ui::NativeMethodDetails();
 	_paymentMethod.ui.url = _details.url;
 
+#if 0 // goodToRemove
 	//AssertIsDebug();
 	//static auto counter = 0; // #TODO payments test both native and webview.
 	if (!_details.nativeProvider.isEmpty()/* && ((++counter) % 2)*/) {
@@ -837,9 +1047,26 @@ void Form::fillPaymentMethodInformation() {
 			}
 		}
 	}
+#endif
 	refreshPaymentMethodDetails();
 }
 
+void Form::fillStripeNativeMethod(
+		const Tdb::TLDpaymentsProviderStripe &data) {
+	_paymentMethod.native = NativePaymentMethod{
+		.data = StripePaymentMethod{
+			.publishableKey = data.vpublishable_key().v,
+		},
+	};
+	_paymentMethod.ui.native = Ui::NativeMethodDetails{
+		.supported = true,
+		.needCountry = data.vneed_country().v,
+		.needZip = data.vneed_postal_code().v,
+		.needCardholderName = data.vneed_cardholder_name().v,
+	};
+}
+
+#if 0 // goodToRemove
 void Form::fillStripeNativeMethod(QJsonObject object) {
 	const auto value = [&](QStringView key) {
 		return object.value(key);
@@ -885,6 +1112,7 @@ void Form::fillSmartGlocalNativeMethod(QJsonObject object) {
 		.needCardholderName = false,
 	};
 }
+#endif
 
 void Form::submit() {
 	Expects(_paymentMethod.newCredentials
@@ -894,6 +1122,7 @@ void Form::submit() {
 	const auto index = _paymentMethod.savedCredentialsIndex;
 	const auto &list = _paymentMethod.savedCredentials;
 
+#if 0 // goodToRemove
 	const auto password = (index < list.size())
 		? _session->validTmpPassword()
 		: QByteArray();
@@ -901,6 +1130,8 @@ void Form::submit() {
 		_updates.fire(TmpPasswordRequired{});
 		return;
 	} else if (!_session->local().isBotTrustedPayment(_details.botId)) {
+#endif
+	if (!_session->local().isBotTrustedPayment(_details.botId)) {
 		_updates.fire(BotTrustRequired{
 			.bot = _session->data().user(_details.botId),
 			.provider = _session->data().user(_details.providerId),
@@ -908,6 +1139,40 @@ void Form::submit() {
 		return;
 	}
 
+	showProgress();
+	_api.request(Tdb::TLsendPaymentForm(
+		peerToTdbChat(_peer->id),
+		Tdb::tl_int53(_msgId.bare),
+		Tdb::tl_int64(_details.formId),
+		Tdb::tl_string(_requestedInformationId),
+		Tdb::tl_string(_shippingOptions.selectedId),
+		(index < list.size()
+			? Tdb::tl_inputCredentialsSaved(
+				Tdb::tl_string(list[index].id))
+			: Tdb::tl_inputCredentialsNew(
+				Tdb::tl_string(_paymentMethod.newCredentials.data),
+				Tdb::tl_bool(_paymentMethod.newCredentials.saveOnServer
+					&& _details.canSaveCredentials))),
+		Tdb::tl_int53(_invoice.tipsSelected)
+	)).done([=](const Tdb::TLDpaymentResult &data) {
+		hideProgress();
+		if (data.vsuccess().v && data.vverification_url().v.isEmpty()) {
+			_updates.fire(PaymentFinished{});
+		} else {
+			_updates.fire(VerificationNeeded{ data.vverification_url().v });
+		}
+	}).fail([=](const Tdb::Error &error) {
+		hideProgress();
+		if (error.message
+			== u"Temporary password required to use saved credentials"_q) {
+			// See td/telegram/Payments.cpp@send_payment_form.
+			// Temporary password is missing or expired.
+			_updates.fire(TmpPasswordRequired{});
+		} else {
+			_updates.fire(Error{ Error::Type::Send, error.message });
+		}
+	}).send();
+#if 0 // goodToRemove
 	using Flag = MTPpayments_SendPaymentForm::Flag;
 	showProgress();
 	_api.request(MTPpayments_SendPaymentForm(
@@ -944,12 +1209,24 @@ void Form::submit() {
 		hideProgress();
 		_updates.fire(Error{ Error::Type::Send, error.type() });
 	}).send();
+#endif
 }
 
 void Form::submit(const Core::CloudPasswordResult &result) {
 	if (_passwordRequestId) {
 		return;
 	}
+	_passwordRequestId = _api.request(Tdb::TLcreateTemporaryPassword(
+		Tdb::tl_string(result.password),
+		Tdb::tl_int32(kPasswordPeriod)
+	)).done([=](const Tdb::TLDtemporaryPasswordState &data) {
+		_passwordRequestId = 0;
+		submit();
+	}).fail([=](const Tdb::Error &error) {
+		_passwordRequestId = 0;
+		_updates.fire(Error{ Error::Type::TmpPassword, error.message });
+	}).send();
+#if 0 // goodToRemove
 	_passwordRequestId = _api.request(MTPaccount_GetTmpPassword(
 		result.result,
 		MTP_int(kPasswordPeriod)
@@ -965,6 +1242,7 @@ void Form::submit(const Core::CloudPasswordResult &result) {
 		_passwordRequestId = 0;
 		_updates.fire(Error{ Error::Type::TmpPassword, error.type() });
 	}).send();
+#endif
 }
 
 std::optional<QDate> Form::overrideExpireDateThreshold() const {
@@ -994,20 +1272,34 @@ void Form::validateInformation(const Ui::RequestedInformation &information) {
 	Assert(!_invoice.isPhoneRequested || !information.phone.isEmpty());
 
 	showProgress();
+#if 0 // goodToRemove
 	using Flag = MTPpayments_ValidateRequestedInfo::Flag;
+#endif
+	_validateRequestId = _api.request(Tdb::TLvalidateOrderInfo(
+		peerToTdbChat(_peer->id),
+		Tdb::tl_int53(_msgId.bare),
+		Serialize(information),
+		Tdb::tl_bool(information.save)
+#if 0 // goodToRemove
 	_validateRequestId = _api.request(MTPpayments_ValidateRequestedInfo(
 		MTP_flags(information.save ? Flag::f_save : Flag(0)),
 		inputInvoice(),
 		Serialize(information)
 	)).done([=](const MTPpayments_ValidatedRequestedInfo &result) {
+#endif
+	)).done([=](const Tdb::TLDvalidatedOrderInfo &data) {
 		hideProgress();
 		_validateRequestId = 0;
 		const auto oldSelectedId = _shippingOptions.selectedId;
+#if 0 // goodToRemove
 		result.match([&](const MTPDpayments_validatedRequestedInfo &data) {
 			_requestedInformationId = data.vid().value_or_empty();
 			processShippingOptions(
 				data.vshipping_options().value_or_empty());
 		});
+#endif
+		_requestedInformationId = data.vorder_info_id().v;
+		processShippingOptions(data.vshipping_options().v);
 		_shippingOptions.selectedId = ranges::contains(
 			_shippingOptions.list,
 			oldSelectedId,
@@ -1022,10 +1314,16 @@ void Form::validateInformation(const Ui::RequestedInformation &information) {
 			_savedInformation = _information;
 		}
 		_updates.fire(ValidateFinished{});
+#if 0 // goodToRemove
 	}).fail([=](const MTP::Error &error) {
+#endif
+	}).fail([=](const Tdb::Error &error) {
 		hideProgress();
 		_validateRequestId = 0;
+		_updates.fire(Error{ Error::Type::Validate, error.message });
+#if 0 // goodToRemove
 		_updates.fire(Error{ Error::Type::Validate, error.type() });
+#endif
 	}).send();
 }
 
@@ -1306,6 +1604,7 @@ void Form::trustBot() {
 	_session->local().markBotTrustedPayment(_details.botId);
 }
 
+#if 0 // goodToRemove
 void Form::processShippingOptions(const QVector<MTPShippingOption> &data) {
 	const auto currency = _invoice.currency;
 	_shippingOptions = Ui::ShippingOptions{ currency, ranges::views::all(
@@ -1318,6 +1617,22 @@ void Form::processShippingOptions(const QVector<MTPShippingOption> &data) {
 				.prices = ParsePrices(data.vprices()),
 			};
 		});
+	}) | ranges::to_vector };
+	_shippingOptions.currency = _invoice.currency;
+}
+#endif
+
+void Form::processShippingOptions(
+		const QVector<Tdb::TLshippingOption> &options) {
+	const auto currency = _invoice.currency;
+	_shippingOptions = Ui::ShippingOptions{ currency, ranges::views::all(
+		options
+	) | ranges::views::transform([](const Tdb::TLshippingOption &option) {
+		return Ui::ShippingOption{
+			.id = option.data().vid().v,
+			.title = option.data().vtitle().v,
+			.prices = ParsePrices(option.data().vprice_parts()),
+		};
 	}) | ranges::to_vector };
 	_shippingOptions.currency = _invoice.currency;
 }

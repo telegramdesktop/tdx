@@ -25,7 +25,10 @@ struct Cover {
 
 struct Receipt {
 	TimeId date = 0;
+#if 0 // goodToRemove
 	int64 totalAmount = 0;
+#endif
+	int64 tipAmount = 0;
 	QString currency;
 	bool paid = false;
 
