@@ -10,6 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_indexed_list.h"
 #include "dialogs/dialogs_pinned_list.h"
 
+namespace Tdb {
+class TLDupdateUnreadMessageCount;
+class TLDupdateUnreadChatCount;
+} // namespace Tdb
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -41,6 +46,8 @@ public:
 		const UnreadState &nowState);
 	void unreadEntryChanged(const UnreadState &state, bool added);
 	void updateCloudUnread(const MTPDdialogFolder &data);
+	void updateCloudUnread(const Tdb::TLDupdateUnreadMessageCount &data);
+	void updateCloudUnread(const Tdb::TLDupdateUnreadChatCount &data);
 	[[nodiscard]] bool cloudUnreadKnown() const;
 	[[nodiscard]] UnreadState unreadState() const;
 	[[nodiscard]] rpl::producer<UnreadState> unreadStateChanges() const;

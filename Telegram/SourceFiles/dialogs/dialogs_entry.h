@@ -70,6 +70,8 @@ struct UnreadState {
 	int reactions = 0;
 	int reactionsMuted = 0;
 	int mentions = 0;
+	bool knownMessages = false;
+	bool knownChats = false;
 	bool known = false;
 
 	UnreadState &operator+=(const UnreadState &other) {
