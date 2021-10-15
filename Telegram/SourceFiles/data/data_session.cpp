@@ -5146,6 +5146,12 @@ void Session::setTopPromoted(
 	}
 }
 
+void Session::setNotTopPromoted(not_null<History*> history) {
+	if (_topPromoted == history) {
+		setTopPromoted(nullptr, QString(), QString());
+	}
+}
+
 bool Session::updateWallpapers(const MTPaccount_WallPapers &data) {
 	return data.match([&](const MTPDaccount_wallPapers &data) {
 		setWallpapers(data.vwallpapers().v, data.vhash().v);

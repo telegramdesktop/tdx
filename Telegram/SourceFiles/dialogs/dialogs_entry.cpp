@@ -188,11 +188,14 @@ void Entry::cachePinnedIndex(FilterId filterId, int index) {
 	pinnedIndexChanged(filterId, was, index);
 }
 
+#if 0 // #TODO legacy
 bool Entry::needUpdateInChatList() const {
 	return inChatList() || shouldBeInChatList();
 }
+#endif
 
 void Entry::updateChatListSortPosition() {
+#if 0 // #TODO legacy
 	if (session().supportMode()
 		&& _sortKeyInChatList != 0
 		&& session().settings().supportFixChatsOrder()) {
@@ -209,6 +212,34 @@ void Entry::updateChatListSortPosition() {
 	} else {
 		_sortKeyInChatList = _sortKeyByDate = 0;
 	}
+#endif
+	if (const auto folder = asFolder()) {
+		const auto order = folder->chatsList()->empty()
+			? 0
+			: FixedOnTopDialogPos(kArchiveFixOnTopIndex);
+		updateChatListSortPosition(FilterId(), order, false);
+	}
+}
+
+void Entry::updateChatListSortPosition(
+		FilterId filterId,
+		uint64 order,
+		bool pinned) {
+	if (const auto history = asHistory()) {
+		owner().setChatPinned(history, filterId, pinned);
+	}
+	if (filterId) {
+		if (order != 0) {
+			_sortKeyInFilterMap[filterId] = order;
+		} else {
+			_sortKeyInFilterMap.remove(filterId);
+		}
+	} else {
+		_sortKeyInChatList = order;
+	}
+	if (!filterId || order != 0) {
+		setChatListExistence(order != 0);
+	}
 }
 
 int Entry::lookupPinnedIndex(FilterId filterId) const {
@@ -224,12 +255,25 @@ int Entry::lookupPinnedIndex(FilterId filterId) const {
 }
 
 uint64 Entry::computeSortPosition(FilterId filterId) const {
+	Expects(filterId != 0);
+#if 0 // #TODO legacy
 	const auto index = lookupPinnedIndex(filterId);
 	return index ? PinnedDialogPos(index) : _sortKeyByDate;
+#endif
+	const auto i = _sortKeyInFilterMap.find(filterId);
+	return (i != end(_sortKeyInFilterMap)) ? i->second : 0ULL;
 }
 
 void Entry::updateChatListExistence() {
+#if 0 // #TODO legacy
 	setChatListExistence(shouldBeInChatList());
+#endif
+	if (const auto folder = asFolder()) {
+		const auto order = folder->chatsList()->empty()
+			? 0
+			: FixedOnTopDialogPos(kArchiveFixOnTopIndex);
+		updateChatListSortPosition(FilterId(), order, false);
+	}
 }
 
 void Entry::notifyUnreadStateChange(const UnreadState &wasState) {
@@ -281,9 +325,11 @@ void Entry::setChatListExistence(bool exists) {
 	}
 }
 
+#if 0 // #TODO legacy
 TimeId Entry::adjustedChatListTimeId() const {
 	return chatListTimeId();
 }
+#endif
 
 void Entry::changedChatListPinHook() {
 }
@@ -321,11 +367,13 @@ PositionChange Entry::adjustByPosInChatList(
 }
 
 void Entry::setChatListTimeId(TimeId date) {
+#if 0 // #TODO legacy
 	_timeId = date;
 	updateChatListSortPosition();
 	if (const auto folder = this->folder()) {
 		folder->updateChatListSortPosition();
 	}
+#endif
 }
 
 int Entry::posInChatList(FilterId filterId) const {
