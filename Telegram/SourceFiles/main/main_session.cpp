@@ -53,7 +53,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Main {
 namespace {
 
+#if 0 // goodToRemove
 constexpr auto kTmpPasswordReserveTime = TimeId(10);
+#endif
 
 [[nodiscard]] QString ValidatedInternalLinksDomain(
 		not_null<const Session*> session) {
@@ -184,6 +186,7 @@ Session::Session(
 	Core::App().downloadManager().trackSession(this);
 }
 
+#if 0 // goodToRemove
 void Session::setTmpPassword(const QByteArray &password, TimeId validUntil) {
 	if (_tmpPassword.isEmpty() || validUntil > _tmpPasswordValidUntil) {
 		_tmpPassword = password;
@@ -197,6 +200,7 @@ QByteArray Session::validTmpPassword() const {
 		? _tmpPassword
 		: QByteArray();
 }
+#endif
 
 // Can be called only right before ~Session.
 void Session::finishLogout() {
