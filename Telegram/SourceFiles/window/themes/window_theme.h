@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_cloud_themes.h"
 #include "ui/style/style_core_palette.h"
 
+namespace Tdb {
+class TLpaymentFormTheme;
+} // namespace Tdb
+
 class QFileSystemWatcher;
 struct SendMediaReady;
 
@@ -308,6 +312,8 @@ bool ReadPaletteValues(
 	Fn<bool(QLatin1String name, QLatin1String value)> callback);
 
 [[nodiscard]] Webview::ThemeParams WebViewParams();
+
+[[nodiscard]] Tdb::TLpaymentFormTheme WebViewTheme();
 
 } // namespace Theme
 } // namespace Window
