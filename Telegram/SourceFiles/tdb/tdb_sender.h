@@ -11,8 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Tdb {
 
-using details::RequestId;
-
 class Sender final {
 	class RequestBuilder {
 	public:

@@ -152,6 +152,8 @@ protected:
 	virtual void startLoadingWithPartial(const QByteArray &data) {
 		startLoading();
 	}
+	virtual void increaseLoadSizeHook() {
+	}
 
 	void cancel(FailureReason failed);
 
