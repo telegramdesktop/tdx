@@ -1299,6 +1299,11 @@ void History::applyMessageChanges(
 		Data::MessageUpdate::Flag::NewAdded);
 }
 
+TimeId History::chatListTimeId() const {
+	const auto item = lastMessage();
+	return item ? item->date() : TimeId();
+}
+
 void History::mainViewRemoved(
 		not_null<HistoryBlock*> block,
 		not_null<HistoryView::Element*> view) {
@@ -2168,6 +2173,7 @@ void History::applyPinnedUpdate(const MTPDupdateDialogPinned &data) {
 	owner().setChatPinned(this, FilterId(), data.is_pinned());
 }
 
+#if 0 // #TODO legacy
 TimeId History::adjustedChatListTimeId() const {
 	const auto result = chatListTimeId();
 	if (const auto draft = cloudDraft(MsgId(0))) {
@@ -2179,6 +2185,7 @@ TimeId History::adjustedChatListTimeId() const {
 	}
 	return result;
 }
+#endif
 
 void History::countScrollState(int top) {
 	std::tie(scrollTopItem, scrollTopOffset) = findItemAndOffset(top);
@@ -2869,6 +2876,7 @@ bool History::trackUnreadMessages() const {
 	return true;
 }
 
+#if 0 // #TODO legacy
 bool History::shouldBeInChatList() const {
 	if (peer->migrateTo() || !folderKnown()) {
 		return false;
@@ -2890,6 +2898,7 @@ bool History::shouldBeInChatList() const {
 	return !lastMessageKnown()
 		|| (lastMessage() != nullptr);
 }
+#endif
 
 void History::unknownMessageDeleted(MsgId messageId) {
 	if (_inboxReadBefore && messageId >= *_inboxReadBefore) {
@@ -2965,13 +2974,20 @@ void History::applyPosition(const TLDchatPosition &data) {
 		}, [&](const TLDchatSourcePublicServiceAnnouncement &data) {
 			owner().setTopPromoted(this, data.vtype().v, data.vtext().v);
 		});
+	} else {
+		owner().setNotTopPromoted(this);
 	}
 	data.vlist().match([&](const TLDchatListMain &) {
 		clearFolder();
+		updateChatListSortPosition(FilterId(), order, pinned);
 	}, [&](const TLDchatListArchive &) {
 		setFolder(owner().folder(Data::Folder::kId));
+		updateChatListSortPosition(FilterId(), order, pinned);
 	}, [&](const TLDchatListFilter &data) {
-		const auto filterId = data.vchat_filter_id().v;
+		if (folderKnown()) {
+			const auto filterId = data.vchat_filter_id().v;
+			updateChatListSortPosition(filterId, order, pinned);
+		}
 	});
 }
 

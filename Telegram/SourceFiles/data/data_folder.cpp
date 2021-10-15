@@ -349,9 +349,11 @@ void Folder::requestChatListMessage() {
 	}
 }
 
+#if 0 // #TODO legacy
 TimeId Folder::adjustedChatListTimeId() const {
 	return chatListTimeId();
 }
+#endif
 
 void Folder::applyDialog(const MTPDdialogFolder &data) {
 	_chatsList.updateCloudUnread(data);
@@ -380,9 +382,11 @@ int Folder::fixedOnTopIndex() const {
 	return kArchiveFixOnTopIndex;
 }
 
+#if 0 // #TODO legacy
 bool Folder::shouldBeInChatList() const {
 	return !_chatsList.empty() || (_storiesCount > 0);
 }
+#endif
 
 Dialogs::UnreadState Folder::chatListUnreadState() const {
 	return _chatsList.unreadState();
