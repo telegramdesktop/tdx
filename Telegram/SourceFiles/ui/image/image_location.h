@@ -508,13 +508,13 @@ inline bool operator>=(
 class DownloadLocation {
 public:
 	std::variant<
-		TdbFileLocation,
 		StorageFileLocation,
 		WebFileLocation,
 		GeoPointLocation,
 		PlainUrlLocation,
 		AudioAlbumThumbLocation,
-		InMemoryLocation> data;
+		InMemoryLocation,
+		TdbFileLocation> data;
 
 	[[nodiscard]] QByteArray serialize() const;
 	[[nodiscard]] int serializeSize() const;
