@@ -836,7 +836,8 @@ QByteArray DownloadLocation::serialize() const {
 	}, [&](const InMemoryLocation &data) {
 		stream << quint8(NonStorageLocationType::Memory) << data.bytes;
 	}, [&](const TdbFileLocation &data) {
-		stream << quint8(NonStorageLocationType::Tdb) << qint32(data.fileId);
+		// #TODO tdlib file.id is not persistent across relaunches.
+		stream << quint8(NonStorageLocationType::Tdb);
 	});
 	buffer.close();
 	return result;
@@ -860,7 +861,6 @@ int DownloadLocation::serializeSize() const {
 	}, [&](const InMemoryLocation &data) {
 		result += Serialize::bytearraySize(data.bytes);
 	}, [&](const TdbFileLocation &data) {
-		result += sizeof(qint32);
 	});
 	return result;
 }
@@ -941,15 +941,7 @@ std::optional<DownloadLocation> DownloadLocation::FromSerialized(
 	} break;
 
 	case NonStorageLocationType::Tdb: {
-		qint32 savedFileId = 0;
-		stream >> savedFileId;
-
-		// Don't provide the savedFileId, because TDLib allows to download
-		// only files that it has sent to the client in that launch.
-		// So you always need to get the right fileId from TDLib first.
-		// For example, if you didn't get updateUser with userpic with
-		// a fileId and try to download the file with that fileId you'll get
-		// "400: Invalid file identifier".
+		// #TODO tdlib file.id is not persistent across relaunches.
 		return (stream.status() == QDataStream::Ok)
 			? std::make_optional(DownloadLocation())
 			: std::nullopt;
