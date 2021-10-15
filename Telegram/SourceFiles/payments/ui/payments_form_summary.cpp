@@ -349,6 +349,15 @@ void FormSummary::setupPrices(not_null<VerticalLayout*> layout) {
 	}
 
 	const auto computedTotal = computeTotalAmount();
+	const auto receiptTips = _invoice.receipt.paid
+		? _invoice.receipt.tipAmount
+		: 0;
+	const auto total = computedTotal + receiptTips;
+	if (_invoice.receipt.paid) {
+		if (receiptTips) {
+			add(tr::lng_payments_tips_label(tr::now), receiptTips);
+		}
+#if 0 // goodToRemove
 	const auto total = _invoice.receipt.paid
 		? _invoice.receipt.totalAmount
 		: computedTotal;
@@ -356,6 +365,7 @@ void FormSummary::setupPrices(not_null<VerticalLayout*> layout) {
 		if (const auto tips = total - computedTotal) {
 			add(tr::lng_payments_tips_label(tr::now), tips);
 		}
+#endif
 	} else if (_invoice.tipsMax > 0) {
 		const auto text = formatAmount(_invoice.tipsSelected);
 		const auto label = addRow(
