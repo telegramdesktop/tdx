@@ -300,14 +300,11 @@ int TdbFileLoader::currentOffset() const {
 }
 
 Storage::Cache::Key TdbFileLoader::cacheKey() const {
-	return Data::TdbFileCacheKey(_fileId);
+	return {}; // #TODO tdlib file.id is not persistent across relaunches.
 }
 
 std::optional<MediaKey> TdbFileLoader::fileLocationKey() const {
-	if (_locationType != UnknownFileLocation) {
-		return mediaKey(_locationType, 0, uint32(_fileId));
-	}
-	return std::nullopt;
+	return {}; // #TODO tdlib file.id is not persistent across relaunches.
 }
 
 void TdbFileLoader::cancelRequest() {
