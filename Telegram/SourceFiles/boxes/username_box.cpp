@@ -64,7 +64,10 @@ private:
 	const not_null<PeerData*> _peer;
 	const not_null<Main::Session*> _session;
 	const style::margins &_padding;
+#if 0 // goodToRemove
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 
 	object_ptr<Ui::UsernameInput> _username;
 
@@ -85,7 +88,10 @@ UsernameEditor::UsernameEditor(
 : _peer(peer)
 , _session(&peer->session())
 , _padding(st::usernamePadding)
+, _api(&_session->sender())
+#if 0 // goodToRemove
 , _api(&_session->mtp())
+#endif
 , _username(
 	this,
 	st::defaultInputField,
@@ -137,6 +143,16 @@ rpl::producer<> UsernameEditor::save() {
 	}
 
 	_sentUsername = getName();
+	_saveRequestId = _api.request(Tdb::TLsetUsername(
+		Tdb::tl_string(_sentUsername)
+	)).done([=] {
+		_saveRequestId = 0;
+		_saved.fire_done();
+	}).fail([=](const Tdb::Error &error) {
+		_saveRequestId = 0;
+		updateFail(error.message);
+	}).send();
+#if 0 // goodToRemove
 	_saveRequestId = _api.request(MTPaccount_UpdateUsername(
 		MTP_string(_sentUsername)
 	)).done([=](const MTPUser &result) {
@@ -147,6 +163,7 @@ rpl::producer<> UsernameEditor::save() {
 		_saveRequestId = 0;
 		updateFail(error.type());
 	}).send();
+#endif
 	return _saved.events();
 }
 
@@ -172,6 +189,31 @@ void UsernameEditor::check() {
 		return;
 	}
 	_checkUsername = name;
+	_checkRequestId = _api.request(Tdb::TLcheckChatUsername(
+		peerToTdbChat(_session->userPeerId()),
+		Tdb::tl_string(name)
+	)).done([=](const Tdb::TLcheckChatUsernameResult &result) {
+		using namespace Tdb;
+		_checkRequestId = 0;
+		result.match([&](const TLDcheckChatUsernameResultOk &data) {
+			_errorText = QString();
+			_goodText = tr::lng_username_available(tr::now);
+			update();
+		}, [&](const TLDcheckChatUsernameResultUsernameInvalid &data) {
+			_errorText = tr::lng_username_invalid(tr::now);
+			update();
+		}, [&](const TLDcheckChatUsernameResultUsernameOccupied &data) {
+			_errorText = tr::lng_username_occupied(tr::now);
+			update();
+		}, [](const TLDcheckChatUsernameResultPublicChatsTooMuch &data) {
+		}, [](const TLDcheckChatUsernameResultPublicGroupsUnavailable &data) {
+		});
+	}).fail([=] {
+		_checkRequestId = 0;
+		_goodText = QString();
+		_username->setFocus();
+	}).send();
+#if 0 // goodToRemove
 	_checkRequestId = _api.request(MTPaccount_CheckUsername(
 		MTP_string(name)
 	)).done([=](const MTPBool &result) {
@@ -190,6 +232,7 @@ void UsernameEditor::check() {
 		_checkRequestId = 0;
 		checkFail(error.type());
 	}).send();
+#endif
 }
 
 void UsernameEditor::changed() {
