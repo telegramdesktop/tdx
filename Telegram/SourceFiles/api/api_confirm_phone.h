@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "mtproto/sender.h"
+#include "tdb/tdb_sender.h"
 
 class ApiWrap;
 
@@ -27,7 +28,10 @@ public:
 		const QString &hash);
 
 private:
+#if 0 // goodToRemove
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 	mtpRequestId _sendRequestId = 0;
 	mtpRequestId _checkRequestId = 0;
 
