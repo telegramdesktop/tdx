@@ -8,6 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "mtproto/sender.h"
+#include "tdb/tdb_sender.h"
+
+namespace Tdb {
+class FileGenerator;
+} // namespace Tdb
 
 class ApiWrap;
 class PeerData;
@@ -94,16 +99,26 @@ private:
 	[[nodiscard]] EmojiListData &emojiList(EmojiListType type);
 	[[nodiscard]] const EmojiListData &emojiList(EmojiListType type) const;
 
+#if 0 // goodToRemove
 	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
+#endif
 
 	struct UploadValue {
+#if 0 // mtp
 		not_null<PeerData*> peer;
+#endif
+		std::shared_ptr<Tdb::FileGenerator> generator;
 		UploadType type = UploadType::Default;
 		Fn<void()> done;
 	};
 
+#if 0 // mtp
 	base::flat_map<FullMsgId, UploadValue> _uploads;
+#endif
+	const not_null<Main::Session*> _session;
+	Tdb::Sender _api;
+	base::flat_map<not_null<PeerData*>, UploadValue> _uploads;
 
 	base::flat_map<not_null<UserData*>, mtpRequestId> _userPhotosRequests;
 
