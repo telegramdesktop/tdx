@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/box_content.h"
 #include "base/timer.h"
 #include "mtproto/sender.h"
+#include "tdb/tdb_sender.h"
 
 class PeerListBox;
 struct RequestPeerQuery;
@@ -260,7 +261,10 @@ private:
 	void saveSelfFail(const QString &error);
 
 	const not_null<UserData*> _user;
+#if 0 // goodToRemove
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 
 	object_ptr<Ui::InputField> _first;
 	object_ptr<Ui::InputField> _last;
