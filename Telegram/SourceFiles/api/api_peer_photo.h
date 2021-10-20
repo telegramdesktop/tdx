@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mtproto/sender.h"
 
+namespace Tdb {
+class FileGenerator;
+} // namespace Tdb
+
 class ApiWrap;
 class PeerData;
 class UserData;
@@ -99,12 +103,18 @@ private:
 	MTP::Sender _api;
 
 	struct UploadValue {
+#if 0 // mtp
 		not_null<PeerData*> peer;
+#endif
+		std::shared_ptr<Tdb::FileGenerator> generator;
 		UploadType type = UploadType::Default;
 		Fn<void()> done;
 	};
 
+#if 0 // mtp
 	base::flat_map<FullMsgId, UploadValue> _uploads;
+#endif
+	base::flat_map<not_null<PeerData*>, UploadValue> _uploads;
 
 	base::flat_map<not_null<UserData*>, mtpRequestId> _userPhotosRequests;
 

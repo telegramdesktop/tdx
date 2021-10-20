@@ -23,12 +23,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user_photos.h"
 #include "history/history.h"
 #include "main/main_session.h"
+#if 0 // goodToRemove
 #include "storage/file_upload.h"
 #include "storage/localimageloader.h"
+#endif
 #include "storage/storage_user_photos.h"
-
-#include "tdb/tdb_sender.h"
-#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_file_generator.h"
 
 #include <QtCore/QBuffer>
 
@@ -39,6 +39,7 @@ using namespace Tdb;
 
 constexpr auto kSharedMediaLimit = 100;
 
+#if 0 // mtp
 [[nodiscard]] std::shared_ptr<FilePrepareResult> PreparePeerPhoto(
 		MTP::DcId dcId,
 		PeerId peerId,
@@ -97,6 +98,7 @@ constexpr auto kSharedMediaLimit = 100;
 	result->photoThumbs = photoThumbs;
 	return result;
 }
+#endif
 
 [[nodiscard]] std::optional<MTPVideoSize> PrepareMtpMarkup(
 		not_null<Main::Session*> session,
@@ -154,6 +156,7 @@ constexpr auto kSharedMediaLimit = 100;
 PeerPhoto::PeerPhoto(not_null<ApiWrap*> api)
 : _session(&api->session())
 , _api(&api->instance()) {
+#if 0 // goodToRemove
 	crl::on_main(_session, [=] {
 		// You can't use _session->lifetime() in the constructor,
 		// only queued, because it is not constructed yet.
@@ -164,6 +167,7 @@ PeerPhoto::PeerPhoto(not_null<ApiWrap*> api)
 #endif
 		}, _session->lifetime());
 	});
+#endif
 }
 
 void PeerPhoto::upload(
@@ -216,6 +220,7 @@ void PeerPhoto::upload(
 		UploadType type,
 		Fn<void()> done) {
 	peer = peer->migrateToOrMe();
+#if 0 // goodToRemove
 	const auto mtpMarkup = PrepareMtpMarkup(_session, photo);
 
 	const auto fakeId = FullMsgId(
@@ -241,6 +246,35 @@ void PeerPhoto::upload(
 			base::take(photo.image));
 		_session->uploader().upload(fakeId, ready);
 	}
+#endif
+	// todo video markup
+	auto data = QByteArray();
+	auto jpegBuffer = QBuffer(&data);
+	image.save(&jpegBuffer, "JPG", 87);
+
+	auto generator = std::make_unique<FileGenerator>(
+		&_session->tdb(),
+		std::move(data));
+	auto inputFile = tl_inputChatPhotoStatic(generator->inputFile());
+
+	const auto eraseExisted = [=] {
+		const auto it = _uploads.find(peer);
+		if (it != end(_uploads)) {
+			it->second->cancel();
+			_uploads.erase(it);
+		}
+	};
+	eraseExisted();
+
+	generator->lifetime().add([=] {
+		eraseExisted();
+	});
+
+	_uploads.emplace(peer, std::move(generator));
+
+	_api.request(TLsetProfilePhoto(
+		std::move(inputFile)
+	)).send();
 }
 
 void PeerPhoto::suggest(not_null<PeerData*> peer, UserPhoto &&photo) {
@@ -296,16 +330,16 @@ void PeerPhoto::clear(not_null<PhotoData*> photo) {
 #endif
 
 	if (_session->user()->userpicPhotoId() == photo->id) {
-		_session->sender().request(TLdeleteProfilePhoto(
+		_api.request(TLdeleteProfilePhoto(
 			tl_int64(photo->id)
 		)).send();
 	} else if (photo->peer && photo->peer->userpicPhotoId() == photo->id) {
-		_session->sender().request(TLsetChatPhoto(
+		_api.request(TLsetChatPhoto(
 			peerToTdbChat(photo->peer->id),
 			null
 		)).send();
 	} else {
-		_session->sender().request(TLdeleteProfilePhoto(
+		_api.request(TLdeleteProfilePhoto(
 			tl_int64(photo->id)
 		)).send();
 		_session->storage().remove(Storage::UserPhotosRemoveOne(
