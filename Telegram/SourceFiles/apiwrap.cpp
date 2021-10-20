@@ -4639,6 +4639,16 @@ void ApiWrap::saveSelfBio(const QString &text) {
 		}
 	}
 	_bio.requestedText = text;
+	_bio.requestId = sender().request(Tdb::TLsetBio(
+		Tdb::tl_string(text)
+	)).done([=] {
+		_bio.requestId = 0;
+
+		_session->user()->setAbout(_bio.requestedText);
+	}).fail([=](const Tdb::Error &error) {
+		_bio.requestId = 0;
+	}).send();
+#if 0 // goodToRemove
 	_bio.requestId = request(MTPaccount_UpdateProfile(
 		MTP_flags(MTPaccount_UpdateProfile::Flag::f_about),
 		MTPstring(),
@@ -4652,6 +4662,7 @@ void ApiWrap::saveSelfBio(const QString &text) {
 	}).fail([=] {
 		_bio.requestId = 0;
 	}).send();
+#endif
 }
 
 #if 0 // mtp
