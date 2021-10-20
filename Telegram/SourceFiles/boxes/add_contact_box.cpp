@@ -1637,6 +1637,16 @@ void EditNameBox::save() {
 		last = QString();
 	}
 	_sentName = first;
+	_requestId = _api.request(Tdb::TLsetName(
+		Tdb::tl_string(first),
+		Tdb::tl_string(last)
+	)).done([=] {
+		closeBox();
+	}).fail([=](const Tdb::Error &error) {
+		_requestId = 0;
+		saveSelfFail(error.message);
+	}).send();
+#if 0 // goodToRemove
 	auto flags = MTPaccount_UpdateProfile::Flag::f_first_name
 		| MTPaccount_UpdateProfile::Flag::f_last_name;
 	_requestId = _api.request(MTPaccount_UpdateProfile(
@@ -1651,6 +1661,7 @@ void EditNameBox::save() {
 		_requestId = 0;
 		saveSelfFail(error.type());
 	}).send();
+#endif
 }
 
 void EditNameBox::saveSelfFail(const QString &error) {
