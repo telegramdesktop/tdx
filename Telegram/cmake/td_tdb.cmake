@@ -17,6 +17,8 @@ nice_target_sources(td_tdb ${src_loc}
 PRIVATE
     tdb/tdb_account.cpp
     tdb/tdb_account.h
+    tdb/tdb_file_generator.cpp
+    tdb/tdb_file_generator.h
     tdb/tdb_file_proxy.cpp
     tdb/tdb_file_proxy.h
     tdb/tdb_request_id.h
