@@ -400,6 +400,7 @@ private:
 
 	// TDLib location type.
 	FileId _tdbFileId = 0;
+	uint64 _tdbRemoteLocationHash = 0;
 
 	QByteArray _inlineThumbnailBytes;
 	Data::CloudFile _thumbnail;
