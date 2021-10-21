@@ -139,7 +139,9 @@ bool LoaderTdb::haveSentRequestForOffset(int offset) const {
 }
 
 void LoaderTdb::cancelRequest() {
-	_account->sender().request(base::take(_requestId)).cancel();
+	if (_requestId) {
+		_account->sender().request(base::take(_requestId)).cancel();
+	}
 	_loadingLifetime.destroy();
 }
 
@@ -196,6 +198,7 @@ void LoaderTdb::addToQueue(int priority) {
 	if (_loadedTill < newOffset || newOffset < _requestedOffset) {
 		_loadedTill = newOffset;
 	}
+	LOG(("CANCELLING REQUEST %1 FOR: %2").arg(_requestId).arg(_requestedOffset));
 	_requestedOffset = newOffset;
 	_requestedLimit = newLimit;
 	_requestedPriority = newPriority;
@@ -207,10 +210,12 @@ void LoaderTdb::addToQueue(int priority) {
 		tl_int32(_requestedLimit),
 		tl_bool(false)
 	)).done([=](const TLfile &result) {
+		LOG(("GOT RESPONSE %1 FOR: %2").arg(_requestId).arg(_requestedOffset));
+		_requestId = 0;
 		apply(result);
 
-		_requestId = 0;
-		if (haveSentRequests()) {
+		if (!_requestId && haveSentRequests()) {
+			LOG(("SUBSCRIBED TO UPDATES"));
 			_account->updates(
 			) | rpl::start_with_next([=](const TLupdate &update) {
 				update.match([&](const TLDupdateFile &data) {
@@ -221,28 +226,23 @@ void LoaderTdb::addToQueue(int priority) {
 	}).fail([=](const Error &error) {
 		cancelOnFail();
 	}).send();
+	LOG(("SENT REQUEST %1 FOR: %2").arg(_requestId).arg(_requestedOffset));
 }
 
 void LoaderTdb::apply(const TLfile &file) {
 	const auto &fields = file.data();
 	if (fields.vid().v != _fileId) {
 		return;
-	} else if (_waitingOffsets.empty()) {
-		if (_requested.empty()) {
-			removeFromQueue();
-		} else {
-			addToQueueWithPriority();
-		}
-		return;
 	}
+
+	LOG(("HANDLING UPDATE WITH %1 FOR: %2").arg(_requestId).arg(_requestedOffset));
 	const auto &local = fields.vlocal().data();
 	const auto downloadedOffset = local.vdownload_offset().v;
 	const auto downloadedTill = downloadedOffset
 		+ local.vdownloaded_prefix_size().v;
 	_loadedTill = std::max(_requestedOffset, downloadedTill);
-	const auto active = local.vis_downloading_active().v;
-
-	if (!active && downloadedTill == downloadedOffset) {
+	_loadingActive = local.vis_downloading_active().v;
+	if (!_loadingActive && downloadedTill == downloadedOffset) {
 		cancelOnFail();
 		return;
 	} else if (!_proxy) {
@@ -277,7 +277,7 @@ void LoaderTdb::apply(const TLfile &file) {
 		_parts.fire({ offset, std::move(bytes) });
 		i = _waitingOffsets.erase(i);
 	}
-	if (!active && !_waitingOffsets.empty()) {
+	if (!_loadingActive && !_waitingOffsets.empty()) {
 		cancelOnFail();
 	} else if (_waitingOffsets.size() != was && !_requested.empty()) {
 		addToQueueWithPriority();
@@ -291,13 +291,13 @@ int LoaderTdb::partSize(int offset) const {
 }
 
 void LoaderTdb::removeFromQueue() {
-	if (_requestId || _loadingLifetime) {
-		cancelRequest();
+	if (_requestId || _loadingActive) {
 		_account->sender().request(TLcancelDownloadFile(
 			tl_int32(_fileId),
 			tl_bool(false)
 		)).send();
 	}
+	cancelRequest();
 	_requestedOffset = _requestedLimit = _loadedTill = 0;
 	_waitingOffsets.clear();
 }

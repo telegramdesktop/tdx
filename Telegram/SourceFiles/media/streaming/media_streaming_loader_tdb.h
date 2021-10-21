@@ -73,6 +73,7 @@ private:
 	int _requestedLimit = 0;
 	int _requestedPriority = 0;
 	int _loadedTill = 0;
+	bool _loadingActive = false;
 	base::flat_set<int> _waitingOffsets;
 	rpl::lifetime _loadingLifetime;
 	std::unique_ptr<Tdb::FileProxy> _proxy;
