@@ -684,6 +684,12 @@ TdbFileLocation::TdbFileLocation(const Tdb::TLfile &data)
 : fileId(data.data().vid().v) {
 }
 
+Storage::Cache::Key TdbFileLocation::BigFileBaseCacheKey(
+		uint64 entityId,
+		uint64 remoteLocationHash) {
+	return { entityId, remoteLocationHash & ~0xFFULL };
+}
+
 InMemoryKey inMemoryKey(const StorageFileLocation &location) {
 	const auto key = location.cacheKey();
 	return { key.high, key.low };
@@ -983,14 +989,8 @@ Storage::Cache::Key DownloadLocation::cacheKey() const {
 	}, [](const InMemoryLocation &data) {
 		return Storage::Cache::Key();
 	}, [](const TdbFileLocation &data) {
-		return Storage::Cache::Key(); // #TODO tdlib
+		return Storage::Cache::Key();
 	});
-}
-
-Storage::Cache::Key DownloadLocation::bigFileBaseCacheKey() const {
-	return v::is<StorageFileLocation>(data)
-		? v::get<StorageFileLocation>(data).bigFileBaseCacheKey()
-		: Storage::Cache::Key(); // #TODO tdlib?.. streaming
 }
 
 bool DownloadLocation::valid() const {
