@@ -44,6 +44,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_location_factory.h"
 
 #include "storage/file_download_tdb.h"
+#include "media/streaming/media_streaming_loader_tdb.h"
+#include <xxhash.h>
 
 #include <QtCore/QBuffer>
 #include <QtCore/QMimeType>
@@ -850,6 +852,12 @@ void DocumentData::updateThumbnails(
 void DocumentData::setTdbLocation(const TLfile &file) {
 	const auto &fields = file.data();
 	_tdbFileId = fields.vid().v;
+	const auto id = fields.vremote().data().vunique_id().v.isEmpty()
+		? fields.vlocal().data().vpath().v
+		: fields.vremote().data().vunique_id().v;
+	_tdbRemoteLocationHash = id.isEmpty()
+		? 0
+		: XXH64(id.data(), id.size() * sizeof(ushort), 0);
 	size = fields.vsize().v;
 }
 
@@ -1047,6 +1055,11 @@ PhotoData *DocumentData::goodThumbnailPhoto() const {
 }
 
 Storage::Cache::Key DocumentData::bigFileBaseCacheKey() const {
+	if (_tdbFileId) {
+		return TdbFileLocation::BigFileBaseCacheKey(
+			id,
+			_tdbRemoteLocationHash);
+	}
 	return hasRemoteLocation()
 		? StorageFileLocation(
 			_dc,
@@ -1729,6 +1742,13 @@ auto DocumentData::createStreamingLoader(
 			location.accessDisable();
 			return result;
 		}
+	}
+	if (_tdbFileId) {
+		return std::make_unique<Media::Streaming::LoaderTdb>(
+			&session().tdb(),
+			_tdbFileId,
+			TdbFileLocation::BigFileBaseCacheKey(id, _tdbRemoteLocationHash),
+			size);
 	}
 	return hasRemoteLocation()
 		? std::make_unique<Media::Streaming::LoaderMtproto>(

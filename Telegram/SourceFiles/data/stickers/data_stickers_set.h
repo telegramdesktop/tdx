@@ -128,6 +128,7 @@ private:
 	const not_null<Data::Session*> _owner;
 
 	CloudFile _thumbnail;
+	uint64 _tdbThumbnailRemoteLocationHash = 0;
 	std::weak_ptr<StickersSetThumbnailView> _thumbnailView;
 
 };

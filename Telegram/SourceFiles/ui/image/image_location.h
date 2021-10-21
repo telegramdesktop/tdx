@@ -467,6 +467,10 @@ struct TdbFileLocation {
 	explicit TdbFileLocation(const Tdb::TLfile &data);
 
 	FileId fileId = 0;
+
+	[[nodiscard]] static Storage::Cache::Key BigFileBaseCacheKey(
+		uint64 documentId,
+		uint64 remoteLocationHash);
 };
 
 inline bool operator==(
@@ -527,7 +531,6 @@ public:
 		uint64 photoId) const;
 
 	[[nodiscard]] Storage::Cache::Key cacheKey() const;
-	[[nodiscard]] Storage::Cache::Key bigFileBaseCacheKey() const;
 	[[nodiscard]] bool valid() const;
 	[[nodiscard]] bool isLegacy() const;
 	[[nodiscard]] QByteArray fileReference() const;

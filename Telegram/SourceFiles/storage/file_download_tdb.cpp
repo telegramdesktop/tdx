@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "tdb/tdb_sender.h"
 #include "tdb/tdb_account.h"
+#include "tdb/tdb_file_proxy.h"
 
 namespace {
 
@@ -20,114 +21,6 @@ constexpr auto kMaxReadPart = 1024 * 1024;
 using namespace Tdb;
 
 } // namespace
-
-#ifdef Q_OS_WIN
-
-// To be able to read file that is being renamed by TDLib we should pass
-// FILE_SHARE_DELETE flag when opening it on Windows. Qt never passes this
-// flag in QFile, so we provide a custom implementation instead.
-class FileProxyImpl final {
-public:
-	explicit FileProxyImpl(const QString &path);
-
-	[[nodiscard]] bool valid() const;
-	[[nodiscard]] bool seek(int offset);
-	[[nodiscard]] QByteArray read(int limit);
-
-private:
-	HANDLE _handle = nullptr;
-
-};
-
-FileProxyImpl::FileProxyImpl(const QString &path) {
-	_handle = CreateFile(
-		reinterpret_cast<const wchar_t*>(path.utf16()),
-		GENERIC_READ,
-		FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-		nullptr,
-		OPEN_EXISTING,
-		FILE_ATTRIBUTE_NORMAL,
-		nullptr);
-}
-
-bool FileProxyImpl::valid() const {
-	return (_handle != INVALID_HANDLE_VALUE);
-}
-
-bool FileProxyImpl::seek(int offset) {
-	const auto result = SetFilePointer(_handle, offset, nullptr, FILE_BEGIN);
-	return (result != INVALID_SET_FILE_POINTER);
-}
-
-QByteArray FileProxyImpl::read(int limit) {
-	auto result = QByteArray(limit, Qt::Uninitialized);
-	auto read = DWORD(0);
-	ReadFile(_handle, result.data(), DWORD(limit), &read, nullptr);
-	return (read == limit) ? result : QByteArray();
-}
-
-#else // Q_OS_WIN
-
-// A simple proxy to QFile on other systems.
-class FileProxyImpl final {
-public:
-	explicit FileProxyImpl(const QString &path);
-
-	[[nodiscard]] bool valid() const;
-	[[nodiscard]] bool seek(int offset);
-	[[nodiscard]] QByteArray read(int limit);
-
-private:
-	QFile _file;
-
-};
-
-FileProxyImpl::FileProxyImpl(const QString &path) : _file(path) {
-	_file.open(QIODevice::ReadOnly);
-}
-
-bool FileProxyImpl::valid() const {
-	return _file.isOpen();
-}
-
-bool FileProxyImpl::seek(int offset) {
-	return _file.seek(offset);
-}
-
-QByteArray FileProxyImpl::read(int limit) {
-	return _file.read(limit);
-}
-
-#endif // Q_OS_WIN
-
-class TdbFileLoader::FileProxy final {
-public:
-	explicit FileProxy(const QString &path) : _impl(path) {
-	}
-
-	[[nodiscard]] bool valid() const {
-		return _impl.valid();
-	}
-	[[nodiscard]] bool seek(int offset) {
-		return _impl.seek(offset);
-	}
-	[[nodiscard]] QByteArray read(int limit) {
-		return _impl.read(limit);
-	}
-
-private:
-	FileProxyImpl _impl;
-
-};
-
-std::unique_ptr<TdbFileLoader::FileProxy> TdbFileLoader::CreateFileProxy(
-		const QString &path) {
-	auto result = std::make_unique<FileProxy>(path);
-	if (!result->valid()) {
-		return nullptr;
-	}
-	return result;
-}
 
 TdbFileLoader::TdbFileLoader(
 	not_null<Main::Session*> session,
@@ -234,7 +127,7 @@ void TdbFileLoader::apply(const TLfile &file) {
 		cancelRequest();
 	}
 	if (!_proxy) {
-		_proxy = CreateFileProxy(local.vpath().v);
+		_proxy = FileProxy::Create(local.vpath().v);
 		if (!_proxy) {
 			// Maybe the file was moved and we wait for a new updateFile.
 			return;
