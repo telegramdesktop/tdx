@@ -2697,9 +2697,11 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateFileGenerationStart &data) {
 	}, [&](const TLDupdateFileGenerationStop &data) {
 	}, [&](const TLDupdateCall &data) {
+		Core::App().calls().handleUpdate(&session(), data);
 	}, [&](const TLDupdateGroupCall &data) {
 	}, [&](const TLDupdateGroupCallParticipant &data) {
 	}, [&](const TLDupdateNewCallSignalingData &data) {
+		Core::App().calls().handleUpdate(&session(), data);
 	}, [&](const TLDupdateUserPrivacySettingRules &data) {
 		data.vsetting().match([&](const TLDuserPrivacySettingShowStatus &) {
 			session().api().updatePrivacyLastSeens();

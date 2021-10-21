@@ -905,7 +905,10 @@ void Panel::stateChanged(State state) {
 			_answerHangupRedialState = answerHangupRedialState;
 			refreshAnswerHangupRedialLabel();
 		}
-		if (!_call->isKeyShaForFingerprintReady()) {
+#if 0 // goodToRemove
+		if (!_call->sKeyShaForFingerprintReady()) {
+#endif
+		if (!_call->hasFingerprint()) {
 			_fingerprint.destroy();
 		} else if (!_fingerprint) {
 			_fingerprint = CreateFingerprintAndSignalBars(widget(), _call);
