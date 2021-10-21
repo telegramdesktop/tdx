@@ -57,6 +57,7 @@ const auto RegisterV2 = tgcalls::Register<tgcalls::InstanceV2Impl>();
 const auto RegV2Ref = tgcalls::Register<tgcalls::InstanceV2ReferenceImpl>();
 const auto RegisterLegacy = tgcalls::Register<tgcalls::InstanceImplLegacy>();
 
+#if 0 // goodToRemove
 [[nodiscard]] base::flat_set<int64> CollectEndpointIds(
 		const QVector<MTPPhoneConnection> &list) {
 	auto result = base::flat_set<int64>();
@@ -167,7 +168,77 @@ void AppendServer(
 		}
 	});
 }
+#endif
 
+void AppendEndpoint(
+		std::vector<tgcalls::Endpoint> &list,
+		const Tdb::TLDcallServer &server) {
+	using namespace Tdb;
+	server.vtype().match([&](const TLDcallServerTypeTelegramReflector &data) {
+		if (data.vpeer_tag().v.length() != 16) {
+			return;
+		}
+		tgcalls::Endpoint endpoint = {
+			.endpointId = server.vid().v,
+			.host = tgcalls::EndpointHost{
+				.ipv4 = server.vip_address().v.toStdString(),
+				.ipv6 = server.vipv6_address().v.toStdString() },
+			.port = (uint16_t)server.vport().v,
+			.type = tgcalls::EndpointType::UdpRelay,
+		};
+		const auto tag = data.vpeer_tag().v;
+		if (tag.size() >= 16) {
+			memcpy(endpoint.peerTag, tag.data(), 16);
+		}
+		list.push_back(std::move(endpoint));
+	}, [](const TLDcallServerTypeWebrtc &data) {
+	});
+}
+
+void AppendServer(
+		std::vector<tgcalls::RtcServer> &list,
+		const Tdb::TLDcallServer &server) {
+	using namespace Tdb;
+	server.vtype().match([](const TLDcallServerTypeTelegramReflector &) {
+	}, [&](const TLDcallServerTypeWebrtc &data) {
+		const auto host = server.vip_address().v;
+		const auto hostv6 = server.vipv6_address().v;
+		const auto port = uint16_t(server.vport().v);
+		if (data.vsupports_stun().v) {
+			const auto pushStun = [&](const QString &host) {
+				if (host.isEmpty()) {
+					return;
+				}
+				list.push_back(tgcalls::RtcServer{
+					.host = host.toStdString(),
+					.port = port,
+					.isTurn = false
+				});
+			};
+			pushStun(host);
+			pushStun(hostv6);
+		}
+		const auto username = data.vusername().v;
+		const auto password = data.vpassword().v;
+		if (data.vsupports_turn().v
+			&& !username.isEmpty()
+			&& !password.isEmpty()) {
+			const auto pushTurn = [&](const QString &host) {
+				list.push_back(tgcalls::RtcServer{
+					.host = host.toStdString(),
+					.port = port,
+					.login = username.toStdString(),
+					.password = password.toStdString(),
+					.isTurn = true,
+				});
+			};
+			pushTurn(host);
+			pushTurn(hostv6);
+		}
+	});
+}
+
+#if 0 // goodToRemove
 constexpr auto kFingerprintDataSize = 256;
 uint64 ComputeFingerprint(bytes::const_span authKey) {
 	Expects(authKey.size() == kFingerprintDataSize);
@@ -195,6 +266,19 @@ uint64 ComputeFingerprint(bytes::const_span authKey) {
 [[nodiscard]] QVector<MTPstring> CollectVersionsForApi() {
 	return WrapVersions(tgcalls::Meta::Versions() | ranges::actions::reverse);
 }
+#endif
+[[nodiscard]] QVector<Tdb::TLstring> WrapVersions(
+		const std::vector<std::string> &data) {
+	return ranges::views::all(
+		data
+	) | ranges::views::transform([=](const std::string &string) {
+		return Tdb::tl_string(string);
+	}) | ranges::to<QVector<Tdb::TLstring>>;
+}
+
+[[nodiscard]] QVector<Tdb::TLstring> CollectVersionsForApi() {
+	return WrapVersions(tgcalls::Meta::Versions() | ranges::actions::reverse);
+}
 
 [[nodiscard]] Webrtc::VideoState StartVideoState(bool enabled) {
 	using State = Webrtc::VideoState;
@@ -206,10 +290,12 @@ uint64 ComputeFingerprint(bytes::const_span authKey) {
 Call::Call(
 	not_null<Delegate*> delegate,
 	not_null<UserData*> user,
+	CallId id,
 	Type type,
 	bool video)
 : _delegate(delegate)
 , _user(user)
+, _id(id)
 , _api(&_user->session().mtp())
 , _type(type)
 , _discardByTimeoutTimer([=] { hangup(); })
@@ -240,12 +326,13 @@ Call::Call(
 	} else {
 		const auto &config = _user->session().serverConfig();
 		_discardByTimeoutTimer.callOnce(config.callRingTimeoutMs);
+		setState(State::WaitingIncoming);
 		startWaitingTrack();
 	}
 	setupMediaDevices();
 	setupOutgoingVideo();
 }
-
+#if 0 // goodToRemove
 void Call::generateModExpFirst(bytes::const_span randomSeed) {
 	auto first = MTP::CreateModExp(_dhConfig.g, _dhConfig.p, randomSeed);
 	if (first.modexp.empty()) {
@@ -262,6 +349,7 @@ void Call::generateModExpFirst(bytes::const_span randomSeed) {
 		_gaHash = openssl::Sha256(_ga);
 	}
 }
+#endif
 
 bool Call::isIncomingWaiting() const {
 	if (type() != Call::Type::Incoming) {
@@ -271,6 +359,7 @@ bool Call::isIncomingWaiting() const {
 		|| (state() == State::WaitingIncoming);
 }
 
+#if 0 // goodToRemove
 void Call::start(bytes::const_span random) {
 	// Save config here, because it is possible that it changes between
 	// different usages inside the same call.
@@ -297,7 +386,6 @@ void Call::startOutgoing() {
 	Expects(_state.current() == State::Requesting);
 	Expects(_gaHash.size() == kSha256Size);
 
-#if 0 // todo
 	const auto flags = _videoCapture
 		? MTPphone_RequestCall::Flag::f_video
 		: MTPphone_RequestCall::Flag(0);
@@ -345,14 +433,12 @@ void Call::startOutgoing() {
 	}).fail([this](const MTP::Error &error) {
 		handleRequestError(error.type());
 	}).send();
-#endif
 }
 
 void Call::startIncoming() {
 	Expects(_type == Type::Incoming);
 	Expects(_state.current() == State::Starting);
 
-#if 0 // todo
 	_api.request(MTPphone_ReceivedCall(
 		MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash))
 	)).done([=] {
@@ -362,8 +448,8 @@ void Call::startIncoming() {
 	}).fail([=](const MTP::Error &error) {
 		handleRequestError(error.type());
 	}).send();
-#endif
 }
+#endif
 
 void Call::applyUserConfirmation() {
 	if (_state.current() == State::WaitingUserConfirmation) {
@@ -378,6 +464,7 @@ void Call::answer() {
 	}), video);
 }
 
+#if 0 // goodToRemove
 void Call::actuallyAnswer() {
 	Expects(_type == Type::Incoming);
 
@@ -395,7 +482,6 @@ void Call::actuallyAnswer() {
 	} else {
 		_answerAfterDhConfigReceived = false;
 	}
-#if 0 // todo
 	_api.request(MTPphone_AcceptCall(
 		MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash)),
 		MTP_bytes(_gb),
@@ -421,7 +507,30 @@ void Call::actuallyAnswer() {
 	}).fail([=](const MTP::Error &error) {
 		handleRequestError(error.type());
 	}).send();
+}
 #endif
+
+void Call::actuallyAnswer() {
+	Expects(_type == Type::Incoming);
+
+	const auto state = _state.current();
+	if (state != State::Starting && state != State::WaitingIncoming) {
+		if (state != State::ExchangingKeys) {
+#if 0 // goodToRemove
+		if (state != State::ExchangingKeys
+			|| !_answerAfterDhConfigReceived) {
+#endif
+			return;
+		}
+	}
+
+	setState(State::ExchangingKeys);
+	_api.request(Tdb::TLacceptCall(
+		Tdb::tl_int32(_id),
+		Protocol()
+	)).fail([=](const Tdb::Error &error) {
+		handleRequestError(error.message);
+	}).send();
 }
 
 void Call::captureMuteChanged(bool mute) {
@@ -538,6 +647,7 @@ void Call::hangup() {
 	if (state == State::Busy) {
 		_delegate->callFinished(this);
 	} else {
+#if 0 // goodToRemove
 		const auto missed = (state == State::Ringing
 			|| (state == State::Waiting && _type == Type::Outgoing));
 		const auto declined = isIncomingWaiting();
@@ -547,6 +657,8 @@ void Call::hangup() {
 			? MTP_phoneCallDiscardReasonBusy()
 			: MTP_phoneCallDiscardReasonHangup();
 		finish(FinishType::Ended, reason);
+#endif
+		finish(FinishType::Ended, false);
 	}
 }
 
@@ -557,7 +669,9 @@ void Call::redial() {
 	Assert(_instance == nullptr);
 	_type = Type::Outgoing;
 	setState(State::Requesting);
+#if 0 // goodToRemove
 	_answerAfterDhConfigReceived = false;
+#endif
 	startWaitingTrack();
 	_delegate->callRedial(this);
 }
@@ -580,6 +694,13 @@ void Call::startWaitingTrack() {
 }
 
 void Call::sendSignalingData(const QByteArray &data) {
+	_api.request(Tdb::TLsendCallSignalingData(
+		Tdb::tl_int32(_id),
+		Tdb::tl_bytes(data)
+	)).fail([=](const Tdb::Error &error) {
+		handleRequestError(error.message);
+	}).send();
+#if 0 // goodToRemove
 	_api.request(MTPphone_SendSignalingData(
 		MTP_inputPhoneCall(
 			MTP_long(_id),
@@ -592,6 +713,7 @@ void Call::sendSignalingData(const QByteArray &data) {
 	}).fail([=](const MTP::Error &error) {
 		handleRequestError(error.type());
 	}).send();
+#endif
 }
 
 float64 Call::getWaitingSoundPeakValue() const {
@@ -602,6 +724,14 @@ float64 Call::getWaitingSoundPeakValue() const {
 	return 0.;
 }
 
+bool Call::hasFingerprint() const {
+	return !_fingerprint.empty();
+}
+
+std::vector<EmojiPtr> Call::fingerprint() const {
+	return _fingerprint;
+}
+#if 0 // goodToRemove
 bool Call::isKeyShaForFingerprintReady() const {
 	return (_keyFingerprint != 0);
 }
@@ -624,7 +754,6 @@ bytes::vector Call::getKeyShaForFingerprint() const {
 	return openssl::Sha256(encryptedChatAuthKey);
 }
 
-#if 0 // mtp
 bool Call::handleUpdate(const MTPPhoneCall &call) {
 	switch (call.type()) {
 	case mtpc_phoneCallRequested: {
@@ -776,6 +905,100 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 }
 #endif
 
+bool Call::handleUpdate(const Tdb::TLDcall &call) {
+	const auto id = call.vid().v;
+	if (id != _id) {
+		return false;
+	}
+	return call.vstate().match([&](const Tdb::TLDcallStatePending &data) {
+		if (data.vis_created().v) { // Is not a local pending state.
+			if (_finishAfterRequestingCall != FinishType::None) {
+				if (_finishAfterRequestingCall == FinishType::Failed) {
+					finish(_finishAfterRequestingCall);
+				} else {
+					hangup();
+				}
+				return false;
+			}
+		}
+
+		if (data.vis_created().v && (_type == Type::Outgoing)) {
+			setState(data.vis_received().v ? State::Ringing : State::Waiting);
+			return true;
+		}
+		return false;
+	}, [&](const Tdb::TLDcallStateExchangingKeys &data) {
+		setState(State::ExchangingKeys);
+		return true;
+	}, [&](const Tdb::TLDcallStateReady &data) {
+		// Both Outcoming and Incoming.
+		if (_state.current() == State::ExchangingKeys && !_instance) {
+			createAndStartController(data);
+		}
+		return true;
+	}, [&](const Tdb::TLDcallStateHangingUp &data) {
+		setState(State::HangingUp);
+		return true;
+	}, [&](const Tdb::TLDcallStateDiscarded &data) {
+		if (data.vneed_debug_information().v) {
+			const auto debugLog = _instance
+				? _instance->getDebugInfo()
+				: std::string();
+			if (!debugLog.empty()) {
+				user()->session().api().sender().request(
+					Tdb::TLsendCallDebugInformation(
+						Tdb::tl_int32(_id),
+						Tdb::tl_string(debugLog)
+				)).send();
+			}
+		}
+		if (data.vneed_rating().v) {
+			const auto session = &_user->session();
+			const auto callId = _id;
+			const auto box = Ui::show(Box<Ui::RateCallBox>(
+				Core::App().settings().sendSubmitWay()));
+			const auto sender = box->lifetime().make_state<Tdb::Sender>(
+				&session->sender());
+			box->sends(
+			) | rpl::take(
+				1 // Instead of keeping requestId.
+			) | rpl::start_with_next([=](const Ui::RateCallBox::Result &r) {
+				sender->request(Tdb::TLsendCallRating(
+					Tdb::tl_int32(callId),
+					Tdb::tl_int32(r.rating),
+					Tdb::tl_string(r.comment),
+					Tdb::tl_vector<Tdb::TLcallProblem>()
+				)).done([=] {
+					if (box) {
+						box->closeBox();
+					}
+				}).fail([=] {
+					if (box) {
+						box->closeBox();
+					}
+				}).send();
+			}, box->lifetime());
+		}
+		data.vreason().match([=](
+				const Tdb::TLDcallDiscardReasonDeclined &) {
+			setState((_type == Type::Outgoing) ? State::Busy : State::Ended);
+		}, [=](const auto &) {
+			if (_type == Type::Outgoing
+				|| _state.current() == State::HangingUp) {
+				setState(State::Ended);
+			} else {
+				setState(State::EndedByOtherDevice);
+			}
+		});
+		return true;
+	}, [&](const Tdb::TLDcallStateError &data) {
+		const auto error = data.verror().data().vmessage().v;
+		LOG(("Call Error: %1.").arg(error));
+		handleRequestError(error);
+		return true;
+	});
+}
+
 void Call::updateRemoteMediaState(
 		tgcalls::AudioState audio,
 		tgcalls::VideoState video) {
@@ -804,6 +1027,10 @@ void Call::updateRemoteMediaState(
 bool Call::handleSignalingData(
 		const MTPDupdatePhoneCallSignalingData &data) {
 	if (data.vphone_call_id().v != _id || !_instance) {
+#endif
+bool Call::handleSignalingData(
+		const Tdb::TLDupdateNewCallSignalingData &data) {
+	if (data.vcall_id().v != _id || !_instance) {
 		return false;
 	}
 	auto prepared = ranges::views::all(
@@ -814,8 +1041,7 @@ bool Call::handleSignalingData(
 	_instance->receiveSignalingData(std::move(prepared));
 	return true;
 }
-#endif
-
+#if 0 // goodToRemove
 void Call::confirmAcceptedCall(const MTPDphoneCallAccepted &call) {
 	Expects(_type == Type::Outgoing);
 
@@ -896,27 +1122,42 @@ void Call::startConfirmedCall(const MTPDphoneCall &call) {
 }
 
 void Call::createAndStartController(const MTPDphoneCall &call) {
+#endif
+void Call::createAndStartController(const Tdb::TLDcallStateReady &data) {
 	_discardByTimeoutTimer.cancel();
+#if 0 // goodToRemove
 	if (!checkCallFields(call) || _authKey.size() != kAuthKeySize) {
 		return;
 	}
 
 	const auto &protocol = call.vprotocol().c_phoneCallProtocol();
+#endif
+	const auto &protocol = data.vprotocol().data();
 	const auto &serverConfig = _user->session().serverConfig();
 
 	auto encryptionKeyValue = std::make_shared<std::array<
 		uint8_t,
 		kAuthKeySize>>();
+#if 0 // goodToRemove
 	memcpy(encryptionKeyValue->data(), _authKey.data(), kAuthKeySize);
+#endif
+	memcpy(
+		encryptionKeyValue->data(),
+		data.vencryption_key().v.data(),kAuthKeySize);
 
+#if 0 // goodToRemove
 	const auto version = call.vprotocol().match([&](
 			const MTPDphoneCallProtocol &data) {
 		return data.vlibrary_versions().v;
 	}).value(0, MTP_bytes(kDefaultVersion)).v;
+#endif
+	const auto version = protocol.vlibrary_versions().v.front().v;
 
+#if 0 // goodToRemove
 	LOG(("Call Info: Creating instance with version '%1', allowP2P: %2").arg(
 		QString::fromUtf8(version),
 		Logs::b(call.is_p2p_allowed())));
+#endif
 
 	const auto versionString = version.toStdString();
 	const auto &settings = Core::App().settings();
@@ -956,7 +1197,10 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 				= serverConfig.callConnectTimeoutMs / 1000.,
 			.receiveTimeout = serverConfig.callPacketTimeoutMs / 1000.,
 			.dataSaving = tgcalls::DataSaving::Never,
+#if 0 // goodToRemove
 			.enableP2P = call.is_p2p_allowed(),
+#endif
+			.enableP2P = data.vallow_p2p().v,
 			.enableAEC = false,
 			.enableNS = true,
 			.enableAGC = true,
@@ -1026,12 +1270,21 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 		QDir().mkpath(callLogFolder);
 	}
 
+#if 0 // goodToRemove
 	const auto ids = CollectEndpointIds(call.vconnections().v);
 	for (const auto &connection : call.vconnections().v) {
 		AppendEndpoint(descriptor.endpoints, connection);
 	}
 	for (const auto &connection : call.vconnections().v) {
 		AppendServer(descriptor.rtcServers, connection, ids);
+	}
+#endif
+
+	for (const auto &server : data.vservers().v) {
+		AppendEndpoint(descriptor.endpoints, server.data());
+	}
+	for (const auto &server : data.vservers().v) {
+		AppendServer(descriptor.rtcServers, server.data());
 	}
 
 	{
@@ -1051,8 +1304,11 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	}
 	_instance = tgcalls::Meta::Create(versionString, std::move(descriptor));
 	if (!_instance) {
+#if 0 // goodToRemove
 		LOG(("Call Error: Wrong library version: %1."
 			).arg(QString::fromUtf8(version)));
+			).arg(version));
+#endif
 		finish(FinishType::Failed);
 		return;
 	}
@@ -1089,6 +1345,14 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 		});
 	}, _instanceLifetime);
 #endif
+
+	{
+		_fingerprint = ranges::views::all(
+			data.vemojis().v
+		) | ranges::views::transform([](const Tdb::TLstring &string) {
+			return Ui::Emoji::Find(string.v);
+		}) | ranges::to_vector;
+	}
 }
 
 void Call::handleControllerStateChange(tgcalls::State state) {
@@ -1128,7 +1392,7 @@ void Call::handleControllerBarCountChange(int count) {
 void Call::setSignalBarCount(int count) {
 	_signalBarCount = count;
 }
-
+#if 0 // goodToRemove
 template <typename T>
 bool Call::checkCallCommonFields(const T &call) {
 	const auto checkFailed = [this] {
@@ -1175,6 +1439,7 @@ bool Call::checkCallFields(const MTPDphoneCall &call) {
 bool Call::checkCallFields(const MTPDphoneCallAccepted &call) {
 	return checkCallCommonFields(call);
 }
+#endif
 
 void Call::setState(State state) {
 	const auto was = _state.current();
@@ -1333,7 +1598,10 @@ rpl::producer<Webrtc::DeviceResolvedId> Call::cameraDeviceIdValue() const {
 	return _cameraDeviceId.value();
 }
 
+#if 0 // goodToRemove
 void Call::finish(FinishType type, const MTPPhoneCallDiscardReason &reason) {
+#endif
+void Call::finish(FinishType type, bool isDisconnected) {
 	Expects(type != FinishType::None);
 
 	setSignalBarCount(kSignalBarFinished);
@@ -1373,17 +1641,30 @@ void Call::finish(FinishType type, const MTPPhoneCallDiscardReason &reason) {
 		setState(finalState);
 	});
 
-#if 0 // todo
 	using Video = Webrtc::VideoState;
+#if 0 // goodToRemove
 	const auto flags = ((_videoIncoming->state() != Video::Inactive)
 		|| (_videoOutgoing->state() != Video::Inactive))
 		? MTPphone_DiscardCall::Flag::f_video
 		: MTPphone_DiscardCall::Flag(0);
+#endif
+	const auto isVideo = ((_videoIncoming->state() != Video::Inactive)
+		|| (_videoOutgoing->state() != Video::Inactive));
 
 	// We want to discard request still being sent and processed even if
 	// the call is already destroyed.
 	const auto session = &_user->session();
 	const auto weak = base::make_weak(this);
+	session->api().sender().request(Tdb::TLdiscardCall(
+		Tdb::tl_int32(_id),
+		Tdb::tl_bool(isDisconnected),
+		Tdb::tl_int32(duration),
+		Tdb::tl_bool(isVideo),
+		Tdb::tl_int64(connectionId)
+	)).fail(crl::guard(weak, [this, finalState] {
+		setState(finalState);
+	})).send();
+#if 0 // goodToRemove
 	session->api().request(MTPphone_DiscardCall( // We send 'discard' here.
 		MTP_flags(flags),
 		MTP_inputPhoneCall(
@@ -1470,12 +1751,23 @@ void Call::destroyController() {
 	setSignalBarCount(kSignalBarFinished);
 }
 
+Tdb::TLcallProtocol Call::Protocol() {
+	return Tdb::tl_callProtocol(
+		Tdb::tl_bool(true),
+		Tdb::tl_bool(true),
+		Tdb::tl_int32(kMinLayer),
+		Tdb::tl_int32(tgcalls::Meta::MaxLayer()),
+		Tdb::tl_vector<Tdb::TLstring>(CollectVersionsForApi()));
+}
+
 Call::~Call() {
 	destroyController();
 }
 
+#if 0 // goodToRemove
 void UpdateConfig(const std::string &data) {
 	tgcalls::SetLegacyGlobalServerConfig(data);
 }
+#endif
 
 } // namespace Calls
