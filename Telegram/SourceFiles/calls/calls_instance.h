@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "mtproto/sender.h"
+#include "tdb/tdb_tl_scheme.h"
 
 namespace crl {
 class semaphore;
@@ -73,10 +74,17 @@ public:
 		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer);
 
-#if 0 // mtp
+#if 0 // goodToRemove
 	void handleUpdate(
 		not_null<Main::Session*> session,
 		const MTPUpdate &update);
+#endif
+	void handleUpdate(
+		not_null<Main::Session*> session,
+		const Tdb::TLDupdateCall &update);
+	void handleUpdate(
+		not_null<Main::Session*> session,
+		const Tdb::TLDupdateNewCallSignalingData &update);
 
 	// Called by Data::GroupCall when it is appropriate by the 'version'.
 	void applyGroupCallUpdateChecked(
@@ -118,8 +126,16 @@ private:
 	not_null<Media::Audio::Track*> ensureSoundLoaded(const QString &key);
 	void playSoundOnce(const QString &key);
 
+#if 0 // goodToRemove
 	void createCall(not_null<UserData*> user, CallType type, bool isVideo);
+#endif
+	void createCall(
+		not_null<UserData*> user,
+		CallType type,
+		int id,
+		bool video);
 	void destroyCall(not_null<Call*> call);
+	void requestToCreateCall(not_null<UserData*> user, bool video);
 
 	void createGroupCall(
 		Group::JoinInfo info,
@@ -135,29 +151,41 @@ private:
 		Platform::PermissionType type,
 		Fn<void()> onSuccess);
 
+#if 0 // goodToRemove
 	void refreshDhConfig();
 	void refreshServerConfig(not_null<Main::Session*> session);
 	bytes::const_span updateDhConfig(const MTPmessages_DhConfig &data);
+#endif
 
 	void destroyCurrentCall();
 
-#if 0 // mtp
+#if 0 // goodToRemove
 	void handleCallUpdate(
 		not_null<Main::Session*> session,
 		const MTPPhoneCall &call);
+#endif
+	void handleCallUpdate(
+		not_null<Main::Session*> session,
+		const Tdb::TLDcall &call);
+#if 0 // goodToRemove
 	void handleSignalingData(
 		not_null<Main::Session*> session,
 		const MTPDupdatePhoneCallSignalingData &data);
+#endif
 	void handleGroupCallUpdate(
 		not_null<Main::Session*> session,
 		const MTPUpdate &update);
 #endif
 
 	const std::unique_ptr<Delegate> _delegate;
+#if 0 // goodToRemove
 	const std::unique_ptr<DhConfig> _cachedDhConfig;
+#endif
 
+#if 0 // goodToRemove
 	crl::time _lastServerConfigUpdateTime = 0;
 	base::weak_ptr<Main::Session> _serverConfigRequestSession;
+#endif
 	std::weak_ptr<tgcalls::VideoCaptureInterface> _videoCapture;
 
 	std::unique_ptr<Call> _currentCall;

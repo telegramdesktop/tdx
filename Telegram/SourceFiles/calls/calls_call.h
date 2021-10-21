@@ -14,6 +14,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_auth_key.h"
 #include "webrtc/webrtc_device_resolver.h"
 
+#include "tdb/tdb_sender.h"
+#include "ui/emoji_config.h"
+
 namespace Media {
 namespace Audio {
 class Track;
@@ -34,12 +37,13 @@ class VideoTrack;
 } // namespace Webrtc
 
 namespace Calls {
-
+#if 0 // goodToRemove
 struct DhConfig {
 	int32 version = 0;
 	int32 g = 0;
 	bytes::vector p;
 };
+#endif
 
 enum class ErrorType {
 	NoCamera,
@@ -65,7 +69,9 @@ class Call final
 public:
 	class Delegate {
 	public:
+#if 0 // goodToRemove
 		virtual DhConfig getDhConfig() const = 0;
+#endif
 		virtual void callFinished(not_null<Call*> call) = 0;
 		virtual void callFailed(not_null<Call*> call) = 0;
 		virtual void callRedial(not_null<Call*> call) = 0;
@@ -95,6 +101,7 @@ public:
 	Call(
 		not_null<Delegate*> delegate,
 		not_null<UserData*> user,
+		CallId id,
 		Type type,
 		bool video);
 
@@ -109,10 +116,14 @@ public:
 	}
 	[[nodiscard]] bool isIncomingWaiting() const;
 
+#if 0 // goodToRemove
 	void start(bytes::const_span random);
 
-#if 0 // mtp
 	bool handleUpdate(const MTPPhoneCall &call);
+#endif
+	bool handleUpdate(const Tdb::TLDcall &data);
+	bool handleSignalingData(const Tdb::TLDupdateNewCallSignalingData &data);
+#if 0 // goodToRemove
 	bool handleSignalingData(const MTPDupdatePhoneCallSignalingData &data);
 #endif
 
@@ -203,8 +214,12 @@ public:
 	void hangup();
 	void redial();
 
+#if 0 // goodToRemove
 	bool isKeyShaForFingerprintReady() const;
 	bytes::vector getKeyShaForFingerprint() const;
+#endif
+	bool hasFingerprint() const;
+	std::vector<EmojiPtr> fingerprint() const;
 
 	QString getDebugLog() const;
 
@@ -227,6 +242,8 @@ public:
 		return _lifetime;
 	}
 
+	static Tdb::TLcallProtocol Protocol();
+
 	~Call();
 
 private:
@@ -238,28 +255,38 @@ private:
 
 	void handleRequestError(const QString &error);
 	void handleControllerError(const QString &error);
+	void finish(FinishType type, bool isDisconnected = true);
+#if 0 // goodToRemove
 	void finish(
 		FinishType type,
 		const MTPPhoneCallDiscardReason &reason
 			= MTP_phoneCallDiscardReasonDisconnect());
 	void startOutgoing();
 	void startIncoming();
+#endif
 	void startWaitingTrack();
 	void sendSignalingData(const QByteArray &data);
 
+#if 0 // goodToRemove
 	void generateModExpFirst(bytes::const_span randomSeed);
+#endif
 	void handleControllerStateChange(tgcalls::State state);
 	void handleControllerBarCountChange(int count);
+	void createAndStartController(const Tdb::TLDcallStateReady &data);
+#if 0 // goodToRemove
 	void createAndStartController(const MTPDphoneCall &call);
 
 	template <typename T>
 	bool checkCallCommonFields(const T &call);
 	bool checkCallFields(const MTPDphoneCall &call);
 	bool checkCallFields(const MTPDphoneCallAccepted &call);
+#endif
 
 	void actuallyAnswer();
+#if 0 // goodToRemove
 	void confirmAcceptedCall(const MTPDphoneCallAccepted &call);
 	void startConfirmedCall(const MTPDphoneCall &call);
+#endif
 	void setState(State state);
 	void setStateQueued(State state);
 	void setFailedQueued(const QString &error);
@@ -277,7 +304,12 @@ private:
 
 	const not_null<Delegate*> _delegate;
 	const not_null<UserData*> _user;
+	const CallId _id = 0;
+
+#if 0 // goodToRemove
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 	Type _type = Type::Outgoing;
 	rpl::variable<State> _state = State::Starting;
 	rpl::variable<RemoteAudioState> _remoteAudioState =
@@ -287,7 +319,9 @@ private:
 		RemoteBatteryState::Normal;
 	rpl::event_stream<Error> _errors;
 	FinishType _finishAfterRequestingCall = FinishType::None;
+#if 0 // goodToRemove
 	bool _answerAfterDhConfigReceived = false;
+#endif
 	rpl::variable<int> _signalBarCount = kSignalBarStarting;
 	crl::time _startTime = 0;
 	base::DelayedCallTimer _finishByTimeoutTimer;
@@ -300,6 +334,7 @@ private:
 
 	rpl::variable<bool> _muted = false;
 
+#if 0 // goodToRemove
 	DhConfig _dhConfig;
 	bytes::vector _ga;
 	bytes::vector _gb;
@@ -310,6 +345,9 @@ private:
 	CallId _id = 0;
 	uint64 _accessHash = 0;
 	uint64 _keyFingerprint = 0;
+#endif
+
+	std::vector<EmojiPtr> _fingerprint;
 
 	std::unique_ptr<tgcalls::Instance> _instance;
 	std::shared_ptr<tgcalls::VideoCaptureInterface> _videoCapture;
@@ -324,7 +362,8 @@ private:
 	rpl::lifetime _lifetime;
 
 };
-
+#if 0 // goodToRemove
 void UpdateConfig(const std::string &data);
+#endif
 
 } // namespace Calls

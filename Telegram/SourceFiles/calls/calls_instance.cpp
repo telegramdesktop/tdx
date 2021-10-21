@@ -54,8 +54,9 @@ class Instance::Delegate final
 	, public GroupCall::Delegate {
 public:
 	explicit Delegate(not_null<Instance*> instance);
-
+#if 0 // goodToRemove
 	DhConfig getDhConfig() const override;
+#endif
 
 	void callFinished(not_null<Call*> call) override;
 	void callFailed(not_null<Call*> call) override;
@@ -85,10 +86,11 @@ private:
 Instance::Delegate::Delegate(not_null<Instance*> instance)
 : _instance(instance) {
 }
-
+#if 0 // goodToRemove
 DhConfig Instance::Delegate::getDhConfig() const {
 	return *_instance->_cachedDhConfig;
 }
+#endif
 
 void Instance::Delegate::callFinished(not_null<Call*> call) {
 	crl::on_main(call, [=] {
@@ -104,7 +106,11 @@ void Instance::Delegate::callFailed(not_null<Call*> call) {
 
 void Instance::Delegate::callRedial(not_null<Call*> call) {
 	if (_instance->_currentCall.get() == call) {
+		const auto video = call->isSharingVideo();
+		_instance->requestToCreateCall(call->user(), video);
+#if 0 // goodToRemove
 		_instance->refreshDhConfig();
+#endif
 	}
 }
 
@@ -172,7 +178,9 @@ FnMut<void()> Instance::Delegate::groupCallAddAsyncWaiter() {
 
 Instance::Instance()
 : _delegate(std::make_unique<Delegate>(this))
+#if 0 // goodToRemove
 , _cachedDhConfig(std::make_unique<DhConfig>())
+#endif
 , _chooseJoinAs(std::make_unique<Group::ChooseJoinAsProcess>())
 , _startWithRtmp(std::make_unique<Group::StartRtmpProcess>()) {
 }
@@ -200,8 +208,23 @@ void Instance::startOutgoingCall(not_null<UserData*> user, bool video) {
 		return;
 	}
 	requestPermissionsOrFail(crl::guard(this, [=] {
+#if 0 // goodToRemove
 		createCall(user, Call::Type::Outgoing, video);
+#endif
+		requestToCreateCall(user, video);
 	}), video);
+}
+
+void Instance::requestToCreateCall(not_null<UserData*> user, bool video) {
+	user->session().sender().request(Tdb::TLcreateCall(
+		peerToTdbChat(user->id),
+		Call::Protocol(),
+		Tdb::tl_bool(video)
+	)).fail([=](const Tdb::Error &error) {
+		if (_currentCall) {
+			_currentCall->hangup();
+		}
+	}).send();
 }
 
 void Instance::startOrJoinGroupCall(
@@ -311,6 +334,15 @@ void Instance::playSoundOnce(const QString &key) {
 void Instance::destroyCall(not_null<Call*> call) {
 	if (_currentCall.get() == call) {
 		_currentCallPanel->closeBeforeDestroy();
+
+		call->user()->session().api().sender().request(Tdb::TLdiscardCall(
+			Tdb::tl_int32(call->id()),
+			Tdb::tl_bool(true),
+			Tdb::tl_int32(0),
+			Tdb::tl_bool(call->isSharingVideo()),
+			Tdb::tl_int64(0) // doLater busy.
+		)).send();
+
 		_currentCallPanel = nullptr;
 
 		auto taken = base::take(_currentCall);
@@ -327,6 +359,7 @@ void Instance::destroyCall(not_null<Call*> call) {
 void Instance::createCall(
 		not_null<UserData*> user,
 		Call::Type type,
+		int id,
 		bool isVideo) {
 	struct Performer final {
 		explicit Performer(Fn<void(bool, bool, const Performer &)> callback)
@@ -339,7 +372,15 @@ void Instance::createCall(
 			bool isConfirmed,
 			const Performer &repeater) {
 		const auto delegate = _delegate.get();
+#if 0 // goodToRemove
 		auto call = std::make_unique<Call>(delegate, user, type, video);
+#endif
+		auto call = std::make_unique<Call>(
+			delegate,
+			user,
+			id,
+			type,
+			video);
 		if (isConfirmed) {
 			call->applyUserConfirmation();
 		}
@@ -364,8 +405,10 @@ void Instance::createCall(
 				repeater.callback(video, true, repeater);
 			}, raw->lifetime());
 		} else {
+#if 0 // goodToRemove
 			refreshServerConfig(&user->session());
 			refreshDhConfig();
+#endif
 		}
 		_currentCallChanges.fire_copy(raw);
 	});
@@ -408,7 +451,7 @@ void Instance::createGroupCall(
 	_currentGroupCall = std::move(call);
 	_currentGroupCallChanges.fire_copy(raw);
 }
-
+#if 0 // goodToRemove
 void Instance::refreshDhConfig() {
 	Expects(_currentCall != nullptr);
 
@@ -492,7 +535,6 @@ void Instance::refreshServerConfig(not_null<Main::Session*> session) {
 	}).send();
 }
 
-#if 0 // mtp
 void Instance::handleUpdate(
 		not_null<Main::Session*> session,
 		const MTPUpdate &update) {
@@ -511,6 +553,23 @@ void Instance::handleUpdate(
 	});
 }
 #endif
+
+void Instance::handleUpdate(
+		not_null<Main::Session*> session,
+		const Tdb::TLDupdateCall &update) {
+	handleCallUpdate(session, update.vcall().data());
+}
+
+void Instance::handleUpdate(
+		not_null<Main::Session*> session,
+		const Tdb::TLDupdateNewCallSignalingData &update) {
+	if (!_currentCall
+		|| (&_currentCall->user()->session() != session)
+		|| !_currentCall->handleSignalingData(update)) {
+		DEBUG_LOG(("API Warning: unexpected call signaling data %1"
+			).arg(update.vcall_id().v));
+	}
+}
 
 void Instance::showInfoPanel(not_null<Call*> call) {
 	if (_currentCall.get() == call) {
@@ -561,7 +620,72 @@ bool Instance::isQuitPrevent() {
 	return true;
 }
 
-#if 0 // mtp
+void Instance::handleCallUpdate(
+		not_null<Main::Session*> session,
+		const Tdb::TLDcall &call) {
+	const auto isVideo = call.vis_video().v;
+	const auto id = call.vid().v;
+	const auto loadedUser = [&] {
+		return session->data().userLoaded(
+			peerToUser(peerFromTdbChat(call.vuser_id())));
+	};
+	const auto processOutgoing = [&] {
+		if (const auto user = loadedUser()) {
+			createCall(user, Call::Type::Outgoing, id, isVideo);
+		} else {
+			Unexpected("Can't find loaded user we're calling.");
+		}
+	};
+	const auto processIncoming = [&] {
+		const auto user = loadedUser();
+		if (!user) {
+			LOG(("API Error: User not loaded for phoneCallRequested."));
+		} else if (user->isSelf()) {
+			LOG(("API Error: Self found in phoneCallRequested."));
+		}
+		if (inCall() || inGroupCall() || !user || user->isSelf()) {
+			if (_currentCall && _currentCall->id() == id) {
+				return;
+			}
+			session->api().sender().request(Tdb::TLdiscardCall(
+				call.vid(),
+				Tdb::tl_bool(false),
+				Tdb::tl_int32(0),
+				Tdb::tl_bool(isVideo),
+				Tdb::tl_int64(0) // doLater busy.
+			)).send();
+		} else if (Core::App().settings().disableCalls()) {
+			LOG(("Ignoring call because of 'accept calls' settings."));
+		} else {
+			createCall(user, Call::Type::Incoming, id, isVideo);
+		}
+	};
+	call.vstate().match([&](const Tdb::TLDcallStatePending &stateData) {
+		const auto received = stateData.vis_received().v;
+		const auto localPending = !stateData.vis_created().v;
+		if (localPending) {
+			if (!received) {
+				processOutgoing();
+			} else {
+				Unexpected("TDLib error: "
+					"local call is received from participant.");
+			}
+		} else {
+			if (received) {
+				processIncoming();
+			}
+			_currentCall->handleUpdate(call);
+		}
+	}, [&](const auto &stateData) {
+		if (!_currentCall
+			|| (&_currentCall->user()->session() != session)
+			|| !_currentCall->handleUpdate(call)) {
+//			DEBUG_LOG(("API Warning: unexpected phone call update %1"
+//				).arg(call.vtype()));
+		}
+	});
+}
+#if 0 // goodToRemove
 void Instance::handleCallUpdate(
 		not_null<Main::Session*> session,
 		const MTPPhoneCall &call) {
@@ -612,6 +736,7 @@ void Instance::handleCallUpdate(
 		DEBUG_LOG(("API Warning: unexpected phone call update %1").arg(call.type()));
 	}
 }
+#endif
 
 void Instance::handleGroupCallUpdate(
 		not_null<Main::Session*> session,
@@ -655,7 +780,7 @@ void Instance::applyGroupCallUpdateChecked(
 		_currentGroupCall->handleUpdate(update);
 	}
 }
-
+#if 0 // goodToRemove
 void Instance::handleSignalingData(
 		not_null<Main::Session*> session,
 		const MTPDupdatePhoneCallSignalingData &data) {

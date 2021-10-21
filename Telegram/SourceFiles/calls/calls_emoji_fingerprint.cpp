@@ -21,7 +21,7 @@ namespace Calls {
 namespace {
 
 constexpr auto kTooltipShowTimeoutMs = 1000;
-
+#if 0 // goodToRemove
 const ushort Data[] = {
 0xd83d, 0xde09, 0xd83d, 0xde0d, 0xd83d, 0xde1b, 0xd83d, 0xde2d, 0xd83d, 0xde31, 0xd83d, 0xde21,
 0xd83d, 0xde0e, 0xd83d, 0xde34, 0xd83d, 0xde35, 0xd83d, 0xde08, 0xd83d, 0xde2c, 0xd83d, 0xde07,
@@ -153,6 +153,9 @@ std::vector<EmojiPtr> ComputeEmojiFingerprint(not_null<Call*> call) {
 	}
 	return result;
 }
+#endif
+
+} // namespace
 
 object_ptr<Ui::RpWidget> CreateFingerprintAndSignalBars(
 		not_null<QWidget*> parent,
@@ -208,7 +211,10 @@ object_ptr<Ui::RpWidget> CreateFingerprintAndSignalBars(
 	bars->setAttribute(Qt::WA_TransparentForMouseEvents);
 
 	// Geometry.
+#if 0 // goodToRemove
 	const auto print = ComputeEmojiFingerprint(call);
+#endif
+	const auto print = call->fingerprint();
 	auto realSize = Ui::Emoji::GetSizeNormal();
 	auto size = realSize / style::DevicePixelRatio();
 	auto count = print.size();
