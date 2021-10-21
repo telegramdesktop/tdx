@@ -114,6 +114,8 @@ bool StickersSet::textColor() const {
 }
 
 void StickersSet::setThumbnail(const ImageWithLocation &data) {
+	// #TODO tdlib
+	_tdbThumbnailRemoteLocationHash = 0;
 	Data::UpdateCloudFile(
 		_thumbnail,
 		data,
@@ -174,6 +176,10 @@ Storage::Cache::Key StickersSet::thumbnailBigFileBaseCacheKey() const {
 	const auto &location = _thumbnail.location.file().data;
 	if (const auto storage = std::get_if<StorageFileLocation>(&location)) {
 		return storage->bigFileBaseCacheKey();
+	} else if (v::is<TdbFileLocation>(location)) {
+		return TdbFileLocation::BigFileBaseCacheKey(
+			id,
+			_tdbThumbnailRemoteLocationHash);
 	}
 	return {};
 }
