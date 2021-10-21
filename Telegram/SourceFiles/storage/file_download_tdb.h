@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Tdb {
 class TLfile;
+class FileProxy;
 } // namespace Tdb
 
 class TdbFileLoader final : public FileLoader {
@@ -34,8 +35,6 @@ public:
 	int currentOffset() const override;
 
 private:
-	class FileProxy;
-
 	Storage::Cache::Key cacheKey() const override;
 	std::optional<MediaKey> fileLocationKey() const override;
 	void startLoading() override;
@@ -50,12 +49,9 @@ private:
 	bool setFinalSize(int size);
 	bool feedPart(int offset, const QByteArray &bytes);
 
-	[[nodiscard]] static std::unique_ptr<FileProxy> CreateFileProxy(
-		const QString &path);
-
 	const FileId _fileId = 0;
 	int _loadOffset = 0;
-	std::unique_ptr<FileProxy> _proxy;
+	std::unique_ptr<Tdb::FileProxy> _proxy;
 	Tdb::RequestId _requestId = 0;
 
 	rpl::lifetime _loadingLifetime;
