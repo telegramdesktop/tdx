@@ -73,10 +73,9 @@ void TdbFileLoader::sendRequest() {
 		tl_int32(_loadSize - _loadOffset),
 		tl_bool(false)
 	)).done([=](const TLfile &result) {
-		apply(result);
-
 		_requestId = 0;
-		if (!_finished) {
+		apply(result);
+		if (!_requestId && !_finished) {
 			session().tdb().updates(
 			) | rpl::start_with_next([=](const TLupdate &update) {
 				update.match([&](const TLDupdateFile &data) {
