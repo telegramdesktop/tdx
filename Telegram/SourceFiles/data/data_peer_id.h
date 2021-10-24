@@ -227,6 +227,7 @@ bool operator>=(PeerIdZero, PeerId) = delete;
 [[nodiscard]] PeerId peerFromTdbChat(Tdb::TLint53 id) noexcept;
 [[nodiscard]] PeerId peerFromSender(
 	const Tdb::TLmessageSender &sender) noexcept;
+[[nodiscard]] Tdb::TLmessageSender peerToSender(PeerId id) noexcept;
 
 [[nodiscard]] inline constexpr UserId peerToUser(PeerId id) noexcept {
 	return id.to<UserId>();
