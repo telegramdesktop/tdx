@@ -163,7 +163,7 @@ void CheckForSwitchInlineButton(not_null<HistoryItem*> item) {
 		| bit(data.vcan_delete_messages(), Flag::DeleteMessages)
 		| bit(data.vcan_edit_messages(), Flag::EditMessages)
 		| bit(data.vcan_invite_users(), Flag::InviteUsers)
-		| bit(data.vcan_manage_voice_chats(), Flag::ManageCall)
+		| bit(data.vcan_manage_video_chats(), Flag::ManageCall)
 		| bit(data.vcan_pin_messages(), Flag::PinMessages)
 		| bit(data.vcan_post_messages(), Flag::PostMessages)
 		| bit(data.vcan_promote_members(), Flag::AddAdmins)
@@ -1253,7 +1253,7 @@ not_null<PeerData*> Session::processPeer(const TLchat &dialog) {
 		}
 		chat->setDefaultRestrictions(
 			RestrictionsFromPermissions(data.vpermissions()));
-		data.vvoice_chat().match([&](const TLDvoiceChat &data) {
+		data.vvideo_chat().match([&](const TLDvideoChat &data) {
 			const auto callFlag = ChatDataFlag::CallNotEmpty;
 			const auto callNotEmpty = data.vhas_participants().v;
 			chat->setFlags(chat->flags() // todo
