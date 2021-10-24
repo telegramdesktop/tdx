@@ -146,9 +146,11 @@ private:
 	void checkRowPosition(not_null<Row*> row);
 	[[nodiscard]] bool needToReorder(not_null<Row*> row) const;
 	[[nodiscard]] bool allRowsAboveAreSpeaking(not_null<Row*> row) const;
+#if 0 // goodToRemove
 	[[nodiscard]] bool allRowsAboveMoreImportantThanHand(
 		not_null<Row*> row,
 		uint64 raiseHandRating) const;
+#endif
 	[[nodiscard]] const Data::GroupCallParticipant *findParticipant(
 		const std::string &endpoint) const;
 	[[nodiscard]] const std::string &computeScreenEndpoint(
@@ -514,7 +516,10 @@ void Members::Controller::updateRow(
 		}
 		updateRow(row, was, &now);
 		if ((now.speaking && (!was || !was->speaking))
+#if 0 // goodToRemove
 			|| (now.raisedHandRating != (was ? was->raisedHandRating : 0))
+#endif
+			|| (now.isHandRaised != (was ? was->isHandRaised : false))
 			|| (!now.canSelfUnmute && was && was->canSelfUnmute)) {
 			checkPosition = row;
 		}
@@ -523,7 +528,10 @@ void Members::Controller::updateRow(
 			delegate()->peerListPrependRow(std::move(row));
 		} else {
 			reorderIfInvitedBefore = delegate()->peerListFullRowsCount();
+#if 0 // goodToRemove
 			if (now.raisedHandRating != 0) {
+#endif
+			if (now.isHandRaised) {
 				checkPosition = row.get();
 			} else {
 				addedToBottom = row.get();
@@ -550,6 +558,7 @@ void Members::Controller::updateRow(
 	if (checkPosition) {
 		checkRowPosition(checkPosition);
 	} else if (addedToBottom) {
+#if 0 // goodToRemove
 		const auto real = _call->lookupReal();
 		if (real && real->joinedToTop()) {
 			const auto proj = [&](const PeerListRow &other) {
@@ -566,6 +575,7 @@ void Members::Controller::updateRow(
 				return proj(a) > proj(b);
 			});
 		}
+#endif
 	}
 }
 
@@ -583,6 +593,7 @@ bool Members::Controller::allRowsAboveAreSpeaking(not_null<Row*> row) const {
 	return false;
 }
 
+#if 0 // goodToRemove
 bool Members::Controller::allRowsAboveMoreImportantThanHand(
 		not_null<Row*> row,
 		uint64 raiseHandRating) const {
@@ -605,6 +616,7 @@ bool Members::Controller::allRowsAboveMoreImportantThanHand(
 	}
 	return false;
 }
+#endif
 
 bool Members::Controller::needToReorder(not_null<Row*> row) const {
 	// All reorder cases:
@@ -619,6 +631,7 @@ bool Members::Controller::needToReorder(not_null<Row*> row) const {
 		return false;
 	}
 
+#if 0 // goodToRemove
 	const auto rating = row->raisedHandRating();
 	if (!rating && row->state() != Row::State::Muted) {
 		return false;
@@ -626,6 +639,7 @@ bool Members::Controller::needToReorder(not_null<Row*> row) const {
 	if (rating > 0 && !allRowsAboveMoreImportantThanHand(row, rating)) {
 		return true;
 	}
+#endif
 	const auto index = row->absoluteIndex();
 	if (index + 1 == delegate()->peerListFullRowsCount()) {
 		// Last one, can't bring lower.
@@ -636,10 +650,15 @@ bool Members::Controller::needToReorder(not_null<Row*> row) const {
 	if ((state != Row::State::Muted) && (state != Row::State::RaisedHand)) {
 		return true;
 	}
+#if 0 // goodToRemove
 	if (!rating && static_cast<Row*>(next.get())->raisedHandRating()) {
 		return true;
 	}
+#endif
+	return true;
+#if 0 // goodToRemove - prefer to reorder.
 	return false;
+#endif
 }
 
 void Members::Controller::checkRowPosition(not_null<Row*> row) {
@@ -654,6 +673,7 @@ void Members::Controller::checkRowPosition(not_null<Row*> row) {
 	// Someone started speaking and has a non-speaking row above him.
 	// Or someone raised hand and has force muted above him.
 	// Or someone was forced muted and had can_unmute_self below him. Sort.
+#if 0 // goodToRemove
 	static constexpr auto kTop = std::numeric_limits<uint64>::max();
 	const auto projForAdmin = [&](const PeerListRow &other) {
 		const auto &real = static_cast<const Row&>(other);
@@ -683,9 +703,18 @@ void Members::Controller::checkRowPosition(not_null<Row*> row) {
 			return proj(a) > proj(b);
 		};
 	};
+#endif
+	const auto comparator = [&](const PeerListRow &a, const PeerListRow &b) {
+		const auto &realA = static_cast<const Row&>(a);
+		const auto &realB = static_cast<const Row&>(b);
+		return realA.order() > realB.order();
+	};
+	delegate()->peerListSortRows(comparator);
+#if 0 // goodToRemove
 	delegate()->peerListSortRows(_peer->canManageGroupCall()
 		? makeComparator(projForAdmin)
 		: makeComparator(projForOther));
+#endif
 }
 
 void Members::Controller::updateRow(
@@ -1518,7 +1547,10 @@ void Members::Controller::addMuteActionsToContextMenu(
 		) | rpl::start_with_next([=](bool mutedFromVolume) {
 			const auto state = _call->canManage()
 				? (mutedFromVolume
+#if 0 // goodToRemove
 					? (row->raisedHandRating()
+#endif
+					? (row->isHandRaised()
 						? Row::State::RaisedHand
 						: Row::State::Muted)
 					: Row::State::Inactive)
