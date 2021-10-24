@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/common_groups/info_common_groups_widget.h"
 #include "info/info_controller.h"
 #include "lang/lang_keys.h"
-#include "mtproto/sender.h"
+#include "tdb/tdb_sender.h"
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
 #include "ui/widgets/scroll_area.h"
@@ -55,7 +55,10 @@ private:
 		bool wasLoading = false;
 	};
 	const not_null<Controller*> _controller;
+#if 0 // goodToRemove
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 	not_null<UserData*> _user;
 	mtpRequestId _preloadRequestId = 0;
 	bool _allLoaded = false;
@@ -68,7 +71,10 @@ ListController::ListController(
 	not_null<UserData*> user)
 : PeerListController()
 , _controller(controller)
+#if 0 // goodToRemove
 , _api(&_controller->session().mtp())
+#endif
+, _api(&_controller->session().sender())
 , _user(user) {
 	_controller->setSearchEnabledByContent(false);
 }
@@ -94,6 +100,34 @@ void ListController::loadMoreRows() {
 	if (_preloadRequestId || _allLoaded) {
 		return;
 	}
+	_preloadRequestId = _api.request(Tdb::TLgetGroupsInCommon(
+		Tdb::tl_int53(_user->id.value),
+		peerToTdbChat(_preloadGroupId),
+		Tdb::tl_int32(kCommonGroupsPerPage)
+	)).done([=](const Tdb::TLDchats &data) {
+		_preloadRequestId = 0;
+		_preloadGroupId = 0;
+		_allLoaded = true;
+		const auto &chats = data.vchat_ids().v;
+		if (!chats.empty()) {
+			for (const auto &chat : chats) {
+				const auto peerId = peerFromTdbChat(chat);
+				if (const auto peer = _user->owner().peerLoaded(peerId)) {
+					if (!peer->migrateTo()) {
+						delegate()->peerListAppendRow(createRow(peer));
+					}
+					_preloadGroupId = peer->id;
+					_allLoaded = false;
+				}
+			}
+			delegate()->peerListRefreshRows();
+		}
+		const auto fullCount = delegate()->peerListFullRowsCount();
+		if (fullCount > kCommonGroupsSearchAfter) {
+			_controller->setSearchEnabledByContent(true);
+		}
+	}).send();
+#if 0 // goodToRemove
 	_preloadRequestId = _api.request(MTPmessages_GetCommonChats(
 		_user->inputUser,
 		MTP_long(peerIsChat(_preloadGroupId)
@@ -125,6 +159,7 @@ void ListController::loadMoreRows() {
 			_controller->setSearchEnabledByContent(true);
 		}
 	}).send();
+#endif
 }
 
 std::unique_ptr<PeerListState> ListController::saveState() const {
