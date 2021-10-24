@@ -80,9 +80,12 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallBarContentByCall(
 
 	// speaking DESC, std::max(date, lastActive) DESC
 	static const auto SortKey = [](const Data::GroupCallParticipant &p) {
+		return p.rowOrder();
+#if 0 // goodToRemove
 		const auto result = (p.speaking ? uint64(0x100000000ULL) : uint64(0))
 			| uint64(std::max(p.lastActive, p.date));
 		return (~uint64(0)) - result; // sorting with less(), so invert.
+#endif
 	};
 
 	constexpr auto kLimit = 3;
@@ -323,6 +326,61 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallBarContentByCall(
 					pushNext();
 				}
 			}
+		}, lifetime);
+
+		call->recentSpeakersUpdated(
+		) | rpl::start_with_next([=] {
+			const auto &speakers = call->recentSpeakers();
+
+			auto wasUsers = base::take(state->current.users);
+			auto wasUserpics = base::take(state->userpics);
+
+			state->current.users.reserve(speakers.size());
+			state->current.users.clear();
+			state->userpics.reserve(speakers.size());
+			state->userpics.clear();
+			state->someUserpicsNotLoaded = false;
+
+			for (const auto &speaker : speakers) {
+				const auto it = ranges::find(
+					wasUserpics,
+					speaker.peer,
+					&UserpicInRow::peer);
+
+				if (it == end(wasUserpics)) {
+					auto userpic = UserpicInRow{
+						.peer = speaker.peer,
+						.speaking = speaker.speaking,
+					};
+					userpic.peer->loadUserpic();
+					const auto pic = userpic.peer->genUserpic(
+						userpic.view,
+						userpicSize);
+					userpic.uniqueKey = userpic.peer->userpicUniqueKey(
+						userpic.view);
+					if (userpic.peer->hasUserpic()
+						&& userpic.peer->useEmptyUserpic(userpic.view)) {
+						state->someUserpicsNotLoaded = true;
+					}
+					state->current.users.push_back({
+						.userpic = pic.toImage(),
+						.userpicKey = userpic.uniqueKey,
+						.id = userpic.peer->id.value,
+						.speaking = userpic.speaking,
+					});
+					state->userpics.push_back(std::move(userpic));
+				} else {
+					const auto wasUserIt = ranges::find(
+						wasUsers,
+						speaker.peer->id.value,
+						&Ui::GroupCallUser::id);
+					Assert(wasUserIt != end(wasUsers));
+					it->speaking = wasUserIt->speaking = speaker.speaking;
+					state->current.users.push_back(std::move(*wasUserIt));
+					state->userpics.push_back(std::move(*it));
+				}
+			}
+			pushNext();
 		}, lifetime);
 
 		call->participantsReloaded(

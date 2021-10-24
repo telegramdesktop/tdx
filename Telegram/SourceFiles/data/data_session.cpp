@@ -1253,12 +1253,17 @@ not_null<PeerData*> Session::processPeer(const TLchat &dialog) {
 		}
 		chat->setDefaultRestrictions(
 			RestrictionsFromPermissions(data.vpermissions()));
-		data.vvideo_chat().match([&](const TLDvideoChat &data) {
-			const auto callFlag = ChatDataFlag::CallNotEmpty;
-			const auto callNotEmpty = data.vhas_participants().v;
-			chat->setFlags(chat->flags() // todo
-				| (callNotEmpty ? callFlag : ChatDataFlag(0)));
-		});
+		{
+			const auto &videoChat = data.vvideo_chat().data();
+			const auto tlAs = videoChat.vdefault_participant_id();
+			const auto as = tlAs ? peerFromSender(*tlAs) : PeerId(0);
+			chat->setGroupCall(videoChat.vgroup_call_id().v);
+			chat->setGroupCallDefaultJoinAs(as);
+			chat->setFlags(chat->flags() // todo ?
+				| (videoChat.vhas_participants().v
+					? ChatDataFlag::CallNotEmpty
+					: ChatDataFlag(0)));
+		}
 
 		if (canAddMembers != chat->canAddMembers()) {
 			updates |= UpdateFlag::Rights;
@@ -1286,6 +1291,17 @@ not_null<PeerData*> Session::processPeer(const TLchat &dialog) {
 			|| canViewMembers != channel->canViewMembers()
 			|| canAddMembers != channel->canAddMembers()) {
 			updates |= UpdateFlag::Rights;
+		}
+		{
+			const auto &videoChat = data.vvideo_chat().data();
+			const auto tlAs = videoChat.vdefault_participant_id();
+			const auto as = tlAs ? peerFromSender(*tlAs) : PeerId(0);
+			channel->setGroupCall(videoChat.vgroup_call_id().v);
+			channel->setGroupCallDefaultJoinAs(as);
+			channel->setFlags(channel->flags() // todo ?
+				| (videoChat.vhas_participants().v
+					? ChannelDataFlag::CallNotEmpty
+					: ChannelDataFlag(0)));
 		}
 	}
 	if (!result->isFullLoaded()) {

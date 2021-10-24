@@ -473,8 +473,14 @@ public:
 		return _call.get();
 	}
 	void migrateCall(std::unique_ptr<Data::GroupCall> call);
+#if 0 // goodToRemove
 	void setGroupCall(
 		const MTPInputGroupCall &call,
+		TimeId scheduleDate = 0,
+		bool rtmp = false);
+#endif
+	void setGroupCall(
+		CallId callId,
 		TimeId scheduleDate = 0,
 		bool rtmp = false);
 	void clearGroupCall();
