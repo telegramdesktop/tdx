@@ -97,6 +97,34 @@ void ListController::loadMoreRows() {
 	if (_preloadRequestId || _allLoaded) {
 		return;
 	}
+	_preloadRequestId = _api.request(Tdb::TLgetGroupsInCommon(
+		Tdb::tl_int53(_user->id.value),
+		peerToTdbChat(_preloadGroupId),
+		Tdb::tl_int32(kCommonGroupsPerPage)
+	)).done([=](const Tdb::TLDchats &data) {
+		_preloadRequestId = 0;
+		_preloadGroupId = 0;
+		_allLoaded = true;
+		const auto &chats = data.vchat_ids().v;
+		if (!chats.empty()) {
+			for (const auto &chat : chats) {
+				const auto peerId = peerFromTdbChat(chat);
+				if (const auto peer = _user->owner().peerLoaded(peerId)) {
+					if (!peer->migrateTo()) {
+						delegate()->peerListAppendRow(createRow(peer));
+					}
+					_preloadGroupId = peer->id;
+					_allLoaded = false;
+				}
+			}
+			delegate()->peerListRefreshRows();
+		}
+		const auto fullCount = delegate()->peerListFullRowsCount();
+		if (fullCount > kCommonGroupsSearchAfter) {
+			_controller->setSearchEnabledByContent(true);
+		}
+	}).send();
+#if 0 // goodToRemove
 	_preloadRequestId = _api.request(MTPmessages_GetCommonChats(
 		_user->inputUser,
 		MTP_long(peerIsChat(_preloadGroupId)
@@ -142,6 +170,7 @@ void ListController::loadMoreRows() {
 			_controller->setSearchEnabledByContent(true);
 		}
 	}).send();
+#endif
 }
 
 std::unique_ptr<PeerListState> ListController::saveState() const {
