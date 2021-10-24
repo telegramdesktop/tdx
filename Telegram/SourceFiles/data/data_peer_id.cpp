@@ -53,6 +53,14 @@ PeerId peerFromSender(const Tdb::TLmessageSender &sender) noexcept {
 	});
 }
 
+Tdb::TLmessageSender peerToSender(PeerId id) noexcept {
+	if (const auto userId = peerToUser(id)) {
+		return Tdb::tl_messageSenderUser(peerToTdbChat(id));
+	} else {
+		return Tdb::tl_messageSenderChat(peerToTdbChat(id));
+	}
+}
+
 PeerId peerFromMTP(const MTPPeer &peer) {
 	return peer.match([](const MTPDpeerUser &data) {
 		return peerFromUser(data.vuser_id());
