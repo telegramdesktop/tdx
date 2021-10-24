@@ -514,7 +514,17 @@ void BoxController::loadMoreRows() {
 	if (_loadRequestId || _allLoaded) {
 		return;
 	}
-
+	_loadRequestId = _api.request(Tdb::TLsearchCallMessages(
+		Tdb::tl_string(_offset),
+		Tdb::tl_int32(_offset.isEmpty() ? kFirstPageCount : kPerPageCount),
+		Tdb::tl_bool(false)
+	)).done([=](const Tdb::TLDmessages &messages) {
+		_loadRequestId = 0;
+		receivedCalls(messages);
+	}).fail([=](const Tdb::Error &error) {
+		_loadRequestId = 0;
+	}).send();
+#if 0 // goodToRemove
 	_loadRequestId = _api.request(MTPmessages_Search(
 		MTP_flags(0),
 		MTP_inputPeerEmpty(),
@@ -556,6 +566,7 @@ void BoxController::loadMoreRows() {
 	}).fail([this] {
 		_loadRequestId = 0;
 	}).send();
+#endif
 }
 
 base::unique_qptr<Ui::PopupMenu> BoxController::rowContextMenu(
@@ -603,6 +614,32 @@ void BoxController::rowRightActionClicked(not_null<PeerListRow*> row) {
 	Core::App().calls().startOutgoingCall(user, false);
 }
 
+void BoxController::receivedCalls(const Tdb::TLDmessages &messages) {
+	if (messages.vmessages().v.empty()) {
+		_allLoaded = true;
+	}
+	for (const auto &message : messages.vmessages().v) {
+		if (!message) {
+			continue;
+		}
+		const auto peerId = peerFromTdbChat(message->data().vchat_id());
+		if (const auto peer = session().data().peerLoaded(peerId)) {
+			const auto item = session().data().processMessage(
+				*message,
+				NewMessageType::Existing);
+			insertRow(item, InsertWay::Append);
+		} else {
+			LOG(("API Error: a search results with not loaded peer %1"
+				).arg(peerId.value));
+		}
+		_offsetId = message->data().vid().v;
+	}
+
+	refreshAbout();
+	delegate()->peerListRefreshRows();
+}
+
+#if 0 // goodToRemove
 void BoxController::receivedCalls(const QVector<MTPMessage> &result) {
 	if (result.empty()) {
 		_allLoaded = true;
@@ -627,6 +664,7 @@ void BoxController::receivedCalls(const QVector<MTPMessage> &result) {
 	refreshAbout();
 	delegate()->peerListRefreshRows();
 }
+#endif
 
 bool BoxController::insertRow(
 		not_null<HistoryItem*> item,
@@ -719,8 +757,8 @@ void ClearCallsBox(
 			st::boxPadding.bottom()));
 
 	const auto api = &window->session().api();
+#if 0 // goodToRemove
 	const auto sendRequest = [=](bool revoke, auto self) -> void {
-#if 0 // todo
 		using Flag = MTPmessages_DeletePhoneCallHistory::Flag;
 		api->request(MTPmessages_DeletePhoneCallHistory(
 			MTP_flags(revoke ? Flag::f_revoke : Flag(0))
@@ -749,11 +787,20 @@ void ClearCallsBox(
 				}
 			});
 		}).send();
-#endif
 	};
-
+#endif
 	box->addButton(tr::lng_call_box_clear_button(), [=] {
+#if 0 // goodToRemove
 		sendRequest(revokeCheckbox->checked(), sendRequest);
+#endif
+		api->sender().request(Tdb::TLdeleteAllCallMessages(
+			Tdb::tl_bool(revokeCheckbox->checked())
+		)).done([=] {
+			api->session().data().destroyAllCallItems();
+			if (const auto strong = weak.data()) {
+				strong->closeBox();
+			}
+		}).send();
 	});
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
