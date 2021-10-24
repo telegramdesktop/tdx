@@ -807,6 +807,40 @@ RUN git clone -b v2.9.0 --depth=1 {{ GIT }}/ada-url/ada.git \
 	&& cd .. \
 	&& rm -rf ada
 
+FROM builder AS tdlib
+COPY --link --from=openssl {{ LibrariesPath }}/openssl-cache /
+
+ENV OPENSSL_ROOT_DIR {{ OPENSSL_PREFIX }}
+
+# Shallow clone on a specific commit.
+RUN git init td \
+	&& cd td \
+	&& git remote add origin {{ GIT }}/tdlib/td.git \
+	&& git fetch --depth=1 origin 6c92eaf59e96845668ebf10b2a1637f94654ee01 \
+	&& git reset --hard FETCH_HEAD \
+	&& rm -rf .git \
+	&& env -u CFLAGS -u CXXFLAGS cmake -B out/Release . \
+		-DCMAKE_BUILD_TYPE=Release \
+		-DCMAKE_C_FLAGS_RELEASE="$CFLAGS" \
+		-DCMAKE_C_FLAGS_DEBUG="{{ CFLAGS_DEBUG }}" \
+		-DCMAKE_CXX_FLAGS_RELEASE="$CXXFLAGS" \
+		-DCMAKE_CXX_FLAGS_DEBUG="{{ CFLAGS_DEBUG }}" \
+	&& cmake --build out/Release --config Release --target tdclient -j$(nproc)
+
+WORKDIR td
+
+{%- if DEBUG %}
+
+FROM tdlib AS tdlib_debug
+RUN env -u CFLAGS -u CXXFLAGS cmake -B out/Debug . \
+		-DCMAKE_BUILD_TYPE=Debug \
+		-DCMAKE_C_FLAGS_RELEASE="$CFLAGS" \
+		-DCMAKE_C_FLAGS_DEBUG="{{ CFLAGS_DEBUG }}" \
+		-DCMAKE_CXX_FLAGS_RELEASE="$CXXFLAGS" \
+		-DCMAKE_CXX_FLAGS_DEBUG="{{ CFLAGS_DEBUG }}" \
+	&& cmake --build out/Debug --config Debug --target tdclient -j$(nproc)
+{%- endif %}
+
 FROM builder
 COPY --link --from=zlib {{ LibrariesPath }}/zlib-cache /
 COPY --link --from=xz {{ LibrariesPath }}/xz-cache /
@@ -854,6 +888,11 @@ COPY --link --from=ada {{ LibrariesPath }}/ada-cache /
 
 {%- if DEBUG %}
 COPY --link --from=webrtc_debug {{ LibrariesPath }}/tg_owt/out/Debug tg_owt/out/Debug
+{%- endif %}
+
+COPY --link --from=tdlib {{ LibrariesPath }}/td td
+{%- if DEBUG %}
+COPY --link --from=tdlib_debug {{ LibrariesPath }}/td/out/Debug td/out/Debug
 {%- endif %}
 
 WORKDIR ../tdesktop
