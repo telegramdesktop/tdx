@@ -2615,7 +2615,7 @@ void Updates::applyUpdate(const TLupdate &update) {
 			peer->setIsBlocked(data.vis_blocked().v);
 		}
 	}, [&](const TLDupdateChatHasScheduledMessages &data) {
-	}, [&](const TLDupdateChatVoiceChat &data) {
+	}, [&](const TLDupdateChatVideoChat &data) {
 	}, [&](const TLDupdateChatDefaultDisableNotification &data) {
 	}, [&](const TLDupdateChatReadInbox &data) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
@@ -2749,6 +2749,8 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateAnimatedEmojiMessageClicked &data) {
 	}, [&](const TLDupdateAnimationSearchParameters &data) {
 	}, [&](const TLDupdateSuggestedActions &data) {
+	}, [&](const TLDupdateChatPendingJoinRequests &data) {
+	}, [&](const TLDupdateAnimatedEmojiMessageClicked &data) {
 	});
 	session().data().sendHistoryChangeNotifications();
 }
