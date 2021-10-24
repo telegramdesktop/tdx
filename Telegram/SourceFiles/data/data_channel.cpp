@@ -933,6 +933,7 @@ void ChannelData::migrateCall(std::unique_ptr<Data::GroupCall> call) {
 	addFlags(Flag::CallActive);
 }
 
+#if 0 // goodToRemove
 void ChannelData::setGroupCall(
 		const MTPInputGroupCall &call,
 		TimeId scheduleDate,
@@ -960,6 +961,33 @@ void ChannelData::setGroupCall(
 		session().changes().peerUpdated(this, UpdateFlag::GroupCall);
 		addFlags(Flag::CallActive);
 	});
+}
+#endif
+
+void ChannelData::setGroupCall(
+		CallId callId,
+		TimeId scheduleDate,
+		bool rtmp) {
+	if (_call && _call->id() == callId) {
+		return;
+	} else if (!_call && !callId) {
+		return;
+	} else if (!callId) {
+		clearGroupCall();
+		return;
+	}
+	const auto hasCall = (_call != nullptr);
+	if (hasCall) {
+		owner().unregisterGroupCall(_call.get());
+	}
+	_call = std::make_unique<Data::GroupCall>(
+		this,
+		callId,
+		scheduleDate,
+		rtmp);
+	owner().registerGroupCall(_call.get());
+	session().changes().peerUpdated(this, UpdateFlag::GroupCall);
+	addFlags(Flag::CallActive);
 }
 
 void ChannelData::clearGroupCall() {

@@ -79,11 +79,18 @@ void SaveCallJoinMuted(
 		return;
 	}
 	call->setJoinMutedLocally(joinMuted);
+	peer->session().sender().request(
+		Tdb::TLtoggleGroupCallMuteNewParticipants(
+			Tdb::tl_int32(callId),
+			Tdb::tl_bool(joinMuted)
+	)).send();
+#if 0 // goodToRemove
 	peer->session().api().request(MTPphone_ToggleGroupCallSettings(
 		MTP_flags(MTPphone_ToggleGroupCallSettings::Flag::f_join_muted),
 		call->input(),
 		MTP_bool(joinMuted)
 	)).send();
+#endif
 }
 
 [[nodiscard]] crl::time DelayByIndex(int index) {
@@ -842,6 +849,17 @@ std::pair<Fn<void()>, rpl::lifetime> ShareInviteLinkAction(
 		}
 		state->generatingLink = true;
 
+		state->linkListenerRequestId = peer->session().sender().request(
+			Tdb::TLgetGroupCallInviteLink(
+				Tdb::tl_int32(real->id()),
+				Tdb::tl_bool(false)
+			)
+		).done([=](const Tdb::TLDhttpUrl &data) {
+			state->linkListenerRequestId = 0;
+			state->linkListener = data.vurl().v;
+			shareReady();
+		}).send();
+#if 0 // goodToRemove
 		state->linkListenerRequestId = peer->session().api().request(
 			MTPphone_ExportGroupCallInvite(
 				MTP_flags(0),
@@ -855,12 +873,14 @@ std::pair<Fn<void()>, rpl::lifetime> ShareInviteLinkAction(
 				shareReady();
 			});
 		}).send();
+#endif
 
 		if (real->rtmp()) {
 			state->linkSpeaker = QString();
 			state->linkSpeakerRequestId = 0;
 			shareReady();
 		} else if (!state->linkSpeaker.has_value()) {
+#if 0 // goodToRemove
 			using Flag = MTPphone_ExportGroupCallInvite::Flag;
 			state->linkSpeakerRequestId = peer->session().api().request(
 				MTPphone_ExportGroupCallInvite(
@@ -873,6 +893,21 @@ std::pair<Fn<void()>, rpl::lifetime> ShareInviteLinkAction(
 					state->linkSpeaker = qs(data.vlink());
 					shareReady();
 				});
+			}).fail([=] {
+				state->linkSpeakerRequestId = 0;
+				state->linkSpeaker = QString();
+				shareReady();
+			}).send();
+#endif
+			state->linkListenerRequestId = peer->session().sender().request(
+				Tdb::TLgetGroupCallInviteLink(
+					Tdb::tl_int32(real->id()),
+					Tdb::tl_bool(true)
+				)
+			).done([=](const Tdb::TLDhttpUrl &data) {
+				state->linkSpeakerRequestId = 0;
+				state->linkSpeaker = data.vurl().v;
+				shareReady();
 			}).fail([=] {
 				state->linkSpeakerRequestId = 0;
 				state->linkSpeaker = QString();

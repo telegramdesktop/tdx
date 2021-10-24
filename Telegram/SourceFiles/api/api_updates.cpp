@@ -2740,6 +2740,27 @@ void Updates::applyUpdate(const TLupdate &update) {
 		}
 	}, [&](const TLDupdateChatHasScheduledMessages &data) {
 	}, [&](const TLDupdateChatVideoChat &data) {
+		const auto peerId = peerFromTdbChat(data.vchat_id());
+		const auto callId = data.vvideo_chat().data().vgroup_call_id().v;
+		const auto tlAs = data.vvideo_chat().data().vdefault_participant_id();
+		const auto as = tlAs ? peerFromSender(*tlAs) : PeerId(0);
+		if (peerIsChannel(peerId)) {
+			const auto channel = owner.channel(peerToChannel(peerId));
+			channel->setGroupCall(callId);
+			channel->setGroupCallDefaultJoinAs(as);
+			channel->setFlags(channel->flags()
+				| (data.vvideo_chat().data().vhas_participants().v
+					? ChannelDataFlag::CallNotEmpty
+					: ChannelDataFlag(0)));
+		} else if (peerIsChat(peerId)) {
+			const auto chat = owner.chat(peerToChat(peerId));
+			chat->setGroupCall(callId);
+			chat->setGroupCallDefaultJoinAs(as);
+			chat->setFlags(chat->flags()
+				| (data.vvideo_chat().data().vhas_participants().v
+					? ChatDataFlag::CallNotEmpty
+					: ChatDataFlag(0)));
+		}
 	}, [&](const TLDupdateChatDefaultDisableNotification &data) {
 	}, [&](const TLDupdateChatReadInbox &data) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
@@ -2836,7 +2857,9 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateCall &data) {
 		Core::App().calls().handleUpdate(&session(), data);
 	}, [&](const TLDupdateGroupCall &data) {
+		Core::App().calls().handleGroupCallUpdate(&session(), data);
 	}, [&](const TLDupdateGroupCallParticipant &data) {
+		Core::App().calls().handleGroupCallUpdate(&session(), data);
 	}, [&](const TLDupdateNewCallSignalingData &data) {
 		Core::App().calls().handleUpdate(&session(), data);
 	}, [&](const TLDupdateUserPrivacySettingRules &data) {
