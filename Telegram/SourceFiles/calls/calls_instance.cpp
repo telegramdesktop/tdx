@@ -246,9 +246,12 @@ void Instance::startOrJoinGroupCall(
 			if (call) {
 				info.rtmp = call->rtmp();
 			}
+#if 0 // goodToRemove
 			createGroupCall(
 				std::move(info),
 				call ? call->input() : MTP_inputGroupCall({}, {}));
+#endif
+			createGroupCall(std::move(info), call ? call->id() : 0);
 		});
 	});
 }
@@ -309,7 +312,10 @@ void Instance::showStartWithRtmp(
 	_startWithRtmp->start(peer, show, [=](Group::JoinInfo info) {
 		confirmLeaveCurrent(show, peer, {}, [=](auto) {
 			_startWithRtmp->close();
+#if 0 // goodToRemove
 			createGroupCall(std::move(info), MTP_inputGroupCall({}, {}));
+#endif
+			createGroupCall(std::move(info), 0);
 		});
 	});
 }
@@ -433,13 +439,19 @@ void Instance::destroyGroupCall(not_null<GroupCall*> call) {
 
 void Instance::createGroupCall(
 		Group::JoinInfo info,
+#if 0 // goodToRemove
 		const MTPInputGroupCall &inputCall) {
+#endif
+		CallId id) {
 	destroyCurrentCall();
 
 	auto call = std::make_unique<GroupCall>(
 		_delegate.get(),
 		std::move(info),
+#if 0 // goodToRemove
 		inputCall);
+#endif
+		id);
 	const auto raw = call.get();
 
 	info.peer->session().account().sessionChanges(
@@ -740,6 +752,29 @@ void Instance::handleCallUpdate(
 
 void Instance::handleGroupCallUpdate(
 		not_null<Main::Session*> session,
+		const Tdb::TLDupdateGroupCall &update) {
+	const auto callId = update.vgroup_call().data().vid().v;
+	if (const auto existing = session->data().groupCall(callId)) {
+		existing->applyUpdate(update);
+	}
+}
+
+void Instance::handleGroupCallUpdate(
+		not_null<Main::Session*> session,
+		const Tdb::TLDupdateGroupCallParticipant &update) {
+	const auto callId = update.vgroup_call_id().v;
+	if (const auto existing = session->data().groupCall(callId)) {
+		existing->applyUpdate(update);
+	}
+	if (_currentGroupCall
+		&& (&_currentGroupCall->peer()->session() == session)) {
+		_currentGroupCall->handleUpdate(update);
+	}
+}
+
+#if 0 // goodToRemove
+void Instance::handleGroupCallUpdate(
+		not_null<Main::Session*> session,
 		const MTPUpdate &update) {
 	if (_currentGroupCall
 		&& (&_currentGroupCall->peer()->session() == session)) {
@@ -780,7 +815,6 @@ void Instance::applyGroupCallUpdateChecked(
 		_currentGroupCall->handleUpdate(update);
 	}
 }
-#if 0 // goodToRemove
 void Instance::handleSignalingData(
 		not_null<Main::Session*> session,
 		const MTPDupdatePhoneCallSignalingData &data) {

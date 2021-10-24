@@ -15,6 +15,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webrtc/webrtc_device_common.h"
 #include "webrtc/webrtc_device_resolver.h"
 
+namespace Tdb {
+class TLgroupCallParticipant;
+class TLDgroupCallParticipant;
+class TLgroupCallParticipantVideoInfo;
+class TLDupdateGroupCall;
+class TLDupdateGroupCallParticipant;
+} // namespace Tdb
+
 class History;
 
 namespace tgcalls {
@@ -161,8 +169,12 @@ struct VideoQualityRequest {
 struct ParticipantVideoParams;
 
 [[nodiscard]] std::shared_ptr<ParticipantVideoParams> ParseVideoParams(
+#if 0 // goodToRemove
 	const tl::conditional<MTPGroupCallParticipantVideo> &camera,
 	const tl::conditional<MTPGroupCallParticipantVideo> &screen,
+#endif
+	const tl::conditional<Tdb::TLgroupCallParticipantVideoInfo> &camera,
+	const tl::conditional<Tdb::TLgroupCallParticipantVideoInfo> &screen,
 	const std::shared_ptr<ParticipantVideoParams> &existing);
 
 [[nodiscard]] const std::string &GetCameraEndpoint(
@@ -216,7 +228,10 @@ public:
 	GroupCall(
 		not_null<Delegate*> delegate,
 		Group::JoinInfo info,
+#if 0 // goodToRemove
 		const MTPInputGroupCall &inputCall);
+#endif
+		CallId id);
 	~GroupCall();
 
 	[[nodiscard]] CallId id() const {
@@ -254,11 +269,17 @@ public:
 	void discard();
 	void rejoinAs(Group::JoinInfo info);
 	void rejoinWithHash(const QString &hash);
+	void join(CallId id);
+#if 0 // goodToRemove
 	void join(const MTPInputGroupCall &inputCall);
 	void handleUpdate(const MTPUpdate &update);
 	void handlePossibleCreateOrJoinResponse(const MTPDupdateGroupCall &data);
 	void handlePossibleCreateOrJoinResponse(
 		const MTPDupdateGroupCallConnection &data);
+#endif
+	void handleUpdate(const Tdb::TLDupdateGroupCall &update);
+	void handleUpdate(const Tdb::TLDupdateGroupCallParticipant &update);
+
 	void changeTitle(const QString &title);
 	void toggleRecording(
 		bool enabled,
@@ -429,7 +450,10 @@ private:
 
 	struct LoadingPart {
 		std::shared_ptr<LoadPartTask> task;
+#if 0 // mtp
 		mtpRequestId requestId = 0;
+#endif
+		Tdb::RequestId requestId = 0;
 	};
 
 	enum class FinishType {
@@ -486,10 +510,12 @@ private:
 		Fn<bool(uint32)> resolved = nullptr);
 	void checkMediaChannelDescriptions(Fn<bool(uint32)> resolved = nullptr);
 
+#if 0 // goodToRemove
 	void handlePossibleCreateOrJoinResponse(const MTPDgroupCall &data);
 	void handlePossibleDiscarded(const MTPDgroupCallDiscarded &data);
 	void handleUpdate(const MTPDupdateGroupCall &data);
 	void handleUpdate(const MTPDupdateGroupCallParticipants &data);
+#endif
 	bool tryCreateController();
 	void destroyController();
 	bool tryCreateScreencast();
@@ -507,7 +533,9 @@ private:
 	void updateInstanceVolume(
 		const std::optional<Data::GroupCallParticipant> &was,
 		const Data::GroupCallParticipant &now);
+#if 0 // goodToRemove
 	void applyMeInCallLocally();
+#endif
 	void rejoin();
 	void leave();
 	void rejoin(not_null<PeerData*> as);
@@ -528,7 +556,9 @@ private:
 	void pushToTalkCancel();
 
 	void checkGlobalShortcutAvailability();
+#if 0 // goodToRemove
 	void checkJoined();
+#endif
 	void checkFirstTimeJoined();
 	void notifyAboutAllowedToSpeak();
 
@@ -540,6 +570,7 @@ private:
 	void updateRequestedVideoChannelsDelayed();
 	void fillActiveVideoEndpoints();
 
+#if 0 // goodToRemove
 	void editParticipant(
 		not_null<PeerData*> participantPeer,
 		bool mute,
@@ -548,10 +579,14 @@ private:
 		not_null<PeerData*> participantPeer,
 		bool mute,
 		std::optional<int> volume);
+#endif
 	void applyQueuedSelfUpdates();
 	void sendPendingSelfUpdates();
+#if 0 // goodToRemove
 	void applySelfUpdate(const MTPDgroupCallParticipant &data);
 	void applyOtherParticipantUpdate(const MTPDgroupCallParticipant &data);
+#endif
+	void applySelfUpdate(const Tdb::TLDgroupCallParticipant &data);
 
 	void captureMuteChanged(bool mute) override;
 	rpl::producer<Webrtc::DeviceResolvedId> captureMuteDeviceId() override;
@@ -563,6 +598,8 @@ private:
 	void addVideoOutput(const std::string &endpoint, SinkPointer sink);
 	void setVideoEndpointLarge(VideoEndpoint endpoint);
 
+	Tdb::RequestId unixtime(Fn<void(int64)> &&callback);
+
 	void markEndpointActive(
 		VideoEndpoint endpoint,
 		bool active,
@@ -572,7 +609,9 @@ private:
 
 	[[nodiscard]] int activeVideoSendersCount() const;
 
+#if 0 // goodToRemove
 	[[nodiscard]] MTPInputGroupCall inputCall() const;
+#endif
 
 	const not_null<Delegate*> _delegate;
 	not_null<PeerData*> _peer; // Can change in legacy group migration.
@@ -586,7 +625,9 @@ private:
 	bool _recordingStoppedByMe = false;
 	bool _requestedVideoChannelsUpdateScheduled = false;
 
+#if 0 // goodToRemove
 	MTP::DcId _broadcastDcId = 0;
+#endif
 	base::flat_map<not_null<LoadPartTask*>, LoadingPart> _broadcastParts;
 	base::flat_set<
 		std::shared_ptr<MediaChannelDescriptionsTask>,
@@ -612,13 +653,20 @@ private:
 	rpl::variable<bool> _videoIsWorking = false;
 	rpl::variable<bool> _emptyRtmp = false;
 	bool _initialMuteStateSent = false;
+#if 0 // goodToRemove
 	bool _acceptFields = false;
+#endif
 
 	rpl::event_stream<Group::ParticipantState> _otherParticipantStateValue;
+#if 0 // goodToRemove
 	std::vector<MTPGroupCallParticipant> _queuedSelfUpdates;
+#endif
+	std::vector<Tdb::TLgroupCallParticipant> _queuedSelfUpdates;
 
 	CallId _id = 0;
+#if 0 // goodToRemove
 	CallId _accessHash = 0;
+#endif
 	JoinState _joinState;
 	JoinState _screenJoinState;
 	std::string _cameraEndpoint;
@@ -669,7 +717,9 @@ private:
 	rpl::event_stream<> _allowedToSpeakNotifications;
 	rpl::event_stream<> _titleChanged;
 	base::Timer _lastSpokeCheckTimer;
+#if 0 // goodToRemove
 	base::Timer _checkJoinedTimer;
+#endif
 
 	crl::time _lastSendProgressUpdate = 0;
 

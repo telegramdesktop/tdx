@@ -85,7 +85,14 @@ public:
 	void handleUpdate(
 		not_null<Main::Session*> session,
 		const Tdb::TLDupdateNewCallSignalingData &update);
+	void handleGroupCallUpdate(
+		not_null<Main::Session*> session,
+		const Tdb::TLDupdateGroupCall &update);
+	void handleGroupCallUpdate(
+		not_null<Main::Session*> session,
+		const Tdb::TLDupdateGroupCallParticipant &update);
 
+#if 0 // goodToRemove
 	// Called by Data::GroupCall when it is appropriate by the 'version'.
 	void applyGroupCallUpdateChecked(
 		not_null<Main::Session*> session,
@@ -137,9 +144,12 @@ private:
 	void destroyCall(not_null<Call*> call);
 	void requestToCreateCall(not_null<UserData*> user, bool video);
 
+#if 0 // goodToRemove
 	void createGroupCall(
 		Group::JoinInfo info,
 		const MTPInputGroupCall &inputCall);
+#endif
+	void createGroupCall(Group::JoinInfo info, CallId id);
 	void destroyGroupCall(not_null<GroupCall*> call);
 	void confirmLeaveCurrent(
 		std::shared_ptr<Ui::Show> show,
@@ -171,7 +181,6 @@ private:
 	void handleSignalingData(
 		not_null<Main::Session*> session,
 		const MTPDupdatePhoneCallSignalingData &data);
-#endif
 	void handleGroupCallUpdate(
 		not_null<Main::Session*> session,
 		const MTPUpdate &update);
