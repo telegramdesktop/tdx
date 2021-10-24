@@ -360,6 +360,7 @@ void ChooseJoinAsProcess::start(
 
 void ChooseJoinAsProcess::requestList() {
 	const auto session = &_request->peer->session();
+#if 0 // goodToRemove
 	_request->id = session->api().request(MTPphone_GetGroupCallJoinAs(
 		_request->peer->input
 	)).done([=](const MTPphone_JoinAsPeers &result) {
@@ -380,6 +381,41 @@ void ChooseJoinAsProcess::requestList() {
 			return list;
 		});
 		processList(std::move(list));
+#endif
+	_request->id = session->api().sender().request(
+		Tdb::TLgetVideoChatAvailableParticipants(
+			peerToTdbChat(_request->peer->id)
+	)).done([=](const Tdb::TLDmessageSenders &data) {
+		const auto totalCount = data.vtotal_count().v;
+		const auto list = std::make_shared<
+			std::vector<not_null<PeerData*>>
+		>();
+		list->reserve(totalCount);
+		const auto processLoaded = [&](not_null<PeerData*> peer) {
+			if (totalCount == list->size()) {
+				return;
+			}
+			list->push_back(peer);
+			if (totalCount == list->size()) {
+				processList(std::move(*list));
+			}
+		};
+
+		for (const auto &sender : data.vsenders().v) {
+			sender.match([&](const Tdb::TLDmessageSenderUser &data) {
+				session->api().sender().request(
+					Tdb::TLgetUser(data.vuser_id())
+				).done([=](const Tdb::TLuser &user) {
+					processLoaded(session->data().processUser(user));
+				}).send();
+			}, [&](const Tdb::TLDmessageSenderChat &data) {
+				session->api().sender().request(
+					Tdb::TLgetChat(data.vchat_id())
+				).done([=](const Tdb::TLchat &chat) {
+					processLoaded(session->data().processPeer(chat));
+				}).send();
+			});
+		}
 	}).fail([=] {
 		finish({
 			.peer = _request->peer,

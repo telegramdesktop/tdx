@@ -28,11 +28,13 @@ constexpr auto kActiveAfterJoined = crl::time(1000);
 constexpr auto kWaitForUpdatesTimeout = 3 * crl::time(1000);
 constexpr auto kReloadStaleTimeout = 16 * crl::time(1000);
 
+#if 0 // goodToRemove
 [[nodiscard]] QString ExtractNextOffset(const MTPphone_GroupCall &call) {
 	return call.match([&](const MTPDphone_groupCall &data) {
 		return qs(data.vparticipants_next_offset());
 	});
 }
+#endif
 
 } // namespace
 
@@ -57,16 +59,26 @@ bool GroupCallParticipant::screenPaused() const {
 	return IsScreenPaused(videoParams);
 }
 
+QString GroupCallParticipant::rowOrder() const {
+	return order.isEmpty() ? QString() : (speaking ? '1' : '0') + order;
+}
+
 GroupCall::GroupCall(
 	not_null<PeerData*> peer,
 	CallId id,
+#if 0 // goodToRemove
 	CallId accessHash,
+#endif
 	TimeId scheduleDate,
 	bool rtmp)
 : _id(id)
+#if 0 // goodToRemove
 , _accessHash(accessHash)
+#endif
 , _peer(peer)
+#if 0 // goodToRemove
 , _reloadByQueuedUpdatesTimer([=] { reload(); })
+#endif
 , _speakingByActiveFinishTimer([=] { checkFinishSpeakingByActive(); })
 , _scheduleDate(scheduleDate)
 , _rtmp(rtmp)
@@ -99,9 +111,11 @@ not_null<PeerData*> GroupCall::peer() const {
 	return _peer;
 }
 
+#if 0 // goodToRemove
 MTPInputGroupCall GroupCall::input() const {
 	return MTP_inputGroupCall(MTP_long(_id), MTP_long(_accessHash));
 }
+#endif
 
 void GroupCall::setPeer(not_null<PeerData*> peer) {
 	Expects(peer->migrateFrom() == _peer);
@@ -116,6 +130,11 @@ auto GroupCall::participants() const
 }
 
 void GroupCall::requestParticipants() {
+	api().sender().request(Tdb::TLloadGroupCallParticipants(
+		Tdb::tl_int32(_id),
+		Tdb::tl_int32(kRequestPerPage)
+	)).send();
+#if 0 // goodToRemove
 	if (!_savedFull) {
 		if (_participantsRequestId || _reloadRequestId) {
 			return;
@@ -163,8 +182,10 @@ void GroupCall::requestParticipants() {
 			_participantsReloaded.fire({});
 		}
 	}).send();
+#endif
 }
 
+#if 0 // goodToRemove
 bool GroupCall::processSavedFullCall() {
 	if (!_savedFull) {
 		return false;
@@ -179,6 +200,7 @@ void GroupCall::finishParticipantsSliceRequest() {
 	computeParticipantsCount();
 	processQueuedUpdates();
 }
+#endif
 
 void GroupCall::setServerParticipantsCount(int count) {
 	_serverParticipantsCount = count;
@@ -270,11 +292,20 @@ auto GroupCall::participantUpdated() const
 	return _participantUpdates.events();
 }
 
+rpl::producer<> GroupCall::recentSpeakersUpdated() const {
+	return _recentSpeakers.updates.events_starting_with_copy({});
+}
+
+const GroupCall::RecentSpeakers &GroupCall::recentSpeakers() const {
+	return _recentSpeakers.current;
+}
+
 auto GroupCall::participantSpeaking() const
 -> rpl::producer<not_null<Participant*>> {
 	return _participantSpeaking.events();
 }
 
+#if 0 // goodToRemove
 void GroupCall::enqueueUpdate(const MTPUpdate &update) {
 	update.match([&](const MTPDupdateGroupCall &updateData) {
 		updateData.vcall().match([&](const MTPDgroupCall &data) {
@@ -344,7 +375,6 @@ void GroupCall::discard(const MTPDgroupCallDiscarded &data) {
 			}
 		}
 	});
-#if 0 // todo
 	Core::App().calls().applyGroupCallUpdateChecked(
 		&peer->session(),
 		MTP_updateGroupCall(
@@ -355,7 +385,6 @@ void GroupCall::discard(const MTPDgroupCallDiscarded &data) {
 				data.vid(),
 				data.vaccess_hash(),
 				data.vduration())));
-#endif
 }
 
 void GroupCall::processFullCallUsersChats(const MTPphone_GroupCall &call) {
@@ -393,7 +422,75 @@ void GroupCall::processFullCall(const MTPphone_GroupCall &call) {
 	finishParticipantsSliceRequest();
 	_participantsReloaded.fire({});
 }
+#endif
 
+void GroupCall::applyCallFields(const Tdb::TLDgroupCall &data) {
+	_joinMuted = data.vmute_new_participants().v;
+	_canChangeJoinMuted = data.vcan_toggle_mute_new_participants().v;
+	_isJoined = data.vis_joined().v;
+
+	const auto wasParticipantsCount = _serverParticipantsCount;
+	const auto nowParticipantsCount = data.vparticipant_count().v;
+
+	setServerParticipantsCount(nowParticipantsCount);
+	computeParticipantsCount();
+	_title = data.vtitle().v;
+	_recordVideo = data.vis_video_recorded().v;
+	_recordStartDate = data.vrecord_duration().v
+		? (base::unixtime::now() - data.vrecord_duration().v)
+		: 0;
+	_scheduleDate = data.vscheduled_start_date().v;
+	_scheduleStartSubscribed = data.venabled_start_notification().v;
+	_canEnableVideo = data.vcan_enable_video().v;
+	_allParticipantsLoaded = data.vloaded_all_participants().v;
+
+	if (_isJoined) {
+		if (!wasParticipantsCount
+			|| (!_allParticipantsLoaded
+				&& (nowParticipantsCount < kRequestPerPage)
+				&& (wasParticipantsCount != nowParticipantsCount))) {
+			// Request participants on every group call update for small calls.
+			requestParticipants();
+		}
+	}
+
+	{
+		using Speaker = Tdb::TLgroupCallRecentSpeaker;
+		_recentSpeakers.current = ranges::views::all(
+			data.vrecent_speakers().v
+		) | ranges::views::transform([=](const Speaker &speaker) {
+			return RecentSpeaker{
+				.peer = _peer->owner().peer(
+					peerFromSender(speaker.data().vparticipant_id())),
+				.speaking = speaker.data().vis_speaking().v,
+			};
+		}) | ranges::to_vector;
+		if (!_isJoined) {
+			_recentSpeakers.updates.fire({});
+		}
+	}
+}
+
+void GroupCall::applyUpdate(const Tdb::TLDupdateGroupCall &update) {
+	if (update.vgroup_call().data().vid().v != _id) {
+		return;
+	}
+	applyCallFields(update.vgroup_call().data());
+}
+
+void GroupCall::applyUpdate(
+		const Tdb::TLDupdateGroupCallParticipant &update,
+		bool local) {
+	if (update.vgroup_call_id().v != _id) {
+		return;
+	}
+	using Source = ApplySliceSource;
+	applyParticipant(
+		update.vparticipant().data(),
+		local ? Source::UpdateConstructed : Source::UpdateReceived);
+}
+
+#if 0 // goodToRemove
 void GroupCall::applyCallFields(const MTPDgroupCall &data) {
 	DEBUG_LOG(("Group Call Participants: "
 		"Set from groupCall %1 -> %2"
@@ -436,7 +533,6 @@ void GroupCall::applyEnqueuedUpdate(const MTPUpdate &update) {
 	_applyingQueuedUpdates = true;
 	const auto guard = gsl::finally([&] { _applyingQueuedUpdates = false; });
 
-#if 0 // mtp
 	update.match([&](const MTPDupdateGroupCall &data) {
 		data.vcall().match([&](const MTPDgroupCall &data) {
 			applyCallFields(data);
@@ -464,7 +560,6 @@ void GroupCall::applyEnqueuedUpdate(const MTPUpdate &update) {
 	Core::App().calls().applyGroupCallUpdateChecked(
 		&_peer->session(),
 		update);
-#endif
 }
 
 void GroupCall::processQueuedUpdates() {
@@ -497,6 +592,7 @@ void GroupCall::processQueuedUpdates() {
 		_reloadByQueuedUpdatesTimer.callOnce(kWaitForUpdatesTimeout);
 	}
 }
+#endif
 
 void GroupCall::computeParticipantsCount() {
 	_fullCount = (_allParticipantsLoaded && !_listenersHidden)
@@ -519,6 +615,19 @@ void GroupCall::reload() {
 	}
 	api().request(base::take(_participantsRequestId)).cancel();
 
+	_reloadRequestId = api().sender().request(
+		Tdb::TLgetGroupCall(Tdb::tl_int32(_id))
+	).done([=](const Tdb::TLDgroupCall &data) {
+		if (!data.vloaded_all_participants().v && data.vis_joined().v) {
+			requestParticipants();
+		}
+		_reloadRequestId = 0;
+		applyCallFields(data);
+		_participantsReloaded.fire({});
+	}).fail([=](const Tdb::Error &error) {
+		_reloadRequestId = 0;
+	}).send();
+#if 0 // goodToRemove
 	DEBUG_LOG(("Group Call Participants: "
 		"Reloading with queued: %1"
 		).arg(_queuedUpdates.size()));
@@ -548,8 +657,10 @@ void GroupCall::reload() {
 		_reloadRequestId = 0;
 		_reloadLastFinished = crl::now();
 	}).send();
+#endif
 }
 
+#if 0 // goodToRemove
 bool GroupCall::requestParticipantsAfterReload(
 		const MTPphone_GroupCall &call) const {
 	return call.match([&](const MTPDphone_groupCall &data) {
@@ -708,6 +819,154 @@ void GroupCall::applyParticipantsSlice(
 		computeParticipantsCount();
 	}
 }
+#endif
+
+void GroupCall::applyLocalVolume(
+		not_null<PeerData*> participantPeer,
+		bool mute,
+		std::optional<int> volume) {
+	const auto i = ranges::find(
+		_participants,
+		participantPeer,
+		&Participant::peer);
+	Assert(i != end(_participants));
+	const auto was = std::make_optional(*i);
+	auto now = *i;
+	if (now.canBeMutedForAllUsers) {
+		now.muted = mute;
+	}
+	if (now.canBeMutedForCurrentUser) {
+		now.mutedByMe = mute;
+	}
+	now.volume = volume.value_or(was->volume);
+	_participantUpdates.fire({
+		.was = was,
+		.now = now,
+	});
+}
+
+void GroupCall::applyParticipant(
+		const Tdb::TLDgroupCallParticipant &data,
+		ApplySliceSource sliceSource) {
+	const auto participantPeerId = peerFromSender(data.vparticipant_id());
+	const auto participantPeer = _peer->owner().peer(
+		participantPeerId);
+	const auto i = ranges::find(
+		_participants,
+		participantPeer,
+		&Participant::peer);
+	if (data.vorder().v.isEmpty()) {
+		if (i != end(_participants)) {
+			auto update = ParticipantUpdate{
+				.was = *i,
+			};
+			_participantPeerByAudioSsrc.erase(i->ssrc);
+			_participantPeerByAudioSsrc.erase(
+				GetAdditionalAudioSsrc(i->videoParams));
+			_speakingByActiveFinishes.remove(participantPeer);
+			_participants.erase(i);
+			if (sliceSource != ApplySliceSource::FullReloaded) {
+				_participantUpdates.fire(std::move(update));
+			}
+		}
+		if (_serverParticipantsCount > 0) {
+			--_serverParticipantsCount;
+		}
+		return;
+	}
+	participantPeer->setAbout(data.vbio().v);
+	const auto was = (i != end(_participants))
+		? std::make_optional(*i)
+		: std::nullopt;
+	const auto canSelfUnmute = data.vcan_unmute_self().v;
+	const auto canBeSpeaking = !data.vis_muted_for_all_users().v
+		|| data.vcan_unmute_self().v;
+	const auto localUpdate = (sliceSource
+		== ApplySliceSource::UpdateConstructed);
+	const auto existingVideoParams = (i != end(_participants))
+		? i->videoParams
+		: nullptr;
+	auto videoParams = localUpdate
+		? existingVideoParams
+		: Calls::ParseVideoParams(
+			data.vvideo_info(),
+			data.vscreen_sharing_video_info(),
+			existingVideoParams);
+	const auto value = Participant{
+		.peer = participantPeer,
+		.videoParams = std::move(videoParams),
+		.ssrc = uint32(data.vaudio_source_id().v),
+		.volume = data.vvolume_level().v,
+		.sounding = canBeSpeaking && was && was->sounding,
+		.speaking = canBeSpeaking && was && was->speaking,
+		.additionalSounding = (canBeSpeaking
+			&& was
+			&& was->additionalSounding),
+		.additionalSpeaking = (canBeSpeaking
+			&& was
+			&& was->additionalSpeaking),
+		.muted = data.vis_muted_for_all_users().v,
+		.mutedByMe = data.vis_muted_for_current_user().v,
+		.canSelfUnmute = canSelfUnmute,
+		.canBeSpeaking = canBeSpeaking,
+
+		.isHandRaised = data.vis_hand_raised().v,
+		.canBeMutedForAllUsers = data.vcan_be_muted_for_all_users().v,
+		.canBeUnmutedForAllUsers = data.vcan_be_unmuted_for_all_users().v,
+		.canBeMutedForCurrentUser = data.vcan_be_muted_for_current_user().v,
+		.canBeUnmutedForCurrentUser =
+			data.vcan_be_unmuted_for_current_user().v,
+		.order = data.vorder().v,
+	};
+	if (i == end(_participants)) {
+		if (value.ssrc) {
+			_participantPeerByAudioSsrc.emplace(
+				value.ssrc,
+				participantPeer);
+		}
+		if (const auto additional = GetAdditionalAudioSsrc(
+				value.videoParams)) {
+			_participantPeerByAudioSsrc.emplace(
+				additional,
+				participantPeer);
+		}
+		_participants.push_back(value);
+		if (const auto user = participantPeer->asUser()) {
+			_peer->owner().unregisterInvitedToCallUser(_id, user);
+		}
+	} else {
+		if (i->ssrc != value.ssrc) {
+			_participantPeerByAudioSsrc.erase(i->ssrc);
+			if (value.ssrc) {
+				_participantPeerByAudioSsrc.emplace(
+					value.ssrc,
+					participantPeer);
+			}
+		}
+		if (GetAdditionalAudioSsrc(i->videoParams)
+			!= GetAdditionalAudioSsrc(value.videoParams)) {
+			_participantPeerByAudioSsrc.erase(
+				GetAdditionalAudioSsrc(i->videoParams));
+			if (const auto additional = GetAdditionalAudioSsrc(
+				value.videoParams)) {
+				_participantPeerByAudioSsrc.emplace(
+					additional,
+					participantPeer);
+			}
+		}
+		*i = value;
+	}
+	if (sliceSource != ApplySliceSource::FullReloaded) {
+		_participantUpdates.fire({
+			.was = was,
+			.now = value,
+		});
+	}
+	if (sliceSource == ApplySliceSource::UpdateReceived) {
+		changePeerEmptyCallFlag();
+		computeParticipantsCount();
+	}
+}
 
 void GroupCall::applyLastSpoke(
 		uint32 ssrc,
@@ -724,7 +983,10 @@ void GroupCall::applyLastSpoke(
 
 	_speakingByActiveFinishes.remove(participant->peer);
 	const auto sounding = (when.anything + kSoundStatusKeptFor >= now)
+#if 0 // goodToRemove
 		&& participant->canSelfUnmute;
+#endif
+		&& participant->canBeSpeaking;
 	const auto speaking = sounding
 		&& (when.voice + kSoundStatusKeptFor >= now);
 	if (speaking) {
@@ -750,6 +1012,11 @@ void GroupCall::applyLastSpoke(
 			.was = was,
 			.now = *participant,
 		});
+		api().sender().request(Tdb::TLsetGroupCallParticipantIsSpeaking(
+			Tdb::tl_int32(_id),
+			Tdb::tl_int32(participant->peer->isSelf() ? 0 : ssrc),
+			Tdb::tl_bool(speaking)
+		)).send();
 	}
 }
 
@@ -773,7 +1040,10 @@ void GroupCall::applyActiveUpdate(
 	const auto participant = participantPeerLoaded
 		? findParticipant(participantPeerLoaded)
 		: nullptr;
+#if 0 // goodToRemove
 	const auto loadByUserId = !participant || participant->onlyMinLoaded;
+#endif
+	const auto loadByUserId = !participant;
 	if (loadByUserId) {
 		_unknownSpokenPeerIds[participantPeerId] = when;
 		requestUnknownParticipants();
@@ -784,9 +1054,13 @@ void GroupCall::applyActiveUpdate(
 	const auto was = std::make_optional(*participant);
 	const auto now = crl::now();
 	const auto elapsed = TimeId((now - when.anything) / crl::time(1000));
+#if 0 // goodToRemove
 	const auto lastActive = base::unixtime::now() - elapsed;
 	const auto finishes = when.anything + kSpeakingAfterActive;
 	if (lastActive <= participant->lastActive || finishes <= now) {
+#endif
+	const auto finishes = when.anything + kSpeakingAfterActive;
+	if (finishes <= now) {
 		return;
 	}
 	_speakingByActiveFinishes[participant->peer] = finishes;
@@ -794,7 +1068,9 @@ void GroupCall::applyActiveUpdate(
 		_speakingByActiveFinishTimer.callOnce(finishes - now);
 	}
 
+#if 0 // goodToRemove
 	participant->lastActive = lastActive;
+#endif
 	participant->speaking = true;
 	participant->canSelfUnmute = true;
 	if (!was->speaking || !was->canSelfUnmute) {
@@ -840,6 +1116,8 @@ void GroupCall::checkFinishSpeakingByActive() {
 }
 
 void GroupCall::requestUnknownParticipants() {
+	requestParticipants();
+#if 0 // goodToRemove
 	if (_unknownParticipantPeersRequestId
 		|| (_unknownSpokenSsrcs.empty() && _unknownSpokenPeerIds.empty())) {
 		return;
@@ -942,6 +1220,7 @@ void GroupCall::requestUnknownParticipants() {
 		}
 		requestUnknownParticipants();
 	}).send();
+#endif
 }
 
 void GroupCall::setInCall() {
@@ -982,9 +1261,11 @@ bool GroupCall::canChangeJoinMuted() const {
 	return _canChangeJoinMuted;
 }
 
+#if 0 // goodToRemove
 bool GroupCall::joinedToTop() const {
 	return _joinedToTop;
 }
+#endif
 
 ApiWrap &GroupCall::api() const {
 	return _peer->session().api();

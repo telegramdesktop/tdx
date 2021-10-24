@@ -145,8 +145,14 @@ public:
 	[[nodiscard]] Data::GroupCall *groupCall() const {
 		return _call.get();
 	}
+#if 0 // goodToRemove
 	void setGroupCall(
 		const MTPInputGroupCall &call,
+		TimeId scheduleDate = 0,
+		bool rtmp = false);
+#endif
+	void setGroupCall(
+		CallId callId,
 		TimeId scheduleDate = 0,
 		bool rtmp = false);
 	void clearGroupCall();

@@ -95,14 +95,24 @@ public:
 	[[nodiscard]] bool mutedByMe() const {
 		return _mutedByMe;
 	}
+#if 0 // goodToRemove
 	[[nodiscard]] crl::time speakingLastTime() const {
 		return _speakingLastTime;
 	}
+#endif
 	[[nodiscard]] int volume() const {
 		return _volume;
 	}
+#if 0 // goodToRemove
 	[[nodiscard]] uint64 raisedHandRating() const {
 		return _raisedHandRating;
+	}
+#endif
+	[[nodiscard]] bool isHandRaised() const {
+		return _isHandRaised;
+	}
+	[[nodiscard]] QString order() const {
+		return _order;
 	}
 
 	void refreshName(const style::PeerListItem &st) override;
@@ -209,14 +219,19 @@ private:
 	Ui::Animations::Simple _mutedAnimation; // For gray/red icon.
 	Ui::Animations::Simple _activeAnimation; // For icon cross animation.
 	Ui::Text::String _about;
+#if 0 // goodToRemove
 	crl::time _speakingLastTime = 0;
 	uint64 _raisedHandRating = 0;
+#endif
 	int _volume = Group::kDefaultVolume;
 	bool _sounding : 1 = false;
 	bool _speaking : 1 = false;
 	bool _raisedHandStatus : 1 = false;
 	bool _skipLevelUpdate : 1 = false;
 	bool _mutedByMe : 1 = false;
+
+	bool _isHandRaised = false;
+	QString _order;
 
 };
 

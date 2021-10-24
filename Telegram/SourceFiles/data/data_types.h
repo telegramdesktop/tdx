@@ -137,7 +137,10 @@ using WebPageId = uint64;
 using GameId = uint64;
 using PollId = uint64;
 using WallPaperId = uint64;
+#if 0 // goodToRemove
 using CallId = uint64;
+#endif
+using CallId = int;
 using BotAppId = uint64;
 using EffectId = uint64;
 

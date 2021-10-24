@@ -148,7 +148,10 @@ void MembersRow::updateState(
 		setSounding(false);
 		setSpeaking(false);
 		_mutedByMe = false;
+#if 0 // goodToRemove
 		_raisedHandRating = 0;
+#endif
+		_isHandRaised = false;
 	} else if (!participant->muted
 		|| (participant->sounding && participant->ssrc != 0)
 		|| (participant->additionalSounding
@@ -161,20 +164,33 @@ void MembersRow::updateState(
 			|| (participant->additionalSpeaking
 				&& GetAdditionalAudioSsrc(participant->videoParams) != 0));
 		_mutedByMe = participant->mutedByMe;
+#if 0 // goodToRemove
 		_raisedHandRating = 0;
+#endif
+		_isHandRaised = false;
 	} else if (participant->canSelfUnmute) {
 		setState(State::Inactive);
 		setSounding(false);
 		setSpeaking(false);
 		_mutedByMe = participant->mutedByMe;
+#if 0 // goodToRemove
 		_raisedHandRating = 0;
+#endif
+		_isHandRaised = false;
 	} else {
 		setSounding(false);
 		setSpeaking(false);
 		_mutedByMe = participant->mutedByMe;
+#if 0 // goodToRemove
 		_raisedHandRating = participant->raisedHandRating;
 		setState(_raisedHandRating ? State::RaisedHand : State::Muted);
+#endif
+		_isHandRaised = participant->isHandRaised;
+		setState(_isHandRaised ? State::RaisedHand : State::Muted);
 	}
+#if 0 // doLater
+#endif
+	_order = participant ? participant->rowOrder() : QString();
 	refreshStatus();
 }
 
@@ -310,9 +326,11 @@ void MembersRow::updateLevel(float level) {
 	const auto spoke = (level >= GroupCall::kSpeakLevelThreshold)
 		? crl::now()
 		: crl::time();
+#if 0 // goodToRemove
 	if (spoke && _speaking) {
 		_speakingLastTime = spoke;
 	}
+#endif
 
 	if (_skipLevelUpdate) {
 		return;

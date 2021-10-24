@@ -505,7 +505,10 @@ void FillMenu(
 	const auto addEditTitle = call->canManage();
 	const auto addEditRecording = call->canManage() && !real->scheduleDate();
 	const auto addScreenCast = !wide
+		&& real->canEnableVideo()
+#if 0 // goodToRemove
 		&& call->videoIsWorking()
+#endif
 		&& !real->scheduleDate();
 	if (addEditJoinAs) {
 		menu->addAction(MakeJoinAsAction(
