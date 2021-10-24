@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "mtproto/sender.h"
 
+namespace Tdb {
+class TLDfoundMessages;
+} // namespace Tdb
+
 namespace Window {
 class SessionController;
 } // namespace Window
@@ -53,7 +57,10 @@ public:
 		not_null<PeerListRow*> row) override;
 
 private:
+	void receivedCalls(const Tdb::TLDmessages &messages);
+#if 0 // goodToRemove
 	void receivedCalls(const QVector<MTPMessage> &result);
+#endif
 	void refreshAbout();
 
 	class GroupCallRow;
@@ -70,7 +77,9 @@ private:
 
 	const not_null<Window::SessionController*> _window;
 	MTP::Sender _api;
+#endif
 
+#if 0 // goodToRemove
 	MsgId _offsetId = 0;
 	int _loadRequestId = 0; // Not a real mtpRequestId.
 	bool _allLoaded = false;
