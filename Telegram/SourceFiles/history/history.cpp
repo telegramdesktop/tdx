@@ -479,21 +479,19 @@ std::vector<not_null<HistoryItem*>> History::createItems(
 	const auto detachExistingItem = true;
 	for (auto i = data.cend(), e = data.cbegin(); i != e;) {
 		const auto &data = *--i;
-		const auto item = data
-			? createItem(
-				data->data().vid().v,
-				*data,
-				localFlags,
-				detachExistingItem)
-			: nullptr;
-		if (item) {
-			result.emplace_back(item);
+		if (!data) {
+			continue;
 		}
+		result.emplace_back(createItem(
+			data->data().vid().v,
+			*data,
+			localFlags,
+			detachExistingItem));
 	}
 	return result;
 }
 
-HistoryItem *History::createItem(
+not_null<HistoryItem*> History::createItem(
 		MsgId id,
 		const TLmessage &message,
 		MessageFlags localFlags,
@@ -529,24 +527,31 @@ not_null<HistoryItem*> History::addNewMessage(
 	return addNewItem(item, newMessage);
 }
 
-HistoryItem *History::addNewMessage(
-		MsgId id,
-		const TLmessage &msg,
-		MessageFlags localFlags,
-		NewMessageType type) {
+not_null<HistoryItem*> History::addMessage(
+		const TLmessage &message,
+		NewMessageType type,
+		MsgId oldMessageId) {
+	const auto old = oldMessageId
+		? owner().message(peer, oldMessageId)
+		: nullptr;
 	const auto detachExistingItem = (type == NewMessageType::Unread);
-	const auto item = createItem(id, msg, localFlags, detachExistingItem);
-	if (!item) {
-		return nullptr;
+	const auto &data = message.data();
+	const auto item = createItem(
+		data.vid().v,
+		message,
+		MessageFlags(),
+		detachExistingItem);
+	if (type != NewMessageType::Existing && !item->mainView()) {
+		const auto unread = (type == NewMessageType::Unread);
+		if (unread && item->isHistoryEntry()) {
+			applyMessageChanges(item, message);
+		}
+		addNewItem(item, unread);
 	}
-	if (type == NewMessageType::Existing || item->mainView()) {
-		return item;
+	if (old && old != item) {
+		old->destroy();
 	}
-	const auto unread = (type == NewMessageType::Unread);
-	if (unread && item->isHistoryEntry()) {
-		applyMessageChanges(item, msg);
-	}
-	return addNewItem(item, unread);
+	return item;
 }
 
 not_null<HistoryItem*> History::insertItem(
@@ -2982,7 +2987,7 @@ void History::applyPosition(const TLDchatPosition &data) {
 void History::applyLastMessage(const TLmessage &data) {
 	const auto &message = data.data();
 	const auto id = message.vid().v;
-	addNewMessage(id, data, MessageFlags(), NewMessageType::Last);
+	addMessage(data, NewMessageType::Last);
 	applyDialogTopMessage(id);
 	owner().histories().dialogEntryApplied(this);
 }
