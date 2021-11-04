@@ -646,7 +646,9 @@ private:
 	base::flat_map<QString, StickersByEmoji> _stickersByEmoji;
 
 	mtpRequestId _contactsRequestId = 0;
+#if 0 // #TODO legacy
 	mtpRequestId _contactsStatusesRequestId = 0;
+#endif
 
 	struct SharedMediaRequest {
 		not_null<PeerData*> peer;

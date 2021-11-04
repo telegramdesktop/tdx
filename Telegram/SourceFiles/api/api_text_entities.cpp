@@ -345,7 +345,7 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(
 	return MTP_vector<MTPMessageEntity>(std::move(v));
 }
 
-EntitiesInText EntitiesFromTL(
+EntitiesInText EntitiesFromTdb(
 		Main::Session *session,
 		const QVector<TLtextEntity> &entities) {
 	auto result = EntitiesInText();
@@ -409,14 +409,85 @@ EntitiesInText EntitiesFromTL(
 	return result;
 }
 
-TextWithEntities FormattedTextFromTL(
+TextWithEntities FormattedTextFromTdb(
 		Main::Session *session,
 		const TLformattedText &text) {
 	const auto &formatted = text.data();
 	return TextWithEntities{
 		formatted.vtext().v,
-		Api::EntitiesFromTL(session, formatted.ventities().v)
+		Api::EntitiesFromTdb(session, formatted.ventities().v)
 	};
+}
+
+TLvector<TLtextEntity> EntitiesToTdb(
+		not_null<Main::Session*> session,
+		const EntitiesInText &entities,
+		ConvertOption option) {
+	auto v = QVector<TLtextEntity>();
+	v.reserve(entities.size());
+	for (const auto &entity : entities) {
+		if (entity.length() <= 0) {
+			continue;
+		} else if (option == ConvertOption::SkipLocal
+			&& entity.type() != EntityType::Bold
+			//&& entity.type() != EntityType::Semibold // Not in API.
+			&& entity.type() != EntityType::Italic
+			&& entity.type() != EntityType::Underline
+			&& entity.type() != EntityType::StrikeOut
+			&& entity.type() != EntityType::Code // #TODO entities
+			&& entity.type() != EntityType::Pre
+			&& entity.type() != EntityType::MentionName
+			&& entity.type() != EntityType::CustomUrl) {
+			continue;
+		}
+
+		const auto type = [&]() -> std::optional<TLtextEntityType> {
+			switch (entity.type()) {
+			case EntityType::Url: return tl_textEntityTypeUrl();
+			case EntityType::CustomUrl:
+				return tl_textEntityTypeTextUrl(tl_string(entity.data()));
+			case EntityType::Email: return tl_textEntityTypeEmailAddress();
+			case EntityType::Hashtag: return tl_textEntityTypeHashtag();
+			case EntityType::Cashtag: return tl_textEntityTypeCashtag();
+			case EntityType::Mention: return tl_textEntityTypeMention();
+			case EntityType::MentionName: {
+				const auto fields = MentionNameDataToFields(entity.data());
+				return fields.userId
+					? tl_textEntityTypeMentionName(tl_int53(fields.userId))
+					: std::optional<TLtextEntityType>();
+			}
+			case EntityType::BotCommand:
+				return tl_textEntityTypeBotCommand();
+			case EntityType::Bold: return tl_textEntityTypeBold();
+			case EntityType::Italic: return tl_textEntityTypeItalic();
+			case EntityType::Underline: return tl_textEntityTypeUnderline();
+			case EntityType::StrikeOut:
+				return tl_textEntityTypeStrikethrough();
+			case EntityType::Code: return tl_textEntityTypeCode(); // #TODO entities
+			case EntityType::Pre:
+				return entity.data().isEmpty()
+					? tl_textEntityTypePre()
+					: tl_textEntityTypePreCode(tl_string(entity.data()));
+			}
+			return std::nullopt;
+		}();
+		if (type) {
+			v.push_back(tl_textEntity(
+				tl_int32(entity.offset()),
+				tl_int32(entity.length()),
+				*type));
+		}
+	}
+	return tl_vector<TLtextEntity>(std::move(v));
+}
+
+TLformattedText FormattedTextToTdb(
+		not_null<Main::Session*> session,
+		const TextWithEntities &text,
+		ConvertOption option) {
+	return tl_formattedText(
+		tl_string(text.text),
+		EntitiesToTdb(session, text.entities, option));
 }
 
 } // namespace Api

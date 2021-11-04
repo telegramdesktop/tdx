@@ -3947,10 +3947,6 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 		static constexpr auto kTillOnline
 			= Data::ScheduledMessages::kScheduledUntilOnlineTimestamp;
 		const auto silentPost = ShouldSendSilent(peer, action.options);
-		const auto sentEntities = Api::EntitiesToMTP(
-			_session,
-			sending.entities,
-			Api::ConvertOption::SkipLocal);
 		const auto clearCloudDraft = action.clearDraft;
 		//if (clearCloudDraft) {
 		//	// #TODO tdlib unnecessary?..
@@ -3971,9 +3967,10 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 						tl_int32(action.options.scheduled))
 					: std::optional<TLmessageSchedulingState>())),
 			tl_inputMessageText(
-				tl_formattedText(
-					tl_string(sending.text),
-					tl_vector<TLtextEntity>()),
+				Api::FormattedTextToTdb(
+					_session,
+					sending,
+					Api::ConvertOption::SkipLocal),
 				tl_bool(message.webPageId == CancelledWebPageId),
 				tl_bool(action.clearDraft))
 		)).done([=](const TLmessage &result) {
