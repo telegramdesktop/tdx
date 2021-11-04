@@ -3170,21 +3170,21 @@ HistoryItem *Session::addNewMessage(
 	return result;
 }
 
-HistoryItem *Session::addNewMessage(
-		const TLmessage &data,
-		MessageFlags localFlags,
-		NewMessageType type) {
-	const auto peerId = peerFromTdbChat(data.data().vchat_id());
-	Assert(peerId != 0);
+not_null<HistoryItem*> Session::processMessage(
+		const Tdb::TLmessage &message,
+		MsgId oldMessageId) {
+	const auto peerId = peerFromTdbChat(message.data().vchat_id());
+	const auto type = NewMessageType::Existing;
+	return history(peerId)->addMessage(message, type, oldMessageId);
+}
 
-	const auto result = history(peerId)->addNewMessage(
-		data.data().vid().v,
-		data,
-		localFlags,
-		type);
-	if (result && type == NewMessageType::Unread) {
-		CheckForSwitchInlineButton(result);
-	}
+not_null<HistoryItem*> Session::processMessage(
+		const Tdb::TLmessage &message,
+		NewMessageType type) {
+	const auto peerId = peerFromTdbChat(message.data().vchat_id());
+	const auto history = this->history(peerId);
+	const auto result = history->addMessage(message, type);
+	CheckForSwitchInlineButton(result);
 	return result;
 }
 

@@ -1137,6 +1137,7 @@ void Updates::handleEmojiInteraction(
 }
 
 void Updates::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
+#if 0 // #TODO legacy
 	switch (updates.type()) {
 	case mtpc_updateShortMessage: {
 		const auto &d = updates.c_updateShortMessage();
@@ -1221,9 +1222,11 @@ void Updates::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 
 	default: Unexpected("Type in applyUpdatesNoPtsCheck()");
 	}
+#endif
 }
 
 void Updates::applyUpdateNoPtsCheck(const MTPUpdate &update) {
+#if 0 // #TODO legacy
 	switch (update.type()) {
 	case mtpc_updateNewMessage: {
 		auto &d = update.c_updateNewMessage();
@@ -1386,11 +1389,13 @@ void Updates::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 
 	default: Unexpected("Type in applyUpdateNoPtsCheck()");
 	}
+#endif
 }
 
 void Updates::applyUpdates(
 		const MTPUpdates &updates,
 		uint64 sentMessageRandomId) {
+#if 0 // #TODO legacy
 	const auto randomId = sentMessageRandomId;
 
 	switch (updates.type()) {
@@ -1535,6 +1540,7 @@ void Updates::applyUpdates(
 	} break;
 	}
 	session().data().sendHistoryChangeNotifications();
+#endif
 }
 
 void Updates::feedUpdate(const MTPUpdate &update) {
@@ -2682,18 +2688,15 @@ void Updates::applyUpdate(const TLupdate &update) {
 			session().api().requestMoreDialogsIfNeeded();
 		}
 	}, [&](const TLDupdateNewMessage &data) {
-		const auto &message = data.vmessage();
-		const auto peerId = peerFromTdbChat(message.data().vchat_id());
-		const auto history = owner.history(peerId);
-		const auto id = message.data().vid().v;
-		history->addNewMessage(
-			id,
-			message,
-			MessageFlags(),
-			NewMessageType::Unread);
+		owner.processMessage(data.vmessage(), NewMessageType::Unread);
 	}, [&](const TLDupdateMessageSendAcknowledged &data) {
+		// We don't show sent checkmark while the message only was ack-ed.
 	}, [&](const TLDupdateMessageSendSucceeded &data) {
+		const auto oldMessageId = MsgId(data.vold_message_id().v);
+		owner.processMessage(data.vmessage(), oldMessageId);
 	}, [&](const TLDupdateMessageSendFailed &data) {
+		const auto oldMessageId = MsgId(data.vold_message_id().v);
+		owner.processMessage(data.vmessage(), oldMessageId);
 	}, [&](const TLDupdateMessageContent &data) {
 	}, [&](const TLDupdateMessageEdited &data) {
 	}, [&](const TLDupdateMessageIsPinned &data) {
@@ -2724,7 +2727,23 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateChatVoiceChat &data) {
 	}, [&](const TLDupdateChatDefaultDisableNotification &data) {
 	}, [&](const TLDupdateChatReadInbox &data) {
+		const auto peerId = peerFromTdbChat(data.vchat_id());
+		if (const auto history = owner.historyLoaded(peerId)) {
+			history->applyInboxReadUpdate(
+				(history->folder() ? history->folder()->id() : 0),
+				data.vlast_read_inbox_message_id().v,
+				data.vunread_count().v);
+		}
 	}, [&](const TLDupdateChatReadOutbox &data) {
+		const auto peerId = peerFromTdbChat(data.vchat_id());
+		if (const auto history = owner.historyLoaded(peerId)) {
+			history->outboxRead(data.vlast_read_outbox_message_id().v);
+			//if (!requestingDifference()) { // #TODO tdlib
+			//	if (const auto user = history->peer->asUser()) {
+			//		user->madeAction(base::unixtime::now());
+			//	}
+			//}
+		}
 	}, [&](const TLDupdateChatUnreadMentionCount &data) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
 		if (const auto history = owner.historyLoaded(peerId)) {

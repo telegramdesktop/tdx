@@ -73,7 +73,17 @@ MessageFlags FlagsFromTdb(const TLDmessage &data) {
 	}, [](const auto &) {
 		return false;
 	});
-	return Flag()
+	const auto sendingOrFailedFlag = [&] {
+		if (const auto state = data.vsending_state()) {
+			return state->match([](const TLDmessageSendingStatePending &) {
+				return Flag::BeingSent;
+			}, [](const TLDmessageSendingStateFailed &) {
+				return Flag::SendingFailed;
+			});
+		}
+		return Flag();
+	}();
+	return sendingOrFailedFlag
 		| (data.vis_outgoing().v ? Flag::Outgoing : Flag())
 		| (data.vcontains_unread_mention().v ? Flag::MentionsMe : Flag())
 		| (mediaUnread ? Flag::MediaIsUnread : Flag())
