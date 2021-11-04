@@ -436,3 +436,26 @@ QString DocumentFileNameForSave(
 	bool forceSavingAs = false,
 	const QString &already = QString(),
 	const QDir &dir = QDir());
+
+namespace Data {
+
+template <typename T>
+struct IsTdbDocumentHelper {
+	template <
+		typename U,
+		typename = decltype(DocumentData::IdFromTdb(std::declval<U>()))>
+	static char test(const U &);
+	static long test(...);
+
+	static constexpr bool value() {
+		static_assert(sizeof(char) != sizeof(long));
+		return sizeof(test(std::declval<T>())) == sizeof(char);
+	}
+};
+
+template <typename T>
+DocumentId DocumentIdFromTdb(const T &data) {
+	return DocumentData::IdFromTdb(data);
+}
+
+} // namespace Data

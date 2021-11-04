@@ -83,6 +83,21 @@ MessageFlags FlagsFromTdb(const TLDmessage &data) {
 		}
 		return Flag();
 	}();
+	const auto views = [&] {
+		if (const auto info = data.vinteraction_info()) {
+			return info->data().vview_count().v;
+		}
+		return 0;
+	}();
+	const auto invertMedia = data.vcontent().match([&](
+			const TLDmessageText &text) {
+		if (const auto options = text.vlink_preview_options()) {
+			return options->data().vshow_above_text().v;
+		}
+		return false;
+	}, [](const auto &) {
+		return false;
+	});
 	return sendingOrFailedFlag
 		| (data.vis_outgoing().v ? Flag::Outgoing : Flag())
 		| (data.vcontains_unread_mention().v ? Flag::MentionsMe : Flag())
@@ -94,8 +109,11 @@ MessageFlags FlagsFromTdb(const TLDmessage &data) {
 		//| ((flags & MTP::f_from_id) ? Flag::HasFromId : Flag()) // #TODO tdlib
 		| (data.vreply_to_message_id().v ? Flag::HasReplyInfo : Flag())
 		| (data.vreply_markup() ? Flag::HasReplyMarkup : Flag())
-		| (data.vscheduling_state() ? Flag::IsOrWasScheduled : Flag()) // #TODO tdlib was scheduled, but now isn't?
-		| (data.vinteraction_info() ? Flag::HasViews : Flag());
+		| (data.vcan_get_added_reactions().v
+			? Flag::CanViewReactions
+			: Flag())
+		| (views ? Flag::HasViews : Flag())
+		| (invertMedia ? Flag::InvertMedia : Flag());
 }
 
 QString GetErrorTextForSending(
