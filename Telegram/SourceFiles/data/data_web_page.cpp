@@ -225,7 +225,7 @@ void WebPageData::setFromTdb(const TLwebPage &data) {
 		fields.vdisplay_url().v,
 		fields.vsite_name().v,
 		fields.vtitle().v,
-		Api::FormattedTextFromTL(&_owner->session(), fields.vdescription()),
+		Api::FormattedTextFromTdb(&_owner->session(), fields.vdescription()),
 		(fields.vphoto()
 			? _owner->processPhoto(*fields.vphoto()).get()
 			: nullptr),

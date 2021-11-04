@@ -30,12 +30,22 @@ enum class ConvertOption {
 	const EntitiesInText &entities,
 	ConvertOption option = ConvertOption::WithLocal);
 
-[[nodiscard]] EntitiesInText EntitiesFromTL(
+[[nodiscard]] EntitiesInText EntitiesFromTdb(
 	Main::Session *session,
 	const QVector<Tdb::TLtextEntity> &entities);
 
-[[nodiscard]] TextWithEntities FormattedTextFromTL(
+[[nodiscard]] TextWithEntities FormattedTextFromTdb(
 	Main::Session *session,
 	const Tdb::TLformattedText &text);
+
+[[nodiscard]] Tdb::TLvector<Tdb::TLtextEntity> EntitiesToTdb(
+	not_null<Main::Session*> session,
+	const EntitiesInText &entities,
+	ConvertOption option = ConvertOption::WithLocal);
+
+[[nodiscard]] Tdb::TLformattedText FormattedTextToTdb(
+	not_null<Main::Session*> session,
+	const TextWithEntities &text,
+	ConvertOption option = ConvertOption::WithLocal);
 
 } // namespace Api
