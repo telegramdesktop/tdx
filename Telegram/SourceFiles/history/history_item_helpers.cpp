@@ -78,6 +78,12 @@ MessageFlags FlagsFromTdb(const TLDmessage &data) {
 		}
 		return Flag();
 	}();
+	const auto views = [&] {
+		if (const auto info = data.vinteraction_info()) {
+			return info->data().vview_count().v;
+		}
+		return 0;
+	}();
 	return sendingOrFailedFlag
 		| (data.vis_outgoing().v ? Flag::Outgoing : Flag())
 		| (data.vcontains_unread_mention().v ? Flag::MentionsMe : Flag())
@@ -90,7 +96,7 @@ MessageFlags FlagsFromTdb(const TLDmessage &data) {
 		| (data.vreply_to_message_id().v ? Flag::HasReplyInfo : Flag())
 		| (data.vreply_markup() ? Flag::HasReplyMarkup : Flag())
 		| (data.vscheduling_state() ? Flag::IsOrWasScheduled : Flag()) // #TODO tdlib was scheduled, but now isn't?
-		| (data.vinteraction_info() ? Flag::HasViews : Flag());
+		| (views ? Flag::HasViews : Flag());
 }
 
 QString GetErrorTextForSending(
