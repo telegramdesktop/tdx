@@ -191,11 +191,10 @@ public:
 		Data::SponsoredFrom from,
 		const TextWithEntities &textWithEntities); // sponsored
 
-	HistoryItem *addNewMessage(
-		MsgId id,
-		const Tdb::TLmessage &msg,
-		MessageFlags localFlags,
-		NewMessageType type);
+	not_null<HistoryItem*> addMessage(
+		const Tdb::TLmessage &message,
+		NewMessageType type = NewMessageType::Existing,
+		MsgId oldMessageId = 0);
 
 	// Used only internally and for channel admin log.
 	not_null<HistoryItem*> createItem(
@@ -212,7 +211,7 @@ public:
 	std::vector<not_null<HistoryItem*>> createItems(
 		const QVector<std::optional<Tdb::TLmessage>> &data);
 
-	HistoryItem *createItem(
+	not_null<HistoryItem*> createItem(
 		MsgId id,
 		const Tdb::TLmessage &message,
 		MessageFlags localFlags,
