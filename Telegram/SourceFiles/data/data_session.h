@@ -91,6 +91,17 @@ struct RepliesReadTillUpdate {
 	bool out = false;
 };
 
+template <typename T>
+struct IsTdbDocumentHelper;
+
+template <typename T>
+[[nodiscard]] inline constexpr bool IsTdbDocument() {
+	return IsTdbDocumentHelper<T>::value();
+}
+
+template <typename T>
+DocumentId DocumentIdFromTdb(const T &data);
+
 class Session final {
 public:
 	using ViewElement = HistoryView::Element;
@@ -654,9 +665,9 @@ public:
 	not_null<PhotoData*> processPhoto(const Tdb::TLphoto &data);
 	template <
 		typename T,
-		typename = decltype(DocumentData::IdFromTdb(std::declval<T>()))>
+		typename = std::enable_if_t<IsTdbDocument<T>()>>
 	not_null<DocumentData*> processDocument(const T &data) {
-		const auto result = document(DocumentData::IdFromTdb(data));
+		const auto result = document(DocumentIdFromTdb(data));
 		result->setFromTdb(data);
 		return result;
 	}
