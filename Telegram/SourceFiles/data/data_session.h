@@ -551,9 +551,11 @@ public:
 		MessageFlags localFlags,
 		NewMessageType type);
 
-	HistoryItem *addNewMessage(
+	not_null<HistoryItem*> processMessage(
 		const Tdb::TLmessage &data,
-		MessageFlags localFlags,
+		MsgId oldMessageId = 0);
+	not_null<HistoryItem*> processMessage(
+		const Tdb::TLmessage &data,
 		NewMessageType type);
 
 	[[nodiscard]] int unreadBadge() const;

@@ -3700,6 +3700,7 @@ void ApiWrap::sendUploadedDocument(
 
 void ApiWrap::cancelLocalItem(not_null<HistoryItem*> item) {
 	Expects(item->isSending());
+	// #TODO tdlib cancel album part sending
 
 	if (const auto groupId = item->groupId()) {
 		sendAlbumWithCancelled(item, groupId);
@@ -3769,13 +3770,14 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 		TextUtilities::Trim(left);
 		const auto isLast = left.empty();
 
+#if 0 // mtp
 		auto newId = FullMsgId(
 			peer->id,
 			_session->data().nextLocalMessageId());
 		auto randomId = base::RandomValue<uint64>();
-
+#endif
 		TextUtilities::Trim(sending);
-
+#if 0 // mtp
 		_session->data().registerMessageRandomId(randomId, newId);
 		_session->data().registerMessageSentData(
 			randomId,
@@ -3940,6 +3942,61 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 					MTP_long(action.options.effectId)
 				), done, fail);
 		}
+#endif
+
+		static constexpr auto kTillOnline
+			= Data::ScheduledMessages::kScheduledUntilOnlineTimestamp;
+		const auto silentPost = ShouldSendSilent(peer, action.options);
+		const auto sentEntities = Api::EntitiesToMTP(
+			_session,
+			sending.entities,
+			Api::ConvertOption::SkipLocal);
+		const auto clearCloudDraft = action.clearDraft;
+		//if (clearCloudDraft) {
+		//	// #TODO tdlib unnecessary?..
+		//	history->clearCloudDraft();
+		//	history->startSavingCloudDraft();
+		//}
+		sender().request(TLsendMessage(
+			peerToTdbChat(peer->id),
+			tl_int53(0), // message_thread_id
+			tl_int53(action.replyTo.bare),
+			tl_messageSendOptions(
+				tl_bool(silentPost),
+				tl_bool(false), // from_background
+				((action.options.scheduled == kTillOnline)
+					? tl_messageSchedulingStateSendWhenOnline()
+					: (action.options.scheduled > 0)
+					? tl_messageSchedulingStateSendAtDate(
+						tl_int32(action.options.scheduled))
+					: std::optional<TLmessageSchedulingState>())),
+			tl_inputMessageText(
+				tl_formattedText(
+					tl_string(sending.text),
+					tl_vector<TLtextEntity>()),
+				tl_bool(message.webPageId == CancelledWebPageId),
+				tl_bool(action.clearDraft))
+		)).done([=](const TLmessage &result) {
+			//if (clearCloudDraft) {
+			//	// #TODO tdlib unnecessary?..
+			//	history->finishSavingCloudDraft(
+			//		UnixtimeFromMsgId(response.outerMsgId));
+			//}
+			session().data().processMessage(result, NewMessageType::Unread);
+		}).fail([=](const Error &error) {
+			const auto code = error.code;
+			//if (error.type() == qstr("MESSAGE_EMPTY")) {
+			//	lastMessage->destroy();
+			//} else {
+			//	sendMessageFail(error, peer, randomId, newId);
+			//}
+			//if (clearCloudDraft) {
+			//	// #TODO tdlib unnecessary?..
+			//	history->finishSavingCloudDraft(
+			//		UnixtimeFromMsgId(response.outerMsgId));
+			//}
+		}).send();
+
 		isFirst = false;
 	}
 
