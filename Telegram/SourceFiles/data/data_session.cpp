@@ -79,6 +79,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "spellcheck/spellcheck_highlight_syntax.h"
 
+#include "history/history_unread_things.h"
+
 namespace Data {
 namespace {
 
@@ -1217,13 +1219,30 @@ not_null<UserData*> Session::processUser(const TLuser &user) {
 }
 
 not_null<PeerData*> Session::processPeer(const TLchat &dialog) {
-	const auto &data = dialog.match([](const auto &data) -> const TLDchat & {
-		return data;
-	});
+	const auto &data = dialog.data();
 	Assert(data.vtype().type() != id_chatTypeSecret);
-	const auto result = this->peer(peerFromTdbChat(data.vid()));
+
+	const auto result = peer(peerFromTdbChat(data.vid()));
 	using UpdateFlag = Data::PeerUpdate::Flag;
 	auto updates = UpdateFlag::None | UpdateFlag::None;
+
+	const auto history = this->history(result);
+	for (const auto &position : data.vpositions().v) {
+		history->applyPosition(position.data());
+	}
+	if (const auto message = data.vlast_message()) {
+		history->applyLastMessage(*message);
+	} else {
+		history->clearLastMessage();
+	}
+	history->applyDialogFields(
+		history->folder(),
+		data.vunread_count().v,
+		data.vlast_read_inbox_message_id().v,
+		data.vlast_read_outbox_message_id().v);
+	history->unreadMentions().setCount(data.vunread_mention_count().v);
+	history->setUnreadMark(data.vis_marked_as_unread().v);
+
 	if (const auto user = result->asUser()) {
 	} else if (const auto chat = result->asChat()) {
 		const auto canAddMembers = chat->canAddMembers();
