@@ -294,6 +294,7 @@ void ConnectionState::refreshState() {
 		const auto ready = (Checker().state() == Checker::State::Ready);
 		const auto state = _account->mtp().dcstate();
 		const auto proxy = Core::App().settings().proxy().isEnabled();
+#if 0 // todo
 		if (state == MTP::ConnectingState
 			|| state == MTP::DisconnectedState
 			|| (state < 0 && state > -600)) {
@@ -306,6 +307,7 @@ void ConnectionState::refreshState() {
 			const auto wait = ((-state) / 1000) + 1;
 			return { State::Type::Waiting, proxy, under, ready, wait };
 		}
+#endif
 		return { State::Type::Connected, proxy, under, ready };
 	}();
 	if (state.waitTillRetry > 0) {
