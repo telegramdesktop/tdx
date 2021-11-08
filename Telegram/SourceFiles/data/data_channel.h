@@ -173,7 +173,7 @@ public:
 	void setUsername(const QString &username);
 	void setUsernames(const Data::Usernames &newUsernames);
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 	void setPhoto(const MTPChatPhoto &photo);
 #endif
 	void setAccessHash(uint64 accessHash);
@@ -394,6 +394,7 @@ public:
 	[[nodiscard]] ChannelData *linkedChat() const;
 	[[nodiscard]] bool linkedChatKnown() const;
 
+#if 0 // mtp
 	void ptsInit(int32 pts) {
 		_ptsWaiter.init(pts);
 	}
@@ -437,6 +438,7 @@ public:
 	[[nodiscard]] bool ptsWaitingForShortPoll() const {
 		return _ptsWaiter.waitingForShortPoll();
 	}
+#endif
 
 	void setUnavailableReasons(
 		std::vector<Data::UnavailableReason> &&reason);
@@ -519,7 +521,9 @@ private:
 
 	Flags _flags = ChannelDataFlags(Flag::Forbidden);
 
+#if 0 // mtp
 	PtsWaiter _ptsWaiter;
+#endif
 
 	Data::UsernamesInfo _username;
 
@@ -555,6 +559,7 @@ void ApplyMigration(
 	not_null<ChatData*> chat,
 	not_null<ChannelData*> channel);
 
+#if 0 // mtp
 void ApplyChannelUpdate(
 	not_null<ChannelData*> channel,
 	const MTPDupdateChatDefaultBannedRights &update);
@@ -562,6 +567,7 @@ void ApplyChannelUpdate(
 void ApplyChannelUpdate(
 	not_null<ChannelData*> channel,
 	const MTPDchannelFull &update);
+#endif
 
 void ApplyChannelUpdate(
 	not_null<ChannelData*> channel,

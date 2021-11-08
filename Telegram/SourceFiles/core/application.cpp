@@ -919,9 +919,11 @@ void Application::checkLocalTime() {
 		base::ConcurrentTimerEnvironment::Adjust();
 		base::unixtime::http_invalidate();
 	}
+#if 0 // mtp
 	if (const auto session = maybePrimarySession()) {
 		session->updates().checkLastUpdate(adjusted);
 	}
+#endif
 }
 
 void Application::handleAppActivated() {

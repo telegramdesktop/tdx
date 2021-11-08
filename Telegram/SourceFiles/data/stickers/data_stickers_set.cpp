@@ -122,7 +122,7 @@ void StickersSet::setThumbnail(
 		const ImageWithLocation &data,
 		StickerType type) {
 	_thumbnailType = type;
-	// #TODO tdlib
+	// todo
 	_tdbThumbnailRemoteLocationHash = 0;
 	Data::UpdateCloudFile(
 		_thumbnail,

@@ -38,6 +38,7 @@ void SubmitChatInvite(
 		not_null<Main::Session*> session,
 		const QString &hash,
 		bool isGroup) {
+#if 0 // todo
 	session->api().request(MTPmessages_ImportChatInvite(
 		MTP_string(hash)
 	)).done([=](const MTPUpdates &result) {
@@ -99,6 +100,7 @@ void SubmitChatInvite(
 			}
 		}(), ApiWrap::kJoinErrorDuration);
 	}).send();
+#endif
 }
 
 } // namespace

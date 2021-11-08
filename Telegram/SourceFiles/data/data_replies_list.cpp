@@ -529,6 +529,8 @@ void RepliesList::loadAround(MsgId id) {
 	if (_loadingAround && *_loadingAround == id) {
 		return;
 	}
+
+#if 0 // todo
 	histories().cancelRequest(base::take(_beforeId));
 	histories().cancelRequest(base::take(_afterId));
 
@@ -577,11 +579,13 @@ void RepliesList::loadAround(MsgId id) {
 		_history,
 		Histories::RequestType::History,
 		send);
+#endif
 }
 
 void RepliesList::loadBefore() {
 	Expects(!_list.empty());
 
+#if 0 // todo
 	if (_loadingAround) {
 		histories().cancelRequest(base::take(_beforeId));
 	} else if (_beforeId) {
@@ -623,6 +627,7 @@ void RepliesList::loadBefore() {
 		_history,
 		Histories::RequestType::History,
 		send);
+#endif
 }
 
 void RepliesList::loadAfter() {
@@ -632,6 +637,7 @@ void RepliesList::loadAfter() {
 		return;
 	}
 
+#if 0 // todo
 	const auto first = _list.front();
 	const auto send = [=](Fn<void()> finish) {
 		return _history->session().api().request(MTPmessages_GetReplies(
@@ -668,8 +674,10 @@ void RepliesList::loadAfter() {
 		_history,
 		Histories::RequestType::History,
 		send);
+#endif
 }
 
+#if 0 // mtp
 bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 	const auto guard = gsl::finally([&] { _listChanges.fire({}); });
 
@@ -779,6 +787,7 @@ bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 	Ensures(list.size() >= skipped);
 	return (list.size() == skipped);
 }
+#endif
 
 void RepliesList::setInboxReadTill(
 		MsgId readTillId,

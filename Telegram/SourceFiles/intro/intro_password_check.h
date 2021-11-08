@@ -56,7 +56,7 @@ private:
 	void refreshLang();
 	void updateControlsGeometry();
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 	void pwdSubmitDone(bool recover, const MTPauth_Authorization &result);
 	void pwdSubmitFail(const MTP::Error &error);
 	void codeSubmitDone(const QString &code, const MTPBool &result);
@@ -67,7 +67,7 @@ private:
 #endif
 
 	void updateDescriptionText();
-#if 0 // #TODO legacy
+#if 0 // mtp
 	void handleSrpIdInvalid();
 	void requestPasswordData();
 	void checkPasswordHash();
@@ -82,7 +82,7 @@ private:
 	void recoverFail(const Tdb::Error &error);
 
 	Core::CloudPasswordState _passwordState;
-#if 0 // #TODO legacy
+#if 0 // mtp
 	crl::time _lastSrpIdInvalidTime = 0;
 	bytes::vector _passwordHash;
 #endif
@@ -93,7 +93,7 @@ private:
 	object_ptr<Ui::InputField> _codeField;
 	object_ptr<Ui::LinkButton> _toRecover;
 	object_ptr<Ui::LinkButton> _toPassword;
-#if 0 // #TODO legacy
+#if 0 // mtp
 	mtpRequestId _sentRequest = 0;
 #endif
 

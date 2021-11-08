@@ -214,7 +214,7 @@ bool MainList::cloudUnreadKnown() const {
 }
 
 void MainList::finalizeCloudUnread() {
-#if 0 // #TODO legacy
+#if 0 // mtp
 	// Cloud state for archive folder always counts everything as muted.
 	_cloudUnreadState.messagesMuted = _cloudUnreadState.messages;
 	_cloudUnreadState.chatsMuted = _cloudUnreadState.chats;

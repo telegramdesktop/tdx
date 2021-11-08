@@ -244,7 +244,7 @@ void WebPageData::setFromTdb(const TLwebPage &data) {
 			: fields.vvoice_note()
 			? _owner->processDocument(*fields.vvoice_note()).get()
 			: nullptr),
-		WebPageCollage(), // #TODO tdlib
+		WebPageCollage(), // todo
 		fields.vduration().v,
 		fields.vauthor().v,
 		0);
@@ -367,6 +367,7 @@ void WebPageData::replaceDocumentGoodThumbnail() {
 	}
 }
 
+#if 0 // mtp
 void WebPageData::ApplyChanges(
 		not_null<Main::Session*> session,
 		ChannelData *channel,
@@ -409,6 +410,7 @@ void WebPageData::ApplyChanges(
 	}
 	session->data().sendWebPageGamePollNotifications();
 }
+#endif
 
 QString WebPageData::displayedSiteName() const {
 	return (document && document->isWallPaper())

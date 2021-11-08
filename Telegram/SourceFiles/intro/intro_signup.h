@@ -43,7 +43,7 @@ private:
 	void refreshLang();
 	void updateControlsGeometry();
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 	void nameSubmitDone(const MTPauth_Authorization &result);
 	void nameSubmitFail(const MTP::Error &error);
 #endif
@@ -57,7 +57,7 @@ private:
 	object_ptr<Ui::InputField> _first;
 	object_ptr<Ui::InputField> _last;
 	QString _firstName, _lastName;
-#if 0 // #TODO legacy
+#if 0 // mtp
 	mtpRequestId _sentRequest = 0;
 #endif
 

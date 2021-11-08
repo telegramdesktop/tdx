@@ -187,14 +187,14 @@ void Entry::cachePinnedIndex(FilterId filterId, int index) {
 	pinnedIndexChanged(filterId, was, index);
 }
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 bool Entry::needUpdateInChatList() const {
 	return inChatList() || shouldBeInChatList();
 }
 #endif
 
 void Entry::updateChatListSortPosition() {
-#if 0 // #TODO legacy
+#if 0 // mtp
 	if (session().supportMode()
 		&& _sortKeyInChatList != 0
 		&& session().settings().supportFixChatsOrder()) {
@@ -255,7 +255,7 @@ int Entry::lookupPinnedIndex(FilterId filterId) const {
 
 uint64 Entry::computeSortPosition(FilterId filterId) const {
 	Expects(filterId != 0);
-#if 0 // #TODO legacy
+#if 0 // mtp
 	const auto index = lookupPinnedIndex(filterId);
 	return index ? PinnedDialogPos(index) : _sortKeyByDate;
 #endif
@@ -264,7 +264,7 @@ uint64 Entry::computeSortPosition(FilterId filterId) const {
 }
 
 void Entry::updateChatListExistence() {
-#if 0 // #TODO legacy
+#if 0 // mtp
 	setChatListExistence(shouldBeInChatList());
 #endif
 	if (const auto folder = asFolder()) {
@@ -324,7 +324,7 @@ void Entry::setChatListExistence(bool exists) {
 	}
 }
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 TimeId Entry::adjustedChatListTimeId() const {
 	return chatListTimeId();
 }
@@ -366,7 +366,7 @@ PositionChange Entry::adjustByPosInChatList(
 }
 
 void Entry::setChatListTimeId(TimeId date) {
-#if 0 // #TODO legacy
+#if 0 // mtp
 	_timeId = date;
 	updateChatListSortPosition();
 	if (const auto folder = this->folder()) {

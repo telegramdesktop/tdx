@@ -45,13 +45,13 @@ public:
 	void applyDialog(const MTPDdialogFolder &data);
 	void applyPinnedUpdate(const MTPDupdateDialogPinned &data);
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 	TimeId adjustedChatListTimeId() const override;
 #endif
 	void applyDialog(const Tdb::TLDupdateUnreadChatCount &data);
 
 	int fixedOnTopIndex() const override;
-#if 0 // #TODO legacy
+#if 0 // mtp
 	bool shouldBeInChatList() const override;
 #endif
 	Dialogs::UnreadState chatListUnreadState() const override;
