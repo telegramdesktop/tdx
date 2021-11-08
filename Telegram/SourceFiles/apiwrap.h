@@ -149,12 +149,14 @@ public:
 	[[nodiscard]] Tdb::Account &tdb() const;
 	[[nodiscard]] Tdb::Sender &sender() const;
 
+#if 0 // mtp
 	void applyUpdates(
 		const MTPUpdates &updates,
 		uint64 sentMessageRandomId = 0);
 	int applyAffectedHistory(
 		PeerData *peer, // May be nullptr, like for deletePhoneCallHistory.
 		const MTPmessages_AffectedHistory &result);
+#endif
 
 	void registerModifyRequest(const QString &key, mtpRequestId requestId);
 	void clearModifyRequest(const QString &key);
@@ -176,7 +178,7 @@ public:
 
 	void requestContacts();
 	void requestDialogs(Data::Folder *folder = nullptr);
-#if 0 // #TODO legacy
+#if 0 // mtp
 	void requestPinnedDialogs(Data::Folder *folder = nullptr);
 #endif
 	void requestMoreBlockedByDateDialogs();
@@ -222,9 +224,11 @@ public:
 		FnMut<void(const MTPchatlists_ChatlistInvite &)> done,
 		Fn<void(const MTP::Error &)> fail);
 
+#if 0 // mtp
 	void processFullPeer(
 		not_null<PeerData*> peer,
 		const MTPmessages_ChatFull &result);
+#endif
 
 	void migrateChat(
 		not_null<ChatData*> chat,
@@ -269,7 +273,7 @@ public:
 	void updateNotifySettingsDelayed(Data::DefaultNotify type);
 	void saveDraftToCloudDelayed(not_null<Data::Thread*> thread);
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 	static int OnlineTillFromStatus(
 		const MTPUserStatus &status,
 		int currentOnlineTill);
@@ -314,9 +318,12 @@ public:
 		not_null<UserData*> user,
 		const SendAction &action,
 		Fn<void(bool)> done = nullptr);
+
+#if 0 // mtp
 	void applyAffectedMessages(
 		not_null<PeerData*> peer,
 		const MTPmessages_AffectedMessages &result);
+#endif
 
 	void sendVoiceMessage(
 		QByteArray result,
@@ -451,6 +458,7 @@ private:
 		ChannelData *channel,
 		bool onlyExisting = false);
 
+#if 0 // mtp
 	void gotChatFull(
 		not_null<PeerData*> peer,
 		const MTPmessages_ChatFull &result);
@@ -463,12 +471,16 @@ private:
 		const MTPmessages_Messages &result,
 		mtpRequestId req);
 	void gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result);
+#endif
+	void resolveWebPages();
 
 	void requestStickers(TimeId now);
 	void requestMasks(TimeId now);
 	void requestCustomEmoji(TimeId now);
 	void requestRecentStickers(TimeId now, bool attached = false);
+#if 0 // mtp
 	void requestRecentStickersWithHash(uint64 hash, bool attached = false);
+#endif
 	void requestFavedStickers(TimeId now);
 	void requestFeaturedStickers(TimeId now);
 	void requestFeaturedEmoji(TimeId now);
@@ -505,7 +517,10 @@ private:
 		not_null<PeerData*> peer,
 		bool justClear,
 		bool revoke);
+
+#if 0 // mtp
 	void applyAffectedMessages(const MTPmessages_AffectedMessages &result);
+#endif
 
 	void deleteAllFromParticipantSend(
 		not_null<ChannelData*> channel,
@@ -623,7 +638,7 @@ private:
 	base::flat_map<QString, StickersByEmoji> _stickersByEmoji;
 
 	mtpRequestId _contactsRequestId = 0;
-#if 0 // #TODO legacy
+#if 0 // mtp
 	mtpRequestId _contactsStatusesRequestId = 0;
 #endif
 

@@ -1017,6 +1017,7 @@ Fn<void()> AboutGigagroupCallback(
 			return;
 		}
 		*converting = true;
+#if 0 // todo
 		channel->session().api().request(MTPchannels_ConvertToGigagroup(
 			channel->inputChannel
 		)).done([=](const MTPUpdates &result) {
@@ -1028,6 +1029,7 @@ Fn<void()> AboutGigagroupCallback(
 		}).fail([=] {
 			*converting = false;
 		}).send();
+#endif
 	};
 	const auto convertWarn = [=] {
 		const auto strong = weak.get();

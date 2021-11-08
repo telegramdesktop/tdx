@@ -74,10 +74,12 @@ private:
 		Fallback,
 	};
 
+#if 0 // mtp
 	void ready(
 		const FullMsgId &msgId,
 		std::optional<MTPInputFile> file,
 		std::optional<MTPVideoSize> videoSize);
+#endif
 	void upload(
 		not_null<PeerData*> peer,
 		UserPhoto &&photo,

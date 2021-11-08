@@ -32,6 +32,7 @@ struct SearchResult {
 using SearchRequest = MTPmessages_Search;
 using SearchRequestResult = MTPmessages_Messages;
 
+#if 0 // mtp
 std::optional<SearchRequest> PrepareSearchRequest(
 	not_null<PeerData*> peer,
 	MsgId topicRootId,
@@ -46,6 +47,7 @@ SearchResult ParseSearchResult(
 	MsgId messageId,
 	Data::LoadDirection direction,
 	const SearchRequestResult &data);
+#endif
 
 class SearchController final {
 public:

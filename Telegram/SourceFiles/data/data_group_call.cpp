@@ -343,6 +343,7 @@ void GroupCall::discard(const MTPDgroupCallDiscarded &data) {
 			}
 		}
 	});
+#if 0 // todo
 	Core::App().calls().applyGroupCallUpdateChecked(
 		&peer->session(),
 		MTP_updateGroupCall(
@@ -353,6 +354,7 @@ void GroupCall::discard(const MTPDgroupCallDiscarded &data) {
 				data.vid(),
 				data.vaccess_hash(),
 				data.vduration())));
+#endif
 }
 
 void GroupCall::processFullCallUsersChats(const MTPphone_GroupCall &call) {
@@ -433,6 +435,7 @@ void GroupCall::applyEnqueuedUpdate(const MTPUpdate &update) {
 	_applyingQueuedUpdates = true;
 	const auto guard = gsl::finally([&] { _applyingQueuedUpdates = false; });
 
+#if 0 // mtp
 	update.match([&](const MTPDupdateGroupCall &data) {
 		data.vcall().match([&](const MTPDgroupCall &data) {
 			applyCallFields(data);
@@ -460,6 +463,7 @@ void GroupCall::applyEnqueuedUpdate(const MTPUpdate &update) {
 	Core::App().calls().applyGroupCallUpdateChecked(
 		&_peer->session(),
 		update);
+#endif
 }
 
 void GroupCall::processQueuedUpdates() {

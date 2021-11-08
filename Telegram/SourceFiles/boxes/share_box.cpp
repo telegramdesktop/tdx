@@ -1375,6 +1375,7 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 			return;
 		}
 
+#if 0 // todo
 		using Flag = MTPmessages_ForwardMessages::Flag;
 		const auto commonSendFlags = Flag(0)
 			| Flag::f_with_my_score
@@ -1457,6 +1458,7 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 			});
 			state->requests.insert(threadHistory->sendRequestId);
 		}
+#endif
 	};
 }
 

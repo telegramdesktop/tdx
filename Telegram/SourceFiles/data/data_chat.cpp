@@ -40,7 +40,7 @@ ChatData::ChatData(not_null<Data::Session*> owner, PeerId id)
 	}, _lifetime);
 }
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 void ChatData::setPhoto(const MTPChatPhoto &photo) {
 	photo.match([&](const MTPDchatPhoto &data) {
 		updateUserpic(
@@ -306,6 +306,7 @@ const Data::AllowedReactions &ChatData::allowedReactions() const {
 
 namespace Data {
 
+#if 0 // mtp
 void ApplyChatUpdate(
 		not_null<ChatData*> chat,
 		const MTPDupdateChatParticipants &update) {
@@ -572,11 +573,12 @@ void ApplyChatUpdate(
 			UpdateFlag::Members | UpdateFlag::Admins);
 	});
 }
+#endif
 
 void ApplyChatUpdate(
 		not_null<ChatData*> chat,
 		const TLDbasicGroupFullInfo &update) {
-	//update.vmembers(); // #TODO tdlib
+	//update.vmembers(); // todo
 	//ApplyChatUpdate(chat, update.vparticipants());
 
 	chat->creator = UserId(update.vcreator_user_id());
@@ -593,7 +595,7 @@ void ApplyChatUpdate(
 
 	//chat->setMessagesTTL(update.vttl_period().value_or_empty());
 
-	//update.vbot_commands(); // #TODO tdlib
+	//update.vbot_commands(); // todo
 	//if (const auto info = update.vbot_info()) {
 	//	chat->setBotCommands(*info);
 	//} else {
@@ -606,7 +608,7 @@ void ApplyChatUpdate(
 	} else {
 		chat->clearPhoto();
 	}
-	//if (const auto invite = update.vinvite_link()) { // #TODO tdlib
+	//if (const auto invite = update.vinvite_link()) { // todo
 	//	chat->session().api().inviteLinks().setMyPermanent(chat, *invite);
 	//} else {
 	//	chat->session().api().inviteLinks().clearMyPermanent(chat);

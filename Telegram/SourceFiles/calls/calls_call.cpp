@@ -281,6 +281,7 @@ void Call::startOutgoing() {
 	Expects(_state.current() == State::Requesting);
 	Expects(_gaHash.size() == kSha256Size);
 
+#if 0 // todo
 	const auto flags = _videoCapture
 		? MTPphone_RequestCall::Flag::f_video
 		: MTPphone_RequestCall::Flag(0);
@@ -328,12 +329,14 @@ void Call::startOutgoing() {
 	}).fail([this](const MTP::Error &error) {
 		handleRequestError(error.type());
 	}).send();
+#endif
 }
 
 void Call::startIncoming() {
 	Expects(_type == Type::Incoming);
 	Expects(_state.current() == State::Starting);
 
+#if 0 // todo
 	_api.request(MTPphone_ReceivedCall(
 		MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash))
 	)).done([=] {
@@ -343,6 +346,7 @@ void Call::startIncoming() {
 	}).fail([=](const MTP::Error &error) {
 		handleRequestError(error.type());
 	}).send();
+#endif
 }
 
 void Call::applyUserConfirmation() {
@@ -375,6 +379,7 @@ void Call::actuallyAnswer() {
 	} else {
 		_answerAfterDhConfigReceived = false;
 	}
+#if 0 // todo
 	_api.request(MTPphone_AcceptCall(
 		MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash)),
 		MTP_bytes(_gb),
@@ -400,6 +405,7 @@ void Call::actuallyAnswer() {
 	}).fail([=](const MTP::Error &error) {
 		handleRequestError(error.type());
 	}).send();
+#endif
 }
 
 void Call::setMuted(bool mute) {
@@ -559,6 +565,7 @@ bytes::vector Call::getKeyShaForFingerprint() const {
 	return openssl::Sha256(encryptedChatAuthKey);
 }
 
+#if 0 // mtp
 bool Call::handleUpdate(const MTPPhoneCall &call) {
 	switch (call.type()) {
 	case mtpc_phoneCallRequested: {
@@ -703,6 +710,7 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 
 	Unexpected("phoneCall type inside an existing call handleUpdate()");
 }
+#endif
 
 void Call::updateRemoteMediaState(
 		tgcalls::AudioState audio,
@@ -728,6 +736,7 @@ void Call::updateRemoteMediaState(
 	}());
 }
 
+#if 0 // mtp
 bool Call::handleSignalingData(
 		const MTPDupdatePhoneCallSignalingData &data) {
 	if (data.vphone_call_id().v != _id || !_instance) {
@@ -741,6 +750,7 @@ bool Call::handleSignalingData(
 	_instance->receiveSignalingData(std::move(prepared));
 	return true;
 }
+#endif
 
 void Call::confirmAcceptedCall(const MTPDphoneCallAccepted &call) {
 	Expects(_type == Type::Outgoing);
@@ -1245,6 +1255,7 @@ void Call::finish(FinishType type, const MTPPhoneCallDiscardReason &reason) {
 		setState(finalState);
 	});
 
+#if 0 // todo
 	using Video = Webrtc::VideoState;
 	const auto flags = ((_videoIncoming->state() != Video::Inactive)
 		|| (_videoOutgoing->state() != Video::Inactive))
@@ -1271,6 +1282,7 @@ void Call::finish(FinishType type, const MTPPhoneCallDiscardReason &reason) {
 	}).fail(crl::guard(weak, [this, finalState] {
 		setState(finalState);
 	})).send();
+#endif
 }
 
 void Call::setStateQueued(State state) {

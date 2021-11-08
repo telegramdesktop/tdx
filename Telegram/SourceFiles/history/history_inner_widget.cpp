@@ -651,7 +651,7 @@ bool HistoryInner::hasSelectRestriction() const {
 	return true;
 }
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 void HistoryInner::messagesReceived(
 		not_null<PeerData*> peer,
 		const QVector<MTPMessage> &messages) {

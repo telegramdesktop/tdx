@@ -547,13 +547,13 @@ private:
 
 	void checkPreview();
 	void requestPreview();
-#if 0 // #TODO legacy
+#if 0 // mtp
 	void gotPreview(QString links, const MTPMessageMedia &media, mtpRequestId req);
 	void messagesReceived(not_null<PeerData*> peer, const MTPmessages_Messages &messages, int requestId);
 	void messagesFailed(const MTP::Error &error, int requestId);
 	void addMessagesToFront(not_null<PeerData*> peer, const QVector<MTPMessage> &messages);
 	void addMessagesToBack(not_null<PeerData*> peer, const QVector<MTPMessage> &messages);
-#endif // #TODO legacy
+#endif
 
 	void messagesReceived(
 		not_null<PeerData*> peer,
@@ -715,7 +715,7 @@ private:
 	bool _canSendTexts = false;
 	MsgId _showAtMsgId = ShowAtUnreadMsgId;
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 	int _firstLoadRequest = 0; // Not real mtpRequestId.
 	int _preloadRequest = 0; // Not real mtpRequestId.
 	int _preloadDownRequest = 0; // Not real mtpRequestId.

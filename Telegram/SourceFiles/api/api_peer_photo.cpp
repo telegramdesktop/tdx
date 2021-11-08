@@ -166,7 +166,9 @@ PeerPhoto::PeerPhoto(not_null<ApiWrap*> api)
 		// only queued, because it is not constructed yet.
 		_session->uploader().photoReady(
 		) | rpl::start_with_next([=](const Storage::UploadedMedia &data) {
+#if 0 // todo
 			ready(data.fullId, data.info.file, std::nullopt);
+#endif
 		}, _session->lifetime());
 	});
 }
@@ -253,7 +255,7 @@ void PeerPhoto::suggest(not_null<PeerData*> peer, UserPhoto &&photo) {
 }
 
 void PeerPhoto::clear(not_null<PhotoData*> photo) {
-#if 0 // #TODO legacy
+#if 0 // mtp
 	const auto self = _session->user();
 	if (self->userpicPhotoId() == photo->id) {
 		_api.request(MTPphotos_UpdateProfilePhoto(
@@ -345,6 +347,7 @@ void PeerPhoto::set(not_null<PeerData*> peer, not_null<PhotoData*> photo) {
 	if (peer->userpicPhotoId() == photo->id) {
 		return;
 	}
+#if 0 // todo
 	if (peer == _session->user()) {
 		_api.request(MTPphotos_UpdateProfilePhoto(
 			MTP_flags(0),
@@ -372,8 +375,10 @@ void PeerPhoto::set(not_null<PeerData*> peer, not_null<PhotoData*> photo) {
 			)).done(applier).send();
 		}
 	}
+#endif
 }
 
+#if 0 // mtp
 void PeerPhoto::ready(
 		const FullMsgId &msgId,
 		std::optional<MTPInputFile> file,
@@ -479,6 +484,7 @@ void PeerPhoto::ready(
 		}).send();
 	}
 }
+#endif
 
 void PeerPhoto::requestUserPhotos(
 		not_null<UserData*> user,
@@ -487,6 +493,7 @@ void PeerPhoto::requestUserPhotos(
 		return;
 	}
 
+#if 0 // todo
 	const auto requestId = _api.request(MTPphotos_GetUserPhotos(
 		user->inputUser,
 		MTP_int(0),
@@ -533,6 +540,7 @@ void PeerPhoto::requestUserPhotos(
 		_userPhotosRequests.remove(user);
 	}).send();
 	_userPhotosRequests.emplace(user, requestId);
+#endif
 }
 
 void PeerPhoto::requestEmojiList(EmojiListType type) {

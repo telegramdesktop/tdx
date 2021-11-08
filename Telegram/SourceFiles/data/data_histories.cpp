@@ -287,6 +287,7 @@ void Histories::requestDialogEntry(not_null<Data::Folder*> folder) {
 	}
 	_dialogFolderRequests.emplace(folder);
 
+#if 0 // todo
 	auto peers = QVector<MTPInputDialogPeer>(
 		1,
 		MTP_inputDialogPeerFolder(MTP_int(folder->id())));
@@ -298,6 +299,7 @@ void Histories::requestDialogEntry(not_null<Data::Folder*> folder) {
 	}).fail([=] {
 		_dialogFolderRequests.remove(folder);
 	}).send();
+#endif
 }
 
 void Histories::requestDialogEntry(
@@ -349,6 +351,7 @@ void Histories::sendDialogRequests() {
 		return false;
 	}) | ranges::to_vector;
 
+#if 0 // todo
 	auto peers = QVector<MTPInputDialogPeer>();
 	const auto dialogPeer = [](not_null<History*> history) {
 		return MTP_inputDialogPeer(history->peer->input);
@@ -378,6 +381,7 @@ void Histories::sendDialogRequests() {
 	}).fail([=] {
 		finalize();
 	}).send();
+#endif
 }
 
 void Histories::dialogEntryApplied(not_null<History*> history) {
@@ -402,6 +406,7 @@ void Histories::dialogEntryApplied(not_null<History*> history) {
 	}
 }
 
+#if 0 // mtp
 void Histories::applyPeerDialogs(const MTPmessages_PeerDialogs &dialogs) {
 	Expects(dialogs.type() == mtpc_messages_peerDialogs);
 
@@ -421,6 +426,7 @@ void Histories::applyPeerDialogs(const MTPmessages_PeerDialogs &dialogs) {
 	}
 	_owner->sendHistoryChangeNotifications();
 }
+#endif
 
 void Histories::changeDialogUnreadMark(
 		not_null<History*> history,
@@ -480,6 +486,8 @@ void Histories::requestGroupAround(not_null<HistoryItem*> item) {
 		}
 	}
 	constexpr auto kMaxAlbumCount = 10;
+
+#if 0 // todo
 	const auto requestId = sendRequest(history, RequestType::History, [=](
 			Fn<void()> finish) {
 		return session().api().request(MTPmessages_GetHistory(
@@ -508,6 +516,7 @@ void Histories::requestGroupAround(not_null<HistoryItem*> item) {
 	_chatListGroupRequests.emplace(
 		key,
 		ChatListGroupRequest{ .aroundId = id, .requestId = requestId });
+#endif
 }
 
 void Histories::sendPendingReadInbox(not_null<History*> history) {
@@ -557,6 +566,7 @@ void Histories::sendReadRequest(not_null<History*> history, State &state) {
 	state.sentReadDone = false;
 	DEBUG_LOG(("Reading: sending request now with till %1."
 		).arg(tillId.bare));
+#if 0 // todo
 	sendRequest(history, RequestType::ReadInbox, [=](Fn<void()> finish) {
 		DEBUG_LOG(("Reading: sending request invoked with till %1."
 			).arg(tillId.bare));
@@ -594,6 +604,7 @@ void Histories::sendReadRequest(not_null<History*> history, State &state) {
 			}).send();
 		}
 	});
+#endif
 }
 
 void Histories::checkEmptyState(not_null<History*> history) {
@@ -628,6 +639,7 @@ void Histories::deleteMessages(
 		not_null<History*> history,
 		const QVector<MTPint> &ids,
 		bool revoke) {
+#if 0 // todo
 	sendRequest(history, RequestType::Delete, [=](Fn<void()> finish) {
 		const auto done = [=](const MTPmessages_AffectedMessages &result) {
 			session().api().applyAffectedMessages(history->peer, result);
@@ -647,6 +659,7 @@ void Histories::deleteMessages(
 			)).done(done).fail(finish).send();
 		}
 	});
+#endif
 }
 
 void Histories::deleteAllMessages(
@@ -654,6 +667,7 @@ void Histories::deleteAllMessages(
 		MsgId deleteTillId,
 		bool justClear,
 		bool revoke) {
+#if 0 // todo
 	sendRequest(history, RequestType::Delete, [=](Fn<void()> finish) {
 		const auto peer = history->peer;
 		const auto chat = peer->asChat();
@@ -723,6 +737,7 @@ void Histories::deleteAllMessages(
 			}).fail(finish).send();
 		}
 	});
+#endif
 }
 
 void Histories::deleteMessagesByDates(
@@ -775,6 +790,7 @@ void Histories::deleteMessagesByDates(
 }
 
 void Histories::deleteMessages(const MessageIdsList &ids, bool revoke) {
+#if 0 // todo
 	auto remove = std::vector<not_null<HistoryItem*>>();
 	remove.reserve(ids.size());
 	base::flat_map<not_null<History*>, QVector<MTPint>> idsByPeer;
@@ -822,6 +838,7 @@ void Histories::deleteMessages(const MessageIdsList &ids, bool revoke) {
 			history->requestChatListMessage();
 		}
 	}
+#endif
 }
 
 int Histories::sendRequest(

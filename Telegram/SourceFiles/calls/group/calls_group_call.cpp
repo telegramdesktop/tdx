@@ -1056,6 +1056,7 @@ rpl::producer<not_null<Data::GroupCall*>> GroupCall::real() const {
 }
 
 void GroupCall::start(TimeId scheduleDate, bool rtmp) {
+#if 0 // todo
 	using Flag = MTPphone_CreateGroupCall::Flag;
 	_createRequestId = _api.request(MTPphone_CreateGroupCall(
 		MTP_flags((scheduleDate ? Flag::f_schedule_date : Flag(0))
@@ -1074,6 +1075,7 @@ void GroupCall::start(TimeId scheduleDate, bool rtmp) {
 			).arg(error.type()));
 		hangup();
 	}).send();
+#endif
 }
 
 void GroupCall::join(const MTPInputGroupCall &inputCall) {
@@ -1348,6 +1350,7 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 			LOG(("Call Info: Join payload received, joining with ssrc: %1."
 				).arg(ssrc));
 
+#if 0 // todo
 			const auto json = QByteArray::fromStdString(payload.json);
 			const auto wasMuteState = muted();
 			const auto wasVideoStopped = !isSharingCamera();
@@ -1417,6 +1420,7 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 					? tr::lng_group_not_accessible(tr::now)
 					: Lang::Hard::ServerError());
 			}).send();
+#endif
 		});
 	});
 }
@@ -1477,6 +1481,7 @@ void GroupCall::rejoinPresentation() {
 			LOG(("Call Info: Join screen payload received, ssrc: %1."
 				).arg(ssrc));
 
+#if 0 // todo
 			const auto json = QByteArray::fromStdString(payload.json);
 			_api.request(
 				MTPphone_JoinGroupCallPresentation(
@@ -1515,6 +1520,7 @@ void GroupCall::rejoinPresentation() {
 						: Error::ScreenFailed);
 				}
 			}).send();
+#endif
 		});
 	});
 }
@@ -1530,6 +1536,7 @@ void GroupCall::leavePresentation() {
 		_screenJoinState.nextActionPending = true;
 		return;
 	}
+#if 0 // todo
 	_api.request(
 		MTPphone_LeaveGroupCallPresentation(inputCall())
 	).done([=](const MTPUpdates &updates) {
@@ -1547,6 +1554,7 @@ void GroupCall::leavePresentation() {
 		setScreenEndpoint(std::string());
 		checkNextJoinAction();
 	}).send();
+#endif
 }
 
 void GroupCall::applyMeInCallLocally() {
@@ -1656,6 +1664,7 @@ void GroupCall::discard() {
 		hangup();
 		return;
 	}
+#if 0 // todo
 	_api.request(MTPphone_DiscardGroupCall(
 		inputCall()
 	)).done([=](const MTPUpdates &result) {
@@ -1666,6 +1675,7 @@ void GroupCall::discard() {
 	}).fail([=] {
 		hangup();
 	}).send();
+#endif
 }
 
 void GroupCall::rejoinAs(Group::JoinInfo info) {
@@ -1719,6 +1729,7 @@ void GroupCall::leave() {
 		? State::Ended
 		: State::Failed;
 
+#if 0 // todo
 	// We want to leave request still being sent and processed even if
 	// the call is already destroyed.
 	const auto session = &_peer->session();
@@ -1734,29 +1745,34 @@ void GroupCall::leave() {
 	}).fail(crl::guard(weak, [=] {
 		setState(finalState);
 	})).send();
+#endif
 }
 
 void GroupCall::startScheduledNow() {
 	if (!lookupReal()) {
 		return;
 	}
+#if 0 // todo
 	_api.request(MTPphone_StartScheduledGroupCall(
 		inputCall()
 	)).done([=](const MTPUpdates &result) {
 		_peer->session().api().applyUpdates(result);
 	}).send();
+#endif
 }
 
 void GroupCall::toggleScheduleStartSubscribed(bool subscribed) {
 	if (!lookupReal()) {
 		return;
 	}
+#if 0 // todo
 	_api.request(MTPphone_ToggleGroupCallStartSubscription(
 		inputCall(),
 		MTP_bool(subscribed)
 	)).done([=](const MTPUpdates &result) {
 		_peer->session().api().applyUpdates(result);
 	}).send();
+#endif
 }
 
 void GroupCall::setNoiseSuppression(bool enabled) {
@@ -2287,6 +2303,7 @@ void GroupCall::changeTitle(const QString &title) {
 		return;
 	}
 
+#if 0 // todo
 	_api.request(MTPphone_EditGroupCallTitle(
 		inputCall(),
 		MTP_string(title)
@@ -2294,6 +2311,7 @@ void GroupCall::changeTitle(const QString &title) {
 		_peer->session().api().applyUpdates(result);
 		_titleChanged.fire({});
 	}).send();
+#endif
 }
 
 void GroupCall::toggleRecording(
@@ -2314,6 +2332,7 @@ void GroupCall::toggleRecording(
 	if (!enabled) {
 		_recordingStoppedByMe = true;
 	}
+#if 0 // todo
 	using Flag = MTPphone_ToggleGroupCallRecord::Flag;
 	_api.request(MTPphone_ToggleGroupCallRecord(
 		MTP_flags((enabled ? Flag::f_start : Flag(0))
@@ -2328,6 +2347,7 @@ void GroupCall::toggleRecording(
 	}).fail([=] {
 		_recordingStoppedByMe = false;
 	}).send();
+#endif
 }
 
 bool GroupCall::tryCreateController() {
@@ -3219,6 +3239,7 @@ void GroupCall::sendSelfUpdate(SendUpdateType type) {
 		_pendingSelfUpdates |= type;
 		return;
 	}
+#if 0 // todo
 	using Flag = MTPphone_EditGroupCallParticipant::Flag;
 	_selfUpdateRequestId = _api.request(MTPphone_EditGroupCallParticipant(
 		MTP_flags((type == SendUpdateType::RaiseHand)
@@ -3250,6 +3271,7 @@ void GroupCall::sendSelfUpdate(SendUpdateType type) {
 			rejoin();
 		}
 	}).send();
+#endif
 }
 
 void GroupCall::pinVideoEndpoint(VideoEndpoint endpoint) {
@@ -3330,6 +3352,7 @@ void GroupCall::editParticipant(
 	}
 	applyParticipantLocally(participantPeer, mute, volume);
 
+#if 0 // todo
 	using Flag = MTPphone_EditGroupCallParticipant::Flag;
 	const auto flags = Flag::f_muted
 		| (volume.has_value() ? Flag::f_volume : Flag(0));
@@ -3352,6 +3375,7 @@ void GroupCall::editParticipant(
 			rejoin();
 		}
 	}).send();
+#endif
 }
 
 std::variant<int, not_null<UserData*>> GroupCall::inviteUsers(
@@ -3366,6 +3390,7 @@ std::variant<int, not_null<UserData*>> GroupCall::inviteUsers(
 	auto slice = QVector<MTPInputUser>();
 	auto result = std::variant<int, not_null<UserData*>>(0);
 	slice.reserve(kMaxInvitePerSlice);
+#if 0 // todo
 	const auto sendSlice = [&] {
 		count += slice.size();
 		_api.request(MTPphone_InviteToGroupCall(
@@ -3392,6 +3417,7 @@ std::variant<int, not_null<UserData*>> GroupCall::inviteUsers(
 	if (!slice.empty()) {
 		sendSlice();
 	}
+#endif
 	return result;
 }
 

@@ -39,7 +39,7 @@ public:
 	ChatData(not_null<Data::Session*> owner, PeerId id);
 
 	void setName(const QString &newName);
-#if 0 // #TODO legacy
+#if 0 // mtp
 	void setPhoto(const MTPChatPhoto &photo);
 #endif
 
@@ -181,7 +181,7 @@ public:
 
 	int count = 0;
 
-#if 1 // #TODO legacy?
+#if 1 // mtp?
 	TimeId date = 0;
 #endif
 
@@ -217,6 +217,7 @@ private:
 
 namespace Data {
 
+#if 0 // mtp
 void ApplyChatUpdate(
 	not_null<ChatData*> chat,
 	const MTPDupdateChatParticipants &update);
@@ -238,6 +239,7 @@ void ApplyChatUpdate(
 void ApplyChatUpdate(
 	not_null<ChatData*> chat,
 	const MTPChatParticipants &update);
+#endif
 
 void ApplyChatUpdate(
 	not_null<ChatData*> chat,
