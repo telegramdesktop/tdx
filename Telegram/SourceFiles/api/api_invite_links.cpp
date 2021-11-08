@@ -468,6 +468,7 @@ void InviteLinks::processRequest(
 	_processRequests.emplace(
 		std::pair{ peer, user },
 		ProcessRequest{ std::move(done), std::move(fail) });
+#if 0 // todo
 	using Flag = MTPmessages_HideChatJoinRequest::Flag;
 	_api->request(MTPmessages_HideChatJoinRequest(
 		MTP_flags(approved ? Flag::f_approved : Flag(0)),
@@ -517,6 +518,7 @@ void InviteLinks::processRequest(
 			}
 		}
 	}).send();
+#endif
 }
 
 void InviteLinks::applyExternalUpdate(

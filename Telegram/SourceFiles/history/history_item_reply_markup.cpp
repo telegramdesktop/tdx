@@ -452,7 +452,7 @@ HistoryMessageRepliesData::HistoryMessageRepliesData(
 		recentRepliers.push_back(peerFromSender(sender));
 	}
 	repliesCount = fields.vreply_count().v;
-	//channelId = ChannelId(fields.vchannel_id().value_or_empty()); // #TODO tdlib
+	//channelId = ChannelId(fields.vchannel_id().value_or_empty()); // todo
 	readMaxId = fields.vlast_read_inbox_message_id().v;
 	maxId = fields.vlast_message_id().v;
 	isNull = false;

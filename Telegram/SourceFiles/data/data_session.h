@@ -417,6 +417,7 @@ public:
 	MessageIdsList itemsToIds(const HistoryItemsList &items) const;
 	MessageIdsList itemOrItsGroup(not_null<HistoryItem*> item) const;
 
+#if 0 // mtp
 	void applyUpdate(const MTPDupdateMessagePoll &update);
 	void applyUpdate(const MTPDupdateChatParticipants &update);
 	void applyUpdate(const MTPDupdateChatParticipantAdd &update);
@@ -429,6 +430,7 @@ public:
 		const QVector<MTPMessage> &messages,
 		const QVector<MTPDialog> &dialogs,
 		std::optional<int> count = std::nullopt);
+#endif
 
 	[[nodiscard]] bool pinnedCanPin(not_null<Dialogs::Entry*> entry) const;
 	[[nodiscard]] bool pinnedCanPin(
@@ -480,6 +482,7 @@ public:
 	void registerMessageTTL(TimeId when, not_null<HistoryItem*> item);
 	void unregisterMessageTTL(TimeId when, not_null<HistoryItem*> item);
 
+#if 0 // mtp
 	// Returns true if item found and it is not detached.
 	bool updateExistingMessage(const MTPDmessage &data);
 	void updateEditedMessage(const MTPMessage &data);
@@ -496,6 +499,7 @@ public:
 	void processMessagesDeleted(
 		PeerId peerId,
 		const QVector<MTPint> &data);
+#endif
 
 	[[nodiscard]] MsgId nextLocalMessageId();
 	[[nodiscard]] HistoryItem *message(

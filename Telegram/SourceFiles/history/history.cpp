@@ -452,7 +452,7 @@ not_null<HistoryItem*> History::createItem(
 	return result;
 }
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 std::vector<not_null<HistoryItem*>> History::createItems(
 		const QVector<MTPMessage> &data) {
 	auto result = std::vector<not_null<HistoryItem*>>();
@@ -696,7 +696,7 @@ not_null<HistoryItem*> History::addNewItem(
 		return item;
 	}
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 	// In case we've loaded a new 'last' message
 	// and it is not in blocks and we think that
 	// we have all the messages till the bottom
@@ -1032,7 +1032,7 @@ void History::applyMessageChanges(
 void History::applyServiceChanges(
 		not_null<HistoryItem*> item,
 		const MTPDmessageService &data) {
-#if 0 // #TODO legacy
+#if 0 // mtp
 	const auto replyTo = data.vreply_to();
 	const auto processJoinedUser = [&](
 			not_null<ChannelData*> megagroup,
@@ -1288,7 +1288,7 @@ void History::applyServiceChanges(
 void History::applyMessageChanges(
 		not_null<HistoryItem*> item,
 		const TLmessage &data) {
-	//data.data().vcontent().match(); // #TODO tdlib
+	//data.data().vcontent().match(); // todo
 	//if (data.type() == mtpc_messageService) {
 	//	applyServiceChanges(item, data.c_messageService());
 	//}
@@ -1472,7 +1472,7 @@ void History::addEdgesToSharedMedia() {
 	}
 }
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 	if (slice.isEmpty()) {
 		_loadedAtTop = true;
@@ -1513,7 +1513,7 @@ void History::addCreatedOlderSlice(
 	addToSharedMedia(items);
 }
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 void History::addNewerSlice(const QVector<MTPMessage> &slice) {
 	bool wasLoadedAtBottom = loadedAtBottom();
 
@@ -1871,11 +1871,14 @@ void History::applyInboxReadUpdate(
 		owner().histories().requestDialogEntry(folder);
 	}
 	if (_inboxReadBefore.value_or(1) <= upTo) {
+#if 0 // mtp
 		if (!peer->isChannel() || peer->asChannel()->pts() == channelPts) {
 			inboxRead(upTo, stillUnread);
 		} else {
 			inboxRead(upTo);
 		}
+#endif
+		inboxRead(upTo, stillUnread);
 	}
 }
 
@@ -2171,6 +2174,7 @@ void History::hasUnreadReactionChanged(bool has) {
 	notifyUnreadStateChange(was);
 }
 
+#if 0 // mtp
 void History::applyPinnedUpdate(const MTPDupdateDialogPinned &data) {
 	const auto folderId = data.vfolder_id().value_or_empty();
 	if (!folderKnown()) {
@@ -2183,7 +2187,6 @@ void History::applyPinnedUpdate(const MTPDupdateDialogPinned &data) {
 	owner().setChatPinned(this, FilterId(), data.is_pinned());
 }
 
-#if 0 // #TODO legacy
 TimeId History::adjustedChatListTimeId() const {
 	const auto result = chatListTimeId();
 	if (const auto draft = cloudDraft(MsgId(0))) {
@@ -2889,7 +2892,7 @@ bool History::trackUnreadMessages() const {
 	return true;
 }
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 bool History::shouldBeInChatList() const {
 	if (peer->migrateTo() || !folderKnown()) {
 		return false;
@@ -2927,6 +2930,7 @@ bool History::isServerSideUnread(not_null<const HistoryItem*> item) const {
 		: (!_inboxReadBefore || (item->id >= *_inboxReadBefore));
 }
 
+#if 0 // mtp
 void History::applyDialog(
 		Data::Folder *requestFolder,
 		const MTPDdialog &data) {
@@ -2978,6 +2982,7 @@ void History::applyDialog(
 	}
 	owner().histories().dialogEntryApplied(this);
 }
+#endif
 
 void History::applyPosition(const TLDchatPosition &data) {
 	const auto pinned = data.vis_pinned().v;

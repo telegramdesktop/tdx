@@ -329,7 +329,7 @@ TermsLock TermsLock::FromTL(
 		const Tdb::TLDtermsOfService &data) {
 	const auto minAge = data.vmin_user_age().v;
 	return {
-		{}, // #TODO legacy
+		{}, // mtp
 		Api::FormattedTextFromTdb(session, data.vtext()),
 		(minAge ? std::make_optional(minAge) : std::nullopt),
 		data.vshow_popup().v

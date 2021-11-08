@@ -2121,6 +2121,7 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 		peerSearchApplyEmpty(0);
 		_api.request(base::take(_topicSearchRequest)).cancel();
 		return true;
+#if 0 // todo
 	} else if (inCache) {
 		const auto success = _singleMessageSearch.lookup(query, [=] {
 			searchRequested(delay);
@@ -2287,6 +2288,7 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 		_api.request(base::take(_topicSearchRequest)).cancel();
 		_topicSearchQuery = peerQuery;
 		_topicSearchFull = true;
+#endif
 	}
 	return result;
 }
@@ -2372,6 +2374,7 @@ void Widget::searchMore() {
 		|| _searchInHistoryRequest
 		|| _searchTimer.isActive()) {
 		return;
+#if 0 // todo
 	} else if (!_searchFull) {
 		if (const auto peer = searchInPeer()) {
 			auto &histories = session().data().histories();
@@ -2500,9 +2503,11 @@ void Widget::searchMore() {
 			}).send();
 			return _searchRequest;
 		});
+#endif
 	}
 }
 
+#if 0 // mtp
 void Widget::searchReceived(
 		SearchRequestType type,
 		const MTPmessages_Messages &result,
@@ -2715,6 +2720,7 @@ void Widget::peerSearchFailed(const MTP::Error &error, mtpRequestId id) {
 		_peerSearchFull = true;
 	}
 }
+#endif
 
 void Widget::dragEnterEvent(QDragEnterEvent *e) {
 	using namespace Storage;

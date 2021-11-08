@@ -28,5 +28,5 @@ void GameData::setFromTdb(const Tdb::TLgame &data) {
 	description = fields.vdescription().v;
 	title = fields.vtitle().v;
 	shortName = fields.vshort_name().v;
-	//fields.vtext(); // #TODO tdlib
+	//fields.vtext(); // todo
 }

@@ -192,14 +192,18 @@ private:
 
 	void searchOnServer();
 	bool searchParticipantsInCache();
+#if 0 // mtp
 	void searchParticipantsDone(
 		mtpRequestId requestId,
 		const MTPchannels_ChannelParticipants &result,
 		int requestedCount);
+#endif
 	bool searchGlobalInCache();
+#if 0 // mtp
 	void searchGlobalDone(
 		mtpRequestId requestId,
 		const MTPcontacts_Found &result);
+#endif
 	void requestParticipants();
 	void addChatMembers(not_null<ChatData*> chat);
 	void addChatsContacts();
