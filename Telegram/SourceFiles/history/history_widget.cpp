@@ -2509,7 +2509,7 @@ void HistoryWidget::clearDelayedShowAtRequest() {
 	Expects(_history != nullptr);
 
 	if (_delayedShowAtRequest) {
-		_history->owner().histories().cancelRequest(_delayedShowAtRequest);
+		_api.request(_delayedShowAtRequest).cancel();
 		_delayedShowAtRequest = 0;
 	}
 }
@@ -2530,15 +2530,15 @@ void HistoryWidget::clearAllLoadRequests() {
 	auto &histories = _history->owner().histories();
 	clearDelayedShowAtRequest();
 	if (_firstLoadRequest) {
-		histories.cancelRequest(_firstLoadRequest);
+		_api.request(_firstLoadRequest).cancel();
 		_firstLoadRequest = 0;
 	}
 	if (_preloadRequest) {
-		histories.cancelRequest(_preloadRequest);
+		_api.request(_preloadRequest).cancel();
 		_preloadRequest = 0;
 	}
 	if (_preloadDownRequest) {
-		histories.cancelRequest(_preloadDownRequest);
+		_api.request(_preloadDownRequest).cancel();
 		_preloadDownRequest = 0;
 	}
 }
