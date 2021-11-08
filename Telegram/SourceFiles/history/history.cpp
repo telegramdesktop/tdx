@@ -511,12 +511,20 @@ not_null<HistoryItem*> History::addMessage(
 		message,
 		MessageFlags(),
 		detachExistingItem);
-	if (type != NewMessageType::Existing && !item->mainView()) {
+	if (!item->mainView() && item->isHistoryEntry()) {
 		const auto unread = (type == NewMessageType::Unread);
 		if (unread && item->isHistoryEntry()) {
 			applyMessageChanges(item, message);
 		}
-		addNewItem(item, unread);
+		if (const auto max = maxMsgId()) {
+			if (loadedAtBottom() && item->id >= max) {
+				addNewItem(item, unread);
+			} else if (minMsgId() <= item->id) {
+				insertNewItem(item, unread);
+			}
+		} else if (type != NewMessageType::Existing) {
+			addNewItem(item, unread);
+		}
 	}
 	if (old && old != item) {
 		old->destroy();
@@ -652,6 +660,7 @@ not_null<HistoryItem*> History::addNewItem(
 		return item;
 	}
 
+#if 0 // #TODO legacy
 	// In case we've loaded a new 'last' message
 	// and it is not in blocks and we think that
 	// we have all the messages till the bottom
@@ -663,6 +672,7 @@ not_null<HistoryItem*> History::addNewItem(
 	if (shouldMarkBottomNotLoaded) {
 		setNotLoadedAtBottom();
 	}
+#endif
 
 	if (!loadedAtBottom() || peer->migrateTo()) {
 		setLastMessage(item);
@@ -673,6 +683,17 @@ not_null<HistoryItem*> History::addNewItem(
 		addNewToBack(item, unread);
 		checkForLoadedAtTop(item);
 	}
+	return item;
+}
+
+not_null<HistoryItem*> History::insertNewItem(
+		not_null<HistoryItem*> item,
+		bool unread) {
+	insertMessageToBlocks(item);
+	if (unread) {
+		newItemAdded(item);
+	}
+	owner().notifyHistoryChangeDelayed(this);
 	return item;
 }
 
