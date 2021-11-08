@@ -61,7 +61,7 @@ void UserData::setIsContact(bool is) {
 	}
 }
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 // see Serialize::readPeer as well
 void UserData::setPhoto(const MTPUserProfilePhoto &photo) {
 	photo.match([&](const MTPDuserProfilePhoto &data) {
@@ -439,6 +439,7 @@ bool UserData::hasCalls() const {
 
 namespace Data {
 
+#if 0 // mtp
 void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 	const auto profilePhoto = update.vprofile_photo()
 		? user->owner().processPhoto(*update.vprofile_photo()).get()
@@ -536,6 +537,7 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 
 	user->fullUpdated();
 }
+#endif
 
 void ApplyUserUpdate(
 		not_null<UserData*> user,
@@ -545,12 +547,12 @@ void ApplyUserUpdate(
 	} else {
 		user->clearPhoto();
 	}
-	//const auto settings = update.vsettings().match([&]( // #TODO tdlib
+	//const auto settings = update.vsettings().match([&]( // todo
 	//	const MTPDpeerSettings &data) {
 	//	return data.vflags().v;
 	//});
 
-	//MTPDpeerSettings::Flag::f_need_contacts_exception; // #TODO tdlib
+	//MTPDpeerSettings::Flag::f_need_contacts_exception; // todo
 	//update.vneed_phone_number_privacy_exception();
 	//user->setSettings(settings);
 
@@ -560,7 +562,7 @@ void ApplyUserUpdate(
 
 	//user->setMessagesTTL(update.vttl_period().value_or_empty());
 
-	//update.vcommands(); // #TODO tdlib
+	//update.vcommands(); // todo
 	//update.vdescription();
 	//if (const auto info = update.vbot_info()) {
 	//	user->setBotInfo(*info);
@@ -572,7 +574,7 @@ void ApplyUserUpdate(
 	//	SetTopPinnedMessageId(user, pinned->v);
 	//}
 
-	//MTPDuserFull::Flag::f_video_calls_available; // #TODO tdlib
+	//MTPDuserFull::Flag::f_video_calls_available; // todo
 	//update.vsupports_video_calls();
 	//user->setFullFlags(update.vflags().v);
 	user->setIsBlocked(update.vis_blocked().v);
@@ -582,7 +584,7 @@ void ApplyUserUpdate(
 		? UserData::CallsStatus::Enabled
 		: UserData::CallsStatus::Disabled);
 	user->setAbout(update.vbio().v);
-	//update.vshare_text(); // #TODO tdlib
+	//update.vshare_text(); // todo
 	user->setCommonChatsCount(update.vgroup_in_common_count().v);
 	//user->checkFolder(update.vfolder_id().value_or_empty());
 	user->fullUpdated();

@@ -719,7 +719,7 @@ private:
 	MsgId _showAtMsgId = ShowAtUnreadMsgId;
 	TextWithEntities _showAtMsgHighlightPart;
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 	int _firstLoadRequest = 0; // Not real mtpRequestId.
 	int _preloadRequest = 0; // Not real mtpRequestId.
 	int _preloadDownRequest = 0; // Not real mtpRequestId.

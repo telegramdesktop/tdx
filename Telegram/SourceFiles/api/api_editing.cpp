@@ -90,6 +90,7 @@ mtpRequestId EditMessage(
 		? MTPmessages_EditMessage::Flag::f_schedule_date
 		: emptyFlag);
 
+#if 0 // todo
 	const auto id = item->isScheduled()
 		? session->data().scheduledMessages().lookupId(item)
 		: item->id;
@@ -132,6 +133,8 @@ mtpRequestId EditMessage(
 			t_bad_callback(fail);
 		}
 	}).send();
+#endif
+	return 0;
 }
 
 template <typename DoneCallback, typename FailCallback>

@@ -80,7 +80,7 @@ public:
 
 	UserData(not_null<Data::Session*> owner, PeerId id);
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 	void setPhoto(const MTPUserProfilePhoto &photo);
 	void setEmojiStatus(const MTPEmojiStatus &status);
 #endif
@@ -215,7 +215,9 @@ private:
 
 namespace Data {
 
+#if 0 // mtp
 void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update);
+#endif
 
 void ApplyUserUpdate(
 	not_null<UserData*> user,

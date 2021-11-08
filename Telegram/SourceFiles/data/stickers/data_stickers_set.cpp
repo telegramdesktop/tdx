@@ -114,7 +114,7 @@ bool StickersSet::textColor() const {
 }
 
 void StickersSet::setThumbnail(const ImageWithLocation &data) {
-	// #TODO tdlib
+	// todo
 	_tdbThumbnailRemoteLocationHash = 0;
 	Data::UpdateCloudFile(
 		_thumbnail,

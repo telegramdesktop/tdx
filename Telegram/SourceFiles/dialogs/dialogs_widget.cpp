@@ -1700,6 +1700,7 @@ bool Widget::searchMessages(bool searchCache) {
 		_api.request(base::take(_topicSearchRequest)).cancel();
 		return true;
 	}
+#if 0 // todo
 	if (searchCache) {
 		const auto success = _singleMessageSearch.lookup(q, [=] {
 			needSearchMessages();
@@ -1841,6 +1842,7 @@ bool Widget::searchMessages(bool searchCache) {
 		_topicSearchQuery = query;
 		_topicSearchFull = true;
 	}
+#endif
 	return result;
 }
 
@@ -1966,6 +1968,7 @@ void Widget::searchMore() {
 	if (_searchRequest || _searchInHistoryRequest) {
 		return;
 	}
+#if 0 // todo
 	if (!_searchFull) {
 		if (const auto peer = searchInPeer()) {
 			auto &histories = session().data().histories();
@@ -2079,8 +2082,10 @@ void Widget::searchMore() {
 			return _searchRequest;
 		});
 	}
+#endif
 }
 
+#if 0 // mtp
 void Widget::searchReceived(
 		SearchRequestType type,
 		const MTPmessages_Messages &result,
@@ -2277,6 +2282,7 @@ void Widget::peopleFailed(const MTP::Error &error, mtpRequestId requestId) {
 		_peerSearchFull = true;
 	}
 }
+#endif
 
 void Widget::dragEnterEvent(QDragEnterEvent *e) {
 	using namespace Storage;
