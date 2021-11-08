@@ -226,6 +226,7 @@ Main::Session &TopBarWidget::session() const {
 }
 
 void TopBarWidget::updateConnectingState() {
+#if 0 // todo
 	const auto state = _controller->session().mtp().dcstate();
 	if (state == MTP::ConnectedState) {
 		if (_connecting) {
@@ -239,6 +240,7 @@ void TopBarWidget::updateConnectingState() {
 		_connecting->start();
 		update();
 	}
+#endif
 }
 
 void TopBarWidget::connectingAnimationCallback() {
