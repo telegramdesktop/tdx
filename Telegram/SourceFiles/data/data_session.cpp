@@ -1188,8 +1188,6 @@ not_null<PeerData*> Session::processPeer(const TLchat &dialog) {
 	}
 	if (const auto message = data.vlast_message()) {
 		history->applyLastMessage(*message);
-	} else {
-		history->clearLastMessage();
 	}
 	history->applyDialogFields(
 		history->folder(),
