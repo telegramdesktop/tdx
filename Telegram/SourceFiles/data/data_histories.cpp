@@ -25,10 +25,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "apiwrap.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Data {
 namespace {
 
 constexpr auto kReadRequestTimeout = 3 * crl::time(1000);
+
+using namespace Tdb;
 
 } // namespace
 
@@ -635,11 +639,11 @@ bool Histories::postponeEntryRequest(const State &state) const {
 	});
 }
 
+#if 0 // mtp
 void Histories::deleteMessages(
 		not_null<History*> history,
 		const QVector<MTPint> &ids,
 		bool revoke) {
-#if 0 // todo
 	sendRequest(history, RequestType::Delete, [=](Fn<void()> finish) {
 		const auto done = [=](const MTPmessages_AffectedMessages &result) {
 			session().api().applyAffectedMessages(history->peer, result);
@@ -659,8 +663,8 @@ void Histories::deleteMessages(
 			)).done(done).fail(finish).send();
 		}
 	});
-#endif
 }
+#endif
 
 void Histories::deleteAllMessages(
 		not_null<History*> history,
@@ -839,6 +843,22 @@ void Histories::deleteMessages(const MessageIdsList &ids, bool revoke) {
 		}
 	}
 #endif
+
+	base::flat_map<not_null<History*>, QVector<TLint53>> idsByPeer;
+	for (const auto &itemId : ids) {
+		if (const auto item = _owner->message(itemId)) {
+			const auto history = item->history();
+			idsByPeer[history].push_back(tl_int53(itemId.msg.bare));
+		}
+	}
+
+	for (const auto &[history, ids] : idsByPeer) {
+		history->session().sender().request(TLdeleteMessages(
+			peerToTdbChat(history->peer->id),
+			tl_vector<TLint53>(ids),
+			tl_bool(revoke)
+		)).send();
+	}
 }
 
 int Histories::sendRequest(
