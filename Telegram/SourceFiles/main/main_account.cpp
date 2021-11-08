@@ -160,7 +160,7 @@ uint64 Account::willHaveSessionUniqueId(MTP::Config *config) const {
 		| (config && config->isTestMode() ? 0x0100'0000'0000'0000ULL : 0ULL);
 }
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 void Account::createSession(
 		const MTPUser &user,
 		std::unique_ptr<SessionSettings> settings) {
@@ -182,7 +182,7 @@ void Account::createSession(
 	QDataStream peekStream(serialized);
 	const auto phone = Serialize::peekUserPhone(streamVersion, peekStream);
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 	const auto flags = MTPDuser::Flag::f_self | (phone.isEmpty()
 		? MTPDuser::Flag()
 		: MTPDuser::Flag::f_phone);
@@ -246,7 +246,7 @@ void Account::createSession(
 		settings ? std::move(settings) : std::make_unique<SessionSettings>());
 }
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 void Account::createSession(
 		const MTPUser &user,
 		QByteArray serialized,
@@ -367,7 +367,7 @@ void Account::setLegacyMtpKey(std::shared_ptr<MTP::AuthKey> key) {
 }
 
 QByteArray Account::serializeMtpAuthorization() const {
-#if 0 // #TODO legacy
+#if 0 // mtp
 	const auto serialize = [&](
 			MTP::DcId mainDcId,
 			const MTP::AuthKeysList &keys,
@@ -506,7 +506,7 @@ void Account::setMtpAuthorization(const QByteArray &serialized) {
 	}
 
 	setSessionUserId(userId);
-#if 0 // #TODO legacy
+#if 0 // mtp
 	_mtpFields.mainDcId = mainDcId;
 
 	const auto readKeys = [&](auto &keys) {
@@ -576,6 +576,7 @@ void Account::startMtp(std::unique_ptr<MTP::Config> config) {
 
 	_mtpFields.mainDcId = _mtp->mainDcId();
 
+#if 0
 	_mtp->setUpdatesHandler([=](const MTP::Response &message) {
 		checkForUpdates(message) || checkForNewSession(message);
 	});
@@ -596,6 +597,7 @@ void Account::startMtp(std::unique_ptr<MTP::Config> config) {
 			}
 		}
 	});
+#endif
 
 	if (!_mtpKeysToDestroy.empty()) {
 		destroyMtpKeys(base::take(_mtpKeysToDestroy));
@@ -645,7 +647,7 @@ void Account::logOut() {
 		return;
 	}
 	_loggingOut = true;
-#if 0 // #TODO legacy
+#if 0 // mtp
 	if (_mtp) {
 		_mtp->logout([=] { loggedOut(); });
 	} else {
@@ -714,7 +716,7 @@ void Account::destroyMtpKeys(MTP::AuthKeysList &&keys) {
 	}, _mtpForKeysDestroy->lifetime());
 }
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 void Account::suggestMainDcId(MTP::DcId mainDcId) {
 	Expects(_mtp != nullptr);
 
@@ -725,7 +727,7 @@ void Account::suggestMainDcId(MTP::DcId mainDcId) {
 }
 #endif
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 void Account::destroyStaleAuthorizationKeys() {
 	Expects(_mtp != nullptr);
 

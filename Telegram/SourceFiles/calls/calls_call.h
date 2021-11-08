@@ -107,8 +107,11 @@ public:
 	[[nodiscard]] bool isIncomingWaiting() const;
 
 	void start(bytes::const_span random);
+
+#if 0 // mtp
 	bool handleUpdate(const MTPPhoneCall &call);
 	bool handleSignalingData(const MTPDupdatePhoneCallSignalingData &data);
+#endif
 
 	enum State {
 		Starting,

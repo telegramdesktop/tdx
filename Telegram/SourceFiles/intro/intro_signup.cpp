@@ -119,7 +119,7 @@ void SignupWidget::cancelled() {
 #endif
 }
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 void SignupWidget::nameSubmitDone(const MTPauth_Authorization &result) {
 	finish(result);
 }
@@ -202,7 +202,7 @@ void SignupWidget::submit() {
 			registerUserFail(error);
 		}).send();
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 		_sentRequest = api().request(MTPauth_SignUp(
 			MTP_string(getData()->phone),
 			MTP_bytes(getData()->phoneHash),

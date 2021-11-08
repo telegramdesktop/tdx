@@ -780,6 +780,7 @@ void AddSpecialBoxController::loadMoreRows() {
 	const auto participantsHash = uint64(0);
 	const auto channel = _peer->asChannel();
 
+#if 0 // todo
 	_loadRequestId = _api.request(MTPchannels_GetParticipants(
 		channel->inputChannel,
 		MTP_channelParticipantsRecent(),
@@ -816,6 +817,7 @@ void AddSpecialBoxController::loadMoreRows() {
 	}).fail([this] {
 		_loadRequestId = 0;
 	}).send();
+#endif
 }
 
 void AddSpecialBoxController::rowClicked(not_null<PeerListRow*> row) {
@@ -1187,6 +1189,7 @@ bool AddSpecialBoxSearchController::isLoading() {
 }
 
 bool AddSpecialBoxSearchController::searchParticipantsInCache() {
+#if 0 // todo
 	const auto i = _participantsCache.find(_query);
 	if (i != _participantsCache.cend()) {
 		_requestId = 0;
@@ -1196,16 +1199,19 @@ bool AddSpecialBoxSearchController::searchParticipantsInCache() {
 			i->second.requestedCount);
 		return true;
 	}
+#endif
 	return false;
 }
 
 bool AddSpecialBoxSearchController::searchGlobalInCache() {
+#if 0 // todo
 	auto it = _globalCache.find(_query);
 	if (it != _globalCache.cend()) {
 		_requestId = 0;
 		searchGlobalDone(_requestId, it->second);
 		return true;
 	}
+#endif
 	return false;
 }
 
@@ -1243,6 +1249,7 @@ void AddSpecialBoxSearchController::requestParticipants() {
 	const auto participantsHash = uint64(0);
 	const auto channel = _peer->asChannel();
 
+#if 0 // todo
 	_requestId = _api.request(MTPchannels_GetParticipants(
 		channel->inputChannel,
 		MTP_channelParticipantsSearch(MTP_string(_query)),
@@ -1266,8 +1273,10 @@ void AddSpecialBoxSearchController::requestParticipants() {
 	entry.text = _query;
 	entry.offset = _offset;
 	_participantsQueries.emplace(_requestId, entry);
+#endif
 }
 
+#if 0 // mtp
 void AddSpecialBoxSearchController::searchParticipantsDone(
 		mtpRequestId requestId,
 		const MTPchannels_ChannelParticipants &result,
@@ -1327,6 +1336,7 @@ void AddSpecialBoxSearchController::searchParticipantsDone(
 
 	delegate()->peerListSearchRefreshRows();
 }
+#endif
 
 void AddSpecialBoxSearchController::requestGlobal() {
 	if (_query.isEmpty()) {
@@ -1334,6 +1344,7 @@ void AddSpecialBoxSearchController::requestGlobal() {
 		return;
 	}
 
+#if 0 // todo
 	auto perPage = SearchPeopleLimit;
 	_requestId = _api.request(MTPcontacts_Search(
 		MTP_string(_query),
@@ -1348,8 +1359,10 @@ void AddSpecialBoxSearchController::requestGlobal() {
 		}
 	}).send();
 	_globalQueries.emplace(_requestId, _query);
+#endif
 }
 
+#if 0 // mtp
 void AddSpecialBoxSearchController::searchGlobalDone(
 		mtpRequestId requestId,
 		const MTPcontacts_Found &result) {
@@ -1387,6 +1400,7 @@ void AddSpecialBoxSearchController::searchGlobalDone(
 		delegate()->peerListSearchRefreshRows();
 	}
 }
+#endif
 
 void AddSpecialBoxSearchController::addChatMembers(
 		not_null<ChatData*> chat) {

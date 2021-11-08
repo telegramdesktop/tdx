@@ -96,7 +96,7 @@ CodeWidget::CodeWidget(
 , _callStatus(getData()->callStatus)
 , _callTimeout(getData()->callTimeout)
 , _callLabel(this, st::introDescription) {
-#if 0 // #TODO legacy
+#if 0 // mtp
 , _checkRequestTimer([=] { checkRequest(); }) {
 #endif
 	Lang::Updated(
@@ -234,7 +234,7 @@ void CodeWidget::activate() {
 void CodeWidget::finished() {
 	Step::finished();
 	account().setHandleLoginCode(nullptr);
-#if 0 // #TODO legacy
+#if 0 // mtp
 	_checkRequestTimer.cancel();
 #endif
 	_callTimer.cancel();
@@ -248,11 +248,11 @@ void CodeWidget::finished() {
 void CodeWidget::cancelled() {
 	_sentRequest = false;
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 	api().request(base::take(_sentRequest)).cancel();
 	api().request(base::take(_callRequestId)).cancel();
-#endif
-#if 0 // #TODO tdlib
+
+	// TDLib doesn't want to make this request.
 	api().request(MTPauth_CancelCode(
 		MTP_string(getData()->phone),
 		MTP_bytes(getData()->phoneHash)
@@ -260,7 +260,7 @@ void CodeWidget::cancelled() {
 #endif
 }
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 void CodeWidget::stopCheck() {
 	_checkRequestTimer.cancel();
 }
@@ -454,7 +454,7 @@ void CodeWidget::submitCode() {
 
 	hideError();
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 	_checkRequestTimer.callEach(1000);
 #endif
 
@@ -467,7 +467,7 @@ void CodeWidget::submitCode() {
 		checkCodeFail(error);
 	}).send();
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 	getData()->pwdState = Core::CloudPasswordState();
 	_sentRequest = api().request(MTPauth_SignIn(
 		MTP_flags(MTPauth_SignIn::Flag::f_phone_code),
@@ -506,7 +506,7 @@ void CodeWidget::noTelegramCode() {
 	_noTelegramCodeSent = true;
 	api().request(TLresendAuthenticationCode()).send();
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 	if (_noTelegramCodeRequestId) {
 		return;
 	}
@@ -521,7 +521,7 @@ void CodeWidget::noTelegramCode() {
 #endif
 }
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 void CodeWidget::noTelegramCodeDone(const MTPauth_SentCode &result) {
 	_noTelegramCodeRequestId = 0;
 

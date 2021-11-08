@@ -57,7 +57,7 @@ PhoneWidget::PhoneWidget(
 	this,
 	st::introPhone,
 	[](const QString &s) { return Countries::Groups(s); }) {
-#if 0 // #TODO legacy
+#if 0 // mtp
 , _checkRequestTimer([=] { checkRequest(); }) {
 #endif
 	_phone->frontBackspaceEvent(
@@ -194,7 +194,7 @@ void PhoneWidget::submit() {
 
 	hidePhoneError();
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 	_checkRequestTimer.callEach(1000);
 #endif
 
@@ -209,7 +209,7 @@ void PhoneWidget::submit() {
 	)).fail([=](const Error &error) {
 		phoneSetFail(error);
 	}).send();
-#if 0 // #TODO legacy
+#if 0 // mtp
 	api().instance().setUserPhone(_sentPhone);
 	_sentRequest = api().request(MTPauth_SendCode(
 		MTP_string(_sentPhone),
@@ -228,7 +228,7 @@ void PhoneWidget::submit() {
 #endif
 }
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 void PhoneWidget::stopCheck() {
 	_checkRequestTimer.cancel();
 }
@@ -335,7 +335,7 @@ void PhoneWidget::activate() {
 
 void PhoneWidget::finished() {
 	Step::finished();
-#if 0 // #TODO legacy
+#if 0 // mtp
 	_checkRequestTimer.cancel();
 #endif
 	apiClear();
@@ -346,7 +346,7 @@ void PhoneWidget::finished() {
 void PhoneWidget::cancelled() {
 	_sentRequest = false;
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 	api().request(base::take(_sentRequest)).cancel();
 #endif
 }

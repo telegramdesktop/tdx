@@ -353,7 +353,7 @@ void Folder::requestChatListMessage() {
 	}
 }
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 TimeId Folder::adjustedChatListTimeId() const {
 	return chatListTimeId();
 }
@@ -397,7 +397,7 @@ int Folder::fixedOnTopIndex() const {
 	return kArchiveFixOnTopIndex;
 }
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 bool Folder::shouldBeInChatList() const {
 	return !_chatsList.empty() || (_storiesCount > 0);
 }

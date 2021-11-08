@@ -52,7 +52,9 @@ public:
 	[[nodiscard]] History *find(PeerId peerId);
 	[[nodiscard]] not_null<History*> findOrCreate(PeerId peerId);
 
+#if 0 // mtp
 	void applyPeerDialogs(const MTPmessages_PeerDialogs &dialogs);
+#endif
 
 	void unloadAll();
 	void clearAll();

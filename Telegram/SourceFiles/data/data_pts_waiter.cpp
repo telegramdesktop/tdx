@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_pts_waiter.h"
 
+#if 0 // mtp
+
 #include "api/api_updates.h"
 
 PtsWaiter::PtsWaiter(not_null<Api::Updates*> owner) : _owner(owner) {
@@ -185,3 +187,5 @@ bool PtsWaiter::check(ChannelData *channel, int32 pts, int32 count) {
 	}
 	return !count;
 }
+
+#endif

@@ -450,6 +450,7 @@ void InnerWidget::applySearch(const QString &query) {
 }
 
 void InnerWidget::requestAdmins() {
+#if 0 // todo
 	const auto offset = 0;
 	const auto participantsHash = uint64(0);
 	_api.request(MTPchannels_GetParticipants(
@@ -491,6 +492,7 @@ void InnerWidget::requestAdmins() {
 			showFilter(std::move(_showFilterCallback));
 		}
 	}).send();
+#endif
 }
 
 void InnerWidget::showFilter(Fn<void(FilterValue &&filter)> callback) {
