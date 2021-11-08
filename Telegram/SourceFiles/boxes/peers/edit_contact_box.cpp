@@ -46,6 +46,7 @@ void SendRequest(
 		Fn<void()> done) {
 	const auto wasContact = user->isContact();
 	using Flag = MTPcontacts_AddContact::Flag;
+#if 0 // todo
 	user->session().api().request(MTPcontacts_AddContact(
 		MTP_flags(sharePhone
 			? Flag::f_add_phone_privacy_exception
@@ -76,6 +77,7 @@ void SendRequest(
 		}
 		done();
 	}).send();
+#endif
 }
 
 class Controller {

@@ -103,11 +103,13 @@ auto GenerateCodes() {
 			Ui::hideLayer();
 		} }));
 	});
+#if 0 // mtp
 	codes.emplace(u"getdifference"_q, [](SessionController *window) {
 		if (window) {
 			window->session().updates().getDifference();
 		}
 	});
+#endif
 	codes.emplace(u"loadcolors"_q, [](SessionController *window) {
 		FileDialog::GetOpenPath(Core::App().getFileDialogParent(), "Open palette file", "Palette (*.tdesktop-palette)", [](const FileDialog::OpenResult &result) {
 			if (!result.paths.isEmpty()) {

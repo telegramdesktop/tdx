@@ -397,6 +397,8 @@ void ChatParticipants::requestForAdd(
 	if (_forAdd.channel == channel) {
 		return;
 	}
+
+#if 0 // todo
 	_api.request(base::take(_forAdd.requestId)).cancel();
 
 	const auto offset = 0;
@@ -420,6 +422,7 @@ void ChatParticipants::requestForAdd(
 	}).fail([=] {
 		base::take(_forAdd);
 	}).send();
+#endif
 }
 
 void ChatParticipants::requestLast(not_null<ChannelData*> channel) {
@@ -429,6 +432,7 @@ void ChatParticipants::requestLast(not_null<ChannelData*> channel) {
 		return;
 	}
 
+#if 0 // todo
 	const auto offset = 0;
 	const auto participantsHash = uint64(0);
 	const auto requestId = _api.request(MTPchannels_GetParticipants(
@@ -452,6 +456,7 @@ void ChatParticipants::requestLast(not_null<ChannelData*> channel) {
 	}).send();
 
 	_participantsRequests[channel] = requestId;
+#endif
 }
 
 void ChatParticipants::requestBots(not_null<ChannelData*> channel) {
@@ -459,6 +464,7 @@ void ChatParticipants::requestBots(not_null<ChannelData*> channel) {
 		return;
 	}
 
+#if 0 // todo
 	const auto offset = 0;
 	const auto participantsHash = uint64(0);
 	const auto requestId = _api.request(MTPchannels_GetParticipants(
@@ -481,6 +487,7 @@ void ChatParticipants::requestBots(not_null<ChannelData*> channel) {
 	}).send();
 
 	_botsRequests[channel] = requestId;
+#endif
 }
 
 void ChatParticipants::requestAdmins(not_null<ChannelData*> channel) {
@@ -488,6 +495,7 @@ void ChatParticipants::requestAdmins(not_null<ChannelData*> channel) {
 		return;
 	}
 
+#if 0 // todo
 	const auto offset = 0;
 	const auto participantsHash = uint64(0);
 	const auto requestId = _api.request(MTPchannels_GetParticipants(
@@ -512,6 +520,7 @@ void ChatParticipants::requestAdmins(not_null<ChannelData*> channel) {
 	}).send();
 
 	_adminsRequests[channel] = requestId;
+#endif
 }
 
 void ChatParticipants::requestCountDelayed(
@@ -527,6 +536,7 @@ void ChatParticipants::add(
 		const std::vector<not_null<UserData*>> &users,
 		bool passGroupHistory,
 		Fn<void(bool)> done) {
+#if 0 // todo
 	if (const auto chat = peer->asChat()) {
 		for (const auto &user : users) {
 			_api.request(MTPmessages_AddChatUser(
@@ -593,6 +603,7 @@ void ChatParticipants::add(
 	} else {
 		Unexpected("User in ChatParticipants::add.");
 	}
+#endif
 }
 
 ChatParticipants::Parsed ChatParticipants::Parse(
@@ -627,6 +638,21 @@ void ChatParticipants::Restrict(
 		ChatRestrictionsInfo newRights,
 		Fn<void()> onDone,
 		Fn<void()> onFail) {
+	channel->session().sender().request(TLsetChatMemberStatus(
+		peerToTdbChat(channel->id),
+		peerToSender(participant->id),
+		ChatRestrictionsInfo::ToTL(newRights)
+	)).done([=] {
+		channel->applyEditBanned(participant, oldRights, newRights);
+		if (onDone) {
+			onDone();
+		}
+	}).fail([=] {
+		if (onFail) {
+			onFail();
+		}
+	}).send();
+#if 0 // mtp
 	channel->session().api().request(MTPchannels_EditBanned(
 		channel->inputChannel,
 		participant->input,
@@ -645,6 +671,7 @@ void ChatParticipants::Restrict(
 			onFail();
 		}
 	}).send();
+#endif
 }
 
 void ChatParticipants::requestSelf(not_null<ChannelData*> channel) {
@@ -718,6 +745,7 @@ void ChatParticipants::kick(
 		not_null<PeerData*> participant) {
 	Expects(participant->isUser());
 
+#if 0 // todo
 	_api.request(MTPmessages_DeleteChatUser(
 		MTP_flags(0),
 		chat->inputChat,
@@ -725,6 +753,7 @@ void ChatParticipants::kick(
 	)).done([=](const MTPUpdates &result) {
 		chat->session().api().applyUpdates(result);
 	}).send();
+#endif
 }
 
 void ChatParticipants::kick(
@@ -734,6 +763,7 @@ void ChatParticipants::kick(
 	const auto kick = KickRequest(channel, participant);
 	if (_kickRequests.contains(kick)) return;
 
+#if 0 // todo
 	const auto rights = ChannelData::KickedRestrictedRights(participant);
 	const auto requestId = _api.request(MTPchannels_EditBanned(
 		channel->inputChannel,
@@ -752,6 +782,7 @@ void ChatParticipants::kick(
 	}).send();
 
 	_kickRequests.emplace(kick, requestId);
+#endif
 }
 
 void ChatParticipants::unblock(
@@ -762,6 +793,7 @@ void ChatParticipants::unblock(
 		return;
 	}
 
+#if 0 // todo
 	const auto requestId = _api.request(MTPchannels_EditBanned(
 		channel->inputChannel,
 		participant->input,
@@ -780,6 +812,7 @@ void ChatParticipants::unblock(
 	}).send();
 
 	_kickRequests.emplace(kick, requestId);
+#endif
 }
 
 void ChatParticipants::loadSimilarChannels(not_null<ChannelData*> channel) {

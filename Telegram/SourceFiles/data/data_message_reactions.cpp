@@ -1443,6 +1443,7 @@ void Reactions::send(not_null<HistoryItem*> item, bool addToRecent) {
 		i = _sentRequests.emplace(id).first;
 	}
 	const auto chosen = item->chosenReactions();
+#if 0 // todo
 	using Flag = MTPmessages_SendReaction::Flag;
 	const auto flags = (chosen.empty() ? Flag(0) : Flag::f_reaction)
 		| (addToRecent ? Flag::f_add_to_recent : Flag(0));
@@ -1462,6 +1463,7 @@ void Reactions::send(not_null<HistoryItem*> item, bool addToRecent) {
 	}).fail([=](const MTP::Error &error) {
 		_sentRequests.remove(id);
 	}).send();
+#endif
 }
 
 void Reactions::poll(not_null<HistoryItem*> item, crl::time now) {
@@ -1653,6 +1655,7 @@ void Reactions::pollCollected() {
 				});
 			}
 		};
+#if 0 // todo
 		_pollRequestId = api.request(MTPmessages_GetMessagesReactions(
 			peer->input,
 			MTP_vector<MTPint>(ids)
@@ -1662,6 +1665,7 @@ void Reactions::pollCollected() {
 		}).fail([=] {
 			finalize();
 		}).send();
+#endif
 	}
 }
 

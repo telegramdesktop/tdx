@@ -98,7 +98,7 @@ Widget::Widget(
 	controller->setDefaultFloatPlayerDelegate(floatPlayerDelegate());
 
 	getData()->country = ComputeNewAccountCountry();
-#if 0 // #TODO legacy
+#if 0 // mtp
 	_account->mtpValue(
 	) | rpl::start_with_next([=](not_null<MTP::Instance*> instance) {
 		_api.emplace(instance);
@@ -136,7 +136,7 @@ Widget::Widget(
 		createLanguageLink();
 	}, lifetime());
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 	_account->mtpUpdates(
 	) | rpl::start_with_next([=](const MTPUpdates &updates) {
 		handleUpdates(updates);
@@ -239,7 +239,7 @@ void Widget::refreshLang() {
 	InvokeQueued(this, [this] { updateControlsGeometry(); });
 }
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 void Widget::handleUpdates(const MTPUpdates &updates) {
 	updates.match([&](const MTPDupdateShort &data) {
 		handleUpdate(data.vupdate());
@@ -320,7 +320,7 @@ void Widget::createLanguageLink() {
 			tl_string(Lang::CloudLangPackName()),
 			tl_vector<TLstring>(1, tl_string("lng_switch_to_this"))
 		)).done([=](const TLlanguagePackStrings &result) {
-#if 0 // #TODO tdlib lang
+#if 0 // todo lang
 			const auto strings = Lang::Instance::ParseStrings(result);
 			const auto i = strings.find(tr::lng_switch_to_this.base);
 			if (i != strings.end()) {
@@ -764,7 +764,7 @@ void Widget::getNearestDC() {
 		});
 	}).send();
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 	if (!_api) {
 		return;
 	}

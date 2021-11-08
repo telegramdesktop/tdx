@@ -430,7 +430,9 @@ void CheckoutProcess::handleFormUpdate(const FormUpdate &update) {
 		}
 	}, [&](const PaymentFinished &data) {
 		const auto weak = base::make_weak(this);
+#if 0 // todo
 		_session->api().applyUpdates(data.updates);
+#endif
 		if (weak) {
 			closeAndReactivate(CheckoutResult::Paid);
 		}

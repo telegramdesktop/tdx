@@ -296,6 +296,7 @@ void ChooseThemeController::initButtons() {
 					// Remember while changes propagate through event loop.
 					_controller->pushLastUsedChatTheme(chosen->theme);
 				}
+#if 0 // todo
 				const auto api = &_peer->session().api();
 				api->request(MTPmessages_SetChatWallPaper(
 					MTP_flags(0),
@@ -312,6 +313,7 @@ void ChooseThemeController::initButtons() {
 				)).done([=](const MTPUpdates &result) {
 					api->applyUpdates(result);
 				}).send();
+#endif
 			}
 		}
 		_controller->toggleChooseChatTheme(_peer);

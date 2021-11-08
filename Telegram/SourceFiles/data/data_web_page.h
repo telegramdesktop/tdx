@@ -113,10 +113,12 @@ struct WebPageData {
 		bool newHasLargeMedia,
 		int newPendingTill);
 
+#if 0 // mtp
 	static void ApplyChanges(
 		not_null<Main::Session*> session,
 		ChannelData *channel,
 		const MTPmessages_Messages &result);
+#endif
 
 	[[nodiscard]] QString displayedSiteName() const;
 	[[nodiscard]] bool computeDefaultSmallMedia() const;

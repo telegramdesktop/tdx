@@ -497,7 +497,7 @@ protected:
 		const QString &newName,
 		const QString &newNameOrPhone,
 		const QString &newUsername);
-#if 0 // #TODO legacy
+#if 0 // mtp
 	void updateUserpic(PhotoId photoId, MTP::DcId dcId, bool hasVideo);
 #endif
 	void clearUserpic();

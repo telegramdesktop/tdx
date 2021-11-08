@@ -72,6 +72,8 @@ public:
 	void showStartWithRtmp(
 		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer);
+
+#if 0 // mtp
 	void handleUpdate(
 		not_null<Main::Session*> session,
 		const MTPUpdate &update);
@@ -80,6 +82,7 @@ public:
 	void applyGroupCallUpdateChecked(
 		not_null<Main::Session*> session,
 		const MTPUpdate &update);
+#endif
 
 	void showInfoPanel(not_null<Call*> call);
 	void showInfoPanel(not_null<GroupCall*> call);
@@ -137,6 +140,8 @@ private:
 	bytes::const_span updateDhConfig(const MTPmessages_DhConfig &data);
 
 	void destroyCurrentCall();
+
+#if 0 // mtp
 	void handleCallUpdate(
 		not_null<Main::Session*> session,
 		const MTPPhoneCall &call);
@@ -146,6 +151,7 @@ private:
 	void handleGroupCallUpdate(
 		not_null<Main::Session*> session,
 		const MTPUpdate &update);
+#endif
 
 	const std::unique_ptr<Delegate> _delegate;
 	const std::unique_ptr<DhConfig> _cachedDhConfig;

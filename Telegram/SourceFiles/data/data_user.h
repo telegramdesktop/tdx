@@ -263,7 +263,9 @@ private:
 
 namespace Data {
 
+#if 0 // mtp
 void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update);
+#endif
 
 void ApplyUserUpdate(
 	not_null<UserData*> user,

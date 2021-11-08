@@ -492,6 +492,7 @@ void Instance::refreshServerConfig(not_null<Main::Session*> session) {
 	}).send();
 }
 
+#if 0 // mtp
 void Instance::handleUpdate(
 		not_null<Main::Session*> session,
 		const MTPUpdate &update) {
@@ -509,6 +510,7 @@ void Instance::handleUpdate(
 		Unexpected("Update type in Calls::Instance::handleUpdate.");
 	});
 }
+#endif
 
 void Instance::showInfoPanel(not_null<Call*> call) {
 	if (_currentCall.get() == call) {
@@ -559,6 +561,7 @@ bool Instance::isQuitPrevent() {
 	return true;
 }
 
+#if 0 // mtp
 void Instance::handleCallUpdate(
 		not_null<Main::Session*> session,
 		const MTPPhoneCall &call) {
@@ -663,6 +666,7 @@ void Instance::handleSignalingData(
 			).arg(data.vphone_call_id().v));
 	}
 }
+#endif
 
 bool Instance::inCall() const {
 	if (!_currentCall) {

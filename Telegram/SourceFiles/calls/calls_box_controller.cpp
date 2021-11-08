@@ -720,6 +720,7 @@ void ClearCallsBox(
 
 	const auto api = &window->session().api();
 	const auto sendRequest = [=](bool revoke, auto self) -> void {
+#if 0 // todo
 		using Flag = MTPmessages_DeletePhoneCallHistory::Flag;
 		api->request(MTPmessages_DeletePhoneCallHistory(
 			MTP_flags(revoke ? Flag::f_revoke : Flag(0))
@@ -748,6 +749,7 @@ void ClearCallsBox(
 				}
 			});
 		}).send();
+#endif
 	};
 
 	box->addButton(tr::lng_call_box_clear_button(), [=] {

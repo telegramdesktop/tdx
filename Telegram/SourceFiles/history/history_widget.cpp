@@ -3332,7 +3332,7 @@ void HistoryWidget::closeCurrent() {
 	}
 }
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 void HistoryWidget::messagesFailed(const MTP::Error &error, int requestId) {
 	if (error.type() == u"CHANNEL_PRIVATE"_q
 		&& _peer->isChannel()
@@ -3496,11 +3496,11 @@ void HistoryWidget::messagesReceived(
 #endif
 
 void HistoryWidget::messagesFailed(const Error &error, RequestId requestId) {
-	if (error.message == qstr("CHANNEL_PRIVATE") // #TODO tdlib
+	if (error.message == qstr("CHANNEL_PRIVATE") // todo
 		&& _peer->isChannel()
 		&& _peer->asChannel()->invitePeekExpires()) {
 		_peer->asChannel()->privateErrorReceived();
-	} else if (error.message == qstr("CHANNEL_PRIVATE") // #TODO tdlib
+	} else if (error.message == qstr("CHANNEL_PRIVATE") // todo
 		|| error.message == qstr("CHANNEL_PUBLIC_GROUP_NA")
 		|| error.message == qstr("USER_BANNED_IN_CHANNEL")) {
 		const auto was = _peer;
@@ -3693,7 +3693,7 @@ void HistoryWidget::firstLoadMessages() {
 		messagesFailed(error, _firstLoadRequest);
 	}).send();
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 	const auto offsetDate = 0;
 	const auto maxId = 0;
 	const auto minId = 0;
@@ -3763,7 +3763,7 @@ void HistoryWidget::loadMessages() {
 		messagesFailed(error, _preloadRequest);
 	}).send();
 
-#if 0 // #TODO legacy
+#if 0 // #mtp
 	DEBUG_LOG(("JumpToEnd(%1, %2, %3): Loading up before %4."
 		).arg(_history->peer->name()
 		).arg(_history->inboxReadTillId().bare
@@ -3843,7 +3843,7 @@ void HistoryWidget::loadMessagesDown() {
 		messagesFailed(error, _preloadDownRequest);
 	}).send();
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 	DEBUG_LOG(("JumpToEnd(%1, %2, %3): Loading down after %4."
 		).arg(_history->peer->name()
 		).arg(_history->inboxReadTillId().bare
@@ -3945,7 +3945,7 @@ void HistoryWidget::delayedShowAt(
 		messagesFailed(error, _delayedShowAtRequest);
 	}).send();
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 	const auto history = from;
 	const auto type = Data::Histories::RequestType::History;
 	auto &histories = history->owner().histories();
@@ -6611,7 +6611,7 @@ std::optional<int> HistoryWidget::unreadBarTop() const {
 	return std::nullopt;
 }
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 void HistoryWidget::addMessagesToFront(
 		not_null<PeerData*> peer,
 		const QVector<MTPMessage> &messages) {

@@ -151,12 +151,14 @@ public:
 	[[nodiscard]] Tdb::Account &tdb() const;
 	[[nodiscard]] Tdb::Sender &sender() const;
 
+#if 0 // mtp
 	void applyUpdates(
 		const MTPUpdates &updates,
 		uint64 sentMessageRandomId = 0) const;
 	int applyAffectedHistory(
 		PeerData *peer, // May be nullptr, like for deletePhoneCallHistory.
 		const MTPmessages_AffectedHistory &result) const;
+#endif
 
 	void registerModifyRequest(const QString &key, mtpRequestId requestId);
 	void clearModifyRequest(const QString &key);
@@ -179,7 +181,7 @@ public:
 
 	void requestContacts();
 	void requestDialogs(Data::Folder *folder = nullptr);
-#if 0 // #TODO legacy
+#if 0 // mtp
 	void requestPinnedDialogs(Data::Folder *folder = nullptr);
 #endif
 	void requestMoreBlockedByDateDialogs();
@@ -225,9 +227,11 @@ public:
 		FnMut<void(const MTPchatlists_ChatlistInvite &)> done,
 		Fn<void(const MTP::Error &)> fail);
 
+#if 0 // mtp
 	void processFullPeer(
 		not_null<PeerData*> peer,
 		const MTPmessages_ChatFull &result);
+#endif
 
 	void migrateChat(
 		not_null<ChatData*> chat,
@@ -321,9 +325,12 @@ public:
 		not_null<UserData*> user,
 		const SendAction &action,
 		Fn<void(bool)> done = nullptr);
+
+#if 0 // mtp
 	void applyAffectedMessages(
 		not_null<PeerData*> peer,
 		const MTPmessages_AffectedMessages &result);
+#endif
 
 	void sendVoiceMessage(
 		QByteArray result,
@@ -394,8 +401,10 @@ public:
 
 	void saveSelfBio(const QString &text);
 
+#if 0 // mtp
 	void registerStatsRequest(MTP::DcId dcId, mtpRequestId id);
 	void unregisterStatsRequest(MTP::DcId dcId, mtpRequestId id);
+#endif
 
 	[[nodiscard]] Api::Authorizations &authorizations();
 	[[nodiscard]] Api::AttachedStickers &attachedStickers();
@@ -467,6 +476,7 @@ private:
 		ChannelData *channel,
 		bool onlyExisting = false);
 
+#if 0 // mtp
 	void gotChatFull(
 		not_null<PeerData*> peer,
 		const MTPmessages_ChatFull &result);
@@ -479,6 +489,8 @@ private:
 		const MTPmessages_Messages &result,
 		mtpRequestId req);
 	void gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result);
+#endif
+	void resolveWebPages();
 
 	void requestStickers(TimeId now);
 	void requestMasks(TimeId now);
@@ -522,8 +534,11 @@ private:
 		not_null<PeerData*> peer,
 		bool justClear,
 		bool revoke);
+
+#if 0 // mtp
 	void applyAffectedMessages(
 		const MTPmessages_AffectedMessages &result) const;
+#endif
 
 	void deleteAllFromParticipantSend(
 		not_null<ChannelData*> channel,
@@ -573,7 +588,9 @@ private:
 		not_null<ChannelData*> channel);
 	void migrateFail(not_null<PeerData*> peer, const QString &error);
 
+#if 0 // mtp
 	void checkStatsSessions();
+#endif
 
 	const not_null<Main::Session*> _session;
 
@@ -646,7 +663,7 @@ private:
 	base::flat_map<QString, StickersByEmoji> _stickersByEmoji;
 
 	mtpRequestId _contactsRequestId = 0;
-#if 0 // #TODO legacy
+#if 0 // mtp
 	mtpRequestId _contactsStatusesRequestId = 0;
 #endif
 
@@ -724,8 +741,10 @@ private:
 		QString requestedText;
 	} _bio;
 
+#if 0 // mtp
 	base::flat_map<MTP::DcId, base::flat_set<mtpRequestId>> _statsRequests;
 	base::Timer _statsSessionKillTimer;
+#endif
 
 	const std::unique_ptr<Api::Authorizations> _authorizations;
 	const std::unique_ptr<Api::AttachedStickers> _attachedStickers;

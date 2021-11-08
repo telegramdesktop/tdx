@@ -91,7 +91,9 @@ private:
 	void injectRootDivider(
 		not_null<HistoryItem*> root,
 		not_null<MessagesSlice*> slice);
+#if 0 // mtp
 	bool processMessagesIsEmpty(const MTPmessages_Messages &result);
+#endif
 	void loadAround(MsgId id);
 	void loadBefore();
 	void loadAfter();

@@ -915,6 +915,7 @@ void SessionNavigation::joinVoiceChatFromLink(
 	const auto bad = crl::guard(this, [=] {
 		uiShow()->showToast(tr::lng_group_invite_bad_link(tr::now));
 	});
+#if 0 // todo
 	const auto hash = *info.voicechatHash;
 	_api.request(base::take(_resolveRequestId)).cancel();
 	_resolveRequestId = _api.request(
@@ -950,6 +951,7 @@ void SessionNavigation::joinVoiceChatFromLink(
 			}
 		}).fail(bad).send();
 	}).send();
+#endif
 }
 
 void SessionNavigation::showRepliesForMessage(
@@ -984,6 +986,7 @@ void SessionNavigation::showRepliesForMessage(
 	const auto postPeer = history->peer;
 	_showingRepliesHistory = history;
 	_showingRepliesRootId = rootId;
+#if 0 // todo
 	_showingRepliesRequestId = _api.request(
 		MTPmessages_GetDiscussionMessage(
 			history->peer->input,
@@ -1053,6 +1056,7 @@ void SessionNavigation::showRepliesForMessage(
 			showToast(tr::lng_group_not_accessible(tr::now));
 		}
 	}).send();
+#endif
 }
 
 void SessionNavigation::showPeerInfo(
