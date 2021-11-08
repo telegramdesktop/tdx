@@ -243,7 +243,7 @@ void Step::finish(const TLuser &self, QImage photo) {
 	});
 	createSession(self, photo, {});
 
-#if 0 // #TODO tdlib
+#if 0 // todo
 	api().request(MTPmessages_GetDialogFilters(
 	)).done([=](const MTPmessages_DialogFilters &result) {
 		createSession(user, photo, result.data().vfilters().v);
@@ -253,7 +253,7 @@ void Step::finish(const TLuser &self, QImage photo) {
 #endif
 }
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 void Step::createSession(
 		const MTPUser &user,
 		QImage photo,
@@ -320,7 +320,7 @@ void Step::createSession(
 	// "this" is already deleted here by creating the main widget.
 	account->local().writeMtpData();
 	auto &session = account->session();
-	//session.data().chatsFilters().setPreloaded(filters); // #TODO tdlib
+	//session.data().chatsFilters().setPreloaded(filters); // todo
 	if (!filters.isEmpty()) {
 		session.saveSettingsDelayed();
 	}
@@ -436,7 +436,7 @@ bool Step::paintAnimated(QPainter &p, QRect clip) {
 	return true;
 }
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 void Step::fillSentCodeData(const MTPDauth_sentCode &data) {
 	const auto bad = [](const char *type) {
 		LOG(("API Error: Should not be '%1'.").arg(type));
@@ -623,7 +623,7 @@ void Step::handleAuthorizationState(const TLauthorizationState &state) {
 	}, [&](const TLDauthorizationStateWaitPassword &data) {
 		getData()->pwdState.hasRecovery = data.vhas_recovery_email_address().v;
 		getData()->pwdState.hint = data.vpassword_hint().v;
-		//getData()->pwdState.notEmptyPassport = data.is_has_secure_values(); // #TODO tdlib
+		//getData()->pwdState.notEmptyPassport = data.is_has_secure_values(); // todo
 		go(StepType::Password);
 	}, [&](const TLDauthorizationStateReady &data) {
 		finish();

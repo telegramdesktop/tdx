@@ -38,6 +38,7 @@ public:
 	[[nodiscard]] Main::Session &session() const;
 	[[nodiscard]] ApiWrap &api() const;
 
+#if 0 // mtp
 	void applyUpdates(
 		const MTPUpdates &updates,
 		uint64 sentMessageRandomId = 0);
@@ -45,6 +46,7 @@ public:
 	void applyUpdateNoPtsCheck(const MTPUpdate &update);
 
 	[[nodiscard]] int32 pts() const;
+#endif
 
 	void updateOnline(crl::time lastNonIdleTime = 0);
 	[[nodiscard]] bool isIdle() const;
@@ -54,6 +56,7 @@ public:
 	crl::time lastSetOnline() const;
 	bool isQuitPrevent();
 
+#if 0 // mtp
 	bool updateAndApply(int32 pts, int32 ptsCount, const MTPUpdates &updates);
 	bool updateAndApply(int32 pts, int32 ptsCount, const MTPUpdate &update);
 	bool updateAndApply(int32 pts, int32 ptsCount);
@@ -65,11 +68,13 @@ public:
 
 	void getDifference();
 	void requestChannelRangeDifference(not_null<History*> history);
+#endif
 
 	void addActiveChat(rpl::producer<PeerData*> chat);
 	[[nodiscard]] bool inActiveChats(not_null<PeerData*> peer) const;
 
 private:
+#if 0 // mtp
 	enum class ChannelDifferenceRequest {
 		Unknown,
 		PtsGapOrShortPoll,
@@ -81,6 +86,7 @@ private:
 		SkipMessageIds,
 		SkipExceptGroupCallParticipants,
 	};
+#endif
 
 	struct ActiveChatTracker {
 		PeerData *peer = nullptr;
@@ -89,6 +95,7 @@ private:
 
 	void applyUpdate(const Tdb::TLupdate &update);
 
+#if 0 // mtp
 	void channelRangeDifferenceSend(
 		not_null<ChannelData*> channel,
 		MsgRange range,
@@ -97,8 +104,11 @@ private:
 		not_null<ChannelData*> channel,
 		MsgRange range,
 		const MTPupdates_ChannelDifference &result);
+#endif
 
 	void updateOnline(crl::time lastNonIdleTime, bool gotOtherOffline);
+
+#if 0 // mtp
 	void sendPing();
 	void getDifferenceByPts();
 	void getDifferenceAfterFail();
@@ -127,10 +137,8 @@ private:
 	void failDifferenceStartTimerFor(ChannelData *channel);
 	void feedChannelDifference(const MTPDupdates_channelDifference &data);
 
-#if 0 // #TODO legacy
 	void mtpUpdateReceived(const MTPUpdates &updates);
 	void mtpNewSessionCreated();
-#endif
 
 	void feedUpdateVector(
 		const MTPVector<MTPUpdate> &updates,
@@ -156,6 +164,8 @@ private:
 	void handleEmojiInteraction(
 		not_null<PeerData*> peer,
 		const MTPDsendMessageEmojiInteraction &data);
+#endif
+
 	void handleSpeakingInCall(
 		not_null<PeerData*> peer,
 		PeerId participantPeerId,
@@ -171,6 +181,7 @@ private:
 
 	const not_null<Main::Session*> _session;
 
+#if 0 // mtp
 	int32 _updatesDate = 0;
 	int32 _updatesQts = -1;
 	int32 _updatesSeq = 0;
@@ -205,6 +216,9 @@ private:
 
 	crl::time _lastUpdateTime = 0;
 	bool _handlingChannelDifference = false;
+#endif
+
+	base::Timer _onlineTimer;
 
 	base::flat_map<int, ActiveChatTracker> _activeChats;
 	base::flat_map<

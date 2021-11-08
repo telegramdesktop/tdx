@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#if 0 // mtp
+
 namespace Api {
 class Updates;
 } // namespace Api
@@ -102,3 +104,5 @@ private:
 	uint32 _skippedKey = 0;
 
 };
+
+#endif

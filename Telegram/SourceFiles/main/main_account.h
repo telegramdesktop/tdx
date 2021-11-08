@@ -55,7 +55,7 @@ public:
 	void start(std::unique_ptr<MTP::Config> config);
 
 	[[nodiscard]] uint64 willHaveSessionUniqueId(MTP::Config *config) const;
-#if 0 // #TODO legacy
+#if 0 // mtp
 	void createSession(
 		const MTPUser &user,
 		std::unique_ptr<SessionSettings> settings = nullptr);
@@ -127,10 +127,10 @@ public:
 	[[nodiscard]] QByteArray serializeMtpAuthorization() const;
 	void setMtpAuthorization(const QByteArray &serialized);
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 	void suggestMainDcId(MTP::DcId mainDcId);
 #endif
-#if 0 // #TODO tdlib
+#if 0 // todo
 	void destroyStaleAuthorizationKeys();
 #endif
 
@@ -149,7 +149,7 @@ private:
 	};
 
 	void startMtp(std::unique_ptr<MTP::Config> config);
-#if 0 // #TODO legacy
+#if 0 // mtp
 	void createSession(
 		const MTPUser &user,
 		QByteArray serialized,

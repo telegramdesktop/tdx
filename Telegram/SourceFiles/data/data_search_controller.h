@@ -36,6 +36,7 @@ using HistoryResult = SearchResult;
 using HistoryRequest = MTPmessages_GetHistory;
 using HistoryRequestResult = MTPmessages_Messages;
 
+#if 0 // mtp
 [[nodiscard]] std::optional<SearchRequest> PrepareSearchRequest(
 	not_null<PeerData*> peer,
 	MsgId topicRootId,
@@ -50,6 +51,7 @@ using HistoryRequestResult = MTPmessages_Messages;
 	MsgId messageId,
 	Data::LoadDirection direction,
 	const SearchRequestResult &data);
+#endif
 
 [[nodiscard]] HistoryRequest PrepareHistoryRequest(
 	not_null<PeerData*> peer,

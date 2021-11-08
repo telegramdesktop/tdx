@@ -39,7 +39,7 @@ StartWidget::StartWidget(
 }
 
 void StartWidget::submit() {
-#if 0 // #TODO legacy
+#if 0 // mtp
 	account().destroyStaleAuthorizationKeys();
 	goNext<QrWidget>();
 #endif

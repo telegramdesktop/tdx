@@ -965,6 +965,7 @@ void SaveAllowedReactions(
 		Data::ReactionToMTP
 	) | ranges::to<QVector<MTPReaction>>;
 
+#if 0 // todo
 	using Flag = MTPmessages_SetChatAvailableReactions::Flag;
 	using Type = Data::AllowedReactionsType;
 	const auto updated = (allowed.type != Type::Some)
@@ -1001,4 +1002,5 @@ void SaveAllowedReactions(
 			peer->owner().reactions().refreshDefault();
 		}
 	}).send();
+#endif
 }

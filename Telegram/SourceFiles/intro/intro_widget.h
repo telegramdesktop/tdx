@@ -49,7 +49,7 @@ struct Data {
 
 	QString country;
 	QString phone;
-#if 0 // #TODO legacy
+#if 0 // mtp
 	QByteArray phoneHash;
 #endif
 
@@ -120,7 +120,7 @@ private:
 	void createLanguageLink();
 	void checkUpdateStatus();
 	void setupNextButton();
-#if 0 // #TODO legacy
+#if 0 // mtp
 	void handleUpdates(const MTPUpdates &updates);
 	void handleUpdate(const MTPUpdate &update);
 #endif

@@ -96,6 +96,7 @@ mtpRequestId EditMessage(
 		? MTPmessages_EditMessage::Flag::f_quick_reply_shortcut_id
 		: emptyFlag);
 
+#if 0 // todo
 	const auto id = item->isScheduled()
 		? session->scheduledMessages().lookupId(item)
 		: item->isBusinessShortcut()
@@ -141,6 +142,8 @@ mtpRequestId EditMessage(
 			t_bad_callback(fail);
 		}
 	}).send();
+#endif
+	return 0;
 }
 
 template <typename DoneCallback, typename FailCallback>

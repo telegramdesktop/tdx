@@ -52,6 +52,7 @@ void RemoveAdmin(
 		ChatAdminRightsInfo oldRights,
 		Fn<void()> onDone,
 		Fn<void()> onFail) {
+#if 0 // todo
 	const auto newRights = MTP_chatAdminRights(MTP_flags(0));
 	channel->session().api().request(MTPchannels_EditAdmin(
 		channel->inputChannel,
@@ -69,6 +70,7 @@ void RemoveAdmin(
 			onFail();
 		}
 	}).send();
+#endif
 }
 
 void AddChatParticipant(
@@ -77,6 +79,7 @@ void AddChatParticipant(
 		not_null<UserData*> user,
 		Fn<void()> onDone,
 		Fn<void()> onFail) {
+#if 0 // todo
 	chat->session().api().request(MTPmessages_AddChatUser(
 		chat->inputChat,
 		user->inputUser,
@@ -97,6 +100,7 @@ void AddChatParticipant(
 			onFail();
 		}
 	}).send();
+#endif
 }
 
 void SaveChatAdmin(
@@ -107,6 +111,7 @@ void SaveChatAdmin(
 		Fn<void()> onDone,
 		Fn<void()> onFail,
 		bool retryOnNotParticipant = true) {
+#if 0 // todo
 	chat->session().api().request(MTPmessages_EditChatAdmin(
 		chat->inputChat,
 		user->inputUser,
@@ -135,6 +140,7 @@ void SaveChatAdmin(
 			onFail();
 		}
 	}).send();
+#endif
 }
 
 void SaveChannelAdmin(
@@ -146,6 +152,7 @@ void SaveChannelAdmin(
 		const QString &rank,
 		Fn<void()> onDone,
 		Fn<void()> onFail) {
+#if 0 // todo
 	channel->session().api().request(MTPchannels_EditAdmin(
 		channel->inputChannel,
 		user->inputUser,
@@ -164,6 +171,7 @@ void SaveChannelAdmin(
 			onFail();
 		}
 	}).send();
+#endif
 }
 
 void SaveChatParticipantKick(
@@ -171,6 +179,7 @@ void SaveChatParticipantKick(
 		not_null<UserData*> user,
 		Fn<void()> onDone,
 		Fn<void()> onFail) {
+#if 0 // todo
 	chat->session().api().request(MTPmessages_DeleteChatUser(
 		MTP_flags(0),
 		chat->inputChat,
@@ -185,6 +194,7 @@ void SaveChatParticipantKick(
 			onFail();
 		}
 	}).send();
+#endif
 }
 
 } // namespace
@@ -1481,6 +1491,7 @@ void ParticipantsBoxController::loadMoreRows() {
 		: kParticipantsFirstPageCount;
 	const auto participantsHash = uint64(0);
 
+#if 0 // todo
 	_loadRequestId = _api.request(MTPchannels_GetParticipants(
 		channel->inputChannel,
 		filter,
@@ -1537,6 +1548,7 @@ void ParticipantsBoxController::loadMoreRows() {
 	}).fail([this] {
 		_loadRequestId = 0;
 	}).send();
+#endif
 }
 
 void ParticipantsBoxController::refreshDescription() {
@@ -2157,6 +2169,7 @@ void ParticipantsBoxController::migrate(
 
 void ParticipantsBoxController::subscribeToCreatorChange(
 		not_null<ChannelData*> channel) {
+#if 0 // todo
 	const auto isCreator = channel->amCreator();
 	channel->flagsValue(
 	) | rpl::filter([](const ChannelData::Flags::Change &change) {
@@ -2194,6 +2207,7 @@ void ParticipantsBoxController::subscribeToCreatorChange(
 			}
 		}).send();
 	}, lifetime());
+#endif
 }
 
 void ParticipantsBoxController::fullListRefresh() {
@@ -2295,6 +2309,7 @@ bool ParticipantsBoxSearchController::loadMoreRows() {
 	if (_allLoaded || isLoading()) {
 		return true;
 	}
+#if 0 // todo
 	auto filter = [&] {
 		switch (_role) {
 		case Role::Admins: // Search for members, appoint as admin on found.
@@ -2337,6 +2352,7 @@ bool ParticipantsBoxSearchController::loadMoreRows() {
 	entry.text = _query;
 	entry.offset = _offset;
 	_queries.emplace(_requestId, entry);
+#endif
 	return true;
 }
 
@@ -2344,6 +2360,7 @@ void ParticipantsBoxSearchController::searchDone(
 		mtpRequestId requestId,
 		const MTPchannels_ChannelParticipants &result,
 		int requestedCount) {
+#if 0 // todo
 	auto query = _query;
 	if (requestId) {
 		const auto addToCache = [&](auto&&...) {
@@ -2396,4 +2413,5 @@ void ParticipantsBoxSearchController::searchDone(
 	});
 
 	delegate()->peerListSearchRefreshRows();
+#endif
 }

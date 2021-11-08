@@ -88,11 +88,13 @@ std::unique_ptr<Data::Forum> MegagroupInfo::takeForumData() {
 ChannelData::ChannelData(not_null<Data::Session*> owner, PeerId id)
 : PeerData(owner, id)
 , inputChannel(
-	MTP_inputChannel(MTP_long(peerToChannel(id).bare), MTP_long(0)))
+	MTP_inputChannel(MTP_long(peerToChannel(id).bare), MTP_long(0))) {
+#if 0 // mtp
 , _ptsWaiter(&owner->session().updates()) {
+#endif
 }
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 void ChannelData::setPhoto(const MTPChatPhoto &photo) {
 	photo.match([&](const MTPDchatPhoto & data) {
 		updateUserpic(
@@ -1067,6 +1069,7 @@ void ApplyMigration(
 	channel->setMigrateFromChat(chat);
 }
 
+#if 0 // mtp
 void ApplyChannelUpdate(
 		not_null<ChannelData*> channel,
 		const MTPDupdateChatDefaultBannedRights &update) {
@@ -1294,13 +1297,14 @@ void ApplyChannelUpdate(
 	// For clearUpTill() call.
 	channel->owner().sendHistoryChangeNotifications();
 }
+#endif
 
 void ApplyChannelUpdate(
 		not_null<ChannelData*> channel,
 		const TLDsupergroupFullInfo &update) {
 	const auto session = &channel->session();
 
-	//if (channel->isMegagroup()) { // #TODO tdlib
+	//if (channel->isMegagroup()) { // todo
 	//	const auto suggestions = update.vpending_suggestions().value_or_empty();
 	//	channel->owner().setSuggestToGigagroup(
 	//		channel,
@@ -1328,7 +1332,7 @@ void ApplyChannelUpdate(
 
 	//channel->setMessagesTTL(update.vttl_period().value_or_empty());
 
-	// #TODO tdlib
+	// todo
 	//update.vcan_get_members();
 	//update.vcan_get_statistics();
 	//update.vcan_set_location();
@@ -1355,12 +1359,12 @@ void ApplyChannelUpdate(
 
 	channel->setSlowmodeSeconds(update.vslow_mode_delay().v);
 	if (const auto in = update.vslow_mode_delay_expires_in().v; in > 0.) {
-		// #TODO tdlib better slowmode management
+		// todo better slowmode management
 		channel->growSlowmodeLastMessage(
 			base::unixtime::now() + int(std::round(in * 1000)) - channel->slowmodeSeconds());
 	}
 
-	// #TODO tdlib
+	// todo
 	//if (const auto invite = update.vinvite_link()) {
 	//	channel->session().api().inviteLinks().setMyPermanent(
 	//		channel,
@@ -1408,12 +1412,12 @@ void ApplyChannelUpdate(
 	//	SetTopPinnedMessageId(channel, pinned->v);
 	//}
 	if (channel->isMegagroup()) {
-		//update.vbot_commands(); // #TODO tdlib
+		//update.vbot_commands(); // todo
 		//if (channel->mgInfo->updateBotCommands(update.vbot_info())) {
 		//	channel->owner().botCommandsChanged(channel);
 		//}
 
-		//update.vsticker_set_id();// #TODO tdlib
+		//update.vsticker_set_id();// todo
 		//const auto stickerSet = update.vstickerset();
 		//const auto set = stickerSet ? &stickerSet->c_stickerSet() : nullptr;
 		//const auto newSetId = (set ? set->vid().v : 0);

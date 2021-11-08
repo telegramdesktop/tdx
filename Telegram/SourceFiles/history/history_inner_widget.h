@@ -111,7 +111,7 @@ public:
 
 	Ui::ChatPaintContext preparePaintContext(const QRect &clip) const;
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 	void messagesReceived(
 		not_null<PeerData*> peer,
 		const QVector<MTPMessage> &messages);

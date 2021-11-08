@@ -66,6 +66,7 @@ Args TTLValidator::createArgs() const {
 	auto callback = [=](
 			TimeId period,
 			Fn<void()>) {
+#if 0 // todo
 		auto &api = peer->session().api();
 		if (state->savingRequestId) {
 			if (period == state->savingPeriod) {
@@ -84,6 +85,7 @@ Args TTLValidator::createArgs() const {
 		}).fail([=] {
 			state->savingRequestId = 0;
 		}).send();
+#endif
 		show->hideLayer();
 	};
 	auto about1 = peer->isUser()

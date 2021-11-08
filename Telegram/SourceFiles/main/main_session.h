@@ -87,7 +87,7 @@ class SendAsPeers;
 
 class Session final : public base::has_weak_ptr {
 public:
-#if 0 // #TODO legacy
+#if 0 // mtp
 	Session(
 		not_null<Account*> account,
 		const MTPUser &user,

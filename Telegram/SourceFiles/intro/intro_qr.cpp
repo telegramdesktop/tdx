@@ -179,7 +179,7 @@ QrWidget::QrWidget(
 	not_null<Main::Account*> account,
 	not_null<Data*> data)
 : Step(parent, account, data) {
-#if 0 // #TODO legacy
+#if 0 // mtp
 , _refreshTimer([=] { refreshCode(); }) {
 #endif
 	setTitleText(rpl::single(QString()));
@@ -188,7 +188,7 @@ QrWidget::QrWidget(
 
 	cancelNearestDcRequest();
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 	account->mtpUpdates(
 	) | rpl::start_with_next([=](const MTPUpdates &updates) {
 		checkForTokenUpdate(updates);
@@ -196,7 +196,7 @@ QrWidget::QrWidget(
 #endif
 
 	setupControls();
-#if 0 // #TODO legacy
+#if 0 // mtp
 	account->mtp().mainDcIdValue(
 	) | rpl::start_with_next([=] {
 		api().request(base::take(_requestId)).cancel();
@@ -211,7 +211,7 @@ int QrWidget::errorTop() const {
 	return contentTop() + st::introQrErrorTop;
 }
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 void QrWidget::checkForTokenUpdate(const MTPUpdates &updates) {
 	updates.match([&](const MTPDupdateShort &data) {
 		checkForTokenUpdate(data.vupdate());
@@ -357,7 +357,7 @@ void QrWidget::requestCode() {
 	}).send();
 }
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 void QrWidget::handleTokenResult(const MTPauth_LoginToken &result) {
 	result.match([&](const MTPDauth_loginToken &data) {
 		_requestId = 0;
@@ -381,7 +381,7 @@ void QrWidget::showTokenError(const Error &error) {
 	showError(rpl::single(error.message));
 }
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 void QrWidget::showToken(const QByteArray &token) {
 	const auto encoded = token.toBase64(QByteArray::Base64UrlEncoding);
 	_qrCodes.fire_copy("tg://login?token=" + encoded);

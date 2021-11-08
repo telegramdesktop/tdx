@@ -40,18 +40,18 @@ private:
 
 	void sendCheckPasswordRequest();
 	void setupControls();
-#if 0 // #TODO legacy
+#if 0 // mtp
 	void refreshCode();
 	void checkForTokenUpdate(const MTPUpdates &updates);
 	void checkForTokenUpdate(const MTPUpdate &update);
 	void handleTokenResult(const MTPauth_LoginToken &result);
 #endif
 	void showTokenError(const Tdb::Error &error);
-#if 0 // #TODO legacy
+#if 0 // mtp
 	void importTo(MTP::DcId dcId, const QByteArray &token);
 #endif
 	void showToken(const QByteArray &token);
-#if 0 // #TODO legacy
+#if 0 // mtp
 	void done(const MTPauth_Authorization &authorization);
 #endif
 
@@ -60,7 +60,7 @@ private:
 	void requestCode();
 
 	rpl::event_stream<QString> _qrLinks;
-#if 0 // #TODO legacy
+#if 0 // mtp
 	base::Timer _refreshTimer;
 	Tdb::RequestId _requestId = 0;
 	bool _forceRefresh = false;
