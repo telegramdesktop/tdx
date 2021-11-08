@@ -529,6 +529,9 @@ private:
 		not_null<HistoryItem*> item,
 		int blockIndex,
 		int itemIndex);
+	not_null<HistoryItem*> insertNewItem(
+		not_null<HistoryItem*> item,
+		bool unread);
 
 	// All this methods add a new item to the first or last block
 	// depending on if we are in isBuildingFronBlock() state.
