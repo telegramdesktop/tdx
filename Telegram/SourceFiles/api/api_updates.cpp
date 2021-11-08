@@ -2764,6 +2764,15 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateActiveNotifications &data) {
 	}, [&](const TLDupdateHavePendingNotifications &data) {
 	}, [&](const TLDupdateDeleteMessages &data) {
+		const auto peerId = peerFromTdbChat(data.vchat_id());
+		if (const auto history = owner.historyLoaded(peerId)) {
+			for (const auto &id : data.vmessage_ids().v) {
+				if (const auto item = owner.message(peerId, id.v)) {
+					item->destroy();
+				}
+			}
+			owner.notifyHistoryChangeDelayed(history);
+		}
 	}, [&](const TLDupdateUserChatAction &data) {
 	}, [&](const TLDupdateUserStatus &data) {
 		if (const auto user = owner.userLoaded(UserId(data.vuser_id()))) {
@@ -2847,6 +2856,7 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateAnimationSearchParameters &data) {
 	}, [&](const TLDupdateSuggestedActions &data) {
 	});
+	session().data().sendHistoryChangeNotifications();
 }
 
 } // namespace Api
