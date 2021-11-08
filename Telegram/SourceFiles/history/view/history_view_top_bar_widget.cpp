@@ -253,6 +253,7 @@ Main::Session &TopBarWidget::session() const {
 }
 
 void TopBarWidget::updateConnectingState() {
+#if 0 // todo
 	const auto state = _controller->session().mtp().dcstate();
 	const auto exposed = window()->windowHandle()->isExposed();
 	if (state == MTP::ConnectedState || !exposed) {
@@ -267,6 +268,7 @@ void TopBarWidget::updateConnectingState() {
 		_connecting->start();
 		update();
 	}
+#endif
 }
 
 void TopBarWidget::connectingAnimationCallback() {
