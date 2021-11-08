@@ -714,7 +714,7 @@ void Histories::deleteAllMessages(
 		MsgId deleteTillId,
 		bool justClear,
 		bool revoke) {
-#if 0 // todo
+#if 0 // mtp
 	sendRequest(history, RequestType::Delete, [=](Fn<void()> finish) {
 		const auto peer = history->peer;
 		const auto chat = peer->asChat();
@@ -786,6 +786,27 @@ void Histories::deleteAllMessages(
 		}
 	});
 #endif
+
+	const auto peer = history->peer;
+	const auto chat = peer->asChat();
+	const auto channel = peer->asChannel();
+	if (!justClear
+		&& revoke
+		&& ((chat && chat->amCreator())
+			|| (channel && channel->canDelete()))) {
+		session().sender().request(TLdeleteChat(
+			peerToTdbChat(peer->id)
+		)).fail([=](const Error &error) {
+			//if (error.type() == qstr("CHANNEL_TOO_LARGE")) { // todo
+			//if (error.type() == qstr("PEER_ID_INVALID")) { // todo
+		}).send();
+	} else {
+		session().sender().request(TLdeleteChatHistory(
+			peerToTdbChat(peer->id),
+			tl_bool(!justClear),
+			tl_bool(revoke)
+		)).send();
+	}
 }
 
 void Histories::deleteMessagesByDates(
@@ -838,7 +859,7 @@ void Histories::deleteMessagesByDates(
 }
 
 void Histories::deleteMessages(const MessageIdsList &ids, bool revoke) {
-#if 0 // todo
+#if 0 // mtp
 	auto remove = std::vector<not_null<HistoryItem*>>();
 	remove.reserve(ids.size());
 	base::flat_map<not_null<History*>, QVector<MTPint>> idsByPeer;
