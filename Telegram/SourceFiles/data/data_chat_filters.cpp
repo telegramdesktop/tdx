@@ -795,6 +795,7 @@ bool ChatFilters::loadNextExceptions(bool chatsListLoaded) {
 			< kLoadExceptionsAfter)) {
 		return false;
 	}
+#if 0 // todo
 	auto inputs = QVector<MTPInputDialogPeer>();
 	const auto collectExceptions = [&](FilterId id) {
 		auto result = QVector<MTPInputDialogPeer>();
@@ -834,6 +835,7 @@ bool ChatFilters::loadNextExceptions(bool chatsListLoaded) {
 		_exceptionsLoadRequestId = 0;
 		_owner->session().api().requestMoreDialogsIfNeeded();
 	}).send();
+#endif
 	return true;
 }
 

@@ -621,6 +621,7 @@ void EditAdminBox::sendTransferRequestFrom(
 	if (_transferRequestId) {
 		return;
 	}
+#if 0 // todo
 	const auto weak = Ui::MakeWeak(this);
 	const auto user = this->user();
 	const auto api = &channel->session().api();
@@ -681,6 +682,7 @@ void EditAdminBox::sendTransferRequestFrom(
 			closeBox();
 		}
 	})).handleFloodErrors().send();
+#endif
 }
 
 void EditAdminBox::refreshAboutAddAdminsText(bool canAddAdmins) {

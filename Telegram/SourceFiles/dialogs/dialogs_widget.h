@@ -154,6 +154,8 @@ private:
 	void needSearchMessages();
 
 	void slideFinished();
+
+#if 0 // mtp
 	void searchReceived(
 		SearchRequestType type,
 		const MTPmessages_Messages &result,
@@ -161,6 +163,8 @@ private:
 	void peerSearchReceived(
 		const MTPcontacts_Found &result,
 		mtpRequestId requestId);
+#endif
+
 	void escape();
 	void submit();
 	void cancelSearchRequest();
@@ -227,11 +231,13 @@ private:
 	void refreshLoadMoreButton(bool mayBlock, bool isBlocked);
 	void loadMoreBlockedByDate();
 
+#if 0 // mtp
 	void searchFailed(
 		SearchRequestType type,
 		const MTP::Error &error,
 		mtpRequestId requestId);
 	void peopleFailed(const MTP::Error &error, mtpRequestId requestId);
+#endif
 
 	void scrollToDefault(bool verytop = false);
 	void scrollToDefaultChecked(bool verytop = false);

@@ -1430,11 +1430,13 @@ void PeerMenuDeleteContact(
 		user->name());
 	const auto deleteSure = [=](Fn<void()> &&close) {
 		close();
+#if 0 // todo
 		user->session().api().request(MTPcontacts_DeleteContacts(
 			MTP_vector<MTPInputUser>(1, user->inputUser)
 		)).done([=](const MTPUpdates &result) {
 			user->session().api().applyUpdates(result);
 		}).send();
+#endif
 	};
 	controller->show(
 		Ui::MakeConfirmBox({
@@ -1677,6 +1679,7 @@ void PeerMenuBlockUserBox(
 
 		box->closeBox();
 
+#if 0 // todo
 		if (const auto clearReply = std::get_if<ClearReply>(&suggestClear)) {
 			using Flag = MTPcontacts_BlockFromReplies::Flag;
 			peer->session().api().request(MTPcontacts_BlockFromReplies(
@@ -1701,6 +1704,7 @@ void PeerMenuBlockUserBox(
 				window->sessionController()->showBackFromStack();
 			}
 		}
+#endif
 
 		window->showToast(
 			tr::lng_new_contact_block_done(tr::now, lt_user, name));
@@ -2252,6 +2256,7 @@ QPointer<Ui::BoxContent> ShowSendNowMessagesBox(
 		callback = std::move(successCallback)
 	](Fn<void()> &&close) {
 		close();
+#if 0 // todo
 		auto ids = QVector<MTPint>();
 		for (const auto item : session->data().idsToItems(list)) {
 			if (item->allowsSendNow()) {
@@ -2267,6 +2272,7 @@ QPointer<Ui::BoxContent> ShowSendNowMessagesBox(
 		}).fail([=](const MTP::Error &error) {
 			session->api().sendMessageFail(error, history->peer);
 		}).send();
+#endif
 		if (callback) {
 			callback();
 		}
@@ -2287,6 +2293,7 @@ void PeerMenuAddChannelMembers(
 		navigation->parentController()->show(Box<MaxInviteBox>(channel));
 		return;
 	}
+#if 0 // todo
 	const auto api = &channel->session().api();
 	api->chatParticipants().requestForAdd(channel, crl::guard(navigation, [=](
 			const Api::ChatParticipants::TLMembers &data) {
@@ -2308,6 +2315,7 @@ void PeerMenuAddChannelMembers(
 			channel,
 			{ already.begin(), already.end() });
 	}));
+#endif
 }
 
 void ToggleMessagePinned(
@@ -2327,6 +2335,7 @@ void ToggleMessagePinned(
 		const auto session = &peer->session();
 		const auto callback = crl::guard(session, [=](Fn<void()> &&close) {
 			close();
+#if 0 // todo
 			session->api().request(MTPmessages_UpdatePinnedMessage(
 				MTP_flags(MTPmessages_UpdatePinnedMessage::Flag::f_unpin),
 				peer->input,
@@ -2334,6 +2343,7 @@ void ToggleMessagePinned(
 			)).done([=](const MTPUpdates &result) {
 				session->api().applyUpdates(result);
 			}).send();
+#endif
 		});
 		navigation->parentController()->show(
 			Ui::MakeConfirmBox({
@@ -2395,6 +2405,7 @@ void UnpinAllMessages(
 		if (!strong) {
 			return;
 		}
+#if 0 // todo
 		const auto api = &strong->session().api();
 		const auto sendRequest = [=](auto self) -> void {
 			const auto history = strong->owningHistory();
@@ -2415,6 +2426,7 @@ void UnpinAllMessages(
 			}).send();
 		};
 		sendRequest(sendRequest);
+#endif
 	});
 	navigation->parentController()->show(
 		Ui::MakeConfirmBox({

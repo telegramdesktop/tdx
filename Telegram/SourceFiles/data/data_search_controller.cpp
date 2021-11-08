@@ -25,6 +25,7 @@ constexpr auto kDefaultSearchTimeoutMs = crl::time(200);
 
 } // namespace
 
+#if 0 // mtp
 std::optional<SearchRequest> PrepareSearchRequest(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
@@ -198,6 +199,7 @@ SearchResult ParseSearchResult(
 	}
 	return result;
 }
+#endif
 
 SearchController::CacheEntry::CacheEntry(
 	not_null<Main::Session*> session,
@@ -378,6 +380,7 @@ void SearchController::requestMore(
 	if (listData->requests.contains(key)) {
 		return;
 	}
+#if 0 // todo
 	auto prepared = PrepareSearchRequest(
 		listData->peer,
 		query.topicRootId,
@@ -414,6 +417,7 @@ void SearchController::requestMore(
 	listData->requests.emplace(key, [=] {
 		_session->data().histories().cancelRequest(requestId);
 	});
+#endif
 }
 
 DelayedSearchController::DelayedSearchController(

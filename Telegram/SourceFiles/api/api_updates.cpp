@@ -79,6 +79,7 @@ constexpr auto kNoUpdatesAfterSleepTimeout = 60 * crl::time(1000);
 
 using namespace Tdb;
 
+#if 0 // mtp
 enum class DataIsLoadedResult {
 	NotLoaded = 0,
 	FromNotLoaded = 1,
@@ -226,9 +227,11 @@ DataIsLoadedResult AllDataLoadedForMessage(
 		return DataIsLoadedResult::Ok;
 	});
 }
+#endif
 
 } // namespace
 
+#if 0 // mtp
 Updates::Updates(not_null<Main::Session*> session)
 : _session(session)
 , _noUpdatesTimer([=] { sendPing(); })
@@ -241,7 +244,6 @@ Updates::Updates(not_null<Main::Session*> session)
 , _idleFinishTimer([=] { checkIdleFinish(); }) {
 	_ptsWaiter.setRequesting(true);
 
-#if 0 // #TODO legacy
 	session->account().mtpUpdates(
 	) | rpl::start_with_next([=](const MTPUpdates &updates) {
 		mtpUpdateReceived(updates);
@@ -258,6 +260,10 @@ Updates::Updates(not_null<Main::Session*> session)
 	}).send();
 #endif
 
+Updates::Updates(not_null<Main::Session*> session)
+: _session(session)
+, _onlineTimer([=] { updateOnline(); })
+, _idleFinishTimer([=] { checkIdleFinish(); }) {
 	session->tdb().updates(
 	) | rpl::start_with_next([=](const TLupdate &update) {
 		applyUpdate(update);
@@ -294,6 +300,7 @@ ApiWrap &Updates::api() const {
 	return _session->api();
 }
 
+#if 0 // mtp
 void Updates::checkLastUpdate(bool afterSleep) {
 	const auto now = crl::now();
 	const auto skip = afterSleep
@@ -742,6 +749,7 @@ void Updates::getChannelDifference(
 void Updates::sendPing() {
 	_session->mtp().ping();
 }
+#endif
 
 void Updates::addActiveChat(rpl::producer<PeerData*> chat) {
 	const auto key = _activeChats.empty() ? 0 : _activeChats.back().first + 1;
@@ -749,15 +757,18 @@ void Updates::addActiveChat(rpl::producer<PeerData*> chat) {
 		chat
 	) | rpl::start_with_next_done([=](PeerData *peer) {
 		_activeChats[key].peer = peer;
+#if 0 // todo
 		if (const auto channel = peer ? peer->asChannel() : nullptr) {
 			channel->ptsWaitingForShortPoll(
 				kWaitForChannelGetDifference);
 		}
+#endif
 	}, [=] {
 		_activeChats.erase(key);
 	}, _activeChats[key].lifetime);
 }
 
+#if 0 // mtp
 void Updates::requestChannelRangeDifference(not_null<History*> history) {
 	Expects(history->peer->isChannel());
 
@@ -851,7 +862,6 @@ void Updates::channelRangeDifferenceDone(
 	}
 }
 
-#if 0 // #TODO legacy
 void Updates::mtpNewSessionCreated() {
 	Core::App().checkAutoLock();
 	_updatesSeq = 0;
@@ -871,7 +881,6 @@ void Updates::mtpUpdateReceived(const MTPUpdates &updates) {
 		applyGroupCallParticipantUpdates(updates);
 	}
 }
-#endif
 
 void Updates::applyGroupCallParticipantUpdates(const MTPUpdates &updates) {
 	updates.match([&](const MTPDupdates &data) {
@@ -897,6 +906,7 @@ void Updates::applyGroupCallParticipantUpdates(const MTPUpdates &updates) {
 int32 Updates::pts() const {
 	return _ptsWaiter.current();
 }
+#endif
 
 void Updates::updateOnline(crl::time lastNonIdleTime) {
 	updateOnline(lastNonIdleTime, false);
@@ -1008,6 +1018,7 @@ bool Updates::isQuitPrevent() {
 	return true;
 }
 
+#if 0 // mtp
 void Updates::handleSendActionUpdate(
 		PeerId peerId,
 		MsgId rootId,
@@ -1058,6 +1069,7 @@ void Updates::handleEmojiInteraction(
 		qs(data.vemoticon()),
 		ChatHelpers::EmojiInteractions::Parse(json));
 }
+#endif
 
 void Updates::handleSpeakingInCall(
 		not_null<PeerData*> peer,
@@ -1115,8 +1127,8 @@ void Updates::handleEmojiInteraction(
 	window->emojiInteractions().seenOutgoing(peer, emoticon);
 }
 
+#if 0 // mtp
 void Updates::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
-#if 0 // #TODO legacy
 	switch (updates.type()) {
 	case mtpc_updateShortMessage: {
 		const auto &d = updates.c_updateShortMessage();
@@ -1197,11 +1209,9 @@ void Updates::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 
 	default: Unexpected("Type in applyUpdatesNoPtsCheck()");
 	}
-#endif
 }
 
 void Updates::applyUpdateNoPtsCheck(const MTPUpdate &update) {
-#if 0 // #TODO legacy
 	switch (update.type()) {
 	case mtpc_updateNewMessage: {
 		auto &d = update.c_updateNewMessage();
@@ -1364,13 +1374,11 @@ void Updates::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 
 	default: Unexpected("Type in applyUpdateNoPtsCheck()");
 	}
-#endif
 }
 
 void Updates::applyUpdates(
 		const MTPUpdates &updates,
 		uint64 sentMessageRandomId) {
-#if 0 // #TODO legacy
 	const auto randomId = sentMessageRandomId;
 
 	switch (updates.type()) {
@@ -1513,11 +1521,9 @@ void Updates::applyUpdates(
 	} break;
 	}
 	session().data().sendHistoryChangeNotifications();
-#endif
 }
 
 void Updates::feedUpdate(const MTPUpdate &update) {
-#if 0 // #TODO legacy
 	switch (update.type()) {
 
 	// New messages.
@@ -2623,8 +2629,8 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	}
-#endif
 }
+#endif
 
 void Updates::applyUpdate(const TLupdate &update) {
 	auto &owner = session().data();
@@ -2680,7 +2686,7 @@ void Updates::applyUpdate(const TLupdate &update) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
 		if (const auto history = owner.historyLoaded(peerId)) {
 			history->outboxRead(data.vlast_read_outbox_message_id().v);
-			//if (!requestingDifference()) { // #TODO tdlib
+			//if (!requestingDifference()) { // todo
 			//	if (const auto user = history->peer->asUser()) {
 			//		user->madeAction(base::unixtime::now());
 			//	}
@@ -2760,7 +2766,7 @@ void Updates::applyUpdate(const TLupdate &update) {
 			const auto list = owner.folder(Data::Folder::kId)->chatsList();
 			list->updateCloudUnread(data);
 		}, [&](const TLDchatListFilter &data) {
-			// #TODO tdlib
+			// todo
 		});
 	}, [&](const TLDupdateUnreadChatCount &data) {
 		data.vchat_list().match([&](const TLDchatListMain &) {
@@ -2768,7 +2774,7 @@ void Updates::applyUpdate(const TLupdate &update) {
 		}, [&](const TLDchatListArchive &) {
 			owner.folder(Data::Folder::kId)->applyDialog(data);
 		}, [&](const TLDchatListFilter &data) {
-			// #TODO tdlib
+			// todo
 		});
 	}, [&](const TLDupdateOption &data) {
 	}, [&](const TLDupdateStickerSet &data) {

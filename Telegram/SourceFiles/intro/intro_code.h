@@ -88,13 +88,13 @@ private:
 	void checkCodeFail(const Tdb::Error &error);
 
 	object_ptr<Ui::LinkButton> _noTelegramCode;
-#if 0 // #TODO legacy
+#if 0 // mtp
 	mtpRequestId _noTelegramCodeRequestId = 0;
 #endif
 
 	object_ptr<Ui::CodeInput> _code;
 	QString _sentCode;
-#if 0 // #TODO legacy
+#if 0 // mtp
 	mtpRequestId _sentRequest = 0;
 #endif
 
@@ -103,12 +103,12 @@ private:
 	base::Timer _callTimer;
 	CallStatus _callStatus = CallStatus();
 	int _callTimeout;
-#if 0 // #TODO legacy
+#if 0 // mtp
 	mtpRequestId _callRequestId = 0;
 #endif
 	object_ptr<Ui::FlatLabel> _callLabel;
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 	base::Timer _checkRequestTimer;
 #endif
 

@@ -53,7 +53,7 @@ private:
 	void checkRequest();
 	void countryChanged();
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 	void phoneSubmitDone(const MTPauth_SentCode &result);
 	void phoneSubmitFail(const MTP::Error &error);
 #endif
@@ -75,7 +75,7 @@ private:
 	object_ptr<Ui::PhonePartInput> _phone;
 
 	QString _sentPhone;
-#if 0 // #TODO legacy
+#if 0 // mtp
 	mtpRequestId _sentRequest = 0;
 
 	base::Timer _checkRequestTimer;

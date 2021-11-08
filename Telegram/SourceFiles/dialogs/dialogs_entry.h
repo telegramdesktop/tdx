@@ -211,7 +211,7 @@ public:
 	void updateChatListSortPosition();
 	void setChatListTimeId(TimeId date);
 	virtual void updateChatListExistence();
-#if 0 // #TODO legacy
+#if 0 // mtp
 	bool needUpdateInChatList() const;
 	[[nodiscard]] virtual TimeId adjustedChatListTimeId() const;
 #endif
@@ -225,7 +225,7 @@ public:
 	static constexpr auto kArchiveFixOnTopIndex = 1;
 	static constexpr auto kTopPromotionFixOnTopIndex = 2;
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 	[[nodiscard]] virtual bool shouldBeInChatList() const = 0;
 #endif
 	[[nodiscard]] virtual UnreadState chatListUnreadState() const = 0;
@@ -253,7 +253,7 @@ public:
 		Ui::PeerUserpicView &view,
 		const Ui::PaintContext &context) const = 0;
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 	[[nodiscard]] TimeId chatListTimeId() const {
 		return _timeId;
 	}
@@ -293,14 +293,14 @@ private:
 	base::flat_map<FilterId, RowsByLetter> _chatListLinks;
 	uint64 _sortKeyInChatList = 0;
 	base::flat_map<FilterId, uint64> _sortKeyInFilterMap;
-#if 0 // #TODO legacy
+#if 0 // mtp
 	uint64 _sortKeyByDate = 0;
 #endif
 	base::flat_map<FilterId, int> _pinnedIndex;
 	mutable Ui::PeerBadge _chatListPeerBadge;
 	mutable Ui::Text::String _chatListNameText;
 	mutable int _chatListNameVersion = 0;
-#if 0 // #TODO legacy
+#if 0 // mtp
 	TimeId _timeId = 0;
 #endif
 	Flags _flags;

@@ -146,6 +146,7 @@ void SendExistingMedia(
 		.postAuthor = messagePostAuthor,
 	}, media, caption);
 
+#if 0 // todo
 	const auto performRequest = [=](const auto &repeatRequest) -> void {
 		auto &histories = history->owner().histories();
 		const auto session = &history->session();
@@ -183,6 +184,7 @@ void SendExistingMedia(
 		});
 	};
 	performRequest(performRequest);
+#endif
 
 	api->finishForwarding(action);
 }
@@ -320,6 +322,7 @@ bool SendDice(MessageToSend &message) {
 	}, TextWithEntities(), MTP_messageMediaDice(
 		MTP_int(0),
 		MTP_string(emoji)));
+#if 0 // todo
 	histories.sendPreparedMessage(
 		history,
 		action.replyTo,
@@ -341,6 +344,8 @@ bool SendDice(MessageToSend &message) {
 		api->sendMessageFail(error, peer, randomId, newId);
 	});
 	api->finishForwarding(action);
+#endif
+
 	return true;
 }
 

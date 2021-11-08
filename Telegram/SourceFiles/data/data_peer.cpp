@@ -455,7 +455,7 @@ Data::FileOrigin PeerData::userpicPhotoOrigin() const {
 		: Data::FileOrigin();
 }
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 void PeerData::updateUserpic(
 		PhotoId photoId,
 		MTP::DcId dcId,
@@ -489,7 +489,7 @@ void PeerData::updateUserpic(const TLchatPhotoInfo &photo) {
 	photo.match([&](const TLDchatPhotoInfo &data) {
 		updateUserpic(data.vsmall().match([&](const TLDfile &data) {
 			return data.vid().v;
-		})); // #TODO tdlib set data to view.
+		})); // todo set data to view.
 	});
 }
 
@@ -497,13 +497,13 @@ void PeerData::updateUserpic(const TLprofilePhoto &photo) {
 	photo.match([&](const TLDprofilePhoto &data) {
 		updateUserpic(data.vsmall().match([&](const TLDfile &data) {
 			return data.vid().v;
-		}), data.vid().v); // #TODO tdlib set data to view.
+		}), data.vid().v); // todo set data to view.
 	});
 }
 
 void PeerData::setPhotoFull(const TLchatPhoto &data) {
 	data.match([&](const TLDchatPhoto &data) {
-		// #TODO tdlib animated avatars.
+		// todo animated avatars.
 		if (data.vsizes().v.isEmpty()) {
 			clearPhoto();
 		} else {
@@ -512,7 +512,7 @@ void PeerData::setPhotoFull(const TLchatPhoto &data) {
 				return data.vphoto().match([&](const TLDfile &data) {
 					return data.vid().v;
 				});
-			}), data.vid().v); // #TODO tdlib set data to view.
+			}), data.vid().v); // todo set data to view.
 		}
 	});
 }
