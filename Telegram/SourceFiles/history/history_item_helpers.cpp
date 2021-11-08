@@ -96,6 +96,8 @@ MessageFlags FlagsFromTdb(const TLDmessage &data) {
 		return false;
 	});
 	return sendingOrFailedFlag
+		| (int(sendingOrFailedFlag) ? Flag::Local : Flag())
+		| (data.vscheduling_state() ? Flag() : Flag::HistoryEntry)
 		| (data.vis_outgoing().v ? Flag::Outgoing : Flag())
 		| (data.vcontains_unread_mention().v ? Flag::MentionsMe : Flag())
 		| (mediaUnread ? Flag::MediaIsUnread : Flag())
