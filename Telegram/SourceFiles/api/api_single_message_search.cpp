@@ -94,6 +94,7 @@ std::optional<HistoryItem*> SingleMessageSearch::performLookupByChannel(
 		return nullptr;
 	}
 
+#if 0 // todo
 	const auto fail = [=] {
 		_cache.emplace(_requestKey, FullMsgId());
 		ready();
@@ -120,6 +121,7 @@ std::optional<HistoryItem*> SingleMessageSearch::performLookupByChannel(
 	}).fail([=] {
 		fail();
 	}).send();
+#endif
 
 	return std::nullopt;
 }
@@ -135,6 +137,7 @@ std::optional<HistoryItem*> SingleMessageSearch::performLookupById(
 		return nullptr;
 	}
 
+#if 0 // todo
 	const auto fail = [=] {
 		_cache.emplace(_requestKey, FullMsgId());
 		ready();
@@ -157,6 +160,7 @@ std::optional<HistoryItem*> SingleMessageSearch::performLookupById(
 	}).fail([=] {
 		fail();
 	}).send();
+#endif
 
 	return std::nullopt;
 }

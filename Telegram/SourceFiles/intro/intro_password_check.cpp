@@ -232,7 +232,6 @@ void PasswordCheckWidget::serverError() {
 void PasswordCheckWidget::codeSubmitDone(
 		const QString &code,
 		const MTPBool &result) {
-#if 0 // #TODO tdlib
 	auto fields = PasscodeBox::CloudFields::From(_passwordState);
 	fields.fromRecoveryCode = code;
 	fields.hasRecovery = false;
@@ -250,7 +249,6 @@ void PasswordCheckWidget::codeSubmitDone(
 	}, lifetime());
 
 	*boxShared = Ui::show(std::move(box));
-#endif
 }
 
 void PasswordCheckWidget::codeSubmitFail(const MTP::Error &error) {
@@ -326,7 +324,7 @@ void PasswordCheckWidget::toRecover() {
 				update();
 				hideError();
 			}).send();
-#if 0 // #TODO legacy
+#if 0 // mtp
 			api().request(
 				MTPauth_RequestPasswordRecovery()
 			).done([=](const MTPauth_PasswordRecovery &result) {
@@ -399,7 +397,7 @@ void PasswordCheckWidget::submit() {
 				recoverFail(error);
 			}).send();
 
-#if 0 // #TODO legacy
+#if 0 // mtp
 			_sentRequest = api().request(MTPauth_CheckRecoveryPassword(
 				MTP_string(code)
 			)).done([=](const MTPBool &result) {
@@ -433,7 +431,7 @@ void PasswordCheckWidget::submit() {
 		)).fail([=](const Error &error) {
 			passwordSubmitFail(error);
 		}).send();
-#if 0 // #TODO legacy
+#if 0 // mtp
 		_passwordHash = Core::ComputeCloudPasswordHash(
 			_passwordState.mtp.request.algo,
 			bytes::make_span(password));

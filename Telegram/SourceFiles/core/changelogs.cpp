@@ -59,6 +59,7 @@ std::unique_ptr<Changelogs> Changelogs::Create(
 void Changelogs::requestCloudLogs() {
 	_chatsSubscription.destroy();
 
+#if 0 // todo
 	const auto callback = [this](const MTPUpdates &result) {
 		_session->api().applyUpdates(result);
 
@@ -87,6 +88,7 @@ void Changelogs::requestCloudLogs() {
 	_session->api().requestChangelog(
 		FormatVersionPrecise(_oldVersion),
 		crl::guard(this, callback));
+#endif
 }
 
 void Changelogs::addLocalLogs() {

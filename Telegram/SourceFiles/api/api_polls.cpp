@@ -41,6 +41,7 @@ void Polls::create(
 		Fn<void()> fail) {
 	_session->api().sendAction(action);
 
+#if 0 // todo
 	const auto history = action.history;
 	const auto peer = history->peer;
 	const auto topicRootId = action.replyTo.msgId
@@ -105,6 +106,7 @@ void Polls::create(
 		}
 		fail();
 	});
+#endif
 }
 
 void Polls::sendVotes(
@@ -134,6 +136,7 @@ void Polls::sendVotes(
 		_session->data().requestItemRepaint(item);
 	}
 
+#if 0 // todo
 	auto prepared = QVector<MTPbytes>();
 	prepared.reserve(options.size());
 	ranges::transform(
@@ -153,6 +156,7 @@ void Polls::sendVotes(
 		hideSending();
 	}).send();
 	_pollVotesRequestIds.emplace(itemId, requestId);
+#endif
 }
 
 void Polls::close(not_null<HistoryItem*> item) {
@@ -165,6 +169,7 @@ void Polls::close(not_null<HistoryItem*> item) {
 	if (!poll) {
 		return;
 	}
+#if 0 // todo
 	const auto requestId = _api.request(MTPmessages_EditMessage(
 		MTP_flags(MTPmessages_EditMessage::Flag::f_media),
 		item->history()->peer->input,
@@ -181,6 +186,7 @@ void Polls::close(not_null<HistoryItem*> item) {
 		_pollCloseRequestIds.erase(itemId);
 	}).send();
 	_pollCloseRequestIds.emplace(itemId, requestId);
+#endif
 }
 
 void Polls::reloadResults(not_null<HistoryItem*> item) {
@@ -188,6 +194,7 @@ void Polls::reloadResults(not_null<HistoryItem*> item) {
 	if (!item->isRegular() || _pollReloadRequestIds.contains(itemId)) {
 		return;
 	}
+#if 0 // todo
 	const auto requestId = _api.request(MTPmessages_GetPollResults(
 		item->history()->peer->input,
 		MTP_int(item->id)
@@ -198,6 +205,7 @@ void Polls::reloadResults(not_null<HistoryItem*> item) {
 		_pollReloadRequestIds.erase(itemId);
 	}).send();
 	_pollReloadRequestIds.emplace(itemId, requestId);
+#endif
 }
 
 } // namespace Api

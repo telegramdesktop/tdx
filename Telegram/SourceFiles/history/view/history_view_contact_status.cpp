@@ -687,6 +687,7 @@ void ContactStatus::setupShareHandler(not_null<UserData*> user) {
 		const auto show = _controller->uiShow();
 		const auto share = [=](Fn<void()> &&close) {
 			user->setSettings(0);
+#if 0 // todo
 			user->session().api().request(MTPcontacts_AcceptContact(
 				user->inputUser
 			)).done([=](const MTPUpdates &result) {
@@ -696,6 +697,7 @@ void ContactStatus::setupShareHandler(not_null<UserData*> user) {
 					lt_user,
 					user->shortName()));
 			}).send();
+#endif
 			close();
 		};
 		show->showBox(Ui::MakeConfirmBox({

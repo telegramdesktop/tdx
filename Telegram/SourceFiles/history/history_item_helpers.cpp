@@ -90,14 +90,14 @@ MessageFlags FlagsFromTdb(const TLDmessage &data) {
 		| (data.vis_outgoing().v ? Flag::Outgoing : Flag())
 		| (data.vcontains_unread_mention().v ? Flag::MentionsMe : Flag())
 		| (mediaUnread ? Flag::MediaIsUnread : Flag())
-		//| ((flags & MTP::f_silent) ? Flag::Silent : Flag()) // #TODO tdlib
+		//| ((flags & MTP::f_silent) ? Flag::Silent : Flag()) // todo
 		| (data.vis_channel_post().v ? Flag::Post : Flag())
-		//| ((flags & MTP::f_legacy) ? Flag::Legacy : Flag()) // #TODO tdlib
+		//| ((flags & MTP::f_legacy) ? Flag::Legacy : Flag()) // todo
 		| (data.vis_pinned().v ? Flag::Pinned : Flag())
-		//| ((flags & MTP::f_from_id) ? Flag::HasFromId : Flag()) // #TODO tdlib
+		//| ((flags & MTP::f_from_id) ? Flag::HasFromId : Flag()) // todo
 		| (data.vreply_to_message_id().v ? Flag::HasReplyInfo : Flag())
 		| (data.vreply_markup() ? Flag::HasReplyMarkup : Flag())
-		| (data.vscheduling_state() ? Flag::IsOrWasScheduled : Flag()) // #TODO tdlib was scheduled, but now isn't?
+		| (data.vscheduling_state() ? Flag::IsOrWasScheduled : Flag()) // todo was scheduled, but now isn't?
 		| (views ? Flag::HasViews : Flag());
 }
 

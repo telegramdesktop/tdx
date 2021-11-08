@@ -87,10 +87,12 @@ struct WebPageData {
 		const QString &newAuthor,
 		int newPendingTill);
 
+#if 0 // mtp
 	static void ApplyChanges(
 		not_null<Main::Session*> session,
 		ChannelData *channel,
 		const MTPmessages_Messages &result);
+#endif
 
 	WebPageId id = 0;
 	WebPageType type = WebPageType::Article;

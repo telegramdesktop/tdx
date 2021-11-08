@@ -527,7 +527,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 	const auto result = user(data.match([](const auto &data) {
 		return data.vid().v;
 	}));
-#if 0 // #TODO legacy
+#if 0 // mtp
 	auto minimal = false;
 	const MTPUserStatus *status = nullptr;
 	const MTPUserStatus emptyStatus = MTP_userStatusEmpty();
@@ -789,7 +789,7 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		return peer(peerFromChannel(data.vid().v));
 	});
 	auto minimal = false;
-#if 0 // #TODO legacy
+#if 0 // mtp
 	using UpdateFlag = Data::PeerUpdate::Flag;
 	auto flags = UpdateFlag::None | UpdateFlag::None;
 	data.match([&](const MTPDchat &data) {
@@ -1130,10 +1130,10 @@ not_null<UserData*> Session::processUser(const TLuser &user) {
 	} else {
 		result->clearPhoto();
 	}
-	result->setUnavailableReasons({}); // #TODO tdlib
+	result->setUnavailableReasons({}); // todo
 	//result->setFlags(UserDataFlag::Inaccessible);
 	//result->setFlags(UserDataFlag::Deleted);
-	result->setBotInfoVersion(-1); // #TODO tdlib
+	result->setBotInfoVersion(-1); // todo
 	result->setIsContact(data.vis_contact().v);
 	if (canShareThisContact != result->canShareThisContactFast()) {
 		flags |= UpdateFlag::CanShareContact;
@@ -1214,7 +1214,7 @@ not_null<PeerData*> Session::processPeer(const TLchat &dialog) {
 		data.vvoice_chat().match([&](const TLDvoiceChat &data) {
 			const auto callFlag = ChatDataFlag::CallNotEmpty;
 			const auto callNotEmpty = data.vhas_participants().v;
-			chat->setFlags(chat->flags() // #TODO tdlib
+			chat->setFlags(chat->flags() // todo
 				| (callNotEmpty ? callFlag : ChatDataFlag(0)));
 		});
 
@@ -1281,10 +1281,10 @@ not_null<ChatData*> Session::processChat(const TLbasicGroup &chat) {
 		result->setAdminRights(data.vis_anonymous().v
 			? ChatAdminRight::Anonymous
 			: ChatAdminRight());
-		//data.vcustom_title().v; // #TODO tdlib
+		//data.vcustom_title().v; // todo
 	}, [&](const TLDchatMemberStatusAdministrator &data) {
 		result->setAdminRights(AdminRightsFromChatMemberStatus(data));
-		//data.vcustom_title().v; // #TODO tdlib
+		//data.vcustom_title().v; // todo
 	}, [&](const TLDchatMemberStatusMember &data) {
 		result->setAdminRights(ChatAdminRights());
 	}, [&](const TLDchatMemberStatusRestricted &data) {
@@ -1352,7 +1352,7 @@ not_null<ChannelData*> Session::processChannel(
 			: Flag());
 	result->setMembersCount(data.vmember_count().v);
 	result->setName(result->name, data.vusername().v);
-	//data.vrestriction_reason(); // #TODO tdlib
+	//data.vrestriction_reason(); // todo
 	data.vstatus().match([&](const TLDchatMemberStatusCreator &data) {
 		if (!data.vis_member().v) {
 			flags |= Flag::Left;
@@ -1361,7 +1361,7 @@ not_null<ChannelData*> Session::processChannel(
 			? ChatAdminRight::Anonymous
 			: ChatAdminRight());
 		result->setRestrictions(ChatRestrictionsInfo());
-		//data.vcustom_title().v; // #TODO tdlib
+		//data.vcustom_title().v; // todo
 	}, [&](const TLDchatMemberStatusAdministrator &data) {
 		using Flag = ChatAdminRight;
 		const auto bit = [&](const TLbool &check, Flag value) {
@@ -1369,7 +1369,7 @@ not_null<ChannelData*> Session::processChannel(
 		};
 		result->setAdminRights(AdminRightsFromChatMemberStatus(data));
 		result->setRestrictions(ChatRestrictionsInfo());
-		//data.vcustom_title().v; // #TODO tdlib
+		//data.vcustom_title().v; // todo
 	}, [&](const TLDchatMemberStatusMember &data) {
 		result->setAdminRights(ChatAdminRights());
 		result->setRestrictions(ChatRestrictionsInfo());
@@ -2427,6 +2427,7 @@ void Session::applyPinnedTopics(
 	notifyPinnedDialogsOrderUpdated();
 }
 
+#if 0 // mtp
 void Session::applyDialogs(
 		Data::Folder *requestFolder,
 		const QVector<MTPMessage> &messages,
@@ -2476,6 +2477,7 @@ void Session::applyDialog(
 	folder->applyDialog(data);
 	setPinnedFromEntryList(folder, data.is_pinned());
 }
+#endif
 
 void Session::applyLastMessage(const TLDupdateChatLastMessage &data) {
 	const auto history = this->history(peerFromTdbChat(data.vchat_id()));
@@ -2614,6 +2616,7 @@ void Session::reorderTwoPinnedChats(
 	notifyPinnedDialogsOrderUpdated();
 }
 
+#if 0 // mtp
 bool Session::updateExistingMessage(const MTPDmessage &data) {
 	const auto peer = peerFromMTP(data.vpeer_id());
 	const auto existing = message(peer, data.vid().v);
@@ -2704,6 +2707,7 @@ void Session::processExistingMessages(
 		processMessages(data.vmessages(), NewMessageType::Existing);
 	});
 }
+#endif
 
 const Session::Messages *Session::messagesList(PeerId peerId) const {
 	const auto i = _messages.find(peerId);
@@ -2782,6 +2786,7 @@ void Session::checkTTLs() {
 	scheduleNextTTLs();
 }
 
+#if 0 // mtp
 void Session::processMessagesDeleted(
 		PeerId peerId,
 		const QVector<MTPint> &data) {
@@ -2824,6 +2829,7 @@ void Session::processNonChannelMessagesDeleted(const QVector<MTPint> &data) {
 		history->requestChatListMessage();
 	}
 }
+#endif
 
 void Session::removeDependencyMessage(not_null<HistoryItem*> item) {
 	const auto i = _dependentMessages.find(item);
@@ -4099,6 +4105,7 @@ void Session::checkPollsClosings() {
 	}
 }
 
+#if 0 // mtp
 void Session::applyUpdate(const MTPDupdateMessagePoll &update) {
 	const auto updated = [&] {
 		const auto poll = update.vpoll();
@@ -4158,6 +4165,7 @@ void Session::applyUpdate(const MTPDupdateChatDefaultBannedRights &update) {
 		}
 	}
 }
+#endif
 
 not_null<Data::CloudImage*> Session::location(const LocationPoint &point) {
 	const auto i = _locations.find(point);

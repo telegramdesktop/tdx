@@ -71,6 +71,7 @@ bool IsValidPhone(QString phone) {
 				|| phone == u"4242"_q));
 }
 
+#if 0 // mtp
 void ChatCreateDone(
 		not_null<Window::SessionNavigation*> navigation,
 		QImage image,
@@ -126,6 +127,7 @@ void ChatCreateDone(
 			"(ContactsBox::creationDone)"));
 	}
 }
+#endif
 
 void MustBePublicDestroy(not_null<ChannelData*> channel) {
 	const auto session = &channel->session();
@@ -703,6 +705,7 @@ void GroupInfoBox::createGroup(
 			inputs.push_back(user->inputUser);
 		}
 	}
+#if 0 // todo
 	_creationRequestId = _api.request(MTPmessages_CreateChat(
 		MTP_flags(_ttlPeriod
 			? MTPmessages_CreateChat::Flag::f_ttl_period
@@ -742,6 +745,7 @@ void GroupInfoBox::createGroup(
 			controller->show(Ui::MakeInformBox(tr::lng_cant_do_this()));
 		}
 	}).send();
+#endif
 }
 
 void GroupInfoBox::submit() {
@@ -792,6 +796,7 @@ void GroupInfoBox::createChannel(
 		const QString &description) {
 	Expects(!_creationRequestId);
 
+#if 0 // todo
 	using Flag = MTPchannels_CreateChannel::Flag;
 	const auto flags = Flag()
 		| ((_type == Type::Megagroup || _type == Type::Forum)
@@ -869,6 +874,7 @@ void GroupInfoBox::createChannel(
 				Ui::LayerOption::CloseOther); // TODO
 		}
 	}).send();
+#endif
 }
 
 void GroupInfoBox::checkInviteLink() {
