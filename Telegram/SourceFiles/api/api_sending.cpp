@@ -34,8 +34,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "apiwrap.h"
 
+#include "data/components/scheduled_messages.h"
+#include "tdb/tdb_file_generator.h"
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Api {
 namespace {
+
+using namespace Tdb;
 
 void InnerFillMessagePostFlags(
 		const SendOptions &options,
@@ -625,6 +631,58 @@ void SendConfirmedFile(
 				? Data::HistoryUpdate::Flag::ScheduledSent
 				: Data::HistoryUpdate::Flag::MessageSent));
 	}
+}
+
+void SendPreparedMessage(
+		const SendAction &action,
+		TLinputMessageContent content) {
+	static constexpr auto kTillOnline
+		= Data::ScheduledMessages::kScheduledUntilOnlineTimestamp;
+
+	const auto history = action.history;
+	const auto peer = history->peer;
+	const auto silentPost = ShouldSendSilent(peer, action.options);
+	const auto clearCloudDraft = action.clearDraft;
+	//if (clearCloudDraft) {
+	//	// todo drafts - unnecessary?..
+	//	history->clearCloudDraft();
+	//	history->startSavingCloudDraft();
+	//}
+	const auto session = &peer->session();
+	session->sender().request(TLsendMessage(
+		peerToTdbChat(peer->id),
+		tl_int53(0), // message_thread_id
+		tl_int53(action.replyTo.bare),
+		tl_messageSendOptions(
+			tl_bool(silentPost),
+			tl_bool(false), // from_background
+			((action.options.scheduled == kTillOnline)
+				? tl_messageSchedulingStateSendWhenOnline()
+				: (action.options.scheduled > 0)
+				? tl_messageSchedulingStateSendAtDate(
+					tl_int32(action.options.scheduled))
+				: std::optional<TLmessageSchedulingState>())),
+		std::move(content)
+	)).done([=](const TLmessage &result) {
+		//if (clearCloudDraft) {
+		//	// todo drafts - unnecessary?..
+		//	history->finishSavingCloudDraft(
+		//		UnixtimeFromMsgId(response.outerMsgId));
+		//}
+		session->data().processMessage(result, NewMessageType::Unread);
+	}).fail([=](const Error &error) {
+		const auto code = error.code;
+		//if (error.type() == qstr("MESSAGE_EMPTY")) {
+		//	lastMessage->destroy();
+		//} else {
+		//	sendMessageFail(error, peer, randomId, newId);
+		//}
+		//if (clearCloudDraft) {
+		//	// todo drafts - unnecessary?..
+		//	history->finishSavingCloudDraft(
+		//		UnixtimeFromMsgId(response.outerMsgId));
+		//}
+	}).send();
 }
 
 } // namespace Api
