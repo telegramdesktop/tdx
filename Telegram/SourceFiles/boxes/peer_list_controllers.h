@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "base/timer.h"
 
+#include "tdb/tdb_sender.h"
+
 class History;
 
 namespace Data {
@@ -76,14 +78,23 @@ public:
 private:
 	bool searchInCache();
 	void searchOnServer();
+#if 0 // goodToRemove
 	void searchDone(const MTPcontacts_Found &result, mtpRequestId requestId);
+#endif
+	void searchDone(const Tdb::TLusers &result, mtpRequestId requestId);
 
 	const not_null<Main::Session*> _session;
+#if 0 // goodToRemove
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 	base::Timer _timer;
 	QString _query;
 	mtpRequestId _requestId = 0;
+#if 0 // goodToRemove
 	std::map<QString, MTPcontacts_Found> _cache;
+#endif
+	std::map<QString, Tdb::TLusers> _cache;
 	std::map<mtpRequestId, QString> _queries;
 
 };
