@@ -16,6 +16,10 @@ class PhotoData;
 class DocumentData;
 struct FilePrepareResult;
 
+namespace Tdb {
+class TLinputMessageContent;
+} // namespace Tdb
+
 namespace Api {
 
 struct MessageToSend;
@@ -41,5 +45,9 @@ void FillMessagePostFlags(
 void SendConfirmedFile(
 	not_null<Main::Session*> session,
 	const std::shared_ptr<FilePrepareResult> &file);
+
+void SendPreparedMessage(
+	const SendAction &action,
+	Tdb::TLinputMessageContent content);
 
 } // namespace Api
