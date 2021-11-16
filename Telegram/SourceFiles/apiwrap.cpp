@@ -3569,6 +3569,7 @@ void ApiWrap::sendSharedContact(
 		Fn<void(bool)> done) {
 	sendAction(action);
 
+#if 0 // mtp
 	const auto history = action.history;
 	const auto peer = history->peer;
 
@@ -3615,6 +3616,15 @@ void ApiWrap::sendSharedContact(
 		(action.options.scheduled
 			? Data::HistoryUpdate::Flag::ScheduledSent
 			: Data::HistoryUpdate::Flag::MessageSent));
+#endif
+
+	Api::SendPreparedMessage(action, tl_inputMessageContact(
+		tl_contact(
+			tl_string(phone),
+			tl_string(firstName),
+			tl_string(lastName),
+			tl_string(), // vcard
+			tl_int53(userId.bare))));
 }
 
 void ApiWrap::sendVoiceMessage(
@@ -4003,57 +4013,13 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 				), done, fail);
 		}
 #endif
-
-		static constexpr auto kTillOnline
-			= Data::ScheduledMessages::kScheduledUntilOnlineTimestamp;
-		const auto silentPost = ShouldSendSilent(peer, action.options);
-		const auto clearCloudDraft = action.clearDraft;
-		//if (clearCloudDraft) {
-		//	// todo unnecessary?..
-		//	history->clearCloudDraft();
-		//	history->startSavingCloudDraft();
-		//}
-		sender().request(TLsendMessage(
-			peerToTdbChat(peer->id),
-			tl_int53(0), // message_thread_id
-			tl_int53(action.replyTo.bare),
-			tl_messageSendOptions(
-				tl_bool(silentPost),
-				tl_bool(false), // from_background
-				((action.options.scheduled == kTillOnline)
-					? tl_messageSchedulingStateSendWhenOnline()
-					: (action.options.scheduled > 0)
-					? tl_messageSchedulingStateSendAtDate(
-						tl_int32(action.options.scheduled))
-					: std::optional<TLmessageSchedulingState>())),
-			tl_inputMessageText(
-				Api::FormattedTextToTdb(
-					_session,
-					sending,
-					Api::ConvertOption::SkipLocal),
-				tl_bool(message.webPageId == CancelledWebPageId),
-				tl_bool(action.clearDraft))
-		)).done([=](const TLmessage &result) {
-			//if (clearCloudDraft) {
-			//	// todo unnecessary?..
-			//	history->finishSavingCloudDraft(
-			//		UnixtimeFromMsgId(response.outerMsgId));
-			//}
-			session().data().processMessage(result, NewMessageType::Unread);
-		}).fail([=](const Error &error) {
-			const auto code = error.code;
-			//if (error.type() == qstr("MESSAGE_EMPTY")) {
-			//	lastMessage->destroy();
-			//} else {
-			//	sendMessageFail(error, peer, randomId, newId);
-			//}
-			//if (clearCloudDraft) {
-			//	// todo unnecessary?..
-			//	history->finishSavingCloudDraft(
-			//		UnixtimeFromMsgId(response.outerMsgId));
-			//}
-		}).send();
-
+		Api::SendPreparedMessage(action, tl_inputMessageText(
+			Api::FormattedTextToTdb(
+				_session,
+				sending,
+				Api::ConvertOption::SkipLocal),
+			tl_bool(message.webPageId == CancelledWebPageId),
+			tl_bool(action.clearDraft)));
 		isFirst = false;
 	}
 
