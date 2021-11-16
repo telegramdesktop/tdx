@@ -206,6 +206,7 @@ bool PeerListGlobalSearchController::searchInCache() {
 }
 
 void PeerListGlobalSearchController::searchOnServer() {
+#if 0 // goodToRemove
 	_requestId = _api.request(MTPcontacts_Search(
 		MTP_string(_query),
 		MTP_int(SearchPeopleLimit)
@@ -217,19 +218,38 @@ void PeerListGlobalSearchController::searchOnServer() {
 			delegate()->peerListSearchRefreshRows();
 		}
 	}).send();
+#endif
+	_requestId = _api.request(Tdb::TLsearchContacts(
+		Tdb::tl_string(_query),
+		Tdb::tl_int32(SearchPeopleLimit)
+	)).done([=](const Tdb::TLusers &result, Tdb::RequestId requestId) {
+		searchDone(result, requestId);
+	}).fail([=](const Tdb::Error &error, Tdb::RequestId requestId) {
+		if (_requestId == requestId) {
+			_requestId = 0;
+			delegate()->peerListSearchRefreshRows();
+		}
+	}).send();
 	_queries.emplace(_requestId, _query);
 }
 
 void PeerListGlobalSearchController::searchDone(
+#if 0 // goodToRemove
 		const MTPcontacts_Found &result,
+#endif
+		const Tdb::TLusers &result,
 		mtpRequestId requestId) {
+#if 0 // goodToRemove
 	Expects(result.type() == mtpc_contacts_found);
 
 	auto &contacts = result.c_contacts_found();
+#endif
 	auto query = _query;
 	if (requestId) {
+#if 0 // goodToRemove
 		_session->data().processUsers(contacts.vusers());
 		_session->data().processChats(contacts.vchats());
+#endif
 		auto it = _queries.find(requestId);
 		if (it != _queries.cend()) {
 			query = it->second;
@@ -237,6 +257,7 @@ void PeerListGlobalSearchController::searchDone(
 			_queries.erase(it);
 		}
 	}
+#if 0 // goodToRemove
 	const auto feedList = [&](const MTPVector<MTPPeer> &list) {
 		for (const auto &mtpPeer : list.v) {
 			const auto peer = _session->data().peerLoaded(
@@ -246,10 +267,21 @@ void PeerListGlobalSearchController::searchDone(
 			}
 		}
 	};
+#endif
 	if (_requestId == requestId) {
 		_requestId = 0;
+
+		for (const auto &peerId : result.data().vuser_ids().v) {
+			const auto peer = _session->data().peerLoaded(
+				peerFromTdbChat(peerId));
+			if (peer) {
+				delegate()->peerListSearchAddRow(peer);
+			}
+		}
+#if 0 // goodToRemove
 		feedList(contacts.vmy_results());
 		feedList(contacts.vresults());
+#endif
 		delegate()->peerListSearchRefreshRows();
 	}
 }
