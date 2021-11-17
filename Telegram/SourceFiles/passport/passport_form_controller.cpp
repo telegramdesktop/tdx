@@ -1589,6 +1589,7 @@ void FormController::uploadEncryptedFile(
 		reinterpret_cast<char*>(file.uploadData->bytes.data()),
 		file.uploadData->bytes.size());
 	prepared->setFileData(prepared->content);
+#if 0 // mtp
 	prepared->filemd5 = file.uploadData->md5checksum;
 
 	file.uploadData->fullId = FullMsgId(
@@ -1598,6 +1599,7 @@ void FormController::uploadEncryptedFile(
 	session().uploader().upload(
 		file.uploadData->fullId,
 		std::move(prepared));
+#endif
 }
 
 void FormController::scanUploadDone(const Storage::UploadSecureDone &data) {
