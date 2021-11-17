@@ -23,6 +23,11 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Tdb {
+class FileGenerator;
+class TLfile;
+} // namespace Tdb
+
 namespace Storage {
 
 // MTP big files methods used for files greater than 10mb.
@@ -47,6 +52,11 @@ struct UploadSecureDone {
 	int partsCount = 0;
 };
 
+struct ReadyFileWithThumbnail {
+	std::unique_ptr<Tdb::TLfile> file;
+	std::unique_ptr<Tdb::TLfile> thumbnail;
+};
+
 class Uploader final : public base::has_weak_ptr {
 public:
 	explicit Uploader(not_null<ApiWrap*> api);
@@ -62,6 +72,10 @@ public:
 	void pause(FullMsgId itemId);
 	void cancel(FullMsgId itemId);
 	void cancelAll();
+
+	void start(
+		const std::shared_ptr<FilePrepareResult> &file,
+		Fn<void(ReadyFileWithThumbnail)> ready);
 
 	[[nodiscard]] rpl::producer<UploadedMedia> photoReady() const {
 		return _photoReady.events();
@@ -97,7 +111,9 @@ public:
 	}
 
 	void unpause();
+#if 0 // mtp
 	void stopSessions();
+#endif
 
 private:
 	struct Entry;
@@ -130,6 +146,7 @@ private:
 	void maybeFinishFront();
 	void finishFront();
 
+#if 0 // mtp
 	void partLoaded(const MTPBool &result, mtpRequestId requestId);
 	void partFailed(const MTP::Error &error, mtpRequestId requestId);
 	Request finishRequest(mtpRequestId requestId);
@@ -141,6 +158,8 @@ private:
 
 	void notifyFailed(const Entry &entry);
 	void failed(FullMsgId itemId);
+#endif
+
 	void cancelRequests(FullMsgId itemId);
 	void cancelAllRequests();
 	void clear();
@@ -176,6 +195,8 @@ private:
 	rpl::event_stream<FullMsgId> _documentFailed;
 	rpl::event_stream<FullMsgId> _secureFailed;
 	rpl::event_stream<FullMsgId> _nonPremiumDelays;
+
+	base::flat_map<FileId, std::shared_ptr<Tdb::FileGenerator>> _uploads;
 
 	rpl::lifetime _lifetime;
 

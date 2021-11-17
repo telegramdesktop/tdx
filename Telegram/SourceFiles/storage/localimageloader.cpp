@@ -39,6 +39,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "main/main_session.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 #include <QtCore/QBuffer>
 #include <QtGui/QImageWriter>
 
@@ -130,6 +132,7 @@ struct PreparedFileThumbnail {
 	return std::move(prepared);
 }
 
+#if 0 // mtp
 [[nodiscard]] auto FindAlbumItem(
 		std::vector<SendingAlbum::Item> &items,
 		not_null<HistoryItem*> item) {
@@ -163,6 +166,7 @@ struct PreparedFileThumbnail {
 		MTP_string(caption.text),
 		sentEntities);
 }
+#endif
 
 [[nodiscard]] std::vector<not_null<DocumentData*>> ExtractStickersFromScene(
 		not_null<const Ui::PreparedFileInformation::Image*> info) {
@@ -370,6 +374,7 @@ void TaskQueueWorker::onTaskAdded() {
 	_inTaskAdded = false;
 }
 
+#if 0 // mtp
 SendingAlbum::SendingAlbum() : groupId(base::RandomValue<uint64>()) {
 }
 
@@ -414,10 +419,17 @@ void SendingAlbum::removeItem(not_null<HistoryItem*> item) {
 		}
 	}
 }
+#endif
 
 SendingAlbum::Item::Item(TaskId taskId)
 : taskId(taskId) {
 }
+
+SendingAlbum::Item::Item(Item&&) = default;
+
+SendingAlbum::Item &SendingAlbum::Item::operator=(Item&&) = default;
+
+SendingAlbum::Item::~Item() = default;
 
 FilePrepareResult::FilePrepareResult(FilePrepareDescriptor &&descriptor)
 : taskId(descriptor.taskId)
@@ -430,6 +442,7 @@ FilePrepareResult::FilePrepareResult(FilePrepareDescriptor &&descriptor)
 }
 
 void FilePrepareResult::setFileData(const QByteArray &filedata) {
+#if 0 // mtp
 	if (filedata.isEmpty()) {
 		partssize = 0;
 	} else {
@@ -442,11 +455,14 @@ void FilePrepareResult::setFileData(const QByteArray &filedata) {
 		filemd5.resize(32);
 		hashMd5Hex(filedata.constData(), filedata.size(), filemd5.data());
 	}
+#endif
+	filebytes = filedata;
 }
 
 void FilePrepareResult::setThumbData(const QByteArray &thumbdata) {
 	if (!thumbdata.isEmpty()) {
 		thumbbytes = thumbdata;
+#if 0 // mtp
 		int32 size = thumbdata.size();
 		thumbparts.reserve(
 			(size + kPhotoUploadPartSize - 1) / kPhotoUploadPartSize);
@@ -455,6 +471,7 @@ void FilePrepareResult::setThumbData(const QByteArray &thumbdata) {
 		}
 		thumbmd5.resize(32);
 		hashMd5Hex(thumbdata.constData(), thumbdata.size(), thumbmd5.data());
+#endif
 	}
 }
 
@@ -869,6 +886,7 @@ void FileLoadTask::process(Args &&args) {
 		}
 	}
 
+	const auto imageDimensions = fullimage.size();
 	if (!fullimage.isNull() && fullimage.width() > 0 && !isSong && !isVideo && !isVoice) {
 		auto w = fullimage.width(), h = fullimage.height();
 		attributes.push_back(MTP_documentAttributeImageSize(MTP_int(w), MTP_int(h)));
@@ -1009,6 +1027,9 @@ void FileLoadTask::process(Args &&args) {
 	_result->photo = photo;
 	_result->document = document;
 	_result->photoThumbs = photoThumbs;
+
+	_result->imageDimensions = imageDimensions;
+	_result->thumbnailDimensions = _result->thumb.size();
 }
 
 void FileLoadTask::finish() {
