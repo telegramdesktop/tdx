@@ -94,7 +94,7 @@ void PhotoData::setFromTdb(const TLphoto &data) {
 	};
 	const auto large = useProgressive
 		? Images::FromPhotoSize(*i)
-		: image("ydxcwmbsa"_q);
+		: image("ydxcwmbsai"_q);
 	if (!large.location.valid()) {
 		return;
 	}
