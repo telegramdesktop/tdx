@@ -14,6 +14,8 @@ namespace Tdb {
 
 using AccountConfig = details::InstanceConfig;
 
+class FileGenerator;
+
 class Account final {
 public:
 	explicit Account(AccountConfig &&config);
@@ -28,6 +30,15 @@ public:
 		return _ready;
 	}
 
+	void registerFileGenerator(not_null<FileGenerator*> generator);
+	void unregisterFileGenerator(not_null<FileGenerator*> generator);
+	void registerFileGeneration(
+		int64 id,
+		not_null<FileGenerator*> generator);
+	void unregisterFileGeneration(
+		int64 id,
+		not_null<FileGenerator*> generator);
+
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
 	}
@@ -39,6 +50,9 @@ private:
 	Sender _sender;
 	rpl::event_stream<TLupdate> _updates;
 	bool _ready = false;
+
+	base::flat_map<QString, not_null<FileGenerator*>> _generators;
+	base::flat_map<int64, not_null<FileGenerator*>> _generations;
 
 	rpl::lifetime _lifetime;
 
