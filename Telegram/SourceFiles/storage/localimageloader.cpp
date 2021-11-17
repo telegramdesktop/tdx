@@ -46,6 +46,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
+using namespace Tdb;
+
 constexpr auto kThumbnailQuality = 87;
 constexpr auto kThumbnailSize = 320;
 constexpr auto kPhotoUploadPartSize = 32 * 1024;
@@ -714,6 +716,12 @@ void FileLoadTask::process(Args &&args) {
 	auto isVideo = false;
 	auto isVoice = (_type == SendMediaType::Audio);
 	auto isSticker = false;
+	auto isGifv = false;
+	auto isStreamingSupported = false;
+	auto videoDimensions = QSize();
+	auto duration = crl::time(0);
+	auto title = QString();
+	auto performer = QString();
 
 	auto fullimage = QImage();
 	auto fullimagebytes = QByteArray();
@@ -747,6 +755,7 @@ void FileLoadTask::process(Args &&args) {
 				fullimagebytes = fullimageformat = QByteArray();
 			}
 			isAnimation = image->animated;
+			duration = 0;
 		}
 	} else if (!_content.isEmpty()) {
 		filesize = _content.size();
@@ -840,6 +849,9 @@ void FileLoadTask::process(Args &&args) {
 		if (auto song = std::get_if<Ui::PreparedFileInformation::Song>(
 				&_information->media)) {
 			isSong = true;
+			duration = song->duration;
+			title = song->title;
+			performer = song->performer;
 			const auto seconds = song->duration / 1000;
 			auto flags = MTPDdocumentAttributeAudio::Flag::f_title | MTPDdocumentAttributeAudio::Flag::f_performer;
 			attributes.push_back(MTP_documentAttributeAudio(MTP_flags(flags), MTP_int(seconds), MTP_string(song->title), MTP_string(song->performer), MTPstring()));
@@ -849,11 +861,15 @@ void FileLoadTask::process(Args &&args) {
 			isVideo = true;
 			auto coverWidth = video->thumbnail.width();
 			auto coverHeight = video->thumbnail.height();
+			videoDimensions = video->thumbnail.size();
+			duration = video->duration;
 			if (video->isGifv && !_album) {
+				isGifv = true;
 				attributes.push_back(MTP_documentAttributeAnimated());
 			}
 			auto flags = MTPDdocumentAttributeVideo::Flags(0);
 			if (video->supportsStreaming) {
+				isStreamingSupported = true;
 				flags |= MTPDdocumentAttributeVideo::Flag::f_supports_streaming;
 			}
 			const auto realSeconds = video->duration / 1000.;
@@ -1028,8 +1044,38 @@ void FileLoadTask::process(Args &&args) {
 	_result->document = document;
 	_result->photoThumbs = photoThumbs;
 
-	_result->imageDimensions = imageDimensions;
+	_result->dimensions = (_type == SendMediaType::Photo)
+		? imageDimensions
+		: (isSticker && isAnimation)
+		? QSize(kStickerSideSize, kStickerSideSize)
+		: (isSticker || isAnimation)
+		? imageDimensions
+		: isVideo
+		? videoDimensions
+		: QSize();
+	_result->duration = duration ? duration : _duration;
 	_result->thumbnailDimensions = _result->thumb.size();
+	_result->waveform = !_waveform.isEmpty()
+		? documentWaveformEncode5bit(_waveform)
+		: QByteArray();
+	_result->title = title;
+	_result->performer = performer;
+	_result->supportsStreaming = isStreamingSupported;
+	_result->filetype = (_type == SendMediaType::Photo)
+		? PreparedFileType::Photo
+		: (_type == SendMediaType::Secure)
+		? PreparedFileType::Sticker
+		: isVoice
+		? PreparedFileType::VoiceNote
+		: isSticker
+		? PreparedFileType::Sticker
+		: (isAnimation || isGifv)
+		? PreparedFileType::Animation
+		: isVideo
+		? PreparedFileType::Video
+		: isSong
+		? PreparedFileType::Audio
+		: PreparedFileType::Document;
 }
 
 void FileLoadTask::finish() {
