@@ -23,6 +23,11 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Tdb {
+class FileGenerator;
+class TLfile;
+} // namespace Tdb
+
 namespace Storage {
 
 // MTP big files methods used for files greater than 10mb.
@@ -47,6 +52,11 @@ struct UploadSecureDone {
 	int partsCount = 0;
 };
 
+struct ReadyFileWithThumbnail {
+	std::unique_ptr<Tdb::TLfile> file;
+	std::unique_ptr<Tdb::TLfile> thumbnail;
+};
+
 class Uploader final : public QObject {
 public:
 	explicit Uploader(not_null<ApiWrap*> api);
@@ -69,6 +79,10 @@ public:
 
 	void cancelAll();
 	void clear();
+
+	void start(
+		const std::shared_ptr<FileLoadResult> &file,
+		Fn<void(ReadyFileWithThumbnail)> ready);
 
 	rpl::producer<UploadedMedia> photoReady() const {
 		return _photoReady.events();
@@ -99,12 +113,15 @@ public:
 	}
 
 	void unpause();
+#if 0 // mtp
 	void sendNext();
 	void stopSessions();
+#endif
 
 private:
 	struct File;
 
+#if 0 // mtp
 	void partLoaded(const MTPBool &result, mtpRequestId requestId);
 	void partFailed(const MTP::Error &error, mtpRequestId requestId);
 
@@ -115,6 +132,8 @@ private:
 
 	void notifyFailed(FullMsgId id, const File &file);
 	void currentFailed();
+#endif
+
 	void cancelRequests();
 
 	void sendProgressUpdate(
@@ -143,6 +162,8 @@ private:
 	rpl::event_stream<FullMsgId> _photoFailed;
 	rpl::event_stream<FullMsgId> _documentFailed;
 	rpl::event_stream<FullMsgId> _secureFailed;
+
+	base::flat_map<FileId, std::shared_ptr<Tdb::FileGenerator>> _uploads;
 
 	rpl::lifetime _lifetime;
 

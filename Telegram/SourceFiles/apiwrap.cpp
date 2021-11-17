@@ -3603,9 +3603,11 @@ void ApiWrap::sendFiles(
 	}
 
 	const auto to = fileLoadTaskOptions(action);
+#if 0 // mtp
 	if (album) {
 		album->options = to.options;
 	}
+#endif
 	auto tasks = std::vector<std::unique_ptr<Task>>();
 	tasks.reserve(list.files.size());
 	for (auto &file : list.files) {
@@ -3628,7 +3630,9 @@ void ApiWrap::sendFiles(
 		caption = TextWithTags();
 	}
 	if (album) {
+#if 0 // mtp
 		_sendingAlbums.emplace(album->groupId, album);
+#endif
 		album->items.reserve(tasks.size());
 		for (const auto &task : tasks) {
 			album->items.emplace_back(task->id());
@@ -3656,6 +3660,7 @@ void ApiWrap::sendFile(
 		spoiler));
 }
 
+#if 0 // mtp
 void ApiWrap::sendUploadedPhoto(
 		FullMsgId localId,
 		Api::RemoteFileInfo info,
@@ -3698,6 +3703,7 @@ void ApiWrap::cancelLocalItem(not_null<HistoryItem*> item) {
 		sendAlbumWithCancelled(item, groupId);
 	}
 }
+#endif
 
 void ApiWrap::sendMessage(MessageToSend &&message) {
 	const auto history = message.action.history;
@@ -4003,6 +4009,7 @@ void ApiWrap::sendInlineResult(
 #endif
 }
 
+#if 0 // mtp
 void ApiWrap::uploadAlbumMedia(
 		not_null<HistoryItem*> item,
 		const MessageGroupId &groupId,
@@ -4120,7 +4127,6 @@ void ApiWrap::sendMediaWithRandomId(
 		| (options.scheduled ? Flag::f_schedule_date : Flag(0))
 		| (options.sendAs ? Flag::f_send_as : Flag(0));
 
-#if 0 // todo
 	auto &histories = history->owner().histories();
 	const auto peer = history->peer;
 	const auto itemId = item->fullId();
@@ -4148,7 +4154,6 @@ void ApiWrap::sendMediaWithRandomId(
 		if (done) done(false);
 		sendMessageFail(error, peer, randomId, itemId);
 	});
-#endif
 }
 
 void ApiWrap::sendAlbumWithUploaded(
@@ -4225,7 +4230,6 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 			: Flag(0))
 		| (album->options.scheduled ? Flag::f_schedule_date : Flag(0))
 		| (sendAs ? Flag::f_send_as : Flag(0));
-#if 0 // todo
 	auto &histories = history->owner().histories();
 	const auto peer = history->peer;
 	histories.sendPreparedMessage(
@@ -4250,8 +4254,8 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 			sendMessageFail(error, peer);
 		}
 	});
-#endif
 }
+#endif
 
 FileLoadTo ApiWrap::fileLoadTaskOptions(const SendAction &action) const {
 	const auto peer = action.history->peer;
