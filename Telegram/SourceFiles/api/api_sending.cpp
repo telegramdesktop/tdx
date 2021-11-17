@@ -230,21 +230,66 @@ void SendExistingMedia(
 			tl_int32(file->thumbnailDimensions.height()))
 		: std::optional<TLinputThumbnail>());
 	const auto fileById = tl_inputFileId(tl_int32(fields.vid().v));
-	if (file->type == SendMediaType::Photo) {
+	const auto seconds = file->duration / 1000;
+	switch (file->filetype) {
+	case PreparedFileType::Photo:
 		return tl_inputMessagePhoto(
 			fileById,
 			thumbnail,
-			tl_vector<TLint32>(),
-			tl_int32(file->imageDimensions.width()),
-			tl_int32(file->imageDimensions.height()),
+			tl_vector<TLint32>(), // todo attached_stickers
+			tl_int32(file->dimensions.width()),
+			tl_int32(file->dimensions.height()),
 			formatted,
 			tl_int32(0)); // ttl
+	case PreparedFileType::Animation:
+		return tl_inputMessageAnimation(
+			fileById,
+			thumbnail,
+			tl_vector<TLint32>(), // todo attached_stickers
+			tl_int32(seconds),
+			tl_int32(file->dimensions.width()),
+			tl_int32(file->dimensions.height()),
+			formatted);
+	case PreparedFileType::Audio:
+		return tl_inputMessageAudio(
+			fileById,
+			thumbnail,
+			tl_int32(seconds),
+			tl_string(file->title),
+			tl_string(file->performer),
+			formatted);
+	case PreparedFileType::Document:
+		return tl_inputMessageDocument(
+			fileById,
+			thumbnail,
+			tl_bool(false),
+			formatted);
+	case PreparedFileType::Sticker:
+		return tl_inputMessageSticker(
+			fileById,
+			thumbnail,
+			tl_int32(file->dimensions.width()),
+			tl_int32(file->dimensions.height()),
+			tl_string()); // Emoji used for search.
+	case PreparedFileType::Video:
+		return tl_inputMessageVideo(
+			fileById,
+			thumbnail,
+			tl_vector<TLint32>(),
+			tl_int32(seconds),
+			tl_int32(file->dimensions.width()),
+			tl_int32(file->dimensions.height()),
+			tl_bool(file->supportsStreaming),
+			formatted,
+			tl_int32(0)); // ttl
+	case PreparedFileType::VoiceNote:
+		return tl_inputMessageVoiceNote(
+			fileById,
+			tl_int32(seconds),
+			tl_bytes(file->waveform),
+			formatted);
 	}
-	return tl_inputMessageDocument(
-		fileById,
-		thumbnail,
-		tl_bool(false),
-		formatted);
+	Unexpected("FileLoadResult::filetype.");
 }
 
 void SendPreparedAlbumIfReady(
