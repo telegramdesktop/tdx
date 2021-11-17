@@ -40,6 +40,17 @@ enum class SendMediaType {
 	Secure,
 };
 
+enum class PreparedFileType {
+	Photo,
+	Video,
+	Audio,
+	Sticker,
+	Animation,
+	VoiceNote,
+	Document,
+	Secure,
+};
+
 using UploadFileParts =  QMap<int, QByteArray>;
 struct SendMediaReady {
 	SendMediaReady() = default; // temp
@@ -247,8 +258,14 @@ struct FileLoadResult {
 
 	QByteArray filebytes;
 	QByteArray thumbbytes;
-	QSize imageDimensions;
+	QSize dimensions;
 	QSize thumbnailDimensions;
+	QByteArray waveform;
+	crl::time duration = 0;
+	QString title;
+	QString performer;
+	bool supportsStreaming = false;
+	PreparedFileType filetype = PreparedFileType::Document;
 
 	void setFileData(const QByteArray &filedata);
 	void setThumbData(const QByteArray &thumbdata);
