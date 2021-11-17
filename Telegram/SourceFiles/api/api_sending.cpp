@@ -43,6 +43,8 @@ namespace {
 
 using namespace Tdb;
 
+constexpr auto kScheduledTillOnline = Api::kScheduledUntilOnlineTimestamp;
+
 void InnerFillMessagePostFlags(
 		const SendOptions &options,
 		not_null<PeerData*> peer,
@@ -270,6 +272,126 @@ void SendExistingMedia(
 	api->finishForwarding(action);
 }
 
+[[nodiscard]] TLinputMessageContent MessageContentFromFile(
+		not_null<Main::Session*> session,
+		const std::shared_ptr<FilePrepareResult> &file,
+		const Storage::ReadyFileWithThumbnail &ready) {
+	Expects(ready.file != nullptr);
+
+	const auto history = session->data().history(file->to.peer);
+	const auto peer = history->peer;
+
+	auto caption = TextWithEntities{
+		file->caption.text,
+		TextUtilities::ConvertTextTagsToEntities(file->caption.tags)
+	};
+	const auto prepareFlags = Ui::ItemTextOptions(
+		history,
+		session->user()).flags;
+	TextUtilities::PrepareForSending(caption, prepareFlags);
+	TextUtilities::Trim(caption);
+	const auto formatted = caption.text.isEmpty()
+		? std::optional<TLformattedText>()
+		: Api::FormattedTextToTdb(
+			session,
+			caption,
+			Api::ConvertOption::SkipLocal);
+
+	const auto &fields = ready.file->data();
+	const auto thumbnail = (ready.thumbnail
+		? tl_inputThumbnail(
+			tl_inputFileId(ready.thumbnail->data().vid()),
+			tl_int32(file->thumbnailDimensions.width()),
+			tl_int32(file->thumbnailDimensions.height()))
+		: std::optional<TLinputThumbnail>());
+	const auto fileById = tl_inputFileId(tl_int32(fields.vid().v));
+	if (file->type == SendMediaType::Photo) {
+		return tl_inputMessagePhoto(
+			fileById,
+			thumbnail,
+			tl_vector<TLint32>(),
+			tl_int32(file->imageDimensions.width()),
+			tl_int32(file->imageDimensions.height()),
+			formatted,
+			tl_int32(0)); // ttl
+	}
+	return tl_inputMessageDocument(
+		fileById,
+		thumbnail,
+		tl_bool(false),
+		formatted);
+}
+
+void SendPreparedAlbumIfReady(
+		const SendAction &action,
+		not_null<SendingAlbum*> album) {
+	if (album->items.empty()) {
+		return;
+	} else if (album->items.size() == 1) {
+		if (const auto &content = album->items.front().content) {
+			SendPreparedMessage(action, *content);
+		}
+		return;
+	}
+	auto contents = QVector<TLinputMessageContent>();
+	contents.reserve(album->items.size());
+	for (const auto &item : album->items) {
+		if (!item.content) {
+			return;
+		}
+		contents.push_back(*item.content);
+	}
+	const auto history = action.history;
+	const auto peer = history->peer;
+	const auto silentPost = ShouldSendSilent(peer, action.options);
+	const auto clearCloudDraft = action.clearDraft;
+	//if (clearCloudDraft) {
+	//	// todo drafts - unnecessary?..
+	//	history->clearCloudDraft();
+	//	history->startSavingCloudDraft();
+	//}
+	const auto session = &peer->session();
+	session->sender().request(TLsendMessageAlbum(
+		peerToTdbChat(peer->id),
+		tl_int53(0), // message_thread_id
+		tl_int53(action.replyTo.bare),
+		tl_messageSendOptions(
+			tl_bool(silentPost),
+			tl_bool(false), // from_background
+			((action.options.scheduled == kScheduledTillOnline)
+				? tl_messageSchedulingStateSendWhenOnline()
+				: (action.options.scheduled > 0)
+				? tl_messageSchedulingStateSendAtDate(
+					tl_int32(action.options.scheduled))
+				: std::optional<TLmessageSchedulingState>())),
+		tl_vector(std::move(contents))
+	)).done([=](const TLmessages &result) {
+		//if (clearCloudDraft) {
+		//	// todo drafts - unnecessary?..
+		//	history->finishSavingCloudDraft(
+		//		UnixtimeFromMsgId(response.outerMsgId));
+		//}
+		const auto type = NewMessageType::Unread;
+		for (const auto &message : result.data().vmessages().v) {
+			if (message) {
+				session->data().processMessage(*message, type);
+			}
+		}
+	}).fail([=](const Error &error) {
+		const auto code = error.code;
+		//if (error.type() == qstr("MESSAGE_EMPTY")) {
+		//	lastMessage->destroy();
+		//} else {
+		//	sendMessageFail(error, peer, randomId, newId);
+		//}
+		//if (clearCloudDraft) {
+		//	// todo drafts - unnecessary?..
+		//	history->finishSavingCloudDraft(
+		//		UnixtimeFromMsgId(response.outerMsgId));
+		//}
+	}).send();
+}
+
 } // namespace
 
 void SendExistingDocument(
@@ -466,6 +588,7 @@ void FillMessagePostFlags(
 void SendConfirmedFile(
 		not_null<Main::Session*> session,
 		const std::shared_ptr<FilePrepareResult> &file) {
+#if 0 // mtp
 	const auto isEditing = (file->type != SendMediaType::Audio)
 		&& (file->to.replaceMediaOf != 0);
 	const auto newId = FullMsgId(
@@ -631,14 +754,47 @@ void SendConfirmedFile(
 				? Data::HistoryUpdate::Flag::ScheduledSent
 				: Data::HistoryUpdate::Flag::MessageSent));
 	}
+#endif
+
+	const auto ready = [=](Storage::ReadyFileWithThumbnail result) {
+		const auto content = MessageContentFromFile(session, file, result);
+
+		if (file->to.replaceMediaOf) {
+			session->sender().request(TLeditMessageMedia(
+				peerToTdbChat(file->to.peer),
+				tl_int53(file->to.replaceMediaOf.bare),
+				content
+			)).send();
+			return;
+		}
+
+		const auto history = session->data().history(file->to.peer);
+		auto action = Api::SendAction(history);
+		action.options = file->to.options;
+		action.clearDraft = false;
+		action.replyTo = file->to.replyTo;
+		action.generateLocal = true;
+		session->api().sendAction(action);
+
+		if (const auto album = file->album.get()) {
+			const auto i = ranges::find(
+				album->items,
+				file->taskId,
+				&SendingAlbum::Item::taskId);
+			Assert(i != album->items.end());
+
+			i->content = std::make_unique<TLinputMessageContent>(content);
+			SendPreparedAlbumIfReady(action, album);
+		} else {
+			SendPreparedMessage(action, content);
+		}
+	};
+	session->uploader().start(file, ready);
 }
 
 void SendPreparedMessage(
 		const SendAction &action,
 		TLinputMessageContent content) {
-	static constexpr auto kTillOnline
-		= Data::ScheduledMessages::kScheduledUntilOnlineTimestamp;
-
 	const auto history = action.history;
 	const auto peer = history->peer;
 	const auto silentPost = ShouldSendSilent(peer, action.options);
@@ -656,7 +812,7 @@ void SendPreparedMessage(
 		tl_messageSendOptions(
 			tl_bool(silentPost),
 			tl_bool(false), // from_background
-			((action.options.scheduled == kTillOnline)
+			((action.options.scheduled == kScheduledTillOnline)
 				? tl_messageSchedulingStateSendWhenOnline()
 				: (action.options.scheduled > 0)
 				? tl_messageSchedulingStateSendAtDate(
