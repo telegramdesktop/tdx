@@ -368,6 +368,7 @@ void Uploader::start(
 		const std::shared_ptr<FilePrepareResult> &file,
 		Fn<void(ReadyFileWithThumbnail)> ready) {
 	Expects(ready != nullptr);
+	Expects(file != nullptr);
 
 	struct State {
 		std::shared_ptr<FileGenerator> fileGenerator;
@@ -407,11 +408,43 @@ void Uploader::start(
 			tl_fileTypeThumbnail(),
 			file->thumbbytes);
 	}
-	upload(
-		state->fileGenerator,
-		state->result.file,
-		tl_fileTypePhoto(),
-		file->filebytes);
+	const auto type = [&] {
+		switch (file->filetype) {
+		case PreparedFileType::Photo: return tl_fileTypePhoto();
+		case PreparedFileType::Video: return tl_fileTypeVideo();
+		case PreparedFileType::Audio: return tl_fileTypeAudio();
+		case PreparedFileType::Sticker: return tl_fileTypeSticker();
+		case PreparedFileType::Animation: return tl_fileTypeAnimation();
+		case PreparedFileType::VoiceNote: return tl_fileTypeVoiceNote();
+		case PreparedFileType::Document: return tl_fileTypeDocument();
+		case PreparedFileType::Secure: return tl_fileTypeSecure();
+		}
+		Unexpected("FilePrepareResult::filetype.");
+	}();
+	if (!file->filebytes.isEmpty()) {
+		upload(
+			state->fileGenerator,
+			state->result.file,
+			type,
+			file->filebytes);
+	} else if (file->filepath.isEmpty()) {
+		upload(
+			state->fileGenerator,
+			state->result.file,
+			type,
+			file->content);
+	} else {
+		_api->sender().request(TLuploadFile(
+			tl_inputFileLocal(tl_string(file->filepath)),
+			type,
+			tl_int32(1)
+		)).done([=](const TLfile &result) {
+			state->result.file = std::make_unique<TLfile>(result);
+			if (!state->thumbnailGenerator) {
+				state->ready(std::move(state->result));
+			}
+		}).send();
+	}
 }
 
 #if 0 // mtp
