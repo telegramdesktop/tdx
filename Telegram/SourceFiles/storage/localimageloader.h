@@ -14,6 +14,10 @@ namespace Ui {
 struct PreparedFileInformation;
 } // namespace Ui
 
+namespace Tdb {
+class TLinputMessageContent;
+} // namespace Tdb
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -143,13 +147,22 @@ private:
 struct SendingAlbum {
 	struct Item {
 		explicit Item(TaskId taskId);
+		Item(Item&&);
+		Item &operator=(Item&&);
+		~Item();
 
 		TaskId taskId;
+
+#if 0 // mtp
 		uint64 randomId = 0;
 		FullMsgId msgId;
 		std::optional<MTPInputSingleMedia> media;
+#endif
+
+		std::unique_ptr<Tdb::TLinputMessageContent> content;
 	};
 
+#if 0 // mtp
 	SendingAlbum();
 
 	void fillMedia(
@@ -160,8 +173,11 @@ struct SendingAlbum {
 	void removeItem(not_null<HistoryItem*> item);
 
 	uint64 groupId = 0;
+#endif
 	std::vector<Item> items;
+#if 0 // mtp
 	Api::SendOptions options;
+#endif
 
 };
 
@@ -202,15 +218,19 @@ struct FileLoadResult {
 	QString filename;
 	QString filemime;
 	int64 filesize = 0;
+#if 0 // mtp
 	UploadFileParts fileparts;
 	QByteArray filemd5;
 	int64 partssize = 0;
+#endif
 
 	uint64 thumbId = 0; // id is always file-id of media, thumbId is file-id of thumb ( == id for photos)
 	QString thumbname;
+#if 0 // mtp
 	UploadFileParts thumbparts;
 	QByteArray thumbbytes;
 	QByteArray thumbmd5;
+#endif
 	QImage thumb;
 
 	QImage goodThumbnail;
@@ -224,6 +244,11 @@ struct FileLoadResult {
 	bool spoiler = false;
 
 	std::vector<MTPInputDocument> attachedStickers;
+
+	QByteArray filebytes;
+	QByteArray thumbbytes;
+	QSize imageDimensions;
+	QSize thumbnailDimensions;
 
 	void setFileData(const QByteArray &filedata);
 	void setThumbData(const QByteArray &thumbdata);
