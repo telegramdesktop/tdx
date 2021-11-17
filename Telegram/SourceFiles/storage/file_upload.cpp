@@ -23,8 +23,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "apiwrap.h"
 
+#include "tdb/tdb_account.h"
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_file_generator.h"
+
 namespace Storage {
 namespace {
+
+using namespace Tdb;
 
 // max 1mb uploaded at the same time in each session
 constexpr auto kMaxUploadPerSession = 1024 * 1024;
@@ -151,6 +157,25 @@ bool Uploader::Entry::setPartSize(int partSize) {
 }
 
 Uploader::Uploader(not_null<ApiWrap*> api)
+: _api(api) {
+	_api->session().tdb().updates(
+	) | rpl::start_with_next([=](const TLupdate &update) {
+		update.match([&](const TLDupdateFile &data) {
+			const auto &fields = data.vfile().data();
+			const auto id = fields.vid().v;
+			const auto i = _uploads.find(id);
+			if (i != end(_uploads)) {
+				if (fields.vremote().data().vis_uploading_completed().v) {
+					_uploads.erase(i);
+				}
+			}
+		}, [](const auto &) {
+		});
+	}, _lifetime);
+}
+
+#if 0 // mtp
+Uploader::Uploader(not_null<ApiWrap*> api)
 : _api(api)
 , _nextTimer([=] { maybeSend(); })
 , _stopSessionsTimer([=] { stopSessions(); }) {
@@ -270,6 +295,7 @@ void Uploader::sendProgressUpdate(
 	}
 	_api->session().data().requestItemRepaint(item);
 }
+#endif
 
 Uploader::~Uploader() {
 	clear();
@@ -286,6 +312,7 @@ FullMsgId Uploader::currentUploadId() const {
 void Uploader::upload(
 		FullMsgId itemId,
 		const std::shared_ptr<FilePrepareResult> &file) {
+#if 0 // mtp
 	if (file->type == SendMediaType::Photo) {
 		const auto photo = session().data().processPhoto(
 			file->photo,
@@ -334,8 +361,60 @@ void Uploader::upload(
 	if (!_nextTimer.isActive()) {
 		maybeSend();
 	}
+#endif
 }
 
+void Uploader::start(
+		const std::shared_ptr<FilePrepareResult> &file,
+		Fn<void(ReadyFileWithThumbnail)> ready) {
+	Expects(ready != nullptr);
+
+	struct State {
+		std::shared_ptr<FileGenerator> fileGenerator;
+		std::shared_ptr<FileGenerator> thumbnailGenerator;
+		ReadyFileWithThumbnail result;
+		Fn<void(ReadyFileWithThumbnail)> ready;
+	};
+	const auto state = std::make_shared<State>();
+	state->ready = std::move(ready);
+
+	const auto upload = [&](
+			std::shared_ptr<FileGenerator> &generator,
+			std::unique_ptr<TLfile> &field,
+			const TLfileType &type,
+			const QByteArray &bytes) {
+		generator = std::make_shared<FileGenerator>(
+			&_api->session().tdb(),
+			bytes);
+		_api->sender().request(TLuploadFile(
+			generator->inputFile(),
+			type,
+			tl_int32(1)
+		)).done([=, &field, &generator](const TLfile &result) {
+			field = std::make_unique<TLfile>(result);
+			_uploads[result.data().vid().v] = base::take(generator);
+			if (!state->fileGenerator && !state->thumbnailGenerator) {
+				state->ready(std::move(state->result));
+			}
+		}).send();
+	};
+
+	if (!file->thumbnailDimensions.isEmpty()
+		&& !file->thumbbytes.isEmpty()) {
+		upload(
+			state->thumbnailGenerator,
+			state->result.thumbnail,
+			tl_fileTypeThumbnail(),
+			file->thumbbytes);
+	}
+	upload(
+		state->fileGenerator,
+		state->result.file,
+		tl_fileTypePhoto(),
+		file->filebytes);
+}
+
+#if 0 // mtp
 void Uploader::failed(FullMsgId itemId) {
 	const auto i = ranges::find(_queue, itemId, &Entry::itemId);
 	if (i != end(_queue)) {
@@ -632,15 +711,20 @@ void Uploader::maybeSend() {
 		_nextTimer.callOnce(kUploadRequestInterval);
 	}
 }
+#endif
 
 void Uploader::cancel(FullMsgId itemId) {
+#if 0 // todo
 	failed(itemId);
+#endif
 }
 
 void Uploader::cancelAll() {
+#if 0 // mtp
 	while (!_queue.empty()) {
 		failed(_queue.front().itemId);
 	}
+#endif
 	clear();
 	unpause();
 }
@@ -651,7 +735,9 @@ void Uploader::pause(FullMsgId itemId) {
 
 void Uploader::unpause() {
 	_pausedId = FullMsgId();
+#if 0 // todo
 	maybeSend();
+#endif
 }
 
 void Uploader::cancelRequests(FullMsgId itemId) {
@@ -673,10 +759,12 @@ void Uploader::cancelRequests(FullMsgId itemId) {
 }
 
 void Uploader::cancelAllRequests() {
+#if 0 // mtp
 	for (const auto &[requestId, request] : base::take(_requests)) {
 		_api->request(requestId).cancel();
 	}
 	ranges::fill(_sentPerDcIndex, 0);
+#endif
 }
 
 void Uploader::clear() {
@@ -686,6 +774,7 @@ void Uploader::clear() {
 	_stopSessionsTimer.cancel();
 }
 
+#if 0 // mtp
 Uploader::Request Uploader::finishRequest(mtpRequestId requestId) {
 	const auto taken = _requests.take(requestId);
 	Assert(taken.has_value());
@@ -905,5 +994,6 @@ void Uploader::partFailed(const MTP::Error &error, mtpRequestId requestId) {
 	const auto request = finishRequest(requestId);
 	failed(request.itemId);
 }
+#endif
 
 } // namespace Storage

@@ -22,18 +22,25 @@ public:
 		QByteArray content);
 	~FileGenerator();
 
+	void start(int64 id);
 	void cancel();
 	void finish();
 
+	[[nodiscard]] QString conversion() const;
 	[[nodiscard]] TLinputFile inputFile() const;
 
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
+	bool updateGeneration(int64 id);
+	void cancel(int code, const QString &message);
+
+	const not_null<Account*> _account;
+	const QString _conversion;
+
 	QByteArray _content;
-	const TLstring _conversion;
 	Sender _api;
-	TLint64 _generationId = tl_int64(0);
+	int64 _generationId = 0;
 	Offset _generationOffset = 0;
 
 	rpl::lifetime _lifetime;

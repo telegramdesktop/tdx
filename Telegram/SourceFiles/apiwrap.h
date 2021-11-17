@@ -354,6 +354,7 @@ public:
 		TextWithTags &&caption,
 		const SendAction &action);
 
+#if 0 // mtp
 	void sendUploadedPhoto(
 		FullMsgId localId,
 		Api::RemoteFileInfo info,
@@ -364,6 +365,7 @@ public:
 		Api::SendOptions options);
 
 	void cancelLocalItem(not_null<HistoryItem*> item);
+#endif
 
 	void sendShortcutMessages(
 		not_null<PeerData*> peer,
@@ -544,6 +546,7 @@ private:
 		not_null<ChannelData*> channel,
 		not_null<PeerData*> from);
 
+#if 0 // mtp
 	void uploadAlbumMedia(
 		not_null<HistoryItem*> item,
 		const MessageGroupId &groupId,
@@ -567,6 +570,8 @@ private:
 		Api::SendOptions options,
 		uint64 randomId,
 		Fn<void(bool)> done = nullptr);
+#endif
+
 	void sendMultiPaidMedia(
 		not_null<HistoryItem*> item,
 		not_null<SendingAlbum*> album,
@@ -703,7 +708,10 @@ private:
 	rpl::event_stream<SendAction> _sendActions;
 
 	std::unique_ptr<TaskQueue> _fileLoader;
+
+#if 0 // mtp
 	base::flat_map<uint64, std::shared_ptr<SendingAlbum>> _sendingAlbums;
+#endif
 
 	mtpRequestId _topPromotionRequestId = 0;
 	std::pair<QString, uint32> _topPromotionKey;
