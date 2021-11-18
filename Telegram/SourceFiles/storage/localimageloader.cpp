@@ -106,6 +106,7 @@ struct PreparedFileThumbnail {
 [[nodiscard]] bool FileThumbnailUploadRequired(
 		const QString &filemime,
 		int64 filesize) {
+#if 0 // mtp
 	constexpr auto kThumbnailUploadBySize = 5 * int64(1024 * 1024);
 	const auto kThumbnailKnownMimes = {
 		"image/jpeg",
@@ -117,6 +118,8 @@ struct PreparedFileThumbnail {
 	return (filesize > kThumbnailUploadBySize)
 		|| (ranges::find(kThumbnailKnownMimes, filemime.toLower())
 			== end(kThumbnailKnownMimes));
+#endif
+	return true;
 }
 
 [[nodiscard]] PreparedFileThumbnail FinalizeFileThumbnail(
