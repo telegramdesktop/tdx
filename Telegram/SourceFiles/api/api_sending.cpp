@@ -298,9 +298,9 @@ void SendExistingMedia(
 			Api::ConvertOption::SkipLocal);
 
 	const auto &fields = ready.file->data();
-	const auto thumbnail = (ready.thumbnail
+	const auto thumbnail = (ready.thumbnailGenerator
 		? tl_inputThumbnail(
-			tl_inputFileId(ready.thumbnail->data().vid()),
+			ready.thumbnailGenerator->inputFile(),
 			tl_int32(file->thumbnailDimensions.width()),
 			tl_int32(file->thumbnailDimensions.height()))
 		: std::optional<TLinputThumbnail>());
