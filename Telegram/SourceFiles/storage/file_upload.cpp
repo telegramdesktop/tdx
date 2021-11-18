@@ -381,9 +381,9 @@ void Uploader::start(
 
 	const auto upload = [&](
 			std::shared_ptr<FileGenerator> &generator,
-			std::unique_ptr<TLfile> &field,
 			const TLfileType &type,
-			const QByteArray &bytes) {
+			const QByteArray &bytes,
+			std::unique_ptr<TLfile> *outResult = nullptr) {
 		generator = std::make_shared<FileGenerator>(
 			&_api->session().tdb(),
 			bytes);
@@ -391,10 +391,12 @@ void Uploader::start(
 			generator->inputFile(),
 			type,
 			tl_int32(1)
-		)).done([=, &field, &generator](const TLfile &result) {
-			field = std::make_unique<TLfile>(result);
+		)).done([=, &generator](const TLfile &result) {
+			if (outResult) {
+				*outResult = std::make_unique<TLfile>(result);
+			}
 			_uploads[result.data().vid().v] = base::take(generator);
-			if (!state->fileGenerator && !state->thumbnailGenerator) {
+			if (state->result.file && !state->thumbnailGenerator) {
 				state->ready(std::move(state->result));
 			}
 		}).send();
@@ -404,9 +406,9 @@ void Uploader::start(
 		&& !file->thumbbytes.isEmpty()) {
 		upload(
 			state->thumbnailGenerator,
-			state->result.thumbnail,
 			tl_fileTypeThumbnail(),
 			file->thumbbytes);
+		state->result.thumbnailGenerator = state->thumbnailGenerator;
 	}
 	const auto type = [&] {
 		switch (file->filetype) {
@@ -424,15 +426,15 @@ void Uploader::start(
 	if (!file->filebytes.isEmpty()) {
 		upload(
 			state->fileGenerator,
-			state->result.file,
 			type,
-			file->filebytes);
+			file->filebytes,
+			&state->result.file);
 	} else if (file->filepath.isEmpty()) {
 		upload(
 			state->fileGenerator,
-			state->result.file,
 			type,
-			file->content);
+			file->content,
+			&state->result.file);
 	} else {
 		_api->sender().request(TLuploadFile(
 			tl_inputFileLocal(tl_string(file->filepath)),
