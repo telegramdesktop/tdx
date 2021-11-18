@@ -26,7 +26,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
+
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kMegabyte = int64(1024 * 1024);
 constexpr auto kTotalSizeLimitsCount = 18;
@@ -356,6 +361,34 @@ void LocalStorageBox::clearByTag(uint16 tag) {
 		_db->clear();
 		_dbBig->clear();
 		Ui::Emoji::ClearIrrelevantCache();
+
+		_session->sender().request(TLoptimizeStorage(
+			tl_int53(0),
+			tl_int32(0),
+			tl_int32(0),
+			tl_int32(0),
+			tl_vector<TLfileType>({
+				tl_fileTypeAnimation(),
+				tl_fileTypeAudio(),
+				tl_fileTypeDocument(),
+				tl_fileTypePhoto(),
+				tl_fileTypeProfilePhoto(),
+				tl_fileTypeSecret(),
+				tl_fileTypeSecretThumbnail(),
+				tl_fileTypeSecure(),
+				tl_fileTypeSticker(),
+				tl_fileTypeThumbnail(),
+				tl_fileTypeUnknown(),
+				tl_fileTypeVideo(),
+				tl_fileTypeVideoNote(),
+				tl_fileTypeVoiceNote(),
+				tl_fileTypeWallpaper(),
+			}),
+			tl_vector<TLint53>(),
+			tl_vector<TLint53>(),
+			tl_bool(false),
+			tl_int32(0)
+		)).send();
 	}
 }
 
