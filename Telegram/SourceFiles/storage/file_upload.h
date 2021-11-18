@@ -54,7 +54,7 @@ struct UploadSecureDone {
 
 struct ReadyFileWithThumbnail {
 	std::unique_ptr<Tdb::TLfile> file;
-	std::unique_ptr<Tdb::TLfile> thumbnail;
+	std::shared_ptr<Tdb::FileGenerator> thumbnailGenerator;
 };
 
 class Uploader final : public base::has_weak_ptr {
