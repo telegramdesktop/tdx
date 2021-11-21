@@ -617,6 +617,8 @@ TextWithEntities GenerateParticipantChangeText(
 		not_null<ChannelData*> channel,
 		const MTPChannelParticipant &participant,
 		std::optional<MTPChannelParticipant>oldParticipant = std::nullopt) {
+	return {};
+#if 0 // doLater
 	return GenerateParticipantChangeText(
 		channel,
 		Api::ChatParticipant(participant, channel),
@@ -625,6 +627,7 @@ TextWithEntities GenerateParticipantChangeText(
 				*oldParticipant,
 				channel))
 			: std::nullopt);
+#endif
 }
 
 TextWithEntities GenerateDefaultBannedRightsChangeText(
