@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <rpl/variable.h>
 #include "boxes/peer_list_box.h"
-#include "mtproto/sender.h"
+#include "tdb/tdb_sender.h"
 #include "base/timer.h"
 #include "base/weak_ptr.h"
 #include "info/profile/info_profile_members_controllers.h"
@@ -281,7 +281,10 @@ private:
 	Window::SessionNavigation *_navigation = nullptr;
 
 	not_null<PeerData*> _peer;
+#if 0 // goodToRemove
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 	Role _role = Role::Admins;
 	int _offset = 0;
 	mtpRequestId _loadRequestId = 0;
@@ -323,7 +326,10 @@ private:
 		bool wasLoading = false;
 	};
 	struct CacheEntry {
+#if 0 // goodToRemove
 		MTPchannels_ChannelParticipants result;
+#endif
+		Tdb::TLchatMembers result;
 		int requestedCount = 0;
 	};
 	struct Query {
@@ -335,13 +341,19 @@ private:
 	bool searchInCache();
 	void searchDone(
 		mtpRequestId requestId,
+#if 0 // goodToRemove
 		const MTPchannels_ChannelParticipants &result,
+#endif
+		const Tdb::TLchatMembers &result,
 		int requestedCount);
 
 	not_null<ChannelData*> _channel;
 	Role _role = Role::Restricted;
 	not_null<ParticipantsAdditionalData*> _additional;
+#if 0 // goodToRemove
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 
 	base::Timer _timer;
 	QString _query;
