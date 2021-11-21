@@ -1178,8 +1178,10 @@ bool AddSpecialBoxController::checkInfoLoaded(
 	)).done([=](const MTPchannels_ChannelParticipant &result) {
 		result.match([&](const MTPDchannels_channelParticipant &data) {
 			channel->owner().processUsers(data.vusers());
+#if 0 // doLater
 			_additional.applyParticipant(
 				Api::ChatParticipant(data.vparticipant(), channel));
+#endif
 		});
 		callback();
 	}).fail([=] {
