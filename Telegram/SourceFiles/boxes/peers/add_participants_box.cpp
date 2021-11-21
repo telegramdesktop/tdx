@@ -1107,7 +1107,7 @@ void AddSpecialBoxController::loadMoreRows() {
 	const auto participantsHash = uint64(0);
 	const auto channel = _peer->asChannel();
 
-#if 0 // todo
+#if 0 // goodToRemove
 	_loadRequestId = _api.request(MTPchannels_GetParticipants(
 		channel->inputChannel,
 		MTP_channelParticipantsRecent(),
@@ -1145,6 +1145,37 @@ void AddSpecialBoxController::loadMoreRows() {
 		_loadRequestId = 0;
 	}).send();
 #endif
+	_loadRequestId = _api.request(Tdb::TLgetSupergroupMembers(
+		Tdb::tl_int53(peerToChannel(channel->id).bare),
+		Tdb::tl_supergroupMembersFilterRecent(),
+		Tdb::tl_int32(_offset),
+		Tdb::tl_int32(perPage)
+	)).done([=](const Tdb::TLDchatMembers &data) {
+		_loadRequestId = 0;
+		auto &session = channel->session();
+		const auto &[availableCount, list] = Api::ChatParticipants::Parse(
+			channel,
+			data);
+		for (const auto &data : list) {
+			if (const auto participant = _additional.applyParticipant(data)) {
+				appendRow(participant);
+			}
+		}
+		if (const auto size = list.size()) {
+			_offset += size;
+		} else {
+			// To be sure - wait for a whole empty result list.
+			_allLoaded = true;
+		}
+		if (delegate()->peerListFullRowsCount() > 0) {
+			setDescriptionText(QString());
+		} else if (_allLoaded) {
+			setDescriptionText(tr::lng_blocked_list_not_found(tr::now));
+		}
+		delegate()->peerListRefreshRows();
+	}).fail([this] {
+		_loadRequestId = 0;
+	}).send();
 }
 
 void AddSpecialBoxController::rowClicked(not_null<PeerListRow*> row) {
@@ -1172,17 +1203,23 @@ bool AddSpecialBoxController::checkInfoLoaded(
 
 	// We don't know what this user status is in the group.
 	const auto channel = _peer->asChannel();
+#if 0 // goodToRemove
 	_api.request(MTPchannels_GetParticipant(
 		channel->inputChannel,
 		participant->input
 	)).done([=](const MTPchannels_ChannelParticipant &result) {
 		result.match([&](const MTPDchannels_channelParticipant &data) {
 			channel->owner().processUsers(data.vusers());
-#if 0 // doLater
 			_additional.applyParticipant(
 				Api::ChatParticipant(data.vparticipant(), channel));
-#endif
 		});
+		callback();
+#endif
+	_api.request(Tdb::TLgetChatMember(
+		peerToTdbChat(channel->id),
+		peerToSender(participant->id)
+	)).done([=](const Tdb::TLchatMember &result) {
+		_additional.applyParticipant(Api::ChatParticipant(result, channel));
 		callback();
 	}).fail([=] {
 		_additional.setExternal(participant);
@@ -1524,7 +1561,6 @@ bool AddSpecialBoxSearchController::isLoading() {
 }
 
 bool AddSpecialBoxSearchController::searchParticipantsInCache() {
-#if 0 // todo
 	const auto i = _participantsCache.find(_query);
 	if (i != _participantsCache.cend()) {
 		_requestId = 0;
@@ -1534,19 +1570,16 @@ bool AddSpecialBoxSearchController::searchParticipantsInCache() {
 			i->second.requestedCount);
 		return true;
 	}
-#endif
 	return false;
 }
 
 bool AddSpecialBoxSearchController::searchGlobalInCache() {
-#if 0 // todo
 	auto it = _globalCache.find(_query);
 	if (it != _globalCache.cend()) {
 		_requestId = 0;
 		searchGlobalDone(_requestId, it->second);
 		return true;
 	}
-#endif
 	return false;
 }
 
@@ -1584,7 +1617,7 @@ void AddSpecialBoxSearchController::requestParticipants() {
 	const auto participantsHash = uint64(0);
 	const auto channel = _peer->asChannel();
 
-#if 0 // todo
+#if 0 // goodToRemove
 	_requestId = _api.request(MTPchannels_GetParticipants(
 		channel->inputChannel,
 		MTP_channelParticipantsSearch(MTP_string(_query)),
@@ -1596,6 +1629,15 @@ void AddSpecialBoxSearchController::requestParticipants() {
 			mtpRequestId requestId) {
 		searchParticipantsDone(requestId, result, perPage);
 	}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
+#endif
+	_requestId = _api.request(Tdb::TLgetSupergroupMembers(
+		Tdb::tl_int53(peerToChannel(channel->id).bare),
+		Tdb::tl_supergroupMembersFilterSearch(Tdb::tl_string(_query)),
+		Tdb::tl_int32(_offset),
+		Tdb::tl_int32(perPage)
+	)).done([=](const Tdb::TLchatMembers &result, Tdb::RequestId requestId) {
+		searchParticipantsDone(requestId, result, perPage);
+	}).fail([=](const Tdb::Error &error, Tdb::RequestId requestId) {
 		if (_requestId == requestId) {
 			_requestId = 0;
 			_participantsLoaded = true;
@@ -1608,13 +1650,14 @@ void AddSpecialBoxSearchController::requestParticipants() {
 	entry.text = _query;
 	entry.offset = _offset;
 	_participantsQueries.emplace(_requestId, entry);
-#endif
 }
 
-#if 0 // mtp
 void AddSpecialBoxSearchController::searchParticipantsDone(
 		mtpRequestId requestId,
+#if 0 // goodToRemove
 		const MTPchannels_ChannelParticipants &result,
+#endif
+		const Tdb::TLchatMembers &result,
 		int requestedCount) {
 	Expects(_peer->isChannel());
 
@@ -1633,6 +1676,9 @@ void AddSpecialBoxSearchController::searchParticipantsDone(
 				_participantsQueries.erase(it);
 			}
 		};
+		Api::ChatParticipants::Parse(channel, result.data());
+		addToCache();
+#if 0 // goodToRemove
 		result.match([&](const MTPDchannels_channelParticipants &data) {
 			Api::ChatParticipants::Parse(channel, data);
 			addToCache();
@@ -1640,12 +1686,14 @@ void AddSpecialBoxSearchController::searchParticipantsDone(
 			LOG(("API Error: "
 				"channels.channelParticipantsNotModified received!"));
 		});
+#endif
 	}
 
 	if (_requestId != requestId) {
 		return;
 	}
 	_requestId = 0;
+#if 0 // goodToRemove
 	result.match([&](const MTPDchannels_channelParticipants &data) {
 		const auto &list = data.vparticipants().v;
 		if (list.size() < requestedCount) {
@@ -1668,10 +1716,28 @@ void AddSpecialBoxSearchController::searchParticipantsDone(
 	}, [&](const MTPDchannels_channelParticipantsNotModified &) {
 		_participantsLoaded = true;
 	});
+#endif
+	const auto &list = result.data().vmembers().v;
+	if (list.size() < requestedCount) {
+		// We want cache to have full information about a query with
+		// small results count (that we don't need the second request).
+		// So we don't wait for empty list unlike the non-search case.
+		_participantsLoaded = true;
+		if (list.empty() && _offset == 0) {
+			// No results, request global search immediately.
+			loadMoreRows();
+		}
+	}
+	for (const auto &data : list) {
+		if (const auto user = _additional->applyParticipant(
+				Api::ChatParticipant(data, channel))) {
+			delegate()->peerListSearchAddRow(user);
+		}
+	}
+	_offset += list.size();
 
 	delegate()->peerListSearchRefreshRows();
 }
-#endif
 
 void AddSpecialBoxSearchController::requestGlobal() {
 	if (_query.isEmpty()) {
@@ -1679,7 +1745,7 @@ void AddSpecialBoxSearchController::requestGlobal() {
 		return;
 	}
 
-#if 0 // todo
+#if 0 // goodToRemove
 	auto perPage = SearchPeopleLimit;
 	_requestId = _api.request(MTPcontacts_Search(
 		MTP_string(_query),
@@ -1687,6 +1753,15 @@ void AddSpecialBoxSearchController::requestGlobal() {
 	)).done([=](const MTPcontacts_Found &result, mtpRequestId requestId) {
 		searchGlobalDone(requestId, result);
 	}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
+#endif
+	_globalQueries.emplace(_requestId, _query);
+	auto perPage = SearchPeopleLimit;
+	_requestId = _api.request(Tdb::TLsearchChatsOnServer(
+		Tdb::tl_string(_query),
+		Tdb::tl_int32(perPage)
+	)).done([=](const Tdb::TLchats &result, Tdb::RequestId requestId) {
+		searchGlobalDone(requestId, result);
+	}).fail([=](const Tdb::Error &error, Tdb::RequestId requestId) {
 		if (_requestId == requestId) {
 			_requestId = 0;
 			_globalLoaded = true;
@@ -1694,20 +1769,22 @@ void AddSpecialBoxSearchController::requestGlobal() {
 		}
 	}).send();
 	_globalQueries.emplace(_requestId, _query);
-#endif
 }
 
-#if 0 // mtp
+
 void AddSpecialBoxSearchController::searchGlobalDone(
 		mtpRequestId requestId,
+		const Tdb::TLchats &result) {
+#if 0 // goodToRemove
 		const MTPcontacts_Found &result) {
-	Expects(result.type() == mtpc_contacts_found);
-
 	auto &found = result.c_contacts_found();
+#endif
 	auto query = _query;
 	if (requestId) {
+#if 0 // goodToRemove
 		_peer->owner().processUsers(found.vusers());
 		_peer->owner().processChats(found.vchats());
+#endif
 		auto it = _globalQueries.find(requestId);
 		if (it != _globalQueries.cend()) {
 			query = it->second;
@@ -1716,9 +1793,14 @@ void AddSpecialBoxSearchController::searchGlobalDone(
 		}
 	}
 
+#if 0 // goodToRemove
 	const auto feedList = [&](const MTPVector<MTPPeer> &list) {
 		for (const auto &mtpPeer : list.v) {
 			const auto peerId = peerFromMTP(mtpPeer);
+#endif
+	const auto feedList = [&] {
+		for (const auto &chatId : result.data().vchat_ids().v) {
+			const auto peerId = peerFromTdbChat(chatId);
 			if (const auto peer = _peer->owner().peerLoaded(peerId)) {
 				if (const auto user = peer->asUser()) {
 					_additional->checkForLoaded(user);
@@ -1730,12 +1812,14 @@ void AddSpecialBoxSearchController::searchGlobalDone(
 	if (_requestId == requestId) {
 		_requestId = 0;
 		_globalLoaded = true;
+#if 0 // goodToRemove
 		feedList(found.vmy_results());
 		feedList(found.vresults());
+#endif
+		feedList();
 		delegate()->peerListSearchRefreshRows();
 	}
 }
-#endif
 
 void AddSpecialBoxSearchController::addChatMembers(
 		not_null<ChatData*> chat) {

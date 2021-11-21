@@ -182,7 +182,10 @@ public:
 
 private:
 	struct CacheEntry {
+#if 0 // goodToRemove
 		MTPchannels_ChannelParticipants result;
+#endif
+		Tdb::TLchatMembers result;
 		int requestedCount = 0;
 	};
 	struct Query {
@@ -192,16 +195,18 @@ private:
 
 	void searchOnServer();
 	bool searchParticipantsInCache();
-#if 0 // mtp
 	void searchParticipantsDone(
 		mtpRequestId requestId,
+#if 0 // goodToRemove
 		const MTPchannels_ChannelParticipants &result,
-		int requestedCount);
 #endif
+		const Tdb::TLchatMembers &result,
+		int requestedCount);
 	bool searchGlobalInCache();
-#if 0 // mtp
 	void searchGlobalDone(
 		mtpRequestId requestId,
+		const Tdb::TLchats &result);
+#if 0 // goodToRemove
 		const MTPcontacts_Found &result);
 #endif
 	void requestParticipants();
@@ -225,7 +230,10 @@ private:
 	bool _globalLoaded = false;
 	std::map<QString, CacheEntry> _participantsCache;
 	std::map<mtpRequestId, Query> _participantsQueries;
+#if 0 // goodToRemove
 	std::map<QString, MTPcontacts_Found> _globalCache;
+#endif
+	std::map<QString, Tdb::TLchats> _globalCache;
 	std::map<mtpRequestId, QString> _globalQueries;
 
 };
