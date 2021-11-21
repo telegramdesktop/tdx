@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 #include "ui/widgets/tooltip.h"
-#include "mtproto/sender.h"
+#include "tdb/tdb_sender.h"
 #include "base/timer.h"
 
 struct ChatRestrictionsInfo;
@@ -223,7 +223,12 @@ private:
 	void paintEmpty(Painter &p, not_null<const Ui::ChatStyle*> st);
 	void clearAfterFilterChange();
 	void clearAndRequestLog();
+#if 0 // goodToRemove
 	void addEvents(Direction direction, const QVector<MTPChannelAdminLogEvent> &events);
+#endif
+	void addEvents(
+		Direction direction,
+		const QVector<Tdb::TLchatEvent> &events);
 	Element *viewForItem(const HistoryItem *item);
 
 	void toggleScrollDateShown();
@@ -260,7 +265,10 @@ private:
 	const not_null<Window::SessionController*> _controller;
 	const not_null<ChannelData*> _channel;
 	const not_null<History*> _history;
+#if 0 // goodToRemove
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 
 	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
 	std::shared_ptr<Ui::ChatTheme> _theme;
