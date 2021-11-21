@@ -1201,11 +1201,13 @@ void GenerateItems(
 
 	const auto createDefaultBannedRights = [&](
 			const LogPermissions &action) {
+#if 0 // doLater
 		addSimpleTextMessage(
 			GenerateDefaultBannedRightsChangeText(
 				channel,
 				ChatRestrictionsInfo(action.vnew_banned_rights()),
 				ChatRestrictionsInfo(action.vprev_banned_rights())));
+#endif
 	};
 
 	const auto createStopPoll = [&](const LogPoll &action) {
