@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_chat_participant_status.h"
-#include "mtproto/sender.h"
+#include "tdb/tdb_sender.h"
 #include "base/timer.h"
 
 class ApiWrap;
@@ -31,8 +31,13 @@ public:
 		Banned,
 	};
 
+#if 0 // goodToRemove
 	explicit ChatParticipant(
 		const MTPChannelParticipant &p,
+		not_null<PeerData*> peer);
+#endif
+	explicit ChatParticipant(
+		const Tdb::TLchatMember &p,
 		not_null<PeerData*> peer);
 	ChatParticipant(
 		Type type,
@@ -81,7 +86,10 @@ public:
 		const std::vector<ChatParticipant> list;
 	};
 
+#if 0 // goodToRemove
 	using TLMembers = MTPDchannels_channelParticipants;
+#endif
+	using TLMembers = Tdb::TLDchatMembers;
 	using Members = const std::vector<ChatParticipant> &;
 	explicit ChatParticipants(not_null<ApiWrap*> api);
 
@@ -121,7 +129,10 @@ public:
 		not_null<PeerData*> participant);
 
 private:
+#if 0 // goodToRemove
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 
 	using PeerRequests = base::flat_map<PeerData*, mtpRequestId>;
 
