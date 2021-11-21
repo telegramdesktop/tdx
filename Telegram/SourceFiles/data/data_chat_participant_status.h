@@ -12,6 +12,11 @@ struct PreparedList;
 struct PreparedFile;
 } // namespace Ui
 
+namespace Tdb {
+class TLchatMemberStatus;
+class TLchatPermissions;
+} // namespace Tdb
+
 enum class ChatAdminRight {
 	ChangeInfo = (1 << 0),
 	PostMessages = (1 << 1),
@@ -62,9 +67,18 @@ struct ChatAdminRightsInfo {
 	ChatAdminRightsInfo() = default;
 	explicit ChatAdminRightsInfo(ChatAdminRights flags) : flags(flags) {
 	}
+#if 0 // goodToRemove
 	explicit ChatAdminRightsInfo(const MTPChatAdminRights &rights);
+#endif
+	explicit ChatAdminRightsInfo(const Tdb::TLchatMemberStatus &status);
+
+	static Tdb::TLchatMemberStatus ToTL(
+		const ChatAdminRightsInfo &rights,
+		const QString &rank);
 
 	ChatAdminRights flags;
+private:
+	bool _creator = false;
 };
 
 struct ChatRestrictionsInfo {
@@ -73,7 +87,14 @@ struct ChatRestrictionsInfo {
 	: flags(flags)
 	, until(until) {
 	}
+#if 0 // goodToRemove
 	explicit ChatRestrictionsInfo(const MTPChatBannedRights &rights);
+#endif
+	explicit ChatRestrictionsInfo(const Tdb::TLchatMemberStatus &status);
+
+	static Tdb::TLchatPermissions ToTLPermissions(
+		const ChatRestrictions &flags);
+	static Tdb::TLchatMemberStatus ToTL(const ChatRestrictionsInfo &rights);
 
 	ChatRestrictions flags;
 	TimeId until = 0;
