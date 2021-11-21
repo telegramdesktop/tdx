@@ -35,8 +35,13 @@ public:
 		Banned,
 	};
 
+#if 0 // goodToRemove
 	explicit ChatParticipant(
 		const MTPChannelParticipant &p,
+		not_null<PeerData*> peer);
+#endif
+	explicit ChatParticipant(
+		const Tdb::TLchatMember &p,
 		not_null<PeerData*> peer);
 	ChatParticipant(
 		Type type,
@@ -92,7 +97,10 @@ public:
 		const std::vector<ChatParticipant> list;
 	};
 
+#if 0 // goodToRemove
 	using TLMembers = MTPDchannels_channelParticipants;
+#endif
+	using TLMembers = Tdb::TLDchatMembers;
 	using Members = const std::vector<ChatParticipant> &;
 	explicit ChatParticipants(not_null<ApiWrap*> api);
 
