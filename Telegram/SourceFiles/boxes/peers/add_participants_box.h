@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "tdb/tdb_sender.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peers/edit_participants_box.h"
 
@@ -150,7 +151,10 @@ private:
 	QPointer<Ui::BoxContent> showBox(object_ptr<Ui::BoxContent> box) const;
 
 	not_null<PeerData*> _peer;
+#if 0 // goodToRemove
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 	Role _role = Role::Admins;
 	int _offset = 0;
 	mtpRequestId _loadRequestId = 0;
@@ -182,7 +186,10 @@ public:
 
 private:
 	struct CacheEntry {
+#if 0 // goodToRemove
 		MTPchannels_ChannelParticipants result;
+#endif
+		Tdb::TLchatMembers result;
 		int requestedCount = 0;
 	};
 	struct Query {
@@ -192,16 +199,18 @@ private:
 
 	void searchOnServer();
 	bool searchParticipantsInCache();
-#if 0 // mtp
 	void searchParticipantsDone(
 		mtpRequestId requestId,
+#if 0 // goodToRemove
 		const MTPchannels_ChannelParticipants &result,
-		int requestedCount);
 #endif
+		const Tdb::TLchatMembers &result,
+		int requestedCount);
 	bool searchGlobalInCache();
-#if 0 // mtp
 	void searchGlobalDone(
 		mtpRequestId requestId,
+		const Tdb::TLchats &result);
+#if 0 // goodToRemove
 		const MTPcontacts_Found &result);
 #endif
 	void requestParticipants();
@@ -213,7 +222,10 @@ private:
 
 	not_null<PeerData*> _peer;
 	not_null<ParticipantsAdditionalData*> _additional;
+#if 0 // goodToRemove
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 
 	base::Timer _timer;
 	QString _query;
@@ -225,7 +237,10 @@ private:
 	bool _globalLoaded = false;
 	std::map<QString, CacheEntry> _participantsCache;
 	std::map<mtpRequestId, Query> _participantsQueries;
+#if 0 // goodToRemove
 	std::map<QString, MTPcontacts_Found> _globalCache;
+#endif
+	std::map<QString, Tdb::TLchats> _globalCache;
 	std::map<mtpRequestId, QString> _globalQueries;
 
 };
