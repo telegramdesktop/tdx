@@ -458,8 +458,8 @@ void InnerWidget::applySearch(const QString &query) {
 }
 
 void InnerWidget::requestAdmins() {
-#if 0 // todo
 	const auto offset = 0;
+#if 0 // goodToRemove
 	const auto participantsHash = uint64(0);
 	_api.request(MTPchannels_GetParticipants(
 		_channel->inputChannel,
@@ -469,6 +469,14 @@ void InnerWidget::requestAdmins() {
 		MTP_long(participantsHash)
 	)).done([=](const MTPchannels_ChannelParticipants &result) {
 		result.match([&](const MTPDchannels_channelParticipants &data) {
+#endif
+	_api.request(Tdb::TLgetSupergroupMembers(
+		Tdb::tl_int53(peerToChannel(_channel->id).bare),
+		Tdb::tl_supergroupMembersFilterAdministrators(),
+		Tdb::tl_int32(offset),
+		Tdb::tl_int32(kMaxChannelAdmins)
+	)).done([=](const Tdb::TLDchatMembers &data) {
+		{
 			const auto &[availableCount, list] = Api::ChatParticipants::Parse(
 				_channel,
 				data);
@@ -489,10 +497,13 @@ void InnerWidget::requestAdmins() {
 					}
 				}
 			}
+		}
+#if 0 // goodToRemove
 		}, [&](const MTPDchannels_channelParticipantsNotModified &) {
 			LOG(("API Error: c"
 				"hannels.channelParticipantsNotModified received!"));
 		});
+#endif
 		if (_admins.empty()) {
 			_admins.push_back(session().user());
 		}
@@ -500,7 +511,6 @@ void InnerWidget::requestAdmins() {
 			showFilter(std::move(_showFilterCallback));
 		}
 	}).send();
-#endif
 }
 
 void InnerWidget::showFilter(Fn<void(FilterValue &&filter)> callback) {
@@ -816,6 +826,51 @@ void InnerWidget::preloadMore(Direction direction) {
 		return;
 	}
 
+	const auto maxId = (direction == Direction::Up) ? _minId : 0;
+	// const auto minId = (direction == Direction::Up) ? 0 : _maxId;
+	const auto perPage = _items.empty() ? kEventsFirstPage : kEventsPerPage;
+
+	auto filter = Tdb::tl_chatEventLogFilters(
+		Tdb::tl_bool(_filter.flags & FilterValue::Flag::Edit),
+		Tdb::tl_bool(_filter.flags & FilterValue::Flag::Delete),
+		Tdb::tl_bool(_filter.flags & FilterValue::Flag::Pinned),
+		Tdb::tl_bool(_filter.flags & FilterValue::Flag::Join),
+		Tdb::tl_bool(_filter.flags & FilterValue::Flag::Leave),
+		Tdb::tl_bool(_filter.flags & FilterValue::Flag::Invites),
+		Tdb::tl_bool(_filter.flags & FilterValue::Flag::Promote),
+		Tdb::tl_bool(_filter.flags & FilterValue::Flag::Demote),
+		Tdb::tl_bool(_filter.flags & FilterValue::Flag::Info),
+		Tdb::tl_bool(_filter.flags & FilterValue::Flag::Settings),
+		Tdb::tl_bool(_filter.flags & FilterValue::Flag::Invite),
+		Tdb::tl_bool(_filter.flags & FilterValue::Flag::GroupCall));
+
+	auto admins = _filter.allUsers
+		? QVector<Tdb::TLint53>()
+		: ranges::views::all(
+			_filter.admins
+		) | ranges::views::transform([](not_null<UserData*> user) {
+			return Tdb::tl_int53(peerToUser(user->id).bare);
+		}) | ranges::to<QVector<Tdb::TLint53>>();
+
+	requestId = _api.request(Tdb::TLgetChatEventLog(
+		peerToTdbChat(_channel->id),
+		Tdb::tl_string(_searchQuery),
+		Tdb::tl_int64(maxId),
+		Tdb::tl_int32(perPage),
+		std::move(filter),
+		Tdb::tl_vector<Tdb::TLint53>(std::move(admins))
+	)).done([=, &requestId, &loadedFlag](const Tdb::TLDchatEvents &data) {
+		requestId = 0;
+
+		if (!loadedFlag) {
+			addEvents(direction, data.vevents().v);
+		}
+	}).fail([this, &requestId, &loadedFlag](const Tdb::Error &error) {
+		requestId = 0;
+		loadedFlag = true;
+		update();
+	}).send();
+#if 0 // goodToRemove
 	auto flags = MTPchannels_GetAdminLog::Flags(0);
 	const auto filter = [&] {
 		using Flag = MTPDchannelAdminLogEventsFilter::Flag;
@@ -883,9 +938,15 @@ void InnerWidget::preloadMore(Direction direction) {
 		loadedFlag = true;
 		update();
 	}).send();
+#endif
 }
 
+#if 0 // goodToRemove
 void InnerWidget::addEvents(Direction direction, const QVector<MTPChannelAdminLogEvent> &events) {
+#endif
+void InnerWidget::addEvents(
+		Direction direction,
+		const QVector<Tdb::TLchatEvent> &events) {
 	if (_filterChanged) {
 		clearAfterFilterChange();
 	}
@@ -1561,6 +1622,25 @@ void InnerWidget::suggestRestrictParticipant(
 		} else if (base::contains(_admins, user)) {
 			editRestrictions(true, {}, nullptr, 0);
 		} else {
+			_api.request(Tdb::TLgetChatMember(
+				peerToTdbChat(_channel->id),
+				peerToSender(user->id)
+			)).done([=](const Tdb::TLDchatMember &data) {
+				const auto type = data.vstatus().type();
+				if (type == Tdb::id_chatMemberStatusBanned) {
+					editRestrictions(
+						false,
+						ChatRestrictionsInfo(data.vstatus()));
+				} else {
+					const auto hasAdminRights =
+						(type == Tdb::id_chatMemberStatusAdministrator)
+						|| (type == Tdb::id_chatMemberStatusCreator);
+					editRestrictions(hasAdminRights, ChatRestrictionsInfo());
+				}
+			}).fail([=] {
+				editRestrictions(false, ChatRestrictionsInfo());
+			}).send();
+#if 0 // goodToRemove
 			_api.request(MTPchannels_GetParticipant(
 				_channel->inputChannel,
 				user->input
@@ -1585,6 +1665,7 @@ void InnerWidget::suggestRestrictParticipant(
 			}).fail([=] {
 				editRestrictions(false, {}, nullptr, 0);
 			}).send();
+#endif
 		}
 	}, &st::menuIconPermissions);
 

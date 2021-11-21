@@ -229,7 +229,12 @@ private:
 	void paintEmpty(Painter &p, not_null<const Ui::ChatStyle*> st);
 	void clearAfterFilterChange();
 	void clearAndRequestLog();
+#if 0 // goodToRemove
 	void addEvents(Direction direction, const QVector<MTPChannelAdminLogEvent> &events);
+#endif
+	void addEvents(
+		Direction direction,
+		const QVector<Tdb::TLchatEvent> &events);
 	Element *viewForItem(const HistoryItem *item);
 
 	void toggleScrollDateShown();
