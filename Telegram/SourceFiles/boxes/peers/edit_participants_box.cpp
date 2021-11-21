@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peers/edit_participants_box.h"
 
+#include "data/data_channel_admins.h"
 #include "api/api_chat_participants.h"
 #include "boxes/peers/edit_participant_box.h"
 #include "boxes/peers/add_participants_box.h"
@@ -47,12 +48,33 @@ constexpr auto kParticipantsPerPage = 200;
 constexpr auto kSortByOnlineDelay = crl::time(1000);
 
 void RemoveAdmin(
+#if 0 // goodToRemove
 		not_null<ChannelData*> channel,
+#endif
+		not_null<PeerData*> peer,
 		not_null<UserData*> user,
 		ChatAdminRightsInfo oldRights,
 		Fn<void()> onDone,
 		Fn<void()> onFail) {
-#if 0 // todo
+	peer->session().sender().request(Tdb::TLsetChatMemberStatus(
+		peerToTdbChat(peer->id),
+		peerToSender(user->id),
+		Tdb::tl_chatMemberStatusMember()
+	)).done([=] {
+		if (const auto channel = peer->asChannel()) {
+			channel->applyEditAdmin(user, oldRights, {}, {});
+		} else if (const auto chat = peer->asChat()) {
+			chat->applyEditAdmin(user, false);
+		}
+		if (onDone) {
+			onDone();
+		}
+	}).fail([=] {
+		if (onFail) {
+			onFail();
+		}
+	}).send();
+#if 0 // goodToRemove
 	const auto newRights = MTP_chatAdminRights(MTP_flags(0));
 	channel->session().api().request(MTPchannels_EditAdmin(
 		channel->inputChannel,
@@ -79,7 +101,21 @@ void AddChatParticipant(
 		not_null<UserData*> user,
 		Fn<void()> onDone,
 		Fn<void()> onFail) {
-#if 0 // todo
+	chat->session().sender().request(Tdb::TLaddChatMember(
+		peerToTdbChat(chat->id),
+		Tdb::tl_int53(peerToUser(user->id).bare),
+		Tdb::tl_int32(kForwardMessagesOnAdd)
+	)).done([=] {
+		if (onDone) {
+			onDone();
+		}
+	}).fail([=](const Error &error) {
+		ShowAddParticipantsError(show, error.message, chat, user);
+		if (onFail) {
+			onFail();
+		}
+	}).send();
+#if 0 // goodToRemove
 	chat->session().api().request(MTPmessages_AddChatUser(
 		chat->inputChat,
 		user->inputUser,
@@ -103,6 +139,7 @@ void AddChatParticipant(
 #endif
 }
 
+#if 0 // goodToRemove
 void SaveChatAdmin(
 		std::shared_ptr<Ui::Show> show,
 		not_null<ChatData*> chat,
@@ -111,7 +148,6 @@ void SaveChatAdmin(
 		Fn<void()> onDone,
 		Fn<void()> onFail,
 		bool retryOnNotParticipant = true) {
-#if 0 // todo
 	chat->session().api().request(MTPmessages_EditChatAdmin(
 		chat->inputChat,
 		user->inputUser,
@@ -140,7 +176,6 @@ void SaveChatAdmin(
 			onFail();
 		}
 	}).send();
-#endif
 }
 
 void SaveChannelAdmin(
@@ -152,7 +187,6 @@ void SaveChannelAdmin(
 		const QString &rank,
 		Fn<void()> onDone,
 		Fn<void()> onFail) {
-#if 0 // todo
 	channel->session().api().request(MTPchannels_EditAdmin(
 		channel->inputChannel,
 		user->inputUser,
@@ -171,7 +205,6 @@ void SaveChannelAdmin(
 			onFail();
 		}
 	}).send();
-#endif
 }
 
 void SaveChatParticipantKick(
@@ -179,7 +212,6 @@ void SaveChatParticipantKick(
 		not_null<UserData*> user,
 		Fn<void()> onDone,
 		Fn<void()> onFail) {
-#if 0 // todo
 	chat->session().api().request(MTPmessages_DeleteChatUser(
 		MTP_flags(0),
 		chat->inputChat,
@@ -194,8 +226,8 @@ void SaveChatParticipantKick(
 			onFail();
 		}
 	}).send();
-#endif
 }
+#endif
 
 } // namespace
 
@@ -215,6 +247,66 @@ Fn<void(
 			ChatAdminRightsInfo newRights,
 			const QString &rank) {
 		const auto done = [=] { if (onDone) onDone(newRights, rank); };
+		const auto isAdmin = !!newRights.flags;
+
+		const auto request = [=](
+				const auto &repeatRequest,
+				not_null<PeerData*> peer) -> void {
+			Expects(peer->isChat() || peer->isChannel());
+			const auto isChannel = peer->isChat();
+			peer->session().sender().request(Tdb::TLsetChatMemberStatus(
+				peerToTdbChat(peer->id),
+				peerToSender(user->id),
+				ChatAdminRightsInfo::ToTL(newRights, rank)
+			)).done([=] {
+				if (isChannel) {
+					(peer->asChannel())->applyEditAdmin(
+						user,
+						oldRights,
+						newRights,
+						rank);
+				} else if (const auto chat = peer->asChat()) {
+					chat->applyEditAdmin(user, isAdmin);
+				}
+				done();
+			}).fail([=](const Tdb::Error &error) {
+				const auto message = error.message;
+				if (isChannel) {
+					ShowAddParticipantsError(
+						show,
+						message,
+						peer->asChannel(),
+						user);
+				} else if (peer->isChat()
+						&& isAdmin
+						&& (message == u"USER_NOT_PARTICIPANT"_q)) {
+					AddChatParticipant(show, peer->asChat(), user, [=] {
+						repeatRequest(repeatRequest, peer);
+					}, onFail);
+				} else if (onFail) {
+					onFail();
+				}
+			}).send();
+		};
+
+		if (const auto chat = peer->asChatNotMigrated()) {
+			if (newRights.flags == chat->defaultAdminRights(user).flags
+				&& rank.isEmpty()) {
+				request(request, chat);
+			} else if (!newRights.flags) {
+				request(request, chat);
+			} else {
+				peer->session().api().migrateChat(chat, [=](
+						not_null<ChannelData*> channel) {
+					request(request, channel);
+				});
+			}
+		} else if (const auto channel = peer->asChannelOrMigrated()) {
+			request(request, channel);
+		} else {
+			Unexpected("Peer in SaveAdminCallback.");
+		}
+#if 0 // goodToRemove
 		const auto saveForChannel = [=](not_null<ChannelData*> channel) {
 			SaveChannelAdmin(
 				show,
@@ -243,6 +335,7 @@ Fn<void(
 		} else {
 			Unexpected("Peer in SaveAdminCallback.");
 		}
+#endif
 	};
 }
 
@@ -257,6 +350,46 @@ Fn<void(
 			ChatRestrictionsInfo oldRights,
 			ChatRestrictionsInfo newRights) {
 		const auto done = [=] { if (onDone) onDone(newRights); };
+
+		const auto request = [=](not_null<PeerData*> peer) {
+			Expects(peer->isChat() || peer->isChannel());
+			const auto isChannel = peer->isChat();
+			peer->session().sender().request(Tdb::TLsetChatMemberStatus(
+				peerToTdbChat(peer->id),
+				peerToSender(participant->id),
+				ChatRestrictionsInfo::ToTL(newRights)
+			)).done([=] {
+				if (isChannel) {
+					(peer->asChannel())->applyEditBanned(
+						participant,
+						oldRights,
+						newRights);
+				}
+				done();
+			}).fail([=] {
+				if (onFail) {
+					onFail();
+				}
+			}).send();
+		};
+		if (const auto chat = peer->asChatNotMigrated()) {
+			if (participant->isUser()
+				&& (newRights.flags & ChatRestriction::ViewMessages)) {
+				request(chat);
+			} else if (!newRights.flags) {
+				done();
+			} else {
+				peer->session().api().migrateChat(chat, [=](
+						const not_null<ChannelData*> channel) {
+					request(channel);
+				});
+			}
+		} else if (const auto channel = peer->asChannelOrMigrated()) {
+			request(channel);
+		} else {
+			Unexpected("Peer in SaveAdminCallback.");
+		}
+#if 0 // goodToRemove
 		const auto saveForChannel = [=](not_null<ChannelData*> channel) {
 			Api::ChatParticipants::Restrict(
 				channel,
@@ -284,6 +417,7 @@ Fn<void(
 		} else {
 			Unexpected("Peer in SaveAdminCallback.");
 		}
+#endif
 	};
 }
 
@@ -1474,6 +1608,7 @@ void ParticipantsBoxController::loadMoreRows() {
 		return;
 	}
 
+#if 0 // goodToRemove
 	const auto filter = [&] {
 		if (_role == Role::Members || _role == Role::Profile) {
 			return MTP_channelParticipantsRecent();
@@ -1484,14 +1619,26 @@ void ParticipantsBoxController::loadMoreRows() {
 		}
 		return MTP_channelParticipantsKicked(MTP_string());
 	}();
+#endif
+	using namespace Tdb;
+	const auto filter = [&] {
+		if (_role == Role::Members || _role == Role::Profile) {
+			return tl_supergroupMembersFilterRecent();
+		} else if (_role == Role::Admins) {
+			return tl_supergroupMembersFilterAdministrators();
+		} else if (_role == Role::Restricted) {
+			return tl_supergroupMembersFilterRestricted(tl_string());
+		}
+		return tl_supergroupMembersFilterBanned(tl_string());
+	}();
 
 	// First query is small and fast, next loads a lot of rows.
 	const auto perPage = (_offset > 0)
 		? kParticipantsPerPage
 		: kParticipantsFirstPageCount;
+#if 0 // goodToRemove
 	const auto participantsHash = uint64(0);
 
-#if 0 // todo
 	_loadRequestId = _api.request(MTPchannels_GetParticipants(
 		channel->inputChannel,
 		filter,
@@ -1537,6 +1684,34 @@ void ParticipantsBoxController::loadMoreRows() {
 		if (!firstLoad && !added) {
 			_allLoaded = true;
 		}
+#endif
+	_loadRequestId = _api.request(Tdb::TLgetSupergroupMembers(
+		tl_int53(peerToChannel(channel->id).bare),
+		filter,
+		tl_int32(_offset),
+		tl_int32(perPage)
+	)).done([=](const TLchatMembers &result) {
+		const auto firstLoad = !_offset;
+		_loadRequestId = 0;
+
+		const auto wasRecentRequest = firstLoad
+			&& (_role == Role::Members || _role == Role::Profile);
+
+		const auto &[availableCount, list] = wasRecentRequest
+			? Api::ChatParticipants::ParseRecent(channel, result.data())
+			: Api::ChatParticipants::Parse(channel, result.data());
+		for (const auto &data : list) {
+			if (const auto participant = _additional.applyParticipant(data)) {
+				appendRow(participant);
+			}
+		}
+		if (const auto size = list.size()) {
+			_offset += size;
+		} else {
+			// To be sure - wait for a whole empty result list.
+			_allLoaded = true;
+		}
+
 		if (_allLoaded
 			|| (firstLoad && delegate()->peerListFullRowsCount() > 0)) {
 			refreshDescription();
@@ -1548,7 +1723,6 @@ void ParticipantsBoxController::loadMoreRows() {
 	}).fail([this] {
 		_loadRequestId = 0;
 	}).send();
-#endif
 }
 
 void ParticipantsBoxController::refreshDescription() {
@@ -1943,7 +2117,10 @@ void ParticipantsBoxController::removeAdminSure(not_null<UserData*> user) {
 
 	if (const auto chat = _peer->asChat()) {
 		const auto show = delegate()->peerListUiShow();
+#if 0 // goodToRemove
 		SaveChatAdmin(show, chat, user, false, crl::guard(this, [=] {
+#endif
+		RemoveAdmin(chat, user, {}, crl::guard(this, [=] {
 			editAdminDone(
 				user,
 				ChatAdminRightsInfo(),
@@ -2169,7 +2346,6 @@ void ParticipantsBoxController::migrate(
 
 void ParticipantsBoxController::subscribeToCreatorChange(
 		not_null<ChannelData*> channel) {
-#if 0 // todo
 	const auto isCreator = channel->amCreator();
 	channel->flagsValue(
 	) | rpl::filter([](const ChannelData::Flags::Change &change) {
@@ -2182,6 +2358,7 @@ void ParticipantsBoxController::subscribeToCreatorChange(
 			return;
 		}
 		const auto weak = base::make_weak(this);
+#if 0 // goodToRemove
 		const auto api = &channel->session().api();
 		api->request(MTPchannels_GetParticipants(
 			channel->inputChannel,
@@ -2190,6 +2367,13 @@ void ParticipantsBoxController::subscribeToCreatorChange(
 			MTP_int(channel->session().serverConfig().chatSizeMax),
 			MTP_long(0) // hash
 		)).done([=](const MTPchannels_ChannelParticipants &result) {
+#endif
+		channel->session().sender().request(Tdb::TLgetSupergroupMembers(
+			Tdb::tl_int53(peerToChannel(channel->id).bare),
+			Tdb::tl_supergroupMembersFilterRecent(),
+			Tdb::tl_int32(0), // offset
+			Tdb::tl_int32(channel->session().serverConfig().chatSizeMax)
+		)).done([=](const Tdb::TLchatMembers &result) {
 			if (channel->amCreator()) {
 				channel->mgInfo->creator = channel->session().user().get();
 			}
@@ -2197,17 +2381,19 @@ void ParticipantsBoxController::subscribeToCreatorChange(
 			channel->mgInfo->lastRestricted.clear();
 			channel->mgInfo->lastParticipants.clear();
 
+			Api::ChatParticipants::ParseRecent(channel, result.data());
+#if 0 // goodToRemove
 			result.match([&](const MTPDchannels_channelParticipants &data) {
 				Api::ChatParticipants::ParseRecent(channel, data);
 			}, [](const MTPDchannels_channelParticipantsNotModified &) {
 			});
+#endif
 
 			if (weak) {
 				fullListRefresh();
 			}
 		}).send();
 	}, lifetime());
-#endif
 }
 
 void ParticipantsBoxController::fullListRefresh() {
@@ -2309,7 +2495,7 @@ bool ParticipantsBoxSearchController::loadMoreRows() {
 	if (_allLoaded || isLoading()) {
 		return true;
 	}
-#if 0 // todo
+#if 0 // goodToRemove
 	auto filter = [&] {
 		switch (_role) {
 		case Role::Admins: // Search for members, appoint as admin on found.
@@ -2323,11 +2509,27 @@ bool ParticipantsBoxSearchController::loadMoreRows() {
 		}
 		Unexpected("Role in ParticipantsBoxSearchController.");
 	}();
+#endif
+	using namespace Tdb;
+	const auto filter = [&] {
+		switch (_role) {
+		case Role::Admins: // Search for members, appoint as admin on found.
+		case Role::Profile:
+		case Role::Members:
+			return tl_supergroupMembersFilterSearch(tl_string(_query));
+		case Role::Restricted:
+			return tl_supergroupMembersFilterRestricted(tl_string(_query));
+		case Role::Kicked:
+			return tl_supergroupMembersFilterBanned(tl_string(_query));
+		}
+		Unexpected("Role in ParticipantsBoxSearchController.");
+	}();
 
 	// For search we request a lot of rows from the first query.
 	// (because we've waited for search request by timer already,
 	// so we don't expect it to be fast, but we want to fill cache).
 	const auto perPage = kParticipantsPerPage;
+#if 0 // goodToRemove
 	const auto participantsHash = uint64(0);
 
 	_requestId = _api.request(MTPchannels_GetParticipants(
@@ -2341,6 +2543,15 @@ bool ParticipantsBoxSearchController::loadMoreRows() {
 			mtpRequestId requestId) {
 		searchDone(requestId, result, perPage);
 	}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
+#endif
+	_requestId = _api.request(TLgetSupergroupMembers(
+		tl_int53(peerToChannel(_channel->id).bare),
+		filter,
+		tl_int32(_offset),
+		tl_int32(perPage)
+	)).done([=](const TLchatMembers &result, Tdb::RequestId requestId) {
+		searchDone(requestId, result, perPage);
+	}).fail([=](const Tdb::Error &error, Tdb::RequestId requestId) {
 		if (_requestId == requestId) {
 			_requestId = 0;
 			_allLoaded = true;
@@ -2352,15 +2563,16 @@ bool ParticipantsBoxSearchController::loadMoreRows() {
 	entry.text = _query;
 	entry.offset = _offset;
 	_queries.emplace(_requestId, entry);
-#endif
 	return true;
 }
 
 void ParticipantsBoxSearchController::searchDone(
 		mtpRequestId requestId,
+#if 0 // goodToRemove
 		const MTPchannels_ChannelParticipants &result,
+#endif
+		const Tdb::TLchatMembers &result,
 		int requestedCount) {
-#if 0 // todo
 	auto query = _query;
 	if (requestId) {
 		const auto addToCache = [&](auto&&...) {
@@ -2375,6 +2587,9 @@ void ParticipantsBoxSearchController::searchDone(
 				_queries.erase(it);
 			}
 		};
+		Api::ChatParticipants::Parse(_channel, result.data());
+		addToCache();
+#if 0 // goodToRemove
 		result.match([&](const MTPDchannels_channelParticipants &data) {
 			Api::ChatParticipants::Parse(_channel, data);
 			addToCache();
@@ -2382,12 +2597,14 @@ void ParticipantsBoxSearchController::searchDone(
 			LOG(("API Error: "
 				"channels.channelParticipantsNotModified received!"));
 		});
+#endif
 	}
 	if (_requestId != requestId) {
 		return;
 	}
 
 	_requestId = 0;
+#if 0 // goodToRemove
 	result.match([&](const MTPDchannels_channelParticipants &data) {
 		const auto &list = data.vparticipants().v;
 		if (list.size() < requestedCount) {
@@ -2411,7 +2628,26 @@ void ParticipantsBoxSearchController::searchDone(
 	}, [&](const MTPDchannels_channelParticipantsNotModified &) {
 		_allLoaded = true;
 	});
+#endif
+	const auto &list = result.data().vmembers().v;
+	if (list.size() < requestedCount) {
+		// We want cache to have full information about a query with
+		// small results count (that we don't need the second request).
+		// So we don't wait for empty list unlike the non-search case.
+		_allLoaded = true;
+	}
+	const auto overrideRole = (_role == Role::Admins)
+		? Role::Members
+		: _role;
+	for (const auto &data : list) {
+		const auto user = _additional->applyParticipant(
+			Api::ChatParticipant(data, _channel),
+			overrideRole);
+		if (user) {
+			delegate()->peerListSearchAddRow(user);
+		}
+	}
+	_offset += list.size();
 
 	delegate()->peerListSearchRefreshRows();
-#endif
 }
