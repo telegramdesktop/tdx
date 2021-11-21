@@ -227,13 +227,17 @@ ChatParticipant::ChatParticipant(
 	p.match([&](const MTPDchannelParticipantCreator &data) {
 		_canBeEdited = (peer->session().userPeerId() == _peer);
 		_type = Type::Creator;
+#if 0 // doLater
 		_rights = ChatAdminRightsInfo(data.vadmin_rights());
+#endif
 		_rank = qs(data.vrank().value_or_empty());
 	}, [&](const MTPDchannelParticipantAdmin &data) {
 		_canBeEdited = data.is_can_edit();
 		_type = Type::Admin;
 		_rank = qs(data.vrank().value_or_empty());
+#if 0 // doLater
 		_rights = ChatAdminRightsInfo(data.vadmin_rights());
+#endif
 		_by = peerToUser(peerFromUser(data.vpromoted_by()));
 	}, [&](const MTPDchannelParticipantSelf &data) {
 		_type = Type::Member;
@@ -241,7 +245,9 @@ ChatParticipant::ChatParticipant(
 	}, [&](const MTPDchannelParticipant &data) {
 		_type = Type::Member;
 	}, [&](const MTPDchannelParticipantBanned &data) {
+#if 0 // doLater
 		_restrictions = ChatRestrictionsInfo(data.vbanned_rights());
+#endif
 		_by = peerToUser(peerFromUser(data.vkicked_by()));
 
 		_type = (_restrictions.flags & ChatRestriction::ViewMessages)
@@ -486,7 +492,9 @@ void ChatParticipants::add(
 				user->inputUser,
 				MTP_int(passGroupHistory ? kForwardMessagesOnAdd : 0)
 			)).done([=](const MTPUpdates &result) {
+#if 0 // doLater
 				chat->session().api().applyUpdates(result);
+#endif
 				if (done) done(true);
 			}).fail([=](const MTP::Error &error) {
 				const auto type = error.type();
@@ -508,7 +516,9 @@ void ChatParticipants::add(
 				channel->inputChannel,
 				MTP_vector<MTPInputUser>(list)
 			)).done([=](const MTPUpdates &result) {
+#if 0 // doLater
 				channel->session().api().applyUpdates(result);
+#endif
 				requestCountDelayed(channel);
 				if (callback) callback(true);
 				ChatInviteForbidden(
@@ -638,7 +648,9 @@ void ChatParticipants::kick(
 		chat->inputChat,
 		participant->asUser()->inputUser
 	)).done([=](const MTPUpdates &result) {
+#if 0 // doLater
 		chat->session().api().applyUpdates(result);
+#endif
 	}).send();
 #endif
 }
@@ -660,7 +672,9 @@ void ChatParticipants::kick(
 				MTPDchatBannedRights::Flags::from_raw(uint32(rights.flags))),
 			MTP_int(rights.until))
 	)).done([=](const MTPUpdates &result) {
+#if 0 // doLater
 		channel->session().api().applyUpdates(result);
+#endif
 
 		_kickRequests.remove(KickRequest(channel, participant));
 		channel->applyEditBanned(participant, currentRights, rights);
@@ -686,7 +700,9 @@ void ChatParticipants::unblock(
 		participant->input,
 		MTP_chatBannedRights(MTP_flags(0), MTP_int(0))
 	)).done([=](const MTPUpdates &result) {
+#if 0 // doLater
 		channel->session().api().applyUpdates(result);
+#endif
 
 		_kickRequests.remove(KickRequest(channel, participant));
 		if (channel->kickedCount() > 0) {
