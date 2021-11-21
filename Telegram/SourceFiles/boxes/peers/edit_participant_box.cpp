@@ -589,6 +589,7 @@ void EditAdminBox::transferOwnership() {
 		return;
 	}
 
+#if 0 // goodToRemove
 	const auto channel = peer()->isChannel()
 		? peer()->asChannel()->inputChannel
 		: MTP_inputChannelEmpty();
@@ -601,6 +602,25 @@ void EditAdminBox::transferOwnership() {
 	)).fail([=](const MTP::Error &error) {
 		_checkTransferRequestId = 0;
 		if (!handleTransferPasswordError(error.type())) {
+#endif
+	peer()->session().api().cloudPassword().reload();
+	using namespace Tdb;
+	_checkTransferRequestId = peer()->session().sender().request(
+		TLcanTransferOwnership()
+	).done([=](const TLcanTransferOwnershipResult &result) {
+		_checkTransferRequestId = 0;
+		// doLater Can be simplified.
+		const auto error = result.match([](
+			const TLDcanTransferOwnershipResultOk &) {
+			return QString();
+		}, [](const TLDcanTransferOwnershipResultPasswordNeeded &) {
+			return u"PASSWORD_MISSING"_q;
+		}, [](const TLDcanTransferOwnershipResultPasswordTooFresh &) {
+			return u"PASSWORD_TOO_FRESH_"_q;
+		}, [](const TLDcanTransferOwnershipResultSessionTooFresh &) {
+			return u"SESSION_TOO_FRESH_"_q;
+		});
+		if (!handleTransferPasswordError(error)) {
 			const auto callback = crl::guard(this, [=](Fn<void()> &&close) {
 				transferOwnershipChecked();
 				close();
@@ -674,9 +694,15 @@ void EditAdminBox::sendTransferRequestFrom(
 	if (_transferRequestId) {
 		return;
 	}
-#if 0 // todo
 	const auto weak = Ui::MakeWeak(this);
 	const auto user = this->user();
+	_transferRequestId = channel->session().sender().request(
+		Tdb::TLtransferChatOwnership(
+			peerToTdbChat(channel->id),
+			Tdb::tl_int53(peerToUser(user->id).bare),
+			Tdb::tl_string(result.password))
+	).done([=] {
+#if 0 // goodToRemove
 	const auto api = &channel->session().api();
 	_transferRequestId = api->request(MTPchannels_EditCreator(
 		channel->inputChannel,
@@ -684,6 +710,7 @@ void EditAdminBox::sendTransferRequestFrom(
 		result.result
 	)).done([=](const MTPUpdates &result) {
 		api->applyUpdates(result);
+#endif
 		if (!box && !weak) {
 			return;
 		}
@@ -696,6 +723,16 @@ void EditAdminBox::sendTransferRequestFrom(
 					lt_user,
 					user->shortName()));
 		show->hideLayer();
+	}).fail(crl::guard(this, [=](const Tdb::Error &error) {
+		if (weak) {
+			_transferRequestId = 0;
+		}
+		if (box && box->handleCustomCheckError(error.message)) {
+			return;
+		}
+
+		const auto &type = error.message;
+#if 0 // goodToRemove
 	}).fail(crl::guard(this, [=](const MTP::Error &error) {
 		if (weak) {
 			_transferRequestId = 0;
@@ -705,6 +742,7 @@ void EditAdminBox::sendTransferRequestFrom(
 		}
 
 		const auto &type = error.type();
+#endif
 		const auto problem = [&] {
 			if (type == u"CHANNELS_ADMIN_PUBLIC_TOO_MUCH"_q) {
 				return tr::lng_channels_too_much_public_other(tr::now);
@@ -734,8 +772,10 @@ void EditAdminBox::sendTransferRequestFrom(
 		if (weak && !recoverable) {
 			closeBox();
 		}
+#if 0 // goodToRemove
 	})).handleFloodErrors().send();
 #endif
+	})).send();
 }
 
 EditRestrictedBox::EditRestrictedBox(
