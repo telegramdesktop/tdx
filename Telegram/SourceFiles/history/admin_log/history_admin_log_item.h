@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "tdb/tdb_tl_scheme.h"
+
 class History;
 
 namespace HistoryView {
@@ -21,7 +23,10 @@ class OwnedItem;
 void GenerateItems(
 	not_null<HistoryView::ElementDelegate*> delegate,
 	not_null<History*> history,
+#if 0 // goodToRemove
 	const MTPDchannelAdminLogEvent &event,
+#endif
+	const Tdb::TLDchatEvent &event,
 	Fn<void(OwnedItem item, TimeId sentDate, MsgId)> callback);
 
 // Smart pointer wrapper for HistoryItem* that destroys the owned item.
