@@ -2990,6 +2990,7 @@ Session::SentData Session::messageSentData(uint64 randomId) const {
 	return (i != end(_sentMessagesData)) ? i->second : SentData();
 }
 
+#if 0 // mtp
 HistoryItem *Session::addNewMessage(
 		const MTPMessage &data,
 		MessageFlags localFlags,
@@ -3017,6 +3018,7 @@ HistoryItem *Session::addNewMessage(
 	}
 	return result;
 }
+#endif
 
 not_null<HistoryItem*> Session::processMessage(
 		const Tdb::TLmessage &message,
@@ -3034,6 +3036,23 @@ not_null<HistoryItem*> Session::processMessage(
 	const auto result = history->addMessage(message, type);
 	CheckForSwitchInlineButton(result);
 	return result;
+}
+
+void Session::updateMessageContent(
+		const FullMsgId &fullId,
+		const TLmessageContent &data) {
+	if (const auto item = message(fullId)) {
+		item->updateContent(data);
+	}
+}
+
+void Session::updateMessageEdited(
+		const FullMsgId &fullId,
+		TimeId editDate,
+		HistoryMessageMarkupData &&markup) {
+	if (const auto item = message(fullId)) {
+		item->updateEditedInfo(editDate, std::move(markup));
+	}
 }
 
 int Session::unreadBadge() const {
@@ -4785,6 +4804,7 @@ auto Session::dialogsRowReplacements() const
 	return _dialogsRowReplacements.events();
 }
 
+#if 0 // mtp
 void Session::serviceNotification(
 		const TextWithEntities &message,
 		const MTPMessageMedia &media) {
@@ -4863,6 +4883,7 @@ void Session::insertCheckedServiceNotification(
 	}
 	sendHistoryChangeNotifications();
 }
+#endif
 
 void Session::setMimeForwardIds(MessageIdsList &&list) {
 	_mimeForwardIds = std::move(list);
