@@ -119,10 +119,12 @@ void Changelogs::addLocalLogs() {
 }
 
 void Changelogs::addLocalLog(const QString &text) {
+#if 0 // todo
 	auto textWithEntities = TextWithEntities{ text };
 	TextUtilities::ParseEntities(textWithEntities, TextParseLinks);
 	_session->data().serviceNotification(textWithEntities);
 	_addedSomeLocal = true;
+#endif
 };
 
 void Changelogs::addBetaLogs() {
