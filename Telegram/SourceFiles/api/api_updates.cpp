@@ -66,6 +66,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "tdb/tdb_account.h"
 #include "api/api_global_privacy.h"
+#include "history/history_item_reply_markup.h"
 
 namespace Api {
 namespace {
@@ -2709,7 +2710,18 @@ void Updates::applyUpdate(const TLupdate &update) {
 		const auto oldMessageId = MsgId(data.vold_message_id().v);
 		owner.processMessage(data.vmessage(), oldMessageId);
 	}, [&](const TLDupdateMessageContent &data) {
+		const auto peerId = peerFromTdbChat(data.vchat_id());
+		const auto itemId = MsgId(data.vmessage_id().v);
+		owner.updateMessageContent(
+			{ peerToChannel(peerId), itemId },
+			data.vnew_content());
 	}, [&](const TLDupdateMessageEdited &data) {
+		const auto peerId = peerFromTdbChat(data.vchat_id());
+		const auto itemId = MsgId(data.vmessage_id().v);
+		owner.updateMessageEdited(
+			{ peerToChannel(peerId), itemId },
+			data.vedit_date().v,
+			HistoryMessageMarkupData(data.vreply_markup()));
 	}, [&](const TLDupdateMessageIsPinned &data) {
 	}, [&](const TLDupdateMessageInteractionInfo &data) {
 	}, [&](const TLDupdateMessageContentOpened &data) {

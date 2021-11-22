@@ -494,6 +494,7 @@ void Histories::requestFakeChatListMessage(
 	}
 
 	_fakeChatListRequests.emplace(history);
+#if 0 // todo
 	sendRequest(history, RequestType::History, [=](Fn<void()> finish) {
 		return session().api().request(MTPmessages_GetHistory(
 			history->peer->input,
@@ -517,6 +518,7 @@ void Histories::requestFakeChatListMessage(
 			finish();
 		}).send();
 	});
+#endif
 }
 
 void Histories::requestGroupAround(not_null<HistoryItem*> item) {
