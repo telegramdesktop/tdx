@@ -415,7 +415,9 @@ public:
 
 	void refreshChatListNameSortKey();
 
+#if 0 // mtp
 	void setFakeChatListMessageFrom(const MTPmessages_Messages &data);
+#endif
 	void checkChatListMessageRemoved(not_null<HistoryItem*> item);
 
 	void applyChatListGroup(
