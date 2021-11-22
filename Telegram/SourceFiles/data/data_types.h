@@ -236,8 +236,8 @@ struct StickerSetIdentifier {
 };
 
 enum class MessageFlag : uint64 {
-	HideEdited            = (1ULL << 0),
-	Legacy                = (1ULL << 1),
+	HideEdited            = (1ULL << 0), // mtp
+	Legacy                = (1ULL << 1), // mtp
 	HasReplyMarkup        = (1ULL << 2),
 	HasFromId             = (1ULL << 3),
 	HasPostAuthor         = (1ULL << 4),
@@ -267,7 +267,7 @@ enum class MessageFlag : uint64 {
 
 	// Edited media is generated on the client
 	// and should not update media from server.
-	IsLocalUpdateMedia    = (1ULL << 22),
+	IsLocalUpdateMedia    = (1ULL << 22), // mtp
 
 	// Sent from inline bot, need to re-set media when sent.
 	FromInlineBot         = (1ULL << 23),
