@@ -423,7 +423,9 @@ public:
 	void refreshChatListNameSortKey();
 
 	[[nodiscard]] TimeId chatListTimeId() const;
+#if 0 // mtp
 	void setFakeChatListMessageFrom(const MTPmessages_Messages &data);
+#endif
 	void checkChatListMessageRemoved(not_null<HistoryItem*> item);
 
 	void applyChatListGroup(

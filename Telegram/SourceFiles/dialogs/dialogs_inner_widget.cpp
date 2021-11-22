@@ -3075,6 +3075,7 @@ void InnerWidget::searchReceived(
 	refresh();
 }
 
+#if 0 // mtp
 void InnerWidget::peerSearchReceived(
 		const QString &query,
 		const QVector<MTPPeer> &my,
@@ -3112,6 +3113,7 @@ void InnerWidget::peerSearchReceived(
 	}
 	refresh();
 }
+#endif
 
 Data::Folder *InnerWidget::shownFolder() const {
 	return _openedFolder;

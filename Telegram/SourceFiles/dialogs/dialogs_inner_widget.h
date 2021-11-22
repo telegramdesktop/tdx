@@ -108,10 +108,12 @@ public:
 		HistoryItem *inject,
 		SearchRequestType type,
 		int fullCount);
+#if 0 // mtp
 	void peerSearchReceived(
 		const QString &query,
 		const QVector<MTPPeer> &my,
 		const QVector<MTPPeer> &result);
+#endif
 
 	[[nodiscard]] FilterId filterId() const;
 

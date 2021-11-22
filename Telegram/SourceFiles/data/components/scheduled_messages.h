@@ -36,19 +36,23 @@ public:
 	[[nodiscard]] bool hasFor(not_null<Data::ForumTopic*> topic) const;
 	[[nodiscard]] MsgId localMessageId(MsgId remoteId) const;
 
+#if 0 // mtp
 	void checkEntitiesAndUpdate(const MTPDmessage &data);
 	void apply(const MTPDupdateNewScheduledMessage &update);
 	void apply(const MTPDupdateDeleteScheduledMessages &update);
 	void apply(
 		const MTPDupdateMessageID &update,
 		not_null<HistoryItem*> local);
+#endif
 
 	void appendSending(not_null<HistoryItem*> item);
 	void removeSending(not_null<HistoryItem*> item);
 
+#if 0 // mtp
 	void sendNowSimpleMessage(
 		const MTPDupdateShortSentMessage &update,
 		not_null<HistoryItem*> local);
+#endif
 
 	[[nodiscard]] rpl::producer<> updates(not_null<History*> history);
 	[[nodiscard]] Data::MessagesSlice list(not_null<History*> history) const;
@@ -69,6 +73,8 @@ private:
 	};
 
 	void request(not_null<History*> history);
+
+#if 0 // mtp
 	void parse(
 		not_null<History*> history,
 		const MTPmessages_Messages &list);
@@ -76,6 +82,8 @@ private:
 		not_null<History*> history,
 		List &list,
 		const MTPMessage &message);
+#endif
+
 	void clearNotSending(not_null<History*> history);
 	void updated(
 		not_null<History*> history,

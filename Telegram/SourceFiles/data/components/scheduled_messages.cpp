@@ -194,6 +194,7 @@ bool ScheduledMessages::hasFor(not_null<Data::ForumTopic*> topic) const {
 	});
 }
 
+#if 0 // mtp
 void ScheduledMessages::sendNowSimpleMessage(
 		const MTPDupdateShortSentMessage &update,
 		not_null<HistoryItem*> local) {
@@ -373,6 +374,7 @@ void ScheduledMessages::apply(
 		list.itemById.emplace(id, local);
 	}
 }
+#endif
 
 void ScheduledMessages::appendSending(not_null<HistoryItem*> item) {
 	Expects(item->isSending());
@@ -458,6 +460,7 @@ void ScheduledMessages::request(not_null<History*> history) {
 	if (request.requestId || TooEarlyForRequest(request.lastReceived)) {
 		return;
 	}
+#if 0 // todo
 	const auto i = _data.find(history);
 	const auto hash = (i != end(_data))
 		? countListHash(i->second)
@@ -469,8 +472,10 @@ void ScheduledMessages::request(not_null<History*> history) {
 	}).fail([=] {
 		_requests.remove(history);
 	}).send();
+#endif
 }
 
+#if 0 // mtp
 void ScheduledMessages::parse(
 		not_null<History*> history,
 		const MTPmessages_Messages &list) {
@@ -559,6 +564,7 @@ HistoryItem *ScheduledMessages::append(
 	list.itemById.emplace(id, item);
 	return item;
 }
+#endif
 
 void ScheduledMessages::clearNotSending(not_null<History*> history) {
 	const auto i = _data.find(history);
