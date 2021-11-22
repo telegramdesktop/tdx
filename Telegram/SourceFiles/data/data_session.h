@@ -30,6 +30,8 @@ class TLgame;
 class TLwebPage;
 } // namespace Tdb
 
+struct HistoryMessageMarkupData;
+
 class Image;
 class HistoryItem;
 struct WebPageCollage;
@@ -502,6 +504,7 @@ public:
 		return _documentLoadProgress.events();
 	}
 
+#if 0 // mtp
 	HistoryItem *addNewMessage(
 		const MTPMessage &data,
 		MessageFlags localFlags,
@@ -511,6 +514,7 @@ public:
 		const MTPMessage &data,
 		MessageFlags localFlags,
 		NewMessageType type);
+#endif
 
 	not_null<HistoryItem*> processMessage(
 		const Tdb::TLmessage &data,
@@ -518,6 +522,14 @@ public:
 	not_null<HistoryItem*> processMessage(
 		const Tdb::TLmessage &data,
 		NewMessageType type);
+
+	void updateMessageContent(
+		const FullMsgId &fullId,
+		const Tdb::TLmessageContent &data);
+	void updateMessageEdited(
+		const FullMsgId &fullId,
+		TimeId editDate,
+		HistoryMessageMarkupData &&markup);
 
 	[[nodiscard]] int unreadBadge() const;
 	[[nodiscard]] bool unreadBadgeMuted() const;
@@ -762,10 +774,12 @@ public:
 	void dialogsRowReplaced(DialogsRowReplacement replacement);
 	rpl::producer<DialogsRowReplacement> dialogsRowReplacements() const;
 
+#if 0 // mtp
 	void serviceNotification(
 		const TextWithEntities &message,
 		const MTPMessageMedia &media = MTP_messageMediaEmpty(),
 		bool invertMedia = false);
+#endif
 
 	void setMimeForwardIds(MessageIdsList &&list);
 	MessageIdsList takeMimeForwardIds();
@@ -916,11 +930,13 @@ private:
 		not_null<const HistoryItem*> item,
 		Method method);
 
+#if 0 // mtp
 	void insertCheckedServiceNotification(
 		const TextWithEntities &message,
 		const MTPMessageMedia &media,
 		TimeId date,
 		bool invertMedia);
+#endif
 
 	void setWallpapers(const QVector<MTPWallPaper> &data, uint64 hash);
 	void highlightProcessDone(uint64 processId);

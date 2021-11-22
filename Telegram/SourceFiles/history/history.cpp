@@ -2781,6 +2781,7 @@ void History::setFakeChatListMessage() {
 	}
 }
 
+#if 0 // mtp
 void History::setFakeChatListMessageFrom(const MTPmessages_Messages &data) {
 	if (!lastMessageKnown()) {
 		requestChatListMessage();
@@ -2825,6 +2826,7 @@ void History::setFakeChatListMessageFrom(const MTPmessages_Messages &data) {
 	}
 	setChatListMessage(item);
 }
+#endif
 
 void History::applyChatListGroup(
 		PeerId dataPeerId,
