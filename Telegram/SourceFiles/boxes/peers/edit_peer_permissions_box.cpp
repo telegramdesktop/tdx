@@ -1231,11 +1231,17 @@ Fn<void()> AboutGigagroupCallback(
 			return;
 		}
 		*converting = true;
-#if 0 // todo
+#if 0 // goodToRemove
 		channel->session().api().request(MTPchannels_ConvertToGigagroup(
 			channel->inputChannel
 		)).done([=](const MTPUpdates &result) {
 			channel->session().api().applyUpdates(result);
+#endif
+		channel->session().sender().request(
+			Tdb::TLtoggleSupergroupIsBroadcastGroup(
+				Tdb::tl_int53(peerToChannel(channel->id).bare)
+			)
+		).done([=] {
 			if (const auto strong = weak.get()) {
 				strong->window().hideSettingsAndLayer();
 				strong->showToast(tr::lng_gigagroup_done(tr::now));
@@ -1243,7 +1249,6 @@ Fn<void()> AboutGigagroupCallback(
 		}).fail([=] {
 			*converting = false;
 		}).send();
-#endif
 	};
 	const auto convertWarn = [=] {
 		const auto strong = weak.get();
