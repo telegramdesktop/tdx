@@ -802,6 +802,21 @@ void AdminsController::prepare() {
 	if (!_admin->isSelf()) {
 		return;
 	}
+	_requestId = session().sender().request(Tdb::TLgetChatInviteLinkCounts(
+		peerToTdbChat(_peer->id)
+	)).done([=](const Tdb::TLDchatInviteLinkCounts &data) {
+		for (const auto &inviteLinkCounts : data.vinvite_link_counts().v) {
+			auto &owner = _peer->owner();
+			const auto &data = inviteLinkCounts.data();
+			if (const auto user = owner.userLoaded(data.vuser_id().v)) {
+				if (!user->isSelf()) {
+					appendRow(user, data.vinvite_link_count().v);
+				}
+			}
+		}
+		delegate()->peerListRefreshRows();
+	}).send();
+#if 0 // goodToRemove
 	_requestId = session().api().request(MTPmessages_GetAdminsWithInvites(
 		_peer->input
 	)).done([=](const MTPmessages_ChatAdminsWithInvites &result) {
@@ -821,6 +836,7 @@ void AdminsController::prepare() {
 			delegate()->peerListRefreshRows();
 		});
 	}).send();
+#endif
 }
 
 void AdminsController::loadMoreRows() {
