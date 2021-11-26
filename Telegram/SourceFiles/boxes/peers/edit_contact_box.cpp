@@ -45,8 +45,8 @@ void SendRequest(
 		const QString &phone,
 		Fn<void()> done) {
 	const auto wasContact = user->isContact();
+#if 0 // goodToRemove
 	using Flag = MTPcontacts_AddContact::Flag;
-#if 0 // todo
 	user->session().api().request(MTPcontacts_AddContact(
 		MTP_flags(sharePhone
 			? Flag::f_add_phone_privacy_exception
@@ -56,12 +56,24 @@ void SendRequest(
 		MTP_string(last),
 		MTP_string(phone)
 	)).done([=](const MTPUpdates &result) {
+#endif
+	user->session().sender().request(Tdb::TLaddContact(
+		Tdb::tl_contact(
+			Tdb::tl_string(phone),
+			Tdb::tl_string(first),
+			Tdb::tl_string(last),
+			Tdb::tl_string(), // VCard.
+			Tdb::tl_int53(peerToUser(user->id).bare)),
+		Tdb::tl_bool(sharePhone)
+	)).done([=] {
 		user->setName(
 			first,
 			last,
 			user->nameOrPhone,
 			user->username());
+#if 0 // goodToRemove
 		user->session().api().applyUpdates(result);
+#endif
 		if (const auto settings = user->barSettings()) {
 			const auto flags = PeerBarSetting::AddContact
 				| PeerBarSetting::BlockContact
@@ -77,7 +89,6 @@ void SendRequest(
 		}
 		done();
 	}).send();
-#endif
 }
 
 class Controller {
