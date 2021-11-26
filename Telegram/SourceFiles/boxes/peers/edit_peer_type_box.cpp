@@ -146,7 +146,10 @@ private:
 	not_null<PeerData*> _peer;
 	bool _linkOnly = false;
 
+#if 0 // goodToRemove
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 	std::optional<EditPeerTypeData> _dataSavedValue;
 
 	bool _useLocationPhrases = false;
@@ -178,7 +181,10 @@ Controller::Controller(
 , _show(show)
 , _peer(peer)
 , _linkOnly(!dataSavedValue.has_value())
+#if 0 // goodToRemove
 , _api(&_peer->session().mtp())
+#endif
+, _api(&_peer->session().sender())
 , _dataSavedValue(dataSavedValue)
 , _useLocationPhrases(useLocationPhrases)
 , _isGroup(_peer->isChat() || _peer->isMegagroup())
@@ -552,6 +558,46 @@ void Controller::checkUsernameAvailability() {
 	}
 	const auto channel = _peer->migrateToOrMe()->asChannel();
 	const auto username = channel ? channel->editableUsername() : QString();
+	_checkUsernameRequestId = _api.request(Tdb::TLcheckChatUsername(
+		peerToTdbChat(channel->id),
+		Tdb::tl_string(checking)
+	)).done([=](const Tdb::TLcheckChatUsernameResult &result) {
+		_checkUsernameRequestId = 0;
+		using namespace Tdb;
+		result.match([&](const TLDcheckChatUsernameResultOk &) {
+			if (initial) {
+				return;
+			}
+			showUsernameGood();
+		}, [&](const TLDcheckChatUsernameResultUsernameInvalid &) {
+			showUsernameError(tr::lng_create_channel_link_invalid());
+		}, [&](const TLDcheckChatUsernameResultUsernameOccupied &) {
+			if (checking != username) {
+				showUsernameError(tr::lng_create_channel_link_occupied());
+			}
+		}, [&](const TLDcheckChatUsernameResultPublicChatsTooMuch &) {
+			_usernameState = UsernameState::TooMany;
+			if (_controls.privacy->current() == Privacy::HasUsername) {
+				askUsernameRevoke();
+			}
+		}, [&](const TLDcheckChatUsernameResultPublicGroupsUnavailable &) {
+			_usernameState = UsernameState::NotAvailable;
+			_controls.privacy->setValue(Privacy::NoUsername);
+		});
+	}).fail([=](const Tdb::Error &error) {
+		_checkUsernameRequestId = 0;
+		_usernameState = UsernameState::Normal;
+		const auto &type = error.message;
+		if (initial) {
+			if (_controls.privacy->current() == Privacy::HasUsername) {
+				showUsernameEmpty();
+				setFocusUsername();
+			}
+		} else if (type == u"USERNAME_OCCUPIED"_q && (checking != username)) {
+			showUsernameError(tr::lng_create_channel_link_occupied());
+		}
+	}).send();
+#if 0 // goodToRemove
 	_checkUsernameRequestId = _api.request(MTPchannels_CheckUsername(
 		channel ? channel->inputChannel : MTP_inputChannelEmpty(),
 		MTP_string(checking)
@@ -592,6 +638,7 @@ void Controller::checkUsernameAvailability() {
 			showUsernameError(tr::lng_create_channel_link_occupied());
 		}
 	}).send();
+#endif
 }
 
 void Controller::askUsernameRevoke() {
