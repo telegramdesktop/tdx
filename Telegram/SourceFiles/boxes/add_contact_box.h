@@ -191,7 +191,11 @@ private:
 		NA,
 		Unknown,
 	};
+#if 0 // goodToRemove
 	[[nodiscard]] UsernameResult parseError(const QString &error);
+#endif
+	[[nodiscard]] UsernameResult parseError(
+		const Tdb::TLcheckChatUsernameResult &result);
 
 	void privacyChanged(Privacy value);
 	void updateSelected(const QPoint &cursorGlobalPosition);
@@ -211,7 +215,10 @@ private:
 
 	const not_null<Window::SessionNavigation*> _navigation;
 	const not_null<ChannelData*> _channel;
+#if 0 // goodToRemove
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 
 	bool _creatingInviteLink = false;
 	bool _mustBePublic = false;
