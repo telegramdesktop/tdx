@@ -123,11 +123,16 @@ void ChatCreateDone(
 
 void MustBePublicDestroy(not_null<ChannelData*> channel) {
 	const auto session = &channel->session();
+	session->sender().request(TLdeleteChat(
+		peerToTdbChat(channel->id)
+	)).send();
+#if 0 // mtp
 	session->api().request(MTPchannels_DeleteChannel(
 		channel->inputChannel
 	)).done([=](const MTPUpdates &result) {
 		session->api().applyUpdates(result);
 	}).send();
+#endif
 }
 
 void MustBePublicFailed(
@@ -718,32 +723,62 @@ void GroupInfoBox::createGroup(
 	if (_creationRequestId) {
 		return;
 	}
+#if 0 // goodToRemove
 	using TLUsers = MTPInputUser;
+#endif
+	using TLUsers = Tdb::TLint53;
 	auto inputs = QVector<TLUsers>();
 	inputs.reserve(users.size());
 	for (auto peer : users) {
 		auto user = peer->asUser();
 		Assert(user != nullptr);
 		if (!user->isSelf()) {
+#if 0 // goodToRemove
 			inputs.push_back(user->inputUser);
+#endif
+			inputs.push_back(Tdb::tl_int53(peerToUser(user->id).bare));
 		}
 	}
-#if 0 // todo
+#if 0 // goodToRemove
 	_creationRequestId = _api.request(MTPmessages_CreateChat(
 		MTP_flags(MTPmessages_CreateChat::Flag::f_ttl_period),
 		MTP_vector<TLUsers>(inputs),
 		MTP_string(title),
 		MTP_int(ttlPeriod())
 	)).done([=](const MTPmessages_InvitedUsers &result) {
+#endif
+	_creationRequestId = _api.request(Tdb::TLcreateNewBasicGroupChat(
+		Tdb::tl_vector<TLUsers>(std::move(inputs)),
+		Tdb::tl_string(title)
+	)).done([=](const Tdb::TLchat &result) {
 		auto image = _photo->takeResultImage();
 		const auto period = ttlPeriod();
 		const auto navigation = _navigation;
 		const auto done = _done;
 
 		getDelegate()->hideLayer(); // Destroys 'this'.
+#if 0 // goodToRemove
 		ChatCreateDone(navigation, std::move(image), period, result, done);
 	}).fail([=](const MTP::Error &error) {
 		const auto &type = error.type();
+#endif
+		const auto peerId = peerFromTdbChat(result.data().vchat_id());
+		const auto peer = navigation->session().data().peer(peerId);
+		if (!image.isNull()) {
+			navigation->session().api().peerPhoto().upload(
+				peer,
+				{ std::move(image) });
+		}
+		if (period) {
+			peer->setMessagesTTL(period);
+		}
+		if (done) {
+			done(peer);
+		} else {
+			navigation->showPeerHistory(peer);
+		}
+	}).fail([=](const Error &error) {
+		const auto &type = error.message;
 		_creationRequestId = 0;
 		const auto controller = _navigation->parentController();
 		if (type == u"NO_CHAT_TITLE"_q) {
@@ -766,7 +801,6 @@ void GroupInfoBox::createGroup(
 			controller->show(Ui::MakeInformBox(tr::lng_cant_do_this()));
 		}
 	}).send();
-#endif
 }
 
 void GroupInfoBox::submit() {
@@ -817,7 +851,7 @@ void GroupInfoBox::createChannel(
 		const QString &description) {
 	Expects(!_creationRequestId);
 
-#if 0 // todo
+#if 0 // goodToRemove
 	using Flag = MTPchannels_CreateChannel::Flag;
 	const auto flags = Flag()
 		| ((_type == Type::Megagroup || _type == Type::Forum)
@@ -881,6 +915,29 @@ void GroupInfoBox::createChannel(
 		}
 	}).fail([this](const MTP::Error &error) {
 		const auto &type = error.type();
+#endif
+	const auto tlZero = Tdb::tl_double(0);
+	_creationRequestId = _api.request(Tdb::TLcreateNewSupergroupChat(
+		Tdb::tl_string(title),
+		Tdb::tl_bool(_type == Type::Forum),
+		Tdb::tl_bool(_type == Type::Channel),
+		Tdb::tl_string(description),
+		Tdb::tl_chatLocation(
+			Tdb::tl_location(tlZero, tlZero, tlZero),
+			Tdb::tl_string()),
+		Tdb::tl_bool(false) // For import.
+	)).done([=](const Tdb::TLchat &result) {
+		auto &session = _navigation->session();
+		const auto peer = session.data().processPeer(result);
+		auto image = _photo->takeResultImage();
+		if (!image.isNull()) {
+			session.api().peerPhoto().upload(peer, { std::move(image) });
+		}
+		session.api().requestFullPeer(peer);
+		_createdChannel = peer->asChannel();
+		checkInviteLink();
+	}).fail([this](const Tdb::Error &error) {
+		const auto &type = error.message;
 		_creationRequestId = 0;
 		const auto controller = _navigation->parentController();
 		if (type == u"NO_CHAT_TITLE"_q) {
@@ -896,7 +953,6 @@ void GroupInfoBox::createChannel(
 				Ui::LayerOption::CloseOther); // TODO
 		}
 	}).send();
-#endif
 }
 
 void GroupInfoBox::checkInviteLink() {
