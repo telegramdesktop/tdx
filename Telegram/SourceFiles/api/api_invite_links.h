@@ -7,6 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Tdb {
+class TLDchatInviteLinkMembers;
+class TLDchatJoinRequests;
+class TLchatInviteLink;
+class TLchatInviteLinks;
+} // namespace Tdb
+
 class ApiWrap;
 
 #include "data/data_subscriptions.h"
@@ -54,7 +61,13 @@ struct InviteLinkUpdate {
 
 [[nodiscard]] JoinedByLinkSlice ParseJoinedByLinkSlice(
 	not_null<PeerData*> peer,
+	const Tdb::TLDchatInviteLinkMembers &data);
+[[nodiscard]] JoinedByLinkSlice ParseJoinedByLinkSlice(
+	not_null<PeerData*> peer,
+	const Tdb::TLDchatJoinRequests &data);
+#if 0 // goodToRemove
 	const MTPmessages_ChatInviteImporters &slice);
+#endif
 
 struct CreateInviteLinkArgs {
 	not_null<PeerData*> peer;
@@ -112,7 +125,10 @@ public:
 
 	void setMyPermanent(
 		not_null<PeerData*> peer,
+		const Tdb::TLchatInviteLink &invite);
+#if 0 // goodToRemove
 		const MTPExportedChatInvite &invite);
+#endif
 	void clearMyPermanent(not_null<PeerData*> peer);
 
 	void requestMyLinks(not_null<PeerData*> peer);
@@ -170,17 +186,26 @@ private:
 
 	[[nodiscard]] Links parseSlice(
 		not_null<PeerData*> peer,
+		const Tdb::TLchatInviteLinks &slice) const;
+#if 0 // goodToRemove
 		const MTPmessages_ExportedChatInvites &slice) const;
+#endif
 	[[nodiscard]] std::optional<Link> parse(
 		not_null<PeerData*> peer,
+		const Tdb::TLchatInviteLink &invite) const;
+#if 0 // goodToRemove
 		const MTPExportedChatInvite &invite) const;
+#endif
 	[[nodiscard]] Link *lookupMyPermanent(not_null<PeerData*> peer);
 	[[nodiscard]] Link *lookupMyPermanent(Links &links);
 	[[nodiscard]] const Link *lookupMyPermanent(const Links &links) const;
 	std::optional<Link> prepend(
 		not_null<PeerData*> peer,
 		not_null<UserData*> admin,
+		const Tdb::TLchatInviteLink &invite);
+#if 0 // goodToRemove
 		const MTPExportedChatInvite &invite);
+#endif
 	void prependMyToFirstSlice(
 		not_null<PeerData*> peer,
 		not_null<UserData*> admin,

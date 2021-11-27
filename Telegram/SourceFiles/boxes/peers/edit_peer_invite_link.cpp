@@ -57,6 +57,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 #include "styles/style_premium.h"
 
+#include "tdb/tdb_sender.h"
+
 #include <QtCore/QMimeData>
 #include <QtGui/QGuiApplication>
 #include <QtSvg/QSvgRenderer>
@@ -256,7 +258,10 @@ private:
 	Ui::RpWidget *_headerWidget = nullptr;
 	rpl::variable<int> _addedHeight;
 
+#if 0 // goodToRemove
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 	rpl::lifetime _lifetime;
 
 };
@@ -396,7 +401,10 @@ Controller::Controller(
 : _peer(peer)
 , _role(role)
 , _data(LinkData{ .admin = admin })
+#if 0 // goodToRemove
 , _api(&session().api().instance()) {
+#endif
+, _api(&session().sender()) {
 	_data = std::move(data);
 	const auto current = _data.current();
 	_link = current.link;
@@ -887,6 +895,7 @@ void Controller::loadMoreRows() {
 	if (_requestId || _allLoaded) {
 		return;
 	}
+#if 0 // goodToRemove
 	using Flag = MTPmessages_GetChatInviteImporters::Flag;
 	_requestId = _api.request(MTPmessages_GetChatInviteImporters(
 		MTP_flags(Flag::f_link
@@ -898,14 +907,53 @@ void Controller::loadMoreRows() {
 		_lastUser ? _lastUser->user->inputUser : MTP_inputUserEmpty(),
 		MTP_int(_lastUser ? kPerPage : kFirstPage)
 	)).done([=](const MTPmessages_ChatInviteImporters &result) {
+#endif
+	const auto done = [=](const auto &result) {
 		_requestId = 0;
 		auto slice = Api::ParseJoinedByLinkSlice(_peer, result);
 		_allLoaded = slice.users.empty();
 		appendSlice(slice);
+	};
+	const auto fail = [=] {
+		_requestId = 0;
+		_allLoaded = true;
+	};
+#if 0 // goodToRemove
 	}).fail([=] {
 		_requestId = 0;
 		_allLoaded = true;
 	}).send();
+#endif
+	if (_role == Role::Requested) {
+		_requestId = _api.request(Tdb::TLgetChatJoinRequests(
+			peerToTdbChat(_peer->id),
+			Tdb::tl_string(_link),
+			Tdb::tl_string(), // Query.
+			Tdb::tl_chatJoinRequest( // Offset.
+				Tdb::tl_int53(_lastUser
+					? peerToUser(_lastUser->user->id).bare
+					: 0),
+				Tdb::tl_int32(_lastUser ? _lastUser->date : 0),
+				Tdb::tl_string()),
+			Tdb::tl_int32(_lastUser ? kPerPage : kFirstPage)
+		)).done([=](const Tdb::TLDchatJoinRequests &data) {
+			done(data);
+		}).fail(fail).send();
+	} else {
+		_requestId = _api.request(Tdb::TLgetChatInviteLinkMembers(
+			peerToTdbChat(_peer->id),
+			Tdb::tl_string(_link),
+			Tdb::tl_chatInviteLinkMember( // Offset.
+				Tdb::tl_int53(_lastUser
+					? peerToUser(_lastUser->user->id).bare
+					: 0),
+				Tdb::tl_int32(_lastUser ? _lastUser->date : 0),
+				Tdb::tl_int53(0)),
+			Tdb::tl_int32(_lastUser ? kPerPage : kFirstPage)
+		)).done([=](const Tdb::TLDchatInviteLinkMembers &data) {
+			done(data);
+		}).fail(fail).send();
+	}
 }
 
 void Controller::appendSlice(const Api::JoinedByLinkSlice &slice) {
