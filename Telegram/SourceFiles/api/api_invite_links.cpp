@@ -46,6 +46,38 @@ void RemovePermanent(PeerInviteLinks &links) {
 
 JoinedByLinkSlice ParseJoinedByLinkSlice(
 		not_null<PeerData*> peer,
+		const Tdb::TLDchatInviteLinkMembers &data) {
+	auto result = JoinedByLinkSlice();
+	auto &owner = peer->session().data();
+	result.count = data.vtotal_count().v;
+	result.users.reserve(data.vmembers().v.size());
+	for (const auto &importer : data.vmembers().v) {
+		result.users.push_back({
+			.user = owner.user(importer.data().vuser_id().v),
+			.date = importer.data().vjoined_chat_date().v,
+		});
+	}
+	return result;
+}
+
+JoinedByLinkSlice ParseJoinedByLinkSlice(
+		not_null<PeerData*> peer,
+		const Tdb::TLDchatJoinRequests &data) {
+	auto result = JoinedByLinkSlice();
+	auto &owner = peer->session().data();
+	result.count = data.vtotal_count().v;
+	result.users.reserve(data.vrequests().v.size());
+	for (const auto &request : data.vrequests().v) {
+		result.users.push_back({
+			.user = owner.user(request.data().vuser_id().v),
+			.date = request.data().vdate().v,
+		});
+	}
+	return result;
+}
+#if 0 // goodToRemove
+JoinedByLinkSlice ParseJoinedByLinkSlice(
+		not_null<PeerData*> peer,
 		const MTPmessages_ChatInviteImporters &slice) {
 	auto result = JoinedByLinkSlice();
 	slice.match([&](const MTPDmessages_chatInviteImporters &data) {
@@ -65,6 +97,7 @@ JoinedByLinkSlice ParseJoinedByLinkSlice(
 	});
 	return result;
 }
+#endif
 
 InviteLinks::InviteLinks(not_null<ApiWrap*> api) : _api(api) {
 }
@@ -106,6 +139,7 @@ void InviteLinks::performCreate(
 		callbacks.push_back(std::move(done));
 	}
 
+#if 0 // goodToRemove
 	using Flag = MTPmessages_ExportChatInvite::Flag;
 	_api->request(MTPmessages_ExportChatInvite(
 		MTP_flags((revokeLegacyPermanent
@@ -122,6 +156,14 @@ void InviteLinks::performCreate(
 		MTP_int(usageLimit),
 		MTP_string(label)
 	)).done([=](const MTPExportedChatInvite &result) {
+#endif
+	_api->sender().request(Tdb::TLcreateChatInviteLink(
+		peerToTdbChat(peer->id),
+		Tdb::tl_string(label),
+		Tdb::tl_int32(expireDate),
+		Tdb::tl_int32(usageLimit),
+		Tdb::tl_bool(requestApproval)
+	)).done([=](const Tdb::TLchatInviteLink &result) {
 		const auto callbacks = _createCallbacks.take(peer);
 		const auto link = prepend(peer, peer->session().user(), result);
 		if (link && callbacks) {
@@ -156,7 +198,10 @@ auto InviteLinks::lookupMyPermanent(const Links &links) const -> const Link* {
 auto InviteLinks::prepend(
 		not_null<PeerData*> peer,
 		not_null<UserData*> admin,
+		const Tdb::TLchatInviteLink &invite) -> std::optional<Link> {
+#if 0 // goodToRemove
 		const MTPExportedChatInvite &invite) -> std::optional<Link> {
+#endif
 	const auto link = parse(peer, invite);
 	if (!link) {
 		return link;
@@ -263,6 +308,7 @@ void InviteLinks::performEdit(
 	if (done) {
 		callbacks.push_back(std::move(done));
 	}
+#if 0 // goodToRemove
 	using Flag = MTPmessages_EditExportedChatInvite::Flag;
 	const auto flags = (revoke ? Flag::f_revoked : Flag(0))
 		| (!revoke ? Flag::f_title : Flag(0))
@@ -285,6 +331,12 @@ void InviteLinks::performEdit(
 		result.match([&](const auto &data) {
 			_api->session().data().processUsers(data.vusers());
 			const auto link = parse(peer, data.vinvite());
+#endif
+	const auto doneRequest = [=](const Tdb::TLchatInviteLink &result) {
+		const auto callbacks = _editCallbacks.take(key);
+		const auto peer = key.peer;
+		const auto link = parse(peer, result);
+		{
 			if (!link) {
 				return;
 			}
@@ -315,6 +367,7 @@ void InviteLinks::performEdit(
 				.now = link,
 			});
 
+#if 0 // goodToRemove
 			using Replaced = MTPDmessages_exportedChatInviteReplaced;
 			if constexpr (Replaced::Is<decltype(data)>()) {
 				prepend(peer, admin, data.vnew_invite());
@@ -323,6 +376,37 @@ void InviteLinks::performEdit(
 	}).fail([=] {
 		_editCallbacks.erase(key);
 	}).send();
+#endif
+		}
+	};
+
+	if (revoke) {
+		_api->sender().request(Tdb::TLrevokeChatInviteLink(
+			peerToTdbChat(peer->id),
+			Tdb::tl_string(link)
+		)).done([=](const Tdb::TLchatInviteLinks &result) {
+			doneRequest(result.data().vinvite_links().v.front());
+			if (result.data().vtotal_count().v > 1) {
+				// A new link.
+				prepend(peer, admin, result.data().vinvite_links().v.back());
+			}
+		}).fail([=] {
+			_editCallbacks.erase(key);
+		}).send();
+	} else {
+		_api->sender().request(Tdb::TLeditChatInviteLink(
+			peerToTdbChat(peer->id),
+			Tdb::tl_string(link),
+			Tdb::tl_string(label),
+			Tdb::tl_int32(expireDate),
+			Tdb::tl_int32(usageLimit),
+			Tdb::tl_bool(requestApproval)
+		)).done([=](const Tdb::TLchatInviteLink &result) {
+			doneRequest(result);
+		}).fail([=] {
+			_editCallbacks.erase(key);
+		}).send();
+	}
 }
 
 void InviteLinks::revoke(
@@ -367,9 +451,14 @@ void InviteLinks::destroy(
 	if (done) {
 		callbacks.push_back(std::move(done));
 	}
+#if 0 // goodToRemove
 	_api->request(MTPmessages_DeleteExportedChatInvite(
 		peer->input,
 		MTP_string(link)
+#endif
+	_api->sender().request(Tdb::TLdeleteRevokedChatInviteLink(
+		peerToTdbChat(peer->id),
+		Tdb::tl_string(link)
 	)).done([=] {
 		const auto callbacks = _deleteCallbacks.take(key);
 		if (callbacks) {
@@ -402,9 +491,14 @@ void InviteLinks::destroyAllRevoked(
 	if (done) {
 		callbacks.push_back(std::move(done));
 	}
+#if 0 // goodToRemove
 	_api->request(MTPmessages_DeleteRevokedExportedChatInvites(
 		peer->input,
 		admin->inputUser
+#endif
+	_api->sender().request(Tdb::TLdeleteAllRevokedChatInviteLinks(
+		peerToTdbChat(peer->id),
+		Tdb::tl_int53(peerToUser(admin->id).bare)
 	)).done([=] {
 		if (const auto callbacks = _deleteRevokedCallbacks.take(peer)) {
 			for (const auto &callback : *callbacks) {
@@ -419,6 +513,7 @@ void InviteLinks::requestMyLinks(not_null<PeerData*> peer) {
 	if (_firstSliceRequests.contains(peer)) {
 		return;
 	}
+#if 0 // goodToRemove
 	const auto requestId = _api->request(MTPmessages_GetExportedChatInvites(
 		MTP_flags(0),
 		peer->input,
@@ -427,6 +522,15 @@ void InviteLinks::requestMyLinks(not_null<PeerData*> peer) {
 		MTPstring(), // offset_link
 		MTP_int(kFirstPage)
 	)).done([=](const MTPmessages_ExportedChatInvites &result) {
+#endif
+	const auto requestId = _api->sender().request(Tdb::TLgetChatInviteLinks(
+		peerToTdbChat(peer->id),
+		Tdb::tl_int53(peer->session().userId().bare),
+		Tdb::tl_bool(false), // Revoked.
+		Tdb::tl_int32(0), // Offset date.
+		Tdb::tl_string(), // Offset invite link.
+		Tdb::tl_int32(kFirstPage)
+	)).done([=](const Tdb::TLchatInviteLinks &result) {
 		_firstSliceRequests.remove(peer);
 		auto slice = parseSlice(peer, result);
 		auto i = _firstSlices.find(peer);
@@ -471,13 +575,19 @@ void InviteLinks::processRequest(
 	_processRequests.emplace(
 		std::pair{ peer, user },
 		ProcessRequest{ std::move(done), std::move(fail) });
-#if 0 // todo
+#if 0 // goodToRemove
 	using Flag = MTPmessages_HideChatJoinRequest::Flag;
 	_api->request(MTPmessages_HideChatJoinRequest(
 		MTP_flags(approved ? Flag::f_approved : Flag(0)),
 		peer->input,
 		user->inputUser
 	)).done([=](const MTPUpdates &result) {
+#endif
+	_api->sender().request(Tdb::TLprocessChatJoinRequest(
+		peerToTdbChat(peer->id),
+		Tdb::tl_int53(peerToUser(user->id).bare),
+		Tdb::tl_bool(approved)
+	)).done([=] {
 		if (const auto chat = peer->asChat()) {
 			if (chat->count > 0) {
 				if (chat->participants.size() >= chat->count) {
@@ -488,7 +598,9 @@ void InviteLinks::processRequest(
 		} else if (const auto channel = peer->asChannel()) {
 			_api->chatParticipants().requestCountDelayed(channel);
 		}
+#if 0 // goodToRemove
 		_api->applyUpdates(result);
+#endif
 		if (link.isEmpty() && approved) {
 			// We don't know the link that was used for this user.
 			// Prune all the cache.
@@ -521,7 +633,6 @@ void InviteLinks::processRequest(
 			}
 		}
 	}).send();
-#endif
 }
 
 void InviteLinks::applyExternalUpdate(
@@ -604,6 +715,17 @@ void InviteLinks::requestJoinedFirstSlice(LinkKey key) {
 	if (_firstJoinedRequests.contains(key)) {
 		return;
 	}
+	const auto requestId = _api->sender().request(Tdb::TLgetChatJoinRequests(
+		peerToTdbChat(key.peer->id),
+		Tdb::tl_string(key.link),
+		Tdb::tl_string(), // Query.
+		Tdb::tl_chatJoinRequest( // Offset.
+			Tdb::tl_int53(0),
+			Tdb::tl_int32(0),
+			Tdb::tl_string()),
+		Tdb::tl_int32(kJoinedFirstPage)
+	)).done([=](const Tdb::TLDchatJoinRequests &result) {
+#if 0 // goodToRemove
 	const auto requestId = _api->request(MTPmessages_GetChatInviteImporters(
 		MTP_flags(MTPmessages_GetChatInviteImporters::Flag::f_link),
 		key.peer->input,
@@ -613,6 +735,7 @@ void InviteLinks::requestJoinedFirstSlice(LinkKey key) {
 		MTP_inputUserEmpty(), // offset_user
 		MTP_int(kJoinedFirstPage)
 	)).done([=](const MTPmessages_ChatInviteImporters &result) {
+#endif
 		_firstJoinedRequests.remove(key);
 		_firstJoined[key] = ParseJoinedByLinkSlice(key.peer, result);
 		_joinedFirstSliceLoaded.fire_copy(key);
@@ -624,7 +747,10 @@ void InviteLinks::requestJoinedFirstSlice(LinkKey key) {
 
 void InviteLinks::setMyPermanent(
 		not_null<PeerData*> peer,
+		const Tdb::TLchatInviteLink &invite) {
+#if 0 // goodToRemove
 		const MTPExportedChatInvite &invite) {
+#endif
 	auto link = parse(peer, invite);
 	if (!link) {
 		LOG(("API Error: "
@@ -725,12 +851,20 @@ auto InviteLinks::myLinks(not_null<PeerData*> peer) const -> const Links & {
 
 auto InviteLinks::parseSlice(
 		not_null<PeerData*> peer,
-		const MTPmessages_ExportedChatInvites &slice) const -> Links {
+		const Tdb::TLchatInviteLinks &slice) const -> Links {
 	auto i = _firstSlices.find(peer);
 	const auto permanent = (i != end(_firstSlices))
 		? lookupMyPermanent(i->second)
 		: nullptr;
 	auto result = Links();
+	result.count = slice.data().vtotal_count().v;
+	for (const auto &invite : slice.data().vinvite_links().v) {
+		const auto link = parse(peer, invite);
+		if (!permanent || link.link != permanent->link) {
+			result.links.push_back(link);
+		}
+	}
+#if 0 // goodToRemove
 	slice.match([&](const MTPDmessages_exportedChatInvites &data) {
 		peer->session().data().processUsers(data.vusers());
 		result.count = data.vcount().v;
@@ -742,11 +876,28 @@ auto InviteLinks::parseSlice(
 			}
 		}
 	});
+#endif
 	return result;
 }
 
 auto InviteLinks::parse(
 		not_null<PeerData*> peer,
+		const Tdb::TLchatInviteLink &invite) const -> std::optional<Link> {
+	return Link{
+		.link = invite.data().vinvite_link().v,
+		.label = invite.data().vname().v,
+		.admin = peer->owner().user(invite.data().vcreator_user_id().v),
+		.date = invite.data().vdate().v,
+		.startDate = invite.data().vedit_date().v,
+		.expireDate = invite.data().vexpire_date().v,
+		.usageLimit = invite.data().vmember_limit().v,
+		.usage = invite.data().vmember_count().v,
+		.requested = invite.data().vpending_join_request_count().v,
+		.requestApproval = invite.data().vcreates_join_request().v,
+		.permanent = invite.data().vis_primary().v,
+		.revoked = invite.data().vis_revoked().v,
+	};
+#if 0 // goodToRemove
 		const MTPExportedChatInvite &invite) const -> std::optional<Link> {
 	return invite.match([&](const MTPDchatInviteExported &data) {
 		return std::optional<Link>(Link{
@@ -766,6 +917,7 @@ auto InviteLinks::parse(
 	}, [&](const MTPDchatInvitePublicJoinRequests &data) {
 		return std::optional<Link>();
 	});
+#endif
 }
 
 void InviteLinks::requestMoreLinks(
@@ -775,6 +927,15 @@ void InviteLinks::requestMoreLinks(
 		const QString &lastLink,
 		bool revoked,
 		Fn<void(Links)> done) {
+	_api->sender().request(Tdb::TLgetChatInviteLinks(
+		peerToTdbChat(peer->id),
+		Tdb::tl_int53(peerToUser(admin->id).bare),
+		Tdb::tl_bool(revoked),
+		Tdb::tl_int32(lastDate),
+		Tdb::tl_string(lastLink),
+		Tdb::tl_int32(kPerPage)
+	)).done([=](const Tdb::TLchatInviteLinks &result) {
+#if 0 // goodToRemove
 	using Flag = MTPmessages_GetExportedChatInvites::Flag;
 	_api->request(MTPmessages_GetExportedChatInvites(
 		MTP_flags(Flag::f_offset_link
@@ -785,6 +946,7 @@ void InviteLinks::requestMoreLinks(
 		MTP_string(lastLink),
 		MTP_int(kPerPage)
 	)).done([=](const MTPmessages_ExportedChatInvites &result) {
+#endif
 		done(parseSlice(peer, result));
 	}).fail([=] {
 		done(Links());
