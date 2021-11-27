@@ -144,7 +144,10 @@ private:
 	[[nodiscard]] TimeId ttlPeriod() const;
 
 	const not_null<Window::SessionNavigation*> _navigation;
+#if 0 // goodToRemove
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 
 	Type _type = Type::Group;
 	QString _initialTitle;
