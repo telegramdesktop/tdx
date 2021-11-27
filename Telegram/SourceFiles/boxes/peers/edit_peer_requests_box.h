@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "mtproto/sender.h"
 
+#include "tdb/tdb_sender.h"
+
 namespace Window {
 class SessionNavigation;
 } // namespace Window
@@ -61,7 +63,10 @@ private:
 	const not_null<Window::SessionNavigation*> _navigation;
 	const std::unique_ptr<RowHelper> _helper;
 	not_null<PeerData*> _peer;
+#if 0 // goodToRemove
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 
 	TimeId _offsetDate = 0;
 	UserData *_offsetUser = nullptr;
@@ -105,7 +110,10 @@ private:
 		int requestedCount);
 
 	not_null<PeerData*> _peer;
+#if 0 // goodToRemove
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 
 	base::Timer _timer;
 	QString _query;
