@@ -198,7 +198,11 @@ private:
 		NA,
 		Unknown,
 	};
+#if 0 // goodToRemove
 	[[nodiscard]] UsernameResult parseError(const QString &error);
+#endif
+	[[nodiscard]] UsernameResult parseError(
+		const Tdb::TLcheckChatUsernameResult &result);
 
 	void privacyChanged(Privacy value);
 	void updateSelected(const QPoint &cursorGlobalPosition);
