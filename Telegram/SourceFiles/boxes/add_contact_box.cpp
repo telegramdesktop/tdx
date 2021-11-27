@@ -1002,7 +1002,10 @@ SetupChannelBox::SetupChannelBox(
 	Fn<void(not_null<PeerData*>)> done)
 : _navigation(navigation)
 , _channel(channel)
+#if 0 // goodToRemove
 , _api(&_channel->session().mtp())
+#endif
+, _api(&_channel->session().sender())
 , _mustBePublic(mustBePublic)
 , _done(std::move(done))
 , _privacyGroup(
@@ -1065,6 +1068,14 @@ void SetupChannelBox::prepare() {
 
 	setMouseTracking(true);
 
+	_checkRequestId = _api.request(Tdb::TLcheckChatUsername(
+		peerToTdbChat(_channel->id),
+		Tdb::tl_string("preston")
+	)).done([=](const Tdb::TLcheckChatUsernameResult &result) {
+		_checkRequestId = 0;
+		firstCheckFail(parseError(result));
+	}).send();
+#if 0 // goodToRemove
 	_checkRequestId = _api.request(MTPchannels_CheckUsername(
 		_channel->inputChannel,
 		MTP_string("preston")
@@ -1072,6 +1083,7 @@ void SetupChannelBox::prepare() {
 		_checkRequestId = 0;
 		firstCheckFail(parseError(error.type()));
 	}).send();
+#endif
 
 	addButton(tr::lng_settings_save(), [=] { save(); });
 
@@ -1312,6 +1324,26 @@ void SetupChannelBox::updateSelected(const QPoint &cursorGlobalPosition) {
 void SetupChannelBox::save() {
 	const auto saveUsername = [&](const QString &link) {
 		_sentUsername = link;
+		_saveRequestId = _api.request(Tdb::TLsetSupergroupUsername(
+			Tdb::tl_int53(peerToChannel(_channel->id).bare),
+			Tdb::tl_string(_sentUsername)
+		)).done([=] {
+			_saveRequestId = 0;
+			updateFail(UsernameResult::Ok);
+		}).fail([=](const Tdb::Error &error) {
+			const auto &type = error.message;
+			_saveRequestId = 0;
+			updateFail([&] {
+				if (type == u"USERNAME_INVALID"_q) {
+					return UsernameResult::Invalid;
+				} else if (type == u"USERNAME_OCCUPIED"_q
+					|| type == u"USERNAMES_UNAVAILABLE"_q) {
+					return UsernameResult::Occupied;
+				}
+				return UsernameResult::Invalid;
+			}());
+		}).send();
+#if 0 // goodToRemove
 		_saveRequestId = _api.request(MTPchannels_UpdateUsername(
 			_channel->inputChannel,
 			MTP_string(_sentUsername)
@@ -1329,6 +1361,7 @@ void SetupChannelBox::save() {
 			_saveRequestId = 0;
 			updateFail(parseError(error.type()));
 		}).send();
+#endif
 	};
 	if (_saveRequestId) {
 		return;
@@ -1396,6 +1429,25 @@ void SetupChannelBox::check() {
 	const auto link = _link->text().trimmed();
 	if (link.size() >= Ui::EditPeer::kMinUsernameLength) {
 		_checkUsername = link;
+		_checkRequestId = _api.request(Tdb::TLcheckChatUsername(
+			peerToTdbChat(_channel->id),
+			Tdb::tl_string(link)
+		)).done([=](const Tdb::TLcheckChatUsernameResult &result) {
+			_checkRequestId = 0;
+			const auto parsed = parseError(result);
+			if ((parsed == UsernameResult::Ok)
+				|| _checkUsername == _channel->username) {
+				_errorText = QString();
+				_goodText = tr::lng_create_channel_link_available(tr::now);
+				update();
+			} else {
+				checkFail(parsed);
+			}
+		}).fail([=] {
+			_checkRequestId = 0;
+			checkFail(UsernameResult::Unknown);
+		}).send();
+#if 0 // goodToRemove
 		_checkRequestId = _api.request(MTPchannels_CheckUsername(
 			_channel->inputChannel,
 			MTP_string(link)
@@ -1413,6 +1465,7 @@ void SetupChannelBox::check() {
 			_checkRequestId = 0;
 			checkFail(parseError(error.type()));
 		}).send();
+#endif
 	}
 }
 
@@ -1444,6 +1497,19 @@ void SetupChannelBox::privacyChanged(Privacy value) {
 }
 
 SetupChannelBox::UsernameResult SetupChannelBox::parseError(
+		const Tdb::TLcheckChatUsernameResult &result) {
+	return result.match([](const Tdb::TLDcheckChatUsernameResultOk &) {
+		return UsernameResult::Ok;
+	}, [](const Tdb::TLDcheckChatUsernameResultUsernameInvalid &) {
+		return UsernameResult::Invalid;
+	}, [](const Tdb::TLDcheckChatUsernameResultUsernameOccupied &) {
+		return UsernameResult::Occupied;
+	}, [](const Tdb::TLDcheckChatUsernameResultPublicChatsTooMuch &) {
+		return UsernameResult::ChatsTooMuch;
+	}, [](const Tdb::TLDcheckChatUsernameResultPublicGroupsUnavailable &) {
+		return UsernameResult::NA;
+	});
+#if 0 // goodToRemove
 		const QString &error) {
 	if (error == u"USERNAME_NOT_MODIFIED"_q) {
 		return UsernameResult::Ok;
@@ -1462,6 +1528,7 @@ SetupChannelBox::UsernameResult SetupChannelBox::parseError(
 	} else {
 		return UsernameResult::Unknown;
 	}
+#endif
 }
 
 void SetupChannelBox::updateFail(UsernameResult result) {
