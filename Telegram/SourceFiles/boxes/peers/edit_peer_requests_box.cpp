@@ -308,6 +308,7 @@ void RequestsBoxController::loadMoreRows() {
 
 	// First query is small and fast, next loads a lot of rows.
 	const auto limit = _offsetDate ? kPerPage : kFirstPageCount;
+#if 0 // goodToRemove
 	using Flag = MTPmessages_GetChatInviteImporters::Flag;
 	_loadRequestId = _api.request(MTPmessages_GetChatInviteImporters(
 		MTP_flags(Flag::f_requested),
@@ -335,6 +336,28 @@ void RequestsBoxController::loadMoreRows() {
 			// To be sure - wait for a whole empty result list.
 			_allLoaded = importers.isEmpty();
 		});
+#endif
+	_loadRequestId = _api.request(Tdb::TLgetChatJoinRequests(
+		peerToTdbChat(_peer->id),
+		Tdb::tl_string(), // Invite link.
+		Tdb::tl_string(), // Query.
+		Tdb::tl_chatJoinRequest( // Offset.
+			Tdb::tl_int53(_offsetUser ? peerToUser(_offsetUser->id).bare : 0),
+			Tdb::tl_int32(_offsetDate),
+			Tdb::tl_string()),
+		Tdb::tl_int32(limit)
+	)).done([=](const Tdb::TLDchatJoinRequests &data) {
+		const auto firstLoad = !_offsetDate;
+		_loadRequestId = 0;
+
+		auto &owner = _peer->owner();
+		for (const auto &importer : data.vrequests().v) {
+			_offsetDate = importer.data().vdate().v;
+			_offsetUser = owner.user(importer.data().vuser_id().v);
+			appendRow(_offsetUser, _offsetDate);
+		}
+		// To be sure - wait for a whole empty result list.
+		_allLoaded = data.vrequests().v.empty();
 
 		if (_allLoaded
 			|| (firstLoad && delegate()->peerListFullRowsCount() > 0)) {
@@ -597,6 +620,29 @@ bool RequestsBoxSearchController::loadMoreRows() {
 	// (because we've waited for search request by timer already,
 	// so we don't expect it to be fast, but we want to fill cache).
 	const auto limit = kPerPage;
+	_requestId = _api.request(Tdb::TLgetChatJoinRequests(
+		peerToTdbChat(_peer->id),
+		Tdb::tl_string(), // Invite link.
+		Tdb::tl_string(_query),
+		Tdb::tl_chatJoinRequest( // Offset.
+			Tdb::tl_int53(_offsetUser ? peerToUser(_offsetUser->id).bare : 0),
+			Tdb::tl_int32(_offsetDate),
+			Tdb::tl_string()),
+		Tdb::tl_int32(limit)
+	)).done([=](
+			const Tdb::TLDchatJoinRequests &data,
+			Tdb::RequestId requestId) {
+		auto items = std::vector<Item>();
+		auto &owner = _peer->owner();
+		items.reserve(data.vrequests().v.size());
+		for (const auto &importer : data.vrequests().v) {
+			items.push_back({
+				owner.user(importer.data().vuser_id().v),
+				importer.data().vdate().v,
+			});
+		}
+#if 0 // goodToRemove
+	}).send();
 	using Flag = MTPmessages_GetChatInviteImporters::Flag;
 	_requestId = _api.request(MTPmessages_GetChatInviteImporters(
 		MTP_flags(Flag::f_requested | Flag::f_q),
@@ -624,6 +670,7 @@ bool RequestsBoxSearchController::loadMoreRows() {
 				});
 			}
 		});
+#endif
 		searchDone(requestId, items, limit);
 
 		auto it = _queries.find(requestId);
@@ -636,7 +683,10 @@ bool RequestsBoxSearchController::loadMoreRows() {
 			}
 			_queries.erase(it);
 		}
+#if 0 // goodToRemove
 	}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
+#endif
+	}).fail([=](const Tdb::Error &error, Tdb::RequestId requestId) {
 		if (_requestId == requestId) {
 			_requestId = 0;
 			_allLoaded = true;
