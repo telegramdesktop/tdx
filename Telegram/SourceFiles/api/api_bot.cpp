@@ -73,6 +73,7 @@ void SendBotCallbackData(
 	using ButtonType = HistoryMessageMarkupButton::Type;
 	const auto isGame = (button->type == ButtonType::Game);
 
+#if 0 // goodToRemove
 	auto flags = MTPmessages_GetBotCallbackAnswer::Flags(0);
 	QByteArray sendData;
 	if (isGame) {
@@ -95,6 +96,25 @@ void SendBotCallbackData(
 		MTP_bytes(sendData),
 		password ? password->result : MTP_inputCheckPasswordEmpty()
 	)).done([=](const MTPmessages_BotCallbackAnswer &result) {
+#endif
+	const auto withPassword = password.has_value();
+	auto payload = [&] {
+		if (isGame) {
+			return Tdb::tl_callbackQueryPayloadGame(Tdb::tl_string());
+		} else {
+			const auto tlBytes = Tdb::tl_bytes(button->data);
+			return withPassword
+				? Tdb::tl_callbackQueryPayloadDataWithPassword(
+					Tdb::tl_string(password->password),
+					tlBytes)
+				: Tdb::tl_callbackQueryPayloadData(tlBytes);
+		}
+	}();
+	button->requestId = api->sender().request(Tdb::TLgetCallbackQueryAnswer(
+		peerToTdbChat(history->peer->id),
+		Tdb::tl_int53(item->id.bare),
+		std::move(payload)
+	)).done([=](const Tdb::TLDcallbackQueryAnswer &data) {
 		const auto guard = gsl::finally([&] {
 			if (done) {
 				done();
@@ -108,12 +128,17 @@ void SendBotCallbackData(
 			button->requestId = 0;
 			owner->requestItemRepaint(item);
 		}
+#if 0 // goodToRemove
 		const auto &data = result.data();
 		const auto message = data.vmessage()
 			? qs(*data.vmessage())
 			: QString();
 		const auto link = data.vurl() ? qs(*data.vurl()) : QString();
 		const auto showAlert = data.is_alert();
+#endif
+		const auto message = data.vtext().v;
+		const auto link = data.vurl().v;
+		const auto showAlert = data.vshow_alert().v;
 
 		if (!message.isEmpty()) {
 			if (!show->valid()) {
@@ -144,10 +169,16 @@ void SendBotCallbackData(
 		} else if (withPassword) {
 			show->hideLayer();
 		}
+#if 0 // goodToRemove
 	}).fail([=](const MTP::Error &error) {
+#endif
+	}).fail([=](const Tdb::Error &error) {
 		const auto guard = gsl::finally([&] {
 			if (handleError) {
+#if 0 // goodToRemove
 				handleError(error.type());
+#endif
+				handleError(error.message);
 			}
 		});
 		const auto item = owner->message(fullId);
