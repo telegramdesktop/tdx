@@ -25,4 +25,23 @@ QString FormatPhone(const QString &phone) {
 	}
 }
 
+// doLater Refuse to use "groups".
+QVector<int> PhonePatternGroups(const QString &phone) {
+	const auto filled = phone + QString().fill('X', 20 - phone.size());
+	const auto formatted = FormatPhone(filled);
+	const auto digits = QStringView(formatted).mid(1);
+	QVector<int> groups;
+	auto counter = 0;
+	for (const auto &ch : digits) {
+		if (ch == ' ') {
+			groups.push_back(counter);
+			counter = 0;
+		} else {
+			counter++;
+		}
+	}
+	groups.push_back(counter);
+	return groups;
+}
+
 } // namespace Tdb

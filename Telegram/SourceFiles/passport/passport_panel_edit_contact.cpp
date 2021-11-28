@@ -302,7 +302,10 @@ void PanelEditContact::setupControls(
 			Countries::ExtractPhoneCode(
 				_controller->bot()->session().user()->phone()),
 			data,
+			[](const QString &s) { return Tdb::PhonePatternGroups(s); });
+#if 0 // goodToRemove
 			[](const QString &s) { return Countries::Groups(s); });
+#endif
 	} else {
 		_field = Ui::CreateChild<Ui::MaskedInputField>(
 			wrap.data(),

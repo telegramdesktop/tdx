@@ -10,5 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Tdb {
 
 [[nodiscard]] QString FormatPhone(const QString &phone);
+[[nodiscard]] QVector<int> PhonePatternGroups(const QString &phone);
 
 } // namespace Tdb
