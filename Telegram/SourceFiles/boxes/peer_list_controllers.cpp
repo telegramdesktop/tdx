@@ -219,10 +219,10 @@ void PeerListGlobalSearchController::searchOnServer() {
 		}
 	}).send();
 #endif
-	_requestId = _api.request(Tdb::TLsearchContacts(
+	_requestId = _api.request(Tdb::TLsearchChatsOnServer(
 		Tdb::tl_string(_query),
 		Tdb::tl_int32(SearchPeopleLimit)
-	)).done([=](const Tdb::TLusers &result, Tdb::RequestId requestId) {
+	)).done([=](const Tdb::TLchats &result, Tdb::RequestId requestId) {
 		searchDone(result, requestId);
 	}).fail([=](const Tdb::Error &error, Tdb::RequestId requestId) {
 		if (_requestId == requestId) {
@@ -237,7 +237,7 @@ void PeerListGlobalSearchController::searchDone(
 #if 0 // goodToRemove
 		const MTPcontacts_Found &result,
 #endif
-		const Tdb::TLusers &result,
+		const Tdb::TLchats &result,
 		mtpRequestId requestId) {
 #if 0 // goodToRemove
 	Expects(result.type() == mtpc_contacts_found);
@@ -271,7 +271,7 @@ void PeerListGlobalSearchController::searchDone(
 	if (_requestId == requestId) {
 		_requestId = 0;
 
-		for (const auto &peerId : result.data().vuser_ids().v) {
+		for (const auto &peerId : result.data().vchat_ids().v) {
 			const auto peer = _session->data().peerLoaded(
 				peerFromTdbChat(peerId));
 			if (peer) {
