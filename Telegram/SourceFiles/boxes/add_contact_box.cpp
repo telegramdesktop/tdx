@@ -47,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "api/api_invite_links.h"
 #include "api/api_peer_photo.h"
+#include "tdb/tdb_format_phone.h"
 #include "main/main_session.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
@@ -286,7 +287,10 @@ AddContactBox::AddContactBox(
 	tr::lng_contact_phone(),
 	Countries::ExtractPhoneCode(session->user()->phone()),
 	phone,
+	[](const QString &s) { return Tdb::PhonePatternGroups(s); })
+#if 0 // goodToRemove
 	[](const QString &s) { return Countries::Groups(s); })
+#endif
 , _invertOrder(langFirstNameGoesSecond()) {
 	if (!phone.isEmpty()) {
 		_phone->setDisabled(true);
