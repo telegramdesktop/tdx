@@ -44,4 +44,5 @@ target_link_libraries(td_export
 PUBLIC
     desktop-app::lib_base
     tdesktop::td_scheme
+    tdesktop::td_tdb
 )
