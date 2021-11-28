@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/boxes/confirm_phone_box.h"
-#include "ui/text/format_values.h" // Ui::FormatPhone
+#include "tdb/tdb_format_phone.h" // Tdb::FormatPhone
 #include "window/window_session_controller.h"
 
 namespace Api {
@@ -224,7 +224,7 @@ void ConfirmPhone::resolve(
 						tr::lng_confirm_phone_success(
 							tr::now,
 							lt_phone,
-							Ui::FormatPhone(phone))),
+							Tdb::FormatPhone(phone))),
 					Ui::LayerOption::CloseOther);
 			}).fail([=](const Tdb::Error &error) {
 				_checkRequestId = 0;

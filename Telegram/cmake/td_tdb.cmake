@@ -21,6 +21,8 @@ PRIVATE
     tdb/tdb_file_generator.h
     tdb/tdb_file_proxy.cpp
     tdb/tdb_file_proxy.h
+    tdb/tdb_format_phone.cpp
+    tdb/tdb_format_phone.h
     tdb/tdb_option.h
     tdb/tdb_request_id.h
     tdb/tdb_sender.cpp

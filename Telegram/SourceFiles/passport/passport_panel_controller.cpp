@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/sent_code_field.h"
 #include "core/update_checker.h"
 #include "countries/countries_instance.h"
+#include "tdb/tdb_format_phone.h" // Tdb::FormatPhone
 #include "styles/style_layers.h"
 
 namespace Passport {
@@ -487,7 +488,7 @@ EditContactScheme GetContactScheme(Scope::Type type) {
 			).match(value).hasMatch();
 		};
 		result.format = [](const QString &value) {
-			return Ui::FormatPhone(value);
+			return Tdb::FormatPhone(value);
 		};
 		result.postprocess = [](QString value) {
 			return value.replace(
