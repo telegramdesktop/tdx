@@ -28,6 +28,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "countries/countries_instance.h" // Countries::Groups
 
+#include "tdb/tdb_format_phone.h" // Tdb::PhonePatternGroups
+
 namespace Intro {
 namespace details {
 namespace {
@@ -61,7 +63,10 @@ PhoneWidget::PhoneWidget(
 , _phone(
 	this,
 	st::introPhone,
+	[](const QString &s) { return Tdb::PhonePatternGroups(s); }) {
+#if 0 // goodToRemove
 	[](const QString &s) { return Countries::Groups(s); }) {
+#endif
 #if 0 // mtp
 , _checkRequestTimer([=] { checkRequest(); }) {
 #endif
