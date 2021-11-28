@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/fade_wrap.h"
-#include "ui/text/format_values.h" // Ui::FormatPhone
+#include "tdb/tdb_format_phone.h" // Tdb::FormatPhone
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "ui/widgets/fields/special_fields.h"
 #include "boxes/abstract_box.h"
@@ -422,7 +422,7 @@ object_ptr<Ui::BoxContent> VerifyPhoneBox(
 		tr::lng_passport_confirm_phone(
 			tr::now,
 			lt_phone,
-			Ui::FormatPhone(phone)),
+			Tdb::FormatPhone(phone)),
 		codeLength,
 		openUrl,
 		submit,

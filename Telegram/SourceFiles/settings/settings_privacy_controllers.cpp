@@ -61,6 +61,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 #include "styles/style_menu_icons.h"
 
+#include "tdb/tdb_format_phone.h" // Tdb::FormatPhone
+
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
 
@@ -461,7 +463,7 @@ std::unique_ptr<PeerListRow> BlockedBoxController::createRow(
 		if (!user) {
 			return tr::lng_group_status(tr::now);
 		} else if (!user->phone().isEmpty()) {
-			return Ui::FormatPhone(user->phone());
+			return Tdb::FormatPhone(user->phone());
 		} else if (!user->username().isEmpty()) {
 			return '@' + user->username();
 		} else if (user->isBot()) {

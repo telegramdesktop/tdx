@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "data/data_channel.h"
-#include "ui/text/format_values.h" // Ui::FormatPhone
+#include "tdb/tdb_format_phone.h" // Tdb::FormatPhone
 
 namespace InlineBots {
 namespace internal {
@@ -106,7 +106,7 @@ SendDataCommon::SentMessageFields SendContact::getSentMessageFields() const {
 QString SendContact::getLayoutDescription(const Result *owner) const {
 	auto result = SendData::getLayoutDescription(owner);
 	if (result.isEmpty()) {
-		return Ui::FormatPhone(_phoneNumber);
+		return Tdb::FormatPhone(_phoneNumber);
 	}
 	return result;
 }

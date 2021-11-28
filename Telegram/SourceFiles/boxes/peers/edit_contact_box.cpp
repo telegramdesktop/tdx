@@ -27,6 +27,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
 
+#include "tdb/tdb_format_phone.h" // Tdb::FormatPhone
+
 namespace {
 
 QString UserPhone(not_null<UserData*> user) {
@@ -160,7 +162,7 @@ void Controller::setupCover() {
 			Info::Profile::Cover::Role::EditContact,
 			(_phone.isEmpty()
 				? tr::lng_contact_mobile_hidden()
-				: rpl::single(Ui::FormatPhone(_phone)))),
+				: rpl::single(Tdb::FormatPhone(_phone)))),
 		style::margins());
 	_updatedPersonalPhoto = [=] { return cover->updatedPersonalPhoto(); };
 }
