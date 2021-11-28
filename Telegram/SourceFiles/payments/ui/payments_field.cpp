@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/event_filter.h"
 #include "base/qt/qt_common_adapters.h"
 #include "styles/style_payments.h"
+#include "tdb/tdb_format_phone.h" // Tdb::PhonePatternGroups
 
 #include <QtCore/QRegularExpression>
 #include <QtWidgets/QTextEdit>
@@ -410,7 +411,10 @@ struct SimpleFieldState {
 			std::move(config.placeholder),
 			Countries::ExtractPhoneCode(config.defaultPhone),
 			Parse(config),
+			[](const QString &s) { return Tdb::PhonePatternGroups(s); });
+#if 0 // goodToRemove
 			[](const QString &s) { return Countries::Groups(s); });
+#endif
 	case FieldType::Money:
 		return CreateMoneyField(
 			wrap,
