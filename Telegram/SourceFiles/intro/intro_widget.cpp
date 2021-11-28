@@ -26,7 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "countries/countries_instance.h"
 #include "ui/boxes/confirm_box.h"
-#include "ui/text/format_values.h" // Ui::FormatPhone
+#include "tdb/tdb_format_phone.h" // Tdb::FormatPhone
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -806,7 +806,7 @@ void Widget::resetAccount() {
 				Ui::show(Ui::MakeInformBox(tr::lng_signin_reset_wait(
 					tr::now,
 					lt_phone_number,
-					Ui::FormatPhone(getData()->phone),
+					Tdb::FormatPhone(getData()->phone),
 					lt_when,
 					when)));
 			} else if (type == u"2FA_RECENT_CONFIRM"_q) {

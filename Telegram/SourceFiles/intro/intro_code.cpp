@@ -24,6 +24,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtp_instance.h"
 #include "styles/style_intro.h"
 
+#include "tdb/tdb_format_phone.h" // Tdb::FormatPhone
+
 namespace Intro {
 namespace details {
 namespace {
@@ -59,7 +61,7 @@ CodeWidget::CodeWidget(
 	setTitleText(_isFragment.value(
 	) | rpl::map([=](bool isFragment) {
 		return !isFragment
-			? rpl::single(Ui::FormatPhone(getData()->phone))
+			? rpl::single(Tdb::FormatPhone(getData()->phone))
 			: tr::lng_intro_fragment_title();
 	}) | rpl::flatten_latest());
 

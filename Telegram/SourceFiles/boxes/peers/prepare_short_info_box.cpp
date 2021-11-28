@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "info/profile/info_profile_values.h"
 #include "ui/text/format_values.h"
+#include "tdb/tdb_format_phone.h" // Tdb::FormatPhone
 #include "base/unixtime.h"
 #include "lang/lang_keys.h"
 #include "styles/style_info.h"
@@ -210,7 +211,7 @@ void ProcessFullPhoto(
 		const auto username = peer->username();
 		return PeerShortInfoFields{
 			.name = peer->name(),
-			.phone = user ? Ui::FormatPhone(user->phone()) : QString(),
+			.phone = user ? Tdb::FormatPhone(user->phone()) : QString(),
 			.link = ((user || username.isEmpty())
 				? QString()
 				: peer->session().createInternalLinkFull(username)),

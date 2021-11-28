@@ -29,6 +29,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "window/window_session_controller.h"
 
+#include "tdb/tdb_format_phone.h" // Tdb::FormatPhone
+
 namespace HistoryView {
 namespace {
 
@@ -129,7 +131,10 @@ Contact::Contact(
 
 	_phoneLine.setText(
 		st::webPageDescriptionStyle,
+#if 0 // mtp
 		Ui::FormatPhone(phone),
+#endif
+		Tdb::FormatPhone(phone),
 		Ui::WebpageTextTitleOptions());
 
 #if 0 // No info.

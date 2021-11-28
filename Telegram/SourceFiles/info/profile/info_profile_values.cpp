@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "countries/countries_instance.h"
 #include "main/main_session.h"
 #include "ui/wrap/slide_wrap.h"
-#include "ui/text/format_values.h" // Ui::FormatPhone
+#include "tdb/tdb_format_phone.h" // Tdb::FormatPhone
 #include "ui/text/text_utilities.h"
 #include "lang/lang_keys.h"
 #include "data/notify/data_notify_settings.h"
@@ -127,7 +127,7 @@ rpl::producer<TextWithEntities> PhoneValue(not_null<UserData*> user) {
 			user,
 			UpdateFlag::PhoneNumber) | rpl::to_empty
 	) | rpl::map([=] {
-		return Ui::FormatPhone(user->phone());
+		return Tdb::FormatPhone(user->phone());
 	}) | Ui::Text::ToWithEntities();
 }
 

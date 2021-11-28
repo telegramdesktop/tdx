@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/layers/generic_box.h"
 #include "ui/toast/toast.h"
-#include "ui/text/format_values.h" // Ui::FormatPhone
+#include "tdb/tdb_format_phone.h" // Tdb::FormatPhone
 #include "ui/text/text_utilities.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/layers/generic_box.h"
@@ -709,7 +709,7 @@ void ContactStatus::setupShareHandler(not_null<UserData*> user) {
 				tr::now,
 				lt_phone,
 				Ui::Text::WithEntities(
-					Ui::FormatPhone(user->session().user()->phone())),
+					Tdb::FormatPhone(user->session().user()->phone())),
 				lt_user,
 				Ui::Text::Bold(user->name()),
 				Ui::Text::WithEntities),

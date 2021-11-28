@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/export_settings.h"
 #include "export/output/export_output_file.h"
 #include "base/base_file_utilities.h"
+#include "tdb/tdb_format_phone.h" // Tdb::FormatPhone
 #include "ui/text/format_values.h"
 #include "core/mime_type.h"
 #include "core/utils.h"
@@ -2191,7 +2192,7 @@ bool SkipMessageByDate(const Message &message, const Settings &settings) {
 Utf8String FormatPhoneNumber(const Utf8String &phoneNumber) {
 	return phoneNumber.isEmpty()
 		? Utf8String()
-		: Ui::FormatPhone(QString::fromUtf8(phoneNumber)).toUtf8();
+		: Tdb::FormatPhone(QString::fromUtf8(phoneNumber)).toUtf8();
 }
 
 Utf8String FormatDateTime(

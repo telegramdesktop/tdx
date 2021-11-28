@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
-#include "ui/text/format_values.h" // Ui::FormatPhone
+#include "tdb/tdb_format_phone.h" // Tdb::FormatPhone
 #include "ui/text/text_utilities.h"
 #include "lang/lang_keys.h"
 #include "styles/style_layers.h"
@@ -51,7 +51,7 @@ void ConfirmPhoneBox::prepare() {
 		this,
 		tr::lng_confirm_phone_about(
 			lt_phone,
-			rpl::single(Ui::Text::Bold(Ui::FormatPhone(_phone))),
+			rpl::single(Ui::Text::Bold(Tdb::FormatPhone(_phone))),
 			Ui::Text::WithEntities),
 		st::confirmPhoneAboutLabel);
 
