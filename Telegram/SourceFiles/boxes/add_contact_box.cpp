@@ -46,6 +46,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 
+#include "tdb/tdb_format_phone.h"
+
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
 
@@ -300,7 +302,10 @@ AddContactBox::AddContactBox(
 	tr::lng_contact_phone(),
 	Countries::ExtractPhoneCode(session->user()->phone()),
 	phone,
+	[](const QString &s) { return Tdb::PhonePatternGroups(s); })
+#if 0 // goodToRemove
 	[](const QString &s) { return Countries::Groups(s); })
+#endif
 , _invertOrder(langFirstNameGoesSecond()) {
 	if (!phone.isEmpty()) {
 		_phone->setDisabled(true);
