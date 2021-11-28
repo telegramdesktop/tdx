@@ -15,6 +15,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <sstream>
 #include <iostream>
 
+namespace Tdb { // We don't want to link td_tdb to td_ui, just forward decl.
+[[nodiscard]] QString FormatPhone(const QString &phone);
+} // namespace Tdb
+
 namespace Ui {
 namespace {
 
@@ -388,6 +392,8 @@ QString FormatImageSizeText(const QSize &size) {
 }
 
 QString FormatPhone(QString phone) {
+	return Tdb::FormatPhone(phone);
+#if 0 // mtp
 	if (phone.isEmpty()) {
 		return QString();
 	}
@@ -398,6 +404,7 @@ QString FormatPhone(QString phone) {
 	return Countries::Instance().format({
 		.phone = (phone.at(0) == '+') ? phone.mid(1) : phone,
 	}).formatted;
+#endif
 }
 
 QString FormatTTL(float64 ttl) {
