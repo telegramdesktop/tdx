@@ -1423,6 +1423,19 @@ void ApiWrap::migrateChat(
 		migrateFail(chat, error.type());
 	}).send();
 #endif
+	sender().request(Tdb::TLupgradeBasicGroupChatToSupergroupChat(
+		peerToTdbChat(chat->id)
+	)).done([=](const Tdb::TLchat &result) {
+		const auto peer = session().data().processPeer(result);
+		session().changes().sendNotifications();
+
+		if (auto handlers = _migrateCallbacks.take(chat)) {
+			_migrateCallbacks.emplace(peer, std::move(*handlers));
+		}
+		requestFullPeer(peer);
+	}).fail([=](const Tdb::Error &error) {
+		migrateFail(chat, error.message);
+	}).send();
 }
 
 void ApiWrap::migrateDone(
