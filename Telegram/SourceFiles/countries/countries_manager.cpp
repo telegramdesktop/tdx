@@ -149,7 +149,7 @@ Manager::Manager(not_null<Main::Domain*> domain)
 : _path(cWorkingDir() + "tdata/countries") {
 	read();
 
-#if 0 // todo
+#if 0 // goodToRemove
 	const auto mtpLifetime = _lifetime.make_state<rpl::lifetime>();
 	domain->activeValue(
 	) | rpl::filter([=](Main::Account *account) {
@@ -164,6 +164,16 @@ Manager::Manager(not_null<Main::Domain*> domain)
 		_api.reset();
 	}, _lifetime);
 #endif
+	Core::App().domain().activeValue(
+	) | rpl::filter([=](Main::Account *account) {
+		return (account != nullptr);
+	}) | rpl::start_with_next_done([=](Main::Account *account) {
+		_api.emplace(account->sender());
+
+		request();
+	}, [=] {
+		_api.reset();
+	}, _lifetime);
 }
 
 void Manager::read() {
@@ -194,6 +204,7 @@ void Manager::write() const {
 void Manager::request() {
 	Expects(_api.has_value());
 
+#if 0 // goodToRemove
 	const auto convertMTP = [](const auto &vector, bool force = false) {
 		if (!vector) {
 			return std::vector<QString>(force ? 1 : 0);
@@ -246,6 +257,42 @@ void Manager::request() {
 	}).fail([=](const MTP::Error &error) {
 		LOG(("API Error: getting countries failed with error %1"
 			).arg(error.type()));
+		_lifetime.destroy();
+	}).send();
+#endif
+	_api->request(Tdb::TLgetCountries(
+	)).done([=](const Tdb::TLDcountries &data) {
+		auto infos = std::vector<Info>();
+
+		for (const auto &country : data.vcountries().v) {
+
+			const auto &countryData = country.data();
+			if (countryData.vis_hidden().v) {
+				continue;
+			}
+
+			auto info = Info(ProcessAlternativeName({
+				.name = countryData.venglish_name().v,
+				.iso2 = countryData.vcountry_code().v,
+				.isHidden = countryData.vis_hidden().v,
+			}));
+			for (const auto &code : countryData.vcalling_codes().v) {
+				info.codes.push_back(CallingCodeInfo{
+					.callingCode = code.v,
+					.prefixes = {}, // Is not provided by TDLib.
+					.patterns = {}, // Is not provided by TDLib.
+				});
+			}
+
+			infos.push_back(std::move(info));
+		}
+
+		Instance().setList(std::move(infos));
+		write();
+		_lifetime.destroy();
+	}).fail([=](const Tdb::Error &error) {
+		LOG(("API Error: getting countries failed with error %1"
+			).arg(error.message));
 		_lifetime.destroy();
 	}).send();
 }
