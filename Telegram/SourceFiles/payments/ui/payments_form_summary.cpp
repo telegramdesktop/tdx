@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "countries/countries_instance.h"
+#include "tdb/tdb_format_phone.h" // Tdb::FormatPhone
 #include "lang/lang_keys.h"
 #include "base/unixtime.h"
 #include "styles/style_payments.h"
@@ -564,7 +565,7 @@ void FormSummary::setupSections(not_null<VerticalLayout*> layout) {
 			tr::lng_payments_info_phone(),
 			(_information.phone.isEmpty()
 				? QString()
-				: Ui::FormatPhone(_information.phone)),
+				: Tdb::FormatPhone(_information.phone)),
 			&st::paymentsIconPhone,
 			[=] { _delegate->panelEditPhone(); });
 	}

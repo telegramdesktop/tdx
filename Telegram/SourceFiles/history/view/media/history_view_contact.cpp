@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "ui/empty_userpic.h"
 #include "ui/chat/chat_style.h"
-#include "ui/text/format_values.h" // Ui::FormatPhone
+#include "tdb/tdb_format_phone.h" // Tdb::FormatPhone
 #include "ui/text/text_options.h"
 #include "ui/painter.h"
 #include "data/data_session.h"
@@ -84,7 +84,7 @@ Contact::Contact(
 , _userId(userId)
 , _fname(first)
 , _lname(last)
-, _phone(Ui::FormatPhone(phone)) {
+, _phone(Tdb::FormatPhone(phone)) {
 	history()->owner().registerContactView(userId, parent);
 
 	_name.setText(

@@ -381,6 +381,7 @@ QString FormatImageSizeText(const QSize &size) {
 		+ QString::number(size.height());
 }
 
+#if 0 // doLater Don't let to use Ui::FormatPhone for now.
 QString FormatPhone(const QString &phone) {
 	if (phone.isEmpty()) {
 		return QString();
@@ -390,6 +391,7 @@ QString FormatPhone(const QString &phone) {
 	}
 	return Countries::Instance().format({ .phone = phone }).formatted;
 }
+#endif
 
 QString FormatTTL(float64 ttl) {
 	if (ttl < 86400) {
