@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "mtproto/sender.h"
+#include "tdb/tdb_sender.h"
 
 namespace Main {
 class Domain;
@@ -28,7 +28,10 @@ public:
 private:
 	void request();
 
+#if 0 // goodToRemove
 	std::optional<MTP::Sender> _api;
+#endif
+	std::optional<Tdb::Sender> _api;
 	const QString _path;
 	int _hash = 0;
 
