@@ -272,9 +272,16 @@ void PeerPhoto::upload(
 
 	_uploads.emplace(peer, std::move(generator));
 
-	_api.request(TLsetProfilePhoto(
-		std::move(inputFile)
-	)).send();
+	if (peer->isSelf()) {
+		_api.request(TLsetProfilePhoto(
+			std::move(inputFile)
+		)).send();
+	} else {
+		_api.request(TLsetChatPhoto(
+			peerToTdbChat(peer->id),
+			std::move(inputFile)
+		)).send();
+	}
 }
 
 void PeerPhoto::suggest(not_null<PeerData*> peer, UserPhoto &&photo) {
