@@ -282,7 +282,81 @@ void Widget::handleUpdate(const TLupdate &update) {
 		} else {
 			Ui::show(Box<Ui::InformBox>(text));
 		}
+	}, [&](const TLDupdateAuthorizationState &data) {
+		handleAuthorizationState(data.vauthorization_state());
+	}, [&](const TLDupdateOption &data) {
+		if (Lang::CurrentCloudManager().apply(data)) {
+			return;
+		}
 	}, [](const auto &) {
+	});
+}
+
+void Widget::handleAuthorizationState(const TLauthorizationState &state) {
+	state.match([&](const TLDauthorizationStateWaitTdlibParameters &) {
+		Unexpected("authorizationStateWaitTdlibParameters in client code.");
+	}, [&](const TLDauthorizationStateWaitEncryptionKey &data) {
+		if (data.vis_encrypted().v) {
+			// todo jump to passcoded state.
+		} else {
+		}
+	}, [&](const TLDauthorizationStateWaitPhoneNumber &) {
+	}, [&](const TLDauthorizationStateWaitCode &data) {
+		fillCodeInfo(data.vcode_info());
+	}, [&](const TLDauthorizationStateWaitOtherDeviceConfirmation &data) {
+		getData()->qrLink = data.vlink().v;
+	}, [&](const TLDauthorizationStateWaitRegistration &data) {
+		fillTerms(data.vterms_of_service());
+	}, [&](const TLDauthorizationStateWaitPassword &data) {
+		getData()->pwdState.hasRecovery
+			= data.vhas_recovery_email_address().v;
+		getData()->pwdState.hint = data.vpassword_hint().v;
+		getData()->pwdEmailPattern
+			= data.vrecovery_email_address_pattern().v;
+		getData()->pwdState.notEmptyPassport = data.vhas_passport_data().v;
+	}, [&](const TLDauthorizationStateReady &) {
+	}, [&](const TLDauthorizationStateLoggingOut &) {
+	}, [&](const TLDauthorizationStateClosing &) {
+	}, [&](const TLDauthorizationStateClosed &) {
+	});
+	if (!getStep()->applyState(state)) {
+		getStep()->jumpByState(state);
+	}
+}
+
+void Widget::fillCodeInfo(const TLauthenticationCodeInfo &info) {
+	info.match([&](const TLDauthenticationCodeInfo &data) {
+		getData()->phone = data.vphone_number().v;
+		const auto currentType = data.vtype().type();
+		getData()->codeByTelegram
+			= (currentType == id_authenticationCodeTypeTelegramMessage);
+		getData()->codeLength = data.vtype().match([](
+				const TLDauthenticationCodeTypeFlashCall &) {
+			LOG(("Tdb Error: authenticationCodeTypeFlashCall."));
+			return 0;
+		}, [&](const auto &data) {
+			return data.vlength().v;
+		});
+		if (const auto next = data.vnext_type()) {
+			const auto type = next->type();
+			getData()->callStatus
+				= (type == id_authenticationCodeTypeCall
+					? CallStatus::Waiting
+					: CallStatus::Disabled);
+			getData()->callTimeout
+				= (type == id_authenticationCodeTypeCall
+					? data.vtimeout().v
+					: 0);
+		} else {
+			getData()->callStatus = CallStatus::Disabled;
+			getData()->callTimeout = 0;
+		}
+	});
+}
+
+void Widget::fillTerms(const TLtermsOfService &terms) {
+	getData()->termsLock = terms.match([&](const TLDtermsOfService &data) {
+		return Window::TermsLock::FromTL(nullptr, data);
 	});
 }
 
@@ -504,6 +578,8 @@ std::unique_ptr<details::Step> Widget::makeStep() {
 }
 
 bool Widget::go(StepType type) {
+	getData()->madeInitialJumpToStep = true;
+
 	if (type == StepType::Start) {
 		if (const auto parent
 			= Core::App().domain().maybeLastOrSomeAuthedAccount()) {

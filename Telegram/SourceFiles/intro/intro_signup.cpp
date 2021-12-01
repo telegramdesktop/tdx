@@ -229,13 +229,8 @@ void SignupWidget::submit() {
 	}
 }
 
-void SignupWidget::handleAuthorizationState(
-		const TLauthorizationState &state) {
-	state.match([&](const TLDauthorizationStateWaitRegistration &data) {
-		fillTerms(data.vterms_of_service());
-	}, [&](const auto &) {
-		Step::handleAuthorizationState(state);
-	});
+bool SignupWidget::applyState(const TLauthorizationState &state) {
+	return (state.type() == id_authorizationStateWaitRegistration);
 }
 
 void SignupWidget::registerUserFail(const Error &error) {

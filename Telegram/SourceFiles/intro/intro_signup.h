@@ -36,6 +36,8 @@ public:
 		return StepType::SignUp;
 	}
 
+	bool applyState(const Tdb::TLauthorizationState &state) override;
+
 protected:
 	void resizeEvent(QResizeEvent *e) override;
 
@@ -47,9 +49,6 @@ private:
 	void nameSubmitDone(const MTPauth_Authorization &result);
 	void nameSubmitFail(const MTP::Error &error);
 #endif
-
-	void handleAuthorizationState(
-		const Tdb::TLauthorizationState &state) override;
 
 	void registerUserFail(const Tdb::Error &error);
 

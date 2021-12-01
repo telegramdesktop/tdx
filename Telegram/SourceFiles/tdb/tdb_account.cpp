@@ -22,6 +22,10 @@ Account::Account(AccountConfig &&config)
 	}, _lifetime);
 }
 
+void Account::logout() {
+	_instance.logout();
+}
+
 rpl::producer<TLupdate> Account::updates() const {
 	return _updates.events();
 }
@@ -47,20 +51,7 @@ void Account::unregisterFileGeneration(
 }
 
 bool Account::consumeUpdate(const TLupdate &update) {
-	return update.match([&](const TLDupdateAuthorizationState &data) {
-		return data.vauthorization_state().match([&](
-				const TLDauthorizationStateWaitEncryptionKey &data) {
-			_sender.request(
-				TLcheckDatabaseEncryptionKey(tl_bytes())
-			).send();
-			return true;
-		}, [&](const TLDauthorizationStateReady &) {
-			_ready = true;
-			return false;
-		}, [&](const auto &) {
-			return false;
-		});
-	}, [&](const TLDupdateFileGenerationStart &data) {
+	return update.match([&](const TLDupdateFileGenerationStart &data) {
 		const auto &conversion = data.vconversion().v;
 		const auto id = data.vgeneration_id().v;
 		const auto i = _generators.find(conversion);

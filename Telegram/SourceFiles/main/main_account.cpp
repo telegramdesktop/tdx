@@ -654,11 +654,7 @@ void Account::logOut() {
 		loggedOut();
 	}
 #endif
-	sender().request(
-		Tdb::TLlogOut()
-	).fail([=](const Tdb::Error &error) {
-		loggedOut();
-	}).send();
+	tdb().logout();
 }
 
 bool Account::loggingOut() const {
