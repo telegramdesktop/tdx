@@ -117,6 +117,7 @@ auto GenerateCodes() {
 			}
 		});
 	});
+#if 0 // mtp
 	codes.emplace(u"endpoints"_q, [](SessionController *window) {
 		if (!Core::App().domain().started()) {
 			return;
@@ -142,6 +143,7 @@ auto GenerateCodes() {
 			}
 		});
 	});
+#endif
 	codes.emplace(u"testmode"_q, [](SessionController *window) {
 		auto &domain = Core::App().domain();
 		if (domain.started()

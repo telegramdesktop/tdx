@@ -39,6 +39,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webview/webview_interface.h"
 #include "window/themes/window_theme.h"
 
+#include "tdb/tdb_account.h"
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Storage {
 namespace {
 
@@ -1073,6 +1076,7 @@ void Account::readMtpData() {
 	applyReadContext(std::move(context));
 }
 
+#if 0 // mtp
 void Account::writeMtpConfig() {
 	Expects(_localKey != nullptr);
 
@@ -1084,9 +1088,57 @@ void Account::writeMtpConfig() {
 	data.stream << serialized;
 	file.writeEncrypted(data, _localKey);
 }
+#endif
+
+void Account::destroyStaleTdbs() {
+	if (_hasBinlogProduction && _owner->testMode()) {
+		destroyStaleTdb(false);
+	} else if (_hasBinlogTest && !_owner->testMode()) {
+		destroyStaleTdb(true);
+	}
+}
+
+void Account::destroyStaleTdb(bool testMode) {
+	_stale = std::make_unique<Tdb::Account>(Tdb::AccountConfig{
+		.apiId = ApiId,
+		.apiHash = ApiHash,
+		.systemLanguageCode = "en",
+		.deviceModel = "device",
+		.systemVersion = "system",
+		.applicationVersion = QString::fromLatin1(AppVersionStr),
+		.databaseDirectory = libDatabasePath(),
+		.filesDirectory = libFilesPath(),
+		.testDc = testMode,
+	});
+
+	using namespace Tdb;
+	_stale->updates(
+	) | rpl::start_with_next([=](const TLupdate &update) {
+		update.match([&](const TLDupdateAuthorizationState &data) {
+			data.vauthorization_state().match([&](
+					const TLDauthorizationStateClosed &) {
+				_stale = nullptr;
+			}, [&](const auto &) {
+				_stale->reset();
+			});
+		}, [](const auto &) {
+		});
+	}, _stale->lifetime());
+}
 
 std::unique_ptr<MTP::Config> Account::readMtpConfig() {
 	Expects(_localKey != nullptr);
+
+	const auto nonEmptyBinlog = [&](const QString &name) {
+		return QFile(libDatabasePath() + '/' + name + ".binlog").size() > 0;
+	};
+	_hasBinlogProduction = nonEmptyBinlog("td");
+	_hasBinlogTest = nonEmptyBinlog("td_test");
+	if (_hasBinlogProduction || _hasBinlogTest) {
+		return _hasBinlogProduction
+			? nullptr
+			: std::make_unique<MTP::Config>(MTP::Environment::Test);
+	}
 
 	FileReadDescriptor file;
 	if (!ReadEncryptedFile(file, "config", _basePath, _localKey)) {
