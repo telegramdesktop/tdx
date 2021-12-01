@@ -283,7 +283,10 @@ bool Session::premiumCanBuy() const {
 }
 
 bool Session::isTestMode() const {
+#if 0 // mtp
 	return mtp().isTestMode();
+#endif
+	return _account->testMode();
 }
 
 uint64 Session::uniqueId() const {
@@ -324,9 +327,11 @@ void Session::saveSettingsNowIfNeeded() {
 	}
 }
 
+#if 0 // mtp
 MTP::DcId Session::mainDcId() const {
 	return _account->mtp().mainDcId();
 }
+#endif
 
 MTP::Instance &Session::mtp() const {
 	return _account->mtp();

@@ -168,7 +168,9 @@ public:
 	// Shortcuts.
 	void notifyDownloaderTaskFinished();
 	[[nodiscard]] rpl::producer<> downloaderTaskFinished() const;
+#if 0 // mtp
 	[[nodiscard]] MTP::DcId mainDcId() const;
+#endif
 	[[nodiscard]] MTP::Instance &mtp() const;
 	[[nodiscard]] const MTP::ConfigFields &serverConfig() const;
 	[[nodiscard]] ApiWrap &api() {
