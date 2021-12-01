@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_drafts.h"
 #include "webview/webview_common.h"
 
+namespace Tdb {
+class Account;
+} // namespace Tdb
+
 class History;
 
 namespace Core {
@@ -85,7 +89,10 @@ public:
 
 	void writeSessionSettings();
 	void writeMtpData();
+#if 0 // mtp
 	void writeMtpConfig();
+#endif
+	void destroyStaleTdbs();
 
 	void registerDraftSource(
 		not_null<History*> history,
@@ -205,6 +212,8 @@ private:
 	[[nodiscard]] base::flat_set<QString> collectGoodNames() const;
 	[[nodiscard]] auto prepareReadSettingsContext() const
 		-> details::ReadSettingsContext;
+
+	void destroyStaleTdb(bool testMode);
 
 	ReadMapResult readMapWith(
 		MTP::AuthKeyPtr localKey,
@@ -326,6 +335,10 @@ private:
 	base::Timer _writeSearchSuggestionsTimer;
 	bool _mapChanged = false;
 	bool _locationsChanged = false;
+
+	bool _hasBinlogTest = false;
+	bool _hasBinlogProduction = false;
+	std::unique_ptr<Tdb::Account> _stale;
 
 };
 

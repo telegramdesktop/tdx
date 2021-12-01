@@ -648,10 +648,13 @@ public:
 	void documentConvert(
 		not_null<DocumentData*> original,
 		const MTPDocument &data);
+#if 0 // mtp
 	[[nodiscard]] DocumentData *documentFromWeb(
 		const MTPWebDocument &data,
 		const ImageLocation &thumbnailLocation,
 		const ImageLocation &videoThumbnailLocation);
+#endif
+
 	[[nodiscard]] not_null<DocumentData*> venueIconDocument(
 		const QString &icon);
 

@@ -887,7 +887,10 @@ not_null<Ui::SlideWrap<Ui::SettingsButton>*> AccountsList::setupAdd() {
 		for (const auto &[index, account] : domain.accounts()) {
 			const auto raw = account.get();
 			if (!raw->sessionExists()
+#if 0 // mtp
 				&& raw->mtp().environment() == environment) {
+#endif
+				&& raw->testMode() == (environment == Environment::Test)) {
 				found = true;
 			}
 		}

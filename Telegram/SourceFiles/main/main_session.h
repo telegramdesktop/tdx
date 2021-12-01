@@ -112,6 +112,15 @@ public:
 	[[nodiscard]] Tdb::Account &tdb() const;
 	[[nodiscard]] Tdb::Sender &sender() const;
 
+	// For using legacy code MTP::Sender _api; _api(&session->mtp()).
+	[[nodiscard]] Tdb::Sender &mtp() const {
+		return sender();
+	}
+
+	[[nodiscard]] bool loggingOut() const;
+
+	bool apply(const Tdb::TLDupdateOption &option);
+
 	[[nodiscard]] bool premium() const;
 	[[nodiscard]] bool premiumPossible() const;
 	[[nodiscard]] rpl::producer<bool> premiumPossibleValue() const;
@@ -208,8 +217,10 @@ public:
 	// Shortcuts.
 	void notifyDownloaderTaskFinished();
 	[[nodiscard]] rpl::producer<> downloaderTaskFinished() const;
+#if 0 // mtp
 	[[nodiscard]] MTP::DcId mainDcId() const;
 	[[nodiscard]] MTP::Instance &mtp() const;
+#endif
 	[[nodiscard]] const MTP::ConfigFields &serverConfig() const;
 	[[nodiscard]] ApiWrap &api() {
 		return *_api;

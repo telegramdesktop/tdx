@@ -341,6 +341,7 @@ not_null<DocumentData*> GenerateLocalTgsSticker(
 	task.process({ .generateGoodThumbnail = false });
 	const auto result = task.peekResult();
 	Assert(result != nullptr);
+#if 0 // todo
 	const auto document = session->data().processDocument(
 		result->document,
 		Images::FromImageInMemory(
@@ -352,6 +353,7 @@ not_null<DocumentData*> GenerateLocalTgsSticker(
 	Ensures(document->sticker());
 	Ensures(document->sticker()->isLottie());
 	return document;
+#endif
 }
 
 } // namespace ChatHelpers
