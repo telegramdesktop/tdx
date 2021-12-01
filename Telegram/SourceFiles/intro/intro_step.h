@@ -107,6 +107,9 @@ public:
 		showError(rpl::single(QString()));
 	}
 
+	virtual bool applyState(const Tdb::TLauthorizationState &state) = 0;
+	void jumpByState(const Tdb::TLauthorizationState &state);
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
@@ -120,9 +123,6 @@ protected:
 #if 0 // mtp
 	void fillSentCodeData(const MTPDauth_sentCode &type);
 #endif
-
-	void fillCodeInfo(const Tdb::TLauthenticationCodeInfo &info);
-	void fillTerms(const Tdb::TLtermsOfService &terms);
 
 	void showDescription();
 	void hideDescription();
@@ -174,10 +174,6 @@ protected:
 	}
 
 	virtual int errorTop() const;
-
-	virtual void handleUpdate(const Tdb::TLupdate &update);
-	virtual void handleAuthorizationState(
-		const Tdb::TLauthorizationState &state);
 
 	void finish(QImage &&photo = QImage());
 
