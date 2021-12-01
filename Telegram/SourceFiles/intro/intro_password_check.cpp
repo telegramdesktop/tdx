@@ -37,6 +37,7 @@ PasswordCheckWidget::PasswordCheckWidget(
 : Step(parent, account, data)
 , _unauthCloudPassword(api())
 , _passwordState(getData()->pwdState)
+, _emailPattern(getData()->pwdEmailPattern)
 , _pwdField(this, st::introPassword, tr::lng_signin_password())
 , _pwdHint(this, st::introPasswordHint)
 , _codeField(this, st::introPassword, tr::lng_signin_code())
@@ -496,15 +497,14 @@ void PasswordCheckWidget::codeSubmitDone(const QString &code) {
 	}, box->lifetime());
 }
 
-void PasswordCheckWidget::handleAuthorizationState(
-		const TLauthorizationState &state) {
-	state.match([&](const TLDauthorizationStateWaitPassword &data) {
+bool PasswordCheckWidget::applyState(const TLauthorizationState &state) {
+	return state.match([&](const TLDauthorizationStateWaitPassword &data) {
 		const auto has = data.vhas_recovery_email_address().v;
 		if (_passwordState.hasRecovery != has
 			|| _passwordState.hint != data.vpassword_hint().v) {
+#if 0 // mtp
 			getData()->pwdState.hasRecovery = has;
 			getData()->pwdState.hint = data.vpassword_hint().v;
-#if 0 // mtp
 			goReplace<PasswordCheckWidget>(Animate::Forward);
 #endif
 			_passwordState.hasRecovery = has;
@@ -515,10 +515,9 @@ void PasswordCheckWidget::handleAuthorizationState(
 			_emailPattern = data.vrecovery_email_address_pattern().v;
 			updateDescriptionText();
 		}
-	}, [&](const TLDauthorizationStateReady &data) {
-		finish();
+		return true;
 	}, [&](const auto &) {
-		Step::handleAuthorizationState(state);
+		return false;
 	});
 }
 

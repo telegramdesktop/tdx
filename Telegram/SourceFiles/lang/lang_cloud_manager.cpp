@@ -480,8 +480,9 @@ bool CloudManager::apply(const Tdb::TLDupdateOption &result) {
 
 		return true;
 	} else if (result.vname().v == u"suggested_language_pack_id"_q) {
-		const auto suggested = Tdb::OptionValue<QString>(result.vvalue());
-		setSuggestedLanguage(suggested);
+		const auto suggested = Tdb::OptionValueMaybe<QString>(
+			result.vvalue());
+		setSuggestedLanguage(suggested.value_or(QString()));
 		return true;
 	}
 	return false;

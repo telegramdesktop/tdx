@@ -35,6 +35,8 @@ public:
 		return StepType::Qr;
 	}
 
+	bool applyState(const Tdb::TLauthorizationState &state) override;
+
 private:
 	int errorTop() const override;
 
@@ -55,8 +57,6 @@ private:
 	void done(const MTPauth_Authorization &authorization);
 #endif
 
-	void handleAuthorizationState(
-		const Tdb::TLauthorizationState &state) override;
 	void requestCode();
 
 	rpl::event_stream<QString> _qrLinks;

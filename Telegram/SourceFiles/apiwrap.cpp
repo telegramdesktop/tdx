@@ -905,7 +905,7 @@ void ApiWrap::requestDialogs(Data::Folder *folder) {
 
 void ApiWrap::requestMoreDialogs(Data::Folder *folder) {
 	const auto state = dialogsLoadState(folder);
-	if (!state || !tdb().ready()) {
+	if (!state) {
 		return;
 	} else if (state->requestId) {
 		return;

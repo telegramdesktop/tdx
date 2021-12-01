@@ -44,6 +44,8 @@ public:
 		return StepType::Phone;
 	}
 
+	bool applyState(const Tdb::TLauthorizationState &state) override;
+
 protected:
 	void resizeEvent(QResizeEvent *e) override;
 
@@ -58,8 +60,6 @@ private:
 	void phoneSubmitFail(const MTP::Error &error);
 #endif
 
-	void handleAuthorizationState(
-		const Tdb::TLauthorizationState &state) override;
 	void phoneSetFail(const Tdb::Error &error);
 
 	QString fullNumber() const;
@@ -81,7 +81,8 @@ private:
 	base::Timer _checkRequestTimer;
 #endif
 
-	bool _sentRequest = 0;
+	bool _sentRequest = false;
+
 };
 
 } // namespace details

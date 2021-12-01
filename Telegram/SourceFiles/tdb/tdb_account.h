@@ -25,10 +25,7 @@ public:
 	}
 
 	[[nodiscard]] rpl::producer<TLupdate> updates() const;
-
-	[[nodiscard]] bool ready() const {
-		return _ready;
-	}
+	void logout();
 
 	void registerFileGenerator(not_null<FileGenerator*> generator);
 	void unregisterFileGenerator(not_null<FileGenerator*> generator);
@@ -49,7 +46,6 @@ private:
 	details::Instance _instance;
 	Sender _sender;
 	rpl::event_stream<TLupdate> _updates;
-	bool _ready = false;
 
 	base::flat_map<QString, not_null<FileGenerator*>> _generators;
 	base::flat_map<int64, not_null<FileGenerator*>> _generations;

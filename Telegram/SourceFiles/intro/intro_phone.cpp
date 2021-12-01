@@ -205,13 +205,22 @@ void PhoneWidget::submit() {
 
 	_sentPhone = phone;
 	_sentRequest = true;
+
+	if (!getData()->qrLink.isEmpty()) {
+		_sentRequest = true;
+		getData()->qrLink = QString();
+		account().logOut();
+	}
 	api().request(TLsetAuthenticationPhoneNumber(
 		tl_string(phone),
 		tl_phoneNumberAuthenticationSettings(
 			tl_bool(false), // allow_flash_call
 			tl_bool(false), // is_current_phone_number
 			tl_bool(false)) // allow_sms_retriever_api
-	)).fail([=](const Error &error) {
+	)).done([=] {
+		_sentRequest = false;
+		go(StepType::Code);
+	}).fail([=](const Error &error) {
 		phoneSetFail(error);
 	}).send();
 #if 0 // mtp
@@ -298,16 +307,21 @@ void PhoneWidget::phoneSubmitFail(const MTP::Error &error) {
 }
 #endif
 
-void PhoneWidget::handleAuthorizationState(
-		const TLauthorizationState &state) {
-	state.match([&](const TLDauthorizationStateWaitPhoneNumber &data) {
-	}, [&](const TLDauthorizationStateWaitOtherDeviceConfirmation &data) {
-	}, [&](const auto &) {
-		Step::handleAuthorizationState(state);
-	});
+bool PhoneWidget::applyState(const TLauthorizationState &state) {
+	const auto type = state.type();
+	if (type == id_authorizationStateWaitPhoneNumber) {
+		if (_sentRequest) {
+			_sentRequest = false;
+		}
+		return true;
+	}
+	return (type == id_authorizationStateWaitOtherDeviceConfirmation)
+		|| (type == id_authorizationStateWaitCode
+			&& getData()->madeInitialJumpToStep);
 }
 
 void PhoneWidget::phoneSetFail(const Error &error) {
+	_sentRequest = false;
 	const auto &type = error.message;
 	if (type == u"PHONE_NUMBER_FLOOD") {
 		Ui::show(Box<Ui::InformBox>(tr::lng_error_phone_flood(tr::now)));

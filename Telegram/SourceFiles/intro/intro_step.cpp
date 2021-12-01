@@ -111,11 +111,6 @@ Step::Step(
 		_description->entity()->setMarkedText(text);
 		updateLabelsPosition();
 	}, lifetime());
-
-	account->tdb().updates(
-	) | rpl::start_with_next([=](const TLupdate &update) {
-		handleUpdate(update);
-	}, lifetime());
 }
 
 Step::~Step() = default;
@@ -215,6 +210,27 @@ void Step::finish(const MTPUser &user, QImage &&photo) {
 	}).send();
 }
 #endif
+
+void Step::jumpByState(const TLauthorizationState &state) {
+	state.match([&](const TLDauthorizationStateWaitTdlibParameters &) {
+	}, [&](const TLDauthorizationStateWaitEncryptionKey &) {
+	}, [&](const TLDauthorizationStateWaitPhoneNumber &) {
+		go(StepType::Qr);
+	}, [&](const TLDauthorizationStateWaitCode &) {
+		go(StepType::Code);
+	}, [&](const TLDauthorizationStateWaitOtherDeviceConfirmation &) {
+		go(StepType::Qr);
+	}, [&](const TLDauthorizationStateWaitRegistration &) {
+		go(StepType::SignUp);
+	}, [&](const TLDauthorizationStateWaitPassword &) {
+		go(StepType::Password);
+	}, [&](const TLDauthorizationStateReady &) {
+		finish();
+	}, [&](const TLDauthorizationStateLoggingOut &) {
+	}, [&](const TLDauthorizationStateClosing &) {
+	}, [&](const TLDauthorizationStateClosed &) {
+	});
+}
 
 void Step::finish(QImage &&photo) {
 	api().request(TLgetMe()).done([=](const TLuser &result) {
@@ -471,42 +487,6 @@ void Step::fillSentCodeData(const MTPDauth_sentCode &data) {
 }
 #endif
 
-void Step::fillCodeInfo(const TLauthenticationCodeInfo &info) {
-	info.match([&](const TLDauthenticationCodeInfo &data) {
-		getData()->phone = data.vphone_number().v;
-		const auto currentType = data.vtype().type();
-		getData()->codeByTelegram
-			= (currentType == id_authenticationCodeTypeTelegramMessage);
-		getData()->codeLength = data.vtype().match([](
-				const TLDauthenticationCodeTypeFlashCall &) {
-			LOG(("Tdb Error: authenticationCodeTypeFlashCall."));
-			return 0;
-		}, [&](const auto &data) {
-			return data.vlength().v;
-		});
-		if (const auto next = data.vnext_type()) {
-			const auto type = next->type();
-			getData()->callStatus
-				= (type == id_authenticationCodeTypeCall
-					? CallStatus::Waiting
-					: CallStatus::Disabled);
-			getData()->callTimeout
-				= (type == id_authenticationCodeTypeCall
-					? data.vtimeout().v
-					: 0);
-		} else {
-			getData()->callStatus = CallStatus::Disabled;
-			getData()->callTimeout = 0;
-		}
-	});
-}
-
-void Step::fillTerms(const TLtermsOfService &terms) {
-	getData()->termsLock = terms.match([&](const TLDtermsOfService &data) {
-		return Window::TermsLock::FromTL(nullptr, data);
-	});
-}
-
 void Step::showDescription() {
 	_description->show(anim::type::normal);
 }
@@ -598,42 +578,6 @@ void Step::paintCover(QPainter &p, int top) {
 	//	planeTop += top;
 	}
 	st::introCoverIcon.paint(p, planeLeft, planeTop, width());
-}
-
-void Step::handleUpdate(const TLupdate &update) {
-	update.match([&](const TLDupdateAuthorizationState &data) {
-		handleAuthorizationState(data.vauthorization_state());
-	}, [&](const TLDupdateOption &data) {
-		if (Lang::CurrentCloudManager().apply(data)) {
-			return;
-		}
-	}, [](const auto &) {
-	});
-}
-
-void Step::handleAuthorizationState(const TLauthorizationState &state) {
-	return state.match([&](
-			const TLDauthorizationStateWaitPhoneNumber &data) {
-		go(StepType::Phone);
-	}, [&](const TLDauthorizationStateWaitCode &data) {
-		fillCodeInfo(data.vcode_info());
-		go(StepType::Code);
-	}, [&](const TLDauthorizationStateWaitOtherDeviceConfirmation &data) {
-		getData()->qrLink = data.vlink().v;
-		go(StepType::Qr);
-	}, [&](const TLDauthorizationStateWaitRegistration &data) {
-		fillTerms(data.vterms_of_service());
-		go(StepType::SignUp);
-	}, [&](const TLDauthorizationStateWaitPassword &data) {
-		getData()->pwdState.hasRecovery = data.vhas_recovery_email_address().v;
-		getData()->pwdState.hint = data.vpassword_hint().v;
-		//getData()->pwdState.notEmptyPassport = data.is_has_secure_values(); // todo
-		go(StepType::Password);
-	}, [&](const TLDauthorizationStateReady &data) {
-		finish();
-	}, [&](const auto &) {
-		go(StepType::Start);
-	});
 }
 
 int Step::contentLeft() const {
