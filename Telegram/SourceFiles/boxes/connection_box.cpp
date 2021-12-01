@@ -1165,6 +1165,7 @@ auto ProxiesBoxController::proxySettingsValue() const
 }
 
 void ProxiesBoxController::refreshChecker(Item &item) {
+#if 0 // todo
 	using Variants = MTP::DcOptions::Variants;
 	const auto type = (item.data.type == Type::Http)
 		? Variants::Http
@@ -1223,6 +1224,7 @@ void ProxiesBoxController::refreshChecker(Item &item) {
 			item.state = ItemState::Unavailable;
 		}
 	}
+#endif
 }
 
 void ProxiesBoxController::setupChecker(int id, const Checker &checker) {

@@ -64,7 +64,6 @@ Account::~Account() {
 		session->saveSettingsNowIfNeeded();
 	}
 	destroySession(DestroyReason::Quitting);
-	_tdb = nullptr;
 }
 
 Storage::Domain &Account::domainLocal() const {
@@ -94,6 +93,18 @@ void Account::start(std::unique_ptr<MTP::Config> config) {
 	_appConfig->start();
 	watchProxyChanges();
 	watchSessionChanges();
+
+	if (_session) {
+		sender().request(
+			Tdb::TLgetMe()
+		).done([=](const Tdb::TLuser &result) {
+			if (_session) {
+				_session->validateSelf(result.data().vid().v);
+			}
+		}).fail([=](const Tdb::Error &error) {
+			_session;
+		}).send();
+	}
 }
 
 std::unique_ptr<Tdb::Account> Account::createTdb() {
@@ -108,9 +119,25 @@ std::unique_ptr<Tdb::Account> Account::createTdb() {
 		.filesDirectory = _local->libFilesPath(),
 		.testDc = _testMode,
 	});
+	using namespace Tdb;
 	result->updates(
-	) | rpl::filter(Tdb::IsRecreatedUpdate) | rpl::start_with_next([=] {
-		loggedOut();
+	) | rpl::start_with_next([=](const TLupdate &update) {
+		update.match([&](const TLDupdateAuthorizationState &data) {
+			data.vauthorization_state().match([&](
+					const TLDauthorizationStateWaitTdlibParameters &) {
+			}, [&](const TLDauthorizationStateWaitEncryptionKey &) {
+			}, [&](const TLDauthorizationStateReady &) {
+			}, [&](const TLDauthorizationStateLoggingOut &) {
+			}, [&](const TLDauthorizationStateClosing &) {
+			}, [&](const TLDauthorizationStateClosed &) {
+				DEBUG_LOG(("Tdb Info: Got 'Closed', logged out."));
+				loggedOut();
+			}, [&](const auto &) {
+				LOG(("Tdb Info: Got bad state, logged out."));
+				loggedOut();
+			});
+		}, [](const auto &) {
+		});
 	}, _lifetime);
 	return result;
 }
@@ -130,6 +157,7 @@ void Account::watchProxyChanges() {
 				? std::make_pair(proxy.host, proxy.port)
 				: std::make_pair(QString(), uint32(0));
 		};
+#if 0 // todo
 		if (_mtp) {
 			_mtp->restart();
 			if (key(change.was) != key(change.now)) {
@@ -139,16 +167,19 @@ void Account::watchProxyChanges() {
 		if (_mtpForKeysDestroy) {
 			_mtpForKeysDestroy->restart();
 		}
+#endif
 	}, _lifetime);
 }
 
 void Account::watchSessionChanges() {
+#if 0 // mtp
 	sessionChanges(
 	) | rpl::start_with_next([=](Session *session) {
 		if (!session && _mtp) {
 			_mtp->setUserPhone(QString());
 		}
 	}, _lifetime);
+#endif
 }
 
 uint64 Account::willHaveSessionUniqueId(MTP::Config *config) const {
@@ -333,6 +364,7 @@ bool Account::testMode() const {
 	return _testMode;
 }
 
+#if 0 // mtp
 rpl::producer<not_null<MTP::Instance*>> Account::mtpValue() const {
 	return _mtpValue.value() | rpl::map([](MTP::Instance *instance) {
 		return not_null{ instance };
@@ -352,6 +384,7 @@ rpl::producer<MTPUpdates> Account::mtpUpdates() const {
 rpl::producer<> Account::mtpNewSessionCreated() const {
 	return _mtpNewSessionCreated.events();
 }
+#endif
 
 void Account::setMtpMainDcId(MTP::DcId mainDcId) {
 	Expects(!_mtp);
@@ -482,7 +515,9 @@ SessionSettings *Account::getSessionSettings() {
 }
 
 void Account::setMtpAuthorization(const QByteArray &serialized) {
+#if 0 // mtp
 	Expects(!_mtp);
+#endif
 
 	QDataStream stream(serialized);
 	stream.setVersion(QDataStream::Qt_5_1);
@@ -506,7 +541,6 @@ void Account::setMtpAuthorization(const QByteArray &serialized) {
 	}
 
 	setSessionUserId(userId);
-#if 0 // mtp
 	_mtpFields.mainDcId = mainDcId;
 
 	const auto readKeys = [&](auto &keys) {
@@ -534,7 +568,6 @@ void Account::setMtpAuthorization(const QByteArray &serialized) {
 		"read keys, current: %1, to destroy: %2"
 		).arg(_mtpFields.keys.size()
 		).arg(_mtpKeysToDestroy.size()));
-#endif
 }
 
 void Account::startMtp(std::unique_ptr<MTP::Config> config) {
@@ -548,6 +581,7 @@ void Account::startMtp(std::unique_ptr<MTP::Config> config) {
 		MTP::Instance::Mode::Normal,
 		std::move(fields));
 
+#if 0 // mtp
 	const auto writingKeys = _mtp->lifetime().make_state<bool>(false);
 	_mtp->writeKeysRequests(
 	) | rpl::filter([=] {
@@ -576,7 +610,6 @@ void Account::startMtp(std::unique_ptr<MTP::Config> config) {
 
 	_mtpFields.mainDcId = _mtp->mainDcId();
 
-#if 0
 	_mtp->setUpdatesHandler([=](const MTP::Response &message) {
 		checkForUpdates(message) || checkForNewSession(message);
 	});
@@ -597,11 +630,11 @@ void Account::startMtp(std::unique_ptr<MTP::Config> config) {
 			}
 		}
 	});
-#endif
 
 	if (!_mtpKeysToDestroy.empty()) {
 		destroyMtpKeys(base::take(_mtpKeysToDestroy));
 	}
+#endif
 
 	if (_sessionUserId) {
 		createSession(
@@ -619,9 +652,13 @@ void Account::startMtp(std::unique_ptr<MTP::Config> config) {
 		session->changes().sendNotifications();
 	}
 
+	_local->destroyStaleTdbs();
+#if 0 // mtp
 	_mtpValue = _mtp.get();
+#endif
 }
 
+#if 0 // mtp
 bool Account::checkForUpdates(const MTP::Response &message) {
 	auto updates = MTPUpdates();
 	auto from = message.reply.constData();
@@ -641,6 +678,7 @@ bool Account::checkForNewSession(const MTP::Response &message) {
 	_mtpNewSessionCreated.fire({});
 	return true;
 }
+#endif
 
 void Account::logOut() {
 	if (_loggingOut) {
@@ -677,6 +715,7 @@ void Account::loggedOut() {
 	cSetOtherOnline(0);
 }
 
+#if 0 // mtp
 void Account::destroyMtpKeys(MTP::AuthKeysList &&keys) {
 	Expects(_mtp != nullptr);
 
@@ -712,7 +751,6 @@ void Account::destroyMtpKeys(MTP::AuthKeysList &&keys) {
 	}, _mtpForKeysDestroy->lifetime());
 }
 
-#if 0 // mtp
 void Account::suggestMainDcId(MTP::DcId mainDcId) {
 	Expects(_mtp != nullptr);
 
@@ -721,9 +759,7 @@ void Account::suggestMainDcId(MTP::DcId mainDcId) {
 		_mtpFields.mainDcId = mainDcId;
 	}
 }
-#endif
 
-#if 0 // mtp
 void Account::destroyStaleAuthorizationKeys() {
 	Expects(_mtp != nullptr);
 
@@ -751,6 +787,7 @@ void Account::handleLoginCode(const QString &code) const {
 }
 
 void Account::resetAuthorizationKeys() {
+#if 0 // mtp
 	Expects(_mtp != nullptr);
 
 	{
@@ -759,6 +796,8 @@ void Account::resetAuthorizationKeys() {
 		startMtp(std::move(config));
 	}
 	local().writeMtpData();
+#endif
+	tdb().reset();
 }
 
 } // namespace Main

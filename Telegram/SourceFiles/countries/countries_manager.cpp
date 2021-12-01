@@ -149,6 +149,7 @@ Manager::Manager(not_null<Main::Domain*> domain)
 : _path(cWorkingDir() + "tdata/countries") {
 	read();
 
+#if 0 // todo
 	const auto mtpLifetime = _lifetime.make_state<rpl::lifetime>();
 	domain->activeValue(
 	) | rpl::filter([=](Main::Account *account) {
@@ -162,6 +163,7 @@ Manager::Manager(not_null<Main::Domain*> domain)
 	}, [=] {
 		_api.reset();
 	}, _lifetime);
+#endif
 }
 
 void Manager::read() {
