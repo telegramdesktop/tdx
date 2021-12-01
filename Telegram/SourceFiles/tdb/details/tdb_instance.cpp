@@ -91,7 +91,8 @@ public:
 	void sendPrepared(
 		RequestId requestId,
 		ExternalGenerator &&request,
-		ExternalCallback &&callback);
+		ExternalCallback &&callback,
+		bool skipReadyCheck = false);
 	void cancel(RequestId requestId);
 	[[nodiscard]] bool shouldInvokeHandler(RequestId requestId);
 
@@ -102,7 +103,8 @@ public:
 			RequestId requestId,
 			Request &&request,
 			FnMut<void(const typename Request::ResponseType &)> &&done,
-			FnMut<void(const Error &)> &&fail) {
+			FnMut<void(const Error &)> &&fail,
+			bool skipReadyCheck = false) {
 		const auto type = request.type();
 		return sendPrepared(
 			requestId,
@@ -110,21 +112,36 @@ public:
 			PrepareCallback<typename Request::ResponseType>(
 				type,
 				std::move(done),
-				std::move(fail)));
+				std::move(fail)),
+			skipReadyCheck);
 	}
 
 	void handleUpdate(TLupdate &&update);
 	[[nodiscard]] rpl::producer<TLupdate> updates() const;
+	void logout();
 
 private:
+	struct QueuedRequest {
+		ExternalGenerator request;
+		ExternalCallback callback;
+	};
+
 	void sendTdlibParameters();
+	void sendEncryptionKey();
+	void sendToManager(
+		RequestId requestId,
+		ExternalGenerator &&request,
+		ExternalCallback &&callback);
+	void markReady();
 
 	const std::shared_ptr<Manager> _manager;
 	std::atomic<ClientManager::ClientId> _client;
 	InstanceConfig _config;
 	QMutex _activeRequestsMutex;
 	base::flat_set<RequestId> _activeRequests;
+	base::flat_map<RequestId, QueuedRequest> _queuedRequests;
 	rpl::event_stream<TLupdate> _updates;
+	bool _ready = false;
 
 };
 
@@ -348,11 +365,27 @@ RequestId Instance::Impl::allocateRequestId() const {
 void Instance::Impl::sendPrepared(
 		RequestId requestId,
 		ExternalGenerator &&request,
-		ExternalCallback &&callback) {
+		ExternalCallback &&callback,
+		bool skipReadyCheck) {
 	if (callback) {
 		QMutexLocker lock(&_activeRequestsMutex);
 		_activeRequests.emplace(requestId);
 	}
+	if (!_ready && !skipReadyCheck) {
+		DEBUG_LOG(("Request %1 queued until logged out.").arg(requestId));
+		_queuedRequests.emplace(requestId, QueuedRequest{
+			std::move(request),
+			std::move(callback)
+		});
+		return;
+	}
+	sendToManager(requestId, std::move(request), std::move(callback));
+}
+
+void Instance::Impl::sendToManager(
+		RequestId requestId,
+		ExternalGenerator &&request,
+		ExternalCallback &&callback) {
 	crl::async([
 		manager = _manager,
 		clientId = _client.load(),
@@ -369,8 +402,11 @@ void Instance::Impl::sendPrepared(
 }
 
 void Instance::Impl::cancel(RequestId requestId) {
-	QMutexLocker lock(&_activeRequestsMutex);
-	_activeRequests.remove(requestId);
+	{
+		QMutexLocker lock(&_activeRequestsMutex);
+		_activeRequests.remove(requestId);
+	}
+	_queuedRequests.remove(requestId);
 }
 
 bool Instance::Impl::shouldInvokeHandler(RequestId requestId) {
@@ -378,15 +414,35 @@ bool Instance::Impl::shouldInvokeHandler(RequestId requestId) {
 	return _activeRequests.remove(requestId);
 }
 
-void Instance::Impl::handleUpdate(TLupdate &&update) {
-	if (ClientClosedUpdate(update)) {
-		_client = _manager->createClient(this);
-		sendTdlibParameters();
+void Instance::Impl::markReady() {
+	if (_ready) {
+		return;
 	}
+	_ready = true;
+	for (auto &[requestId, queued] : base::take(_queuedRequests)) {
+		sendToManager(
+			requestId,
+			std::move(queued.request),
+			std::move(queued.callback));
+	}
+}
+
+void Instance::Impl::handleUpdate(TLupdate &&update) {
 	update.match([&](const TLDupdateAuthorizationState &data) {
 		data.vauthorization_state().match([](
 			const TLDauthorizationStateWaitTdlibParameters &) {
+		}, [&](const TLDauthorizationStateWaitEncryptionKey &data) {
+			sendEncryptionKey(); // todo local passcode
+		}, [&](const TLDauthorizationStateLoggingOut &) {
+			_ready = false;
+		}, [&](const TLDauthorizationStateClosing &) {
+			_ready = false;
+		}, [&](const TLDauthorizationStateClosed &) {
+			_client = _manager->createClient(this);
+			sendTdlibParameters();
+			_updates.fire(std::move(update));
 		}, [&](const auto &) {
+			markReady();
 			_updates.fire(std::move(update));
 		});
 	}, [&](const auto &) {
@@ -396,6 +452,11 @@ void Instance::Impl::handleUpdate(TLupdate &&update) {
 
 rpl::producer<TLupdate> Instance::Impl::updates() const {
 	return _updates.events();
+}
+
+void Instance::Impl::logout() {
+	_ready = false;
+	send(allocateRequestId(), TLlogOut(), nullptr, nullptr, true);
 }
 
 void Instance::Impl::sendTdlibParameters() {
@@ -422,7 +483,17 @@ void Instance::Impl::sendTdlibParameters() {
 				tl_bool(true), // enable_storage_optimizer
 				tl_bool(false))), // ignore_file_names
 		nullptr,
-		fail);
+		fail,
+		true);
+}
+
+void Instance::Impl::sendEncryptionKey() {
+	send(
+		allocateRequestId(),
+		TLcheckDatabaseEncryptionKey(tl_bytes()),
+		nullptr,
+		nullptr,
+		true);
 }
 
 Instance::Instance(InstanceConfig &&config)
@@ -451,6 +522,10 @@ void Instance::cancel(RequestId requestId) {
 
 rpl::producer<TLupdate> Instance::updates() const {
 	return _impl->updates();
+}
+
+void Instance::logout() {
+	_impl->logout();
 }
 
 void ExecuteExternal(
