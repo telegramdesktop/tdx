@@ -40,6 +40,8 @@ public:
 		return StepType::Password;
 	}
 
+	bool applyState(const Tdb::TLauthorizationState &state) override;
+
 protected:
 	void resizeEvent(QResizeEvent *e) override;
 
@@ -71,9 +73,6 @@ private:
 	void passwordChecked();
 	void serverError();
 #endif
-
-	void handleAuthorizationState(
-		const Tdb::TLauthorizationState &state) override;
 
 	void passwordSubmitFail(const QString &error);
 	void codeSubmitFail(const QString &type);
