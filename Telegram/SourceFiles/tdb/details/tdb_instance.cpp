@@ -119,6 +119,7 @@ public:
 	void handleUpdate(TLupdate &&update);
 	[[nodiscard]] rpl::producer<TLupdate> updates() const;
 	void logout();
+	void reset();
 
 private:
 	struct QueuedRequest {
@@ -459,6 +460,11 @@ void Instance::Impl::logout() {
 	send(allocateRequestId(), TLlogOut(), nullptr, nullptr, true);
 }
 
+void Instance::Impl::reset() {
+	_ready = false;
+	send(allocateRequestId(), TLdestroy(), nullptr, nullptr, true);
+}
+
 void Instance::Impl::sendTdlibParameters() {
 	const auto fail = [=](Error error) {
 		LOG(("Critical Error: setTdlibParameters - %1").arg(error.message));
@@ -526,6 +532,10 @@ rpl::producer<TLupdate> Instance::updates() const {
 
 void Instance::logout() {
 	_impl->logout();
+}
+
+void Instance::reset() {
+	_impl->reset();
 }
 
 void ExecuteExternal(

@@ -1078,9 +1078,7 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 }
 
 not_null<UserData*> Session::processUser(const TLuser &user) {
-	const auto &data = user.match([](const auto &data) -> const TLDuser& {
-		return data;
-	});
+	const auto &data = user.data();
 	const auto result = this->user(data.vid().v);
 	auto minimal = false;
 
@@ -3572,6 +3570,7 @@ void Session::documentConvert(
 	}
 }
 
+#if 0 // mtp
 DocumentData *Session::documentFromWeb(
 		const MTPWebDocument &data,
 		const ImageLocation &thumbnailLocation,
@@ -3627,6 +3626,7 @@ DocumentData *Session::documentFromWeb(
 	result->setContentUrl(qs(data.vurl()));
 	return result;
 }
+#endif
 
 void Session::documentApplyFields(
 		not_null<DocumentData*> document,

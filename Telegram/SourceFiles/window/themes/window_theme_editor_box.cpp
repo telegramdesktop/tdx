@@ -567,6 +567,7 @@ Fn<void()> SavePreparedTheme(
 	};
 
 	const auto uploadFile = [=](const QByteArray &theme) {
+#if 0 // todo
 		const auto media = PrepareThemeMedia(
 			session->mainDcId(),
 			fields.title,
@@ -582,6 +583,7 @@ Fn<void()> SavePreparedTheme(
 		}, state->lifetime);
 
 		session->uploader().uploadMedia(state->id, media);
+#endif
 	};
 
 	const auto save = [=] {

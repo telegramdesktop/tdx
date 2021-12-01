@@ -99,6 +99,7 @@ enum class FilterType {
 
 [[nodiscard]] not_null<DocumentData*> DummyDocument(
 		not_null<Data::Session*> owner) {
+#if 0 // todo
 	return owner->document(
 		base::RandomValue<DocumentId>(),
 		uint64(0),
@@ -112,6 +113,8 @@ enum class FilterType {
 		false, // isPremiumSticker
 		owner->session().mainDcId(),
 		int32(0));
+#endif
+	return owner->document(base::RandomValue<DocumentId>());
 }
 
 void PaintWaveform(
