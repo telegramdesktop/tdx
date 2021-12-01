@@ -32,9 +32,7 @@ public:
 		return StepType::Start;
 	}
 
-private:
-	void handleAuthorizationState(
-		const Tdb::TLauthorizationState &state) override;
+	bool applyState(const Tdb::TLauthorizationState &state) override;
 
 };
 

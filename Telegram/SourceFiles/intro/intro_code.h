@@ -48,6 +48,8 @@ public:
 		return StepType::Code;
 	}
 
+	bool applyState(const Tdb::TLauthorizationState &state) override;
+
 protected:
 	void resizeEvent(QResizeEvent *e) override;
 
@@ -81,9 +83,6 @@ private:
 
 	void stopCheck();
 #endif
-
-	void handleAuthorizationState(
-		const Tdb::TLauthorizationState &state) override;
 
 	void checkCodeFail(const Tdb::Error &error);
 

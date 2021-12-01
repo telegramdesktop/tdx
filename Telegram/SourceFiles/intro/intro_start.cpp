@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_app_config.h"
 
+#include "intro/intro_widget.h"
+
 namespace Intro {
 namespace details {
 namespace {
@@ -30,12 +32,6 @@ StartWidget::StartWidget(
 	setTitleText(rpl::single(u"Telegram Desktop"_q));
 	setDescriptionText(tr::lng_intro_about());
 	show();
-
-	api().request(
-		TLgetAuthorizationState()
-	).done([=](const TLauthorizationState &result) {
-		handleAuthorizationState(result);
-	}).send();
 }
 
 void StartWidget::submit() {
@@ -47,11 +43,7 @@ void StartWidget::submit() {
 	api().request(
 		TLgetAuthorizationState()
 	).done([=](const TLauthorizationState &result) {
-		if (result.type() == id_authorizationStateWaitPhoneNumber) {
-			go(StepType::Qr);
-		} else {
-			Step::handleAuthorizationState(result);
-		}
+		jumpByState(result);
 	}).send();
 }
 
@@ -59,18 +51,15 @@ rpl::producer<QString> StartWidget::nextButtonText() const {
 	return tr::lng_start_msgs();
 }
 
-void StartWidget::handleAuthorizationState(
-		const TLauthorizationState &state) {
-	return state.match([&](const auto &data) {
-		using Data = decltype(data);
-		if constexpr (TLDauthorizationStateReady::Is<Data>()
-			|| TLDauthorizationStateWaitCode::Is<Data>()
-			|| TLDauthorizationStateWaitOtherDeviceConfirmation::Is<Data>()
-			|| TLDauthorizationStateWaitRegistration::Is<Data>()
-			|| TLDauthorizationStateWaitPassword::Is<Data>()) {
-			Step::handleAuthorizationState(state);
-		}
-	});
+bool StartWidget::applyState(const TLauthorizationState &state) {
+	const auto type = state.type();
+	return (type == id_authorizationStateWaitPhoneNumber)
+		|| (type == id_authorizationStateWaitOtherDeviceConfirmation)
+		|| (type == id_authorizationStateLoggingOut)
+		|| (type == id_authorizationStateClosing)
+		|| (type == id_authorizationStateClosed)
+		|| (type == id_authorizationStateWaitCode
+			&& getData()->madeInitialJumpToStep);
 }
 
 } // namespace details
