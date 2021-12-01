@@ -26,6 +26,10 @@ void Account::logout() {
 	_instance.logout();
 }
 
+void Account::reset() {
+	_instance.reset();
+}
+
 rpl::producer<TLupdate> Account::updates() const {
 	return _updates.events();
 }

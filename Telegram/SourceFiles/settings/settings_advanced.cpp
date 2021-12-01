@@ -76,6 +76,7 @@ void SetupConnectionType(
 		not_null<Main::Account*> account,
 		not_null<Ui::VerticalLayout*> container) {
 	const auto connectionType = [=] {
+#if 0 // todo
 		const auto transport = account->mtp().dctransport();
 		if (!Core::App().settings().proxy().isEnabled()) {
 			return transport.isEmpty()
@@ -86,6 +87,8 @@ void SetupConnectionType(
 				? tr::lng_connection_proxy_connecting(tr::now)
 				: tr::lng_connection_proxy(tr::now, lt_transport, transport);
 		}
+#endif
+		return u"TDLib"_q;
 	};
 	const auto button = AddButtonWithLabel(
 		container,

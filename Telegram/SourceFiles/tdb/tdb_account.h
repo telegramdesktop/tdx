@@ -26,6 +26,7 @@ public:
 
 	[[nodiscard]] rpl::producer<TLupdate> updates() const;
 	void logout();
+	void reset();
 
 	void registerFileGenerator(not_null<FileGenerator*> generator);
 	void unregisterFileGenerator(not_null<FileGenerator*> generator);
@@ -55,9 +56,5 @@ private:
 };
 
 using details::Execute;
-
-[[nodiscard]] inline bool IsRecreatedUpdate(const TLupdate &update) {
-	return details::ClientClosedUpdate(update);
-}
 
 } // namespace Tdb

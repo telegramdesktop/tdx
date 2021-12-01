@@ -262,7 +262,19 @@ Tdb::Account &Session::tdb() const {
 }
 
 Tdb::Sender &Session::sender() const {
-	return _account->sender();
+	return *_sender;
+}
+
+bool Session::loggingOut() const {
+	return _account->loggingOut();
+}
+
+bool Session::apply(const TLDupdateOption &update) {
+	if (update.vname().v == "is_premium_available") {
+		_premiumPossible = OptionValue<bool>(update.vvalue());
+		return true;
+	}
+	return _api->apply(update);
 }
 
 void Session::notifyDownloaderTaskFinished() {
@@ -305,7 +317,10 @@ bool Session::premiumCanBuy() const {
 }
 
 bool Session::isTestMode() const {
+#if 0 // mtp
 	return mtp().isTestMode();
+#endif
+	return _account->testMode();
 }
 
 uint64 Session::uniqueId() const {
@@ -346,6 +361,7 @@ void Session::saveSettingsNowIfNeeded() {
 	}
 }
 
+#if 0 // mtp
 MTP::DcId Session::mainDcId() const {
 	return _account->mtp().mainDcId();
 }
@@ -353,6 +369,7 @@ MTP::DcId Session::mainDcId() const {
 MTP::Instance &Session::mtp() const {
 	return _account->mtp();
 }
+#endif
 
 const MTP::ConfigFields &Session::serverConfig() const {
 	return _account->mtp().configValues();

@@ -156,7 +156,9 @@ struct File {
 	uint64 id = 0;
 	uint64 accessHash = 0;
 	int32 size = 0;
+#if 0 // mtp
 	int32 dcId = 0;
+#endif
 	TimeId date = 0;
 	bytes::vector hash;
 	bytes::vector secret;

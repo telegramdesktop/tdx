@@ -32,9 +32,12 @@ void Manager::start(
 		_panel->activatePanel();
 		return;
 	}
+#if 0 // tdlib todo export
 	_controller = std::make_unique<Controller>(
 		&session->mtp(),
 		singlePeer);
+#endif
+	return;
 	_panel = std::make_unique<View::PanelController>(
 		session,
 		_controller.get());

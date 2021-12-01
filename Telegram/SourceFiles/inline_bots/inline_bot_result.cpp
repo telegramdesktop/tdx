@@ -120,6 +120,7 @@ std::unique_ptr<Result> Result::Create(
 						? Images::FromWebDocument(*data.vthumb())
 						: ImageLocation()));
 			} else if (contentMime != "text/html"_q) {
+#if 0 // todo
 				result->_document = session->data().documentFromWeb(
 					result->adjustAttributes(*content),
 					(imageThumb
@@ -128,6 +129,7 @@ std::unique_ptr<Result> Result::Create(
 					(videoThumb
 						? Images::FromWebDocument(*data.vthumb())
 						: ImageLocation()));
+#endif
 			}
 		}
 		if (!result->_photo && !result->_document && imageThumb) {
