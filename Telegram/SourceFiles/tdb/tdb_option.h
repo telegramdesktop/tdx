@@ -42,7 +42,7 @@ std::optional<ResultType> OptionValueMaybe(TLoptionValue option) {
 	return option.match([](
 			const OptionType &data) -> std::optional<ResultType> {
 		return data.vvalue().v;
-	}, [](const auto &) {
+	}, [](const auto &) -> std::optional<ResultType> {
 		return std::nullopt;
 	});
 }

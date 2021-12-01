@@ -277,10 +277,8 @@ void CodeWidget::codeSubmitFail(const MTP::Error &error) {
 }
 #endif
 
-void CodeWidget::handleAuthorizationState(
-		const TLauthorizationState &state) {
-	state.match([&](const TLDauthorizationStateWaitCode &data) {
-		fillCodeInfo(data.vcode_info());
+bool CodeWidget::applyState(const TLauthorizationState &state) {
+	return state.match([&](const TLDauthorizationStateWaitCode &data) {
 		data.vcode_info().match([&](const TLDauthenticationCodeInfo &data) {
 			_code->setDigitsCountMax(getData()->codeLength);
 			if (_callStatus == CallStatus::Calling) {
@@ -292,8 +290,9 @@ void CodeWidget::handleAuthorizationState(
 				updateDescText();
 			}
 		});
+		return true;
 	}, [&](const auto &) {
-		Step::handleAuthorizationState(state);
+		return false;
 	});
 }
 

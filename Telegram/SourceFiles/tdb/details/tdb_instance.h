@@ -99,6 +99,7 @@ public:
 
 	// Main thread.
 	[[nodiscard]] rpl::producer<TLupdate> updates() const;
+	void logout();
 
 private:
 	class Manager;
