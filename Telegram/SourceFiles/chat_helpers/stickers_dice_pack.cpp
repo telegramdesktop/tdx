@@ -134,6 +134,7 @@ void DicePack::generateLocal(int index, const QString &name) {
 	task.process({ .generateGoodThumbnail = false });
 	const auto result = task.peekResult();
 	Assert(result != nullptr);
+#if 0 // todo
 	const auto document = _session->data().processDocument(
 		result->document,
 		Images::FromImageInMemory(result->thumb, "WEBP", result->thumbbytes));
@@ -143,6 +144,7 @@ void DicePack::generateLocal(int index, const QString &name) {
 
 	Ensures(document->sticker());
 	Ensures(document->sticker()->isLottie());
+#endif
 }
 
 DicePacks::DicePacks(not_null<Main::Session*> session) : _session(session) {

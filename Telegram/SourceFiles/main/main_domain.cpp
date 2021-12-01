@@ -296,6 +296,7 @@ not_null<Main::Account*> Domain::add(MTP::Environment environment) {
 		return std::make_unique<MTP::Config>(config);
 	};
 	auto mainDcId = MTP::Instance::Fields::kNotSetMainDc;
+#if 0 // mtp
 	const auto accountConfig = [&](not_null<Account*> account) {
 		mainDcId = account->mtp().mainDcId();
 		return cloneConfig(account->mtp().config());
@@ -313,6 +314,8 @@ not_null<Main::Account*> Domain::add(MTP::Environment environment) {
 			? cloneConfig(Core::App().fallbackProductionConfig())
 			: std::make_unique<MTP::Config>(environment);
 	}();
+#endif
+	auto config = std::make_unique<MTP::Config>(environment);
 	auto index = 0;
 	while (ranges::contains(_accounts, index, &AccountWithIndex::index)) {
 		++index;
@@ -351,9 +354,17 @@ void Domain::addActivated(MTP::Environment environment, bool newWindow) {
 		added(add(environment));
 	} else {
 		for (auto &[index, account] : accounts()) {
+#if 0 // mtp
 			if (!account->sessionExists()
 				&& account->mtp().environment() == environment) {
 				added(account.get());
+				break;
+			}
+#endif
+			if (!account->sessionExists()
+				&& (account->testMode()
+					== (environment == MTP::Environment::Test))) {
+				activate(account.get());
 				break;
 			}
 		}
@@ -449,6 +460,7 @@ void Domain::removeRedundantAccounts() {
 
 void Domain::checkForLastProductionConfig(
 		not_null<Main::Account*> account) {
+#if 0 // mtp
 	const auto mtp = &account->mtp();
 	if (mtp->environment() != MTP::Environment::Production) {
 		return;
@@ -460,6 +472,7 @@ void Domain::checkForLastProductionConfig(
 		}
 	}
 	Core::App().refreshFallbackProductionConfig(mtp->config());
+#endif
 }
 
 void Domain::maybeActivate(not_null<Main::Account*> account) {

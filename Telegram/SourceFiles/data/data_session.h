@@ -594,10 +594,12 @@ public:
 	void documentConvert(
 		not_null<DocumentData*> original,
 		const MTPDocument &data);
+#if 0 // mtp
 	[[nodiscard]] DocumentData *documentFromWeb(
 		const MTPWebDocument &data,
 		const ImageLocation &thumbnailLocation,
 		const ImageLocation &videoThumbnailLocation);
+#endif
 
 	[[nodiscard]] not_null<WebPageData*> webpage(WebPageId id);
 	not_null<WebPageData*> processWebpage(const MTPWebPage &data);
