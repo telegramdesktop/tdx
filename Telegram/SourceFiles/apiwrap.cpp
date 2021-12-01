@@ -988,6 +988,7 @@ void ApiWrap::requestMoreDialogs(Data::Folder *folder) {
 		state->pinnedReceived = true;
 		state->firstRequested = true;
 		state->requestId = 0;
+		requestMoreDialogsIfNeeded();
 	}).fail([=] {
 		const auto state = dialogsLoadState(folder);
 		if (!state) {

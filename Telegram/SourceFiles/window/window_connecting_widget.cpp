@@ -635,7 +635,9 @@ void ConnectionState::Widget::refreshRetryLink(bool hasRetry) {
 			tr::lng_reconnecting_try_now(tr::now),
 			st::connectingRetryLink);
 		_retry->addClickHandler([=] {
+#if 0 // todo
 			_account->mtp().restart();
+#endif
 		});
 		updateRetryGeometry();
 	} else if (!hasRetry) {

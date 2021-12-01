@@ -2186,7 +2186,9 @@ void FormController::prepareFile(
 	const auto fileId = base::RandomValue<uint64>();
 	file.fields.size = content.size();
 	file.fields.id = fileId;
+#if 0 // mtp
 	file.fields.dcId = _controller->session().mainDcId();
+#endif
 	file.fields.secret = GenerateSecretBytes();
 	file.fields.date = base::unixtime::now();
 	file.fields.image = ReadImage(bytes::make_span(content));

@@ -588,6 +588,7 @@ void ChatBackground::checkUploadWallPaper() {
 		return;
 	}
 
+#if 0 // todo
 	const auto ready = PrepareWallPaper(_session->mainDcId(), _original);
 	const auto documentId = ready->id;
 	_wallPaperUploadId = FullMsgId(
@@ -626,6 +627,7 @@ void ChatBackground::checkUploadWallPaper() {
 			}
 		}).send();
 	});
+#endif
 }
 
 QImage ChatBackground::postprocessBackgroundImage(QImage image) {

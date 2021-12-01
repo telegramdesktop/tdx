@@ -101,6 +101,7 @@ public:
 	[[nodiscard]] MTP::Instance &mtp() const {
 		return *_mtp;
 	}
+#if 0 // mtp
 	[[nodiscard]] rpl::producer<not_null<MTP::Instance*>> mtpValue() const;
 
 	// Each time the main session changes a new copy of the pointer is fired.
@@ -109,6 +110,7 @@ public:
 	// of the main dc changing.
 	[[nodiscard]] auto mtpMainSessionValue() const
 		-> rpl::producer<not_null<MTP::Instance*>>;
+#endif
 
 	// Set from legacy storage.
 	void setLegacyMtpKey(std::shared_ptr<MTP::AuthKey> key);
@@ -129,8 +131,6 @@ public:
 
 #if 0 // mtp
 	void suggestMainDcId(MTP::DcId mainDcId);
-#endif
-#if 0 // todo
 	void destroyStaleAuthorizationKeys();
 #endif
 
@@ -163,10 +163,12 @@ private:
 		std::unique_ptr<SessionSettings> settings);
 	void watchProxyChanges();
 	void watchSessionChanges();
+#if 0 // mtp
 	bool checkForUpdates(const MTP::Response &message);
 	bool checkForNewSession(const MTP::Response &message);
 
 	void destroyMtpKeys(MTP::AuthKeysList &&keys);
+#endif
 	void resetAuthorizationKeys();
 
 	void loggedOut();
@@ -179,10 +181,12 @@ private:
 	std::unique_ptr<Tdb::Account> _tdb;
 
 	std::unique_ptr<MTP::Instance> _mtp;
+#if 0 // mtp
 	rpl::variable<MTP::Instance*> _mtpValue;
 	std::unique_ptr<MTP::Instance> _mtpForKeysDestroy;
 	rpl::event_stream<MTPUpdates> _mtpUpdates;
 	rpl::event_stream<> _mtpNewSessionCreated;
+#endif
 
 	std::unique_ptr<AppConfig> _appConfig;
 

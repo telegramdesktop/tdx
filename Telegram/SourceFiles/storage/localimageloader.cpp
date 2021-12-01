@@ -498,7 +498,9 @@ FileLoadTask::FileLoadTask(
 	uint64 idOverride)
 : _id(idOverride ? idOverride : base::RandomValue<uint64>())
 , _session(session)
+#if 0 // mtp
 , _dcId(session->mainDcId())
+#endif
 , _to(to)
 , _album(std::move(album))
 , _filepath(filepath)
@@ -524,7 +526,9 @@ FileLoadTask::FileLoadTask(
 	const TextWithTags &caption)
 : _id(base::RandomValue<uint64>())
 , _session(session)
+#if 0 // mtp
 , _dcId(session->mainDcId())
+#endif
 , _to(to)
 , _content(voice)
 , _duration(duration)
@@ -955,6 +959,7 @@ void FileLoadTask::process(Args &&args) {
 				});
 				photoSizes.push_back(MTP_photoSize(MTP_string("y"), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0)));
 
+#if 0 // mtp
 				photo = MTP_photo(
 					MTP_flags(0),
 					MTP_long(_id),
@@ -964,6 +969,7 @@ void FileLoadTask::process(Args &&args) {
 					MTP_vector<MTPPhotoSize>(photoSizes),
 					MTPVector<MTPVideoSize>(),
 					MTP_int(_dcId));
+#endif
 
 				if (filesize < 0) {
 					filesize = _result->filesize = filedata.size();
@@ -982,6 +988,7 @@ void FileLoadTask::process(Args &&args) {
 		_type = SendMediaType::File;
 	}
 
+#if 0 // mtp
 	if (isVoice) {
 		const auto seconds = _duration / 1000;
 		auto flags = MTPDdocumentAttributeAudio::Flag::f_voice | MTPDdocumentAttributeAudio::Flag::f_waveform;
@@ -1012,6 +1019,10 @@ void FileLoadTask::process(Args &&args) {
 			MTPVector<MTPVideoSize>(),
 			MTP_int(_dcId),
 			MTP_vector<MTPDocumentAttribute>(attributes));
+		_type = SendMediaType::File;
+	}
+#endif
+	if (!isVoice && _type != SendMediaType::Photo) {
 		_type = SendMediaType::File;
 	}
 

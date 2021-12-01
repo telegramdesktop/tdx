@@ -315,7 +315,9 @@ private:
 
 	uint64 _id = 0;
 	base::weak_ptr<Main::Session> _session;
+#if 0 // mtp
 	MTP::DcId _dcId = 0;
+#endif
 	FileLoadTo _to;
 	const std::shared_ptr<SendingAlbum> _album;
 	QString _filepath;
