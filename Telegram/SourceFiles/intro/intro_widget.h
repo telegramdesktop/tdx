@@ -53,6 +53,8 @@ struct Data {
 #if 0 // mtp
 	QByteArray phoneHash;
 #endif
+	bool madeInitialJumpToStep = false;
+	QString pwdEmailPattern;
 
 	CallStatus callStatus = CallStatus::Disabled;
 	int callTimeout = 0;
@@ -176,6 +178,9 @@ private:
 	void showTerms(Fn<void()> callback);
 
 	void handleUpdate(const Tdb::TLupdate &update);
+	void handleAuthorizationState(const Tdb::TLauthorizationState &state);
+	void fillCodeInfo(const Tdb::TLauthenticationCodeInfo &info);
+	void fillTerms(const Tdb::TLtermsOfService &terms);
 
 	// FloatDelegate
 	[[nodiscard]] auto floatPlayerDelegate()
