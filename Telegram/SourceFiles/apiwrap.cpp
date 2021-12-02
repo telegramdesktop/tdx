@@ -872,6 +872,7 @@ void ApiWrap::requestContacts() {
 	if (_session->data().contactsLoaded().current() || _contactsRequestId) {
 		return;
 	}
+#if 0 // mtp
 	_contactsRequestId = request(MTPcontacts_GetContacts(
 		MTP_long(0) // hash
 	)).done([=](const MTPcontacts_Contacts &result) {
@@ -892,6 +893,20 @@ void ApiWrap::requestContacts() {
 		}
 		_session->data().contactsLoaded() = true;
 	}).fail([=] {
+		_contactsRequestId = 0;
+	}).send();
+#endif
+	_contactsRequestId = sender().request(TLgetContacts(
+	)).done([=](const TLusers &result) {
+		_contactsRequestId = 0;
+		const auto selfUserId = _session->userId();
+		for (const auto &contact : result.data().vuser_ids().v) {
+			if (peerFromUser(contact.v) == selfUserId) {
+				_session->user()->setIsContact(true);
+			}
+		}
+		_session->data().contactsLoaded() = true;
+	}).fail([=](const Error &error) {
 		_contactsRequestId = 0;
 	}).send();
 }
