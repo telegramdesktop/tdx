@@ -92,6 +92,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h" // st::windowMinWidth
 #include "styles/style_menu_icons.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 #include <QAction>
 #include <QtGui/QGuiApplication>
 
@@ -147,6 +149,8 @@ const char kOptionViewProfileInChatsListContextMenu[] =
 	"view-profile-in-chats-list-context-menu";
 
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kArchivedToastDuration = crl::time(5000);
 constexpr auto kMaxUnreadWithoutConfirmation = 1000;
@@ -389,6 +393,7 @@ void TogglePinnedThread(
 		return;
 	}
 
+#if 0 // mtp
 	owner->setChatPinned(entry, FilterId(), isPinned);
 	if (const auto history = entry->asHistory()) {
 		const auto flags = isPinned
@@ -424,6 +429,18 @@ void TogglePinnedThread(
 		//if (isPinned) {
 		//	controller->content()->dialogsToUp();
 		//}
+	}
+#endif
+	if (const auto history = thread->asHistory()) {
+		history->session().sender().request(TLtoggleChatIsPinned(
+			history->folder() ? tl_chatListArchive() : tl_chatListMain(),
+			peerToTdbChat(history->peer->id),
+			tl_bool(isPinned)
+		)).done([=] {
+			owner->notifyPinnedDialogsOrderUpdated();
+		}).send();
+	} else if (const auto topic = thread->asTopic()) {
+		// todo
 	}
 }
 
