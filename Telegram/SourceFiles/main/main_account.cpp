@@ -131,8 +131,10 @@ std::unique_ptr<Tdb::Account> Account::createTdb() {
 				DEBUG_LOG(("Tdb Info: Got 'Closed', logged out."));
 				loggedOut();
 			}, [&](const auto &) {
-				LOG(("Tdb Info: Got bad state, logged out."));
-				loggedOut();
+				if (_session) {
+					LOG(("Tdb Info: Got bad state, logged out."));
+					loggedOut();
+				}
 			});
 		}, [](const auto &) {
 		});
