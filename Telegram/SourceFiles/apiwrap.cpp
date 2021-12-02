@@ -434,6 +434,7 @@ void ApiWrap::checkFilterInvite(
 
 void ApiWrap::savePinnedOrder(Data::Folder *folder) {
 	const auto &order = _session->data().pinnedChatsOrder(folder);
+#if 0 // mtp
 	const auto input = [](Dialogs::Key key) {
 		if (const auto history = key.history()) {
 			return MTP_inputDialogPeer(history->peer->input);
@@ -452,6 +453,23 @@ void ApiWrap::savePinnedOrder(Data::Folder *folder) {
 		MTP_flags(MTPmessages_ReorderPinnedDialogs::Flag::f_force),
 		MTP_int(folder ? folder->id() : 0),
 		MTP_vector(peers)
+	)).send();
+#endif
+	const auto id = [](const Dialogs::Key &key) {
+		if (const auto history = key.history()) {
+			return peerToTdbChat(history->peer->id);
+		}
+		Unexpected("Key type in pinnedDialogsOrder().");
+	};
+	auto chats = QVector<TLint53>();
+	chats.reserve(order.size());
+	ranges::transform(
+		order,
+		ranges::back_inserter(chats),
+		id);
+	sender().request(TLsetPinnedChats(
+		(folder ? tl_chatListArchive() : tl_chatListMain()),
+		tl_vector(chats)
 	)).send();
 }
 

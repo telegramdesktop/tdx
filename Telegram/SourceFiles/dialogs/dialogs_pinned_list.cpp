@@ -32,6 +32,7 @@ void PinnedList::setLimit(int limit) {
 	applyLimit(_limit);
 }
 
+#if 0 // mtp
 void PinnedList::addPinned(Key key) {
 	Expects(key.entry()->folderKnown());
 
@@ -49,11 +50,13 @@ int PinnedList::addPinnedGetPosition(Key key) {
 	key.entry()->cachePinnedIndex(_filterId, position + 1);
 	return position;
 }
+#endif
 
 void PinnedList::setPinned(Key key, bool pinned) {
 	Expects(key.entry()->folderKnown() || _filterId != 0);
 
 	if (pinned) {
+#if 0 // mtp
 		const int position = addPinnedGetPosition(key);
 		if (position) {
 			const auto begin = _data.begin();
@@ -61,6 +64,30 @@ void PinnedList::setPinned(Key key, bool pinned) {
 			for (auto i = 0; i != position + 1; ++i) {
 				_data[i].entry()->cachePinnedIndex(_filterId, i + 1);
 			}
+		}
+#endif
+		const auto order = key.entry()->tdbOrderInChatList(_filterId);
+		const auto already = ranges::find(_data, key);
+		if (already != end(_data)) {
+			const auto reorderedAbove = (already != begin(_data))
+				&& (order
+					> (already - 1)->entry()->tdbOrderInChatList(_filterId));
+			const auto reorderedBelow = (already + 1 != end(_data))
+				&& (order
+					< (already + 1)->entry()->tdbOrderInChatList(_filterId));
+			const auto reordered = reorderedAbove || reorderedBelow;
+			if (!reordered) {
+				return;
+			}
+		} else {
+			applyLimit(_limit - 1);
+			_data.push_back(key);
+		}
+		ranges::sort(_data, std::greater<>(), [&](const Key &key) {
+			return key.entry()->tdbOrderInChatList(_filterId);
+		});
+		for (auto i = 0, count = int(size(_data)); i != count; ++i) {
+			_data[i].entry()->cachePinnedIndex(_filterId, i + 1);
 		}
 	} else if (const auto it = ranges::find(_data, key); it != end(_data)) {
 		const auto index = int(it - begin(_data));
@@ -84,6 +111,7 @@ void PinnedList::clear() {
 	applyLimit(0);
 }
 
+#if 0 // mtp
 void PinnedList::applyList(
 		not_null<Data::Session*> owner,
 		const QVector<MTPDialogPeer> &list) {
@@ -100,6 +128,7 @@ void PinnedList::applyList(
 		});
 	}
 }
+#endif
 
 void PinnedList::applyList(
 		not_null<Data::SavedMessages*> sublistsOwner,
