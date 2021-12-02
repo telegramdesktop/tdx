@@ -357,7 +357,6 @@ void Folder::requestChatListMessage() {
 TimeId Folder::adjustedChatListTimeId() const {
 	return chatListTimeId();
 }
-#endif
 
 void Folder::applyDialog(const MTPDdialogFolder &data) {
 	_chatsList.updateCloudUnread(data);
@@ -373,6 +372,7 @@ void Folder::applyDialog(const MTPDdialogFolder &data) {
 		session().api().requestDialogs(this);
 	}
 }
+#endif
 
 void Folder::applyDialog(const TLDupdateUnreadChatCount &data) {
 	_chatsList.updateCloudUnread(data);
@@ -385,6 +385,7 @@ void Folder::applyDialog(const TLDupdateUnreadChatCount &data) {
 	}
 }
 
+#if 0 // mtp
 void Folder::applyPinnedUpdate(const MTPDupdateDialogPinned &data) {
 	const auto folderId = data.vfolder_id().value_or_empty();
 	if (folderId != 0) {
@@ -392,6 +393,7 @@ void Folder::applyPinnedUpdate(const MTPDupdateDialogPinned &data) {
 	}
 	owner().setChatPinned(this, FilterId(), data.is_pinned());
 }
+#endif
 
 int Folder::fixedOnTopIndex() const {
 	return kArchiveFixOnTopIndex;
