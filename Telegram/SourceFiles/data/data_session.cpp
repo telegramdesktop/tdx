@@ -1876,11 +1876,13 @@ void Session::setupChannelLeavingViewer() {
 		} else {
 			if (const auto history = historyLoaded(channel->id)) {
 				history->removeJoinedMessage();
+#if 0 // mtp
 				history->updateChatListExistence();
 				history->updateChatListSortPosition();
 				if (!history->inChatList()) {
 					history->clearFolder();
 				}
+#endif
 			}
 		}
 	}, _lifetime);
@@ -2538,6 +2540,7 @@ void Session::setChatPinned(
 	notifyPinnedDialogsOrderUpdated();
 }
 
+#if 0 // mtp
 void Session::setPinnedFromEntryList(Dialogs::Key key, bool pinned) {
 	Expects(key.entry()->folderKnown());
 
@@ -2570,6 +2573,7 @@ void Session::applyPinnedChats(
 	notifyPinnedDialogsOrderUpdated();
 }
 
+#if 0 // mtp
 void Session::applyPinnedTopics(
 		not_null<Data::Forum*> forum,
 		const QVector<MTPint> &list) {
@@ -2577,7 +2581,6 @@ void Session::applyPinnedTopics(
 	notifyPinnedDialogsOrderUpdated();
 }
 
-#if 0 // mtp
 void Session::applyDialogs(
 		Data::Folder *requestFolder,
 		const QVector<MTPMessage> &messages,
