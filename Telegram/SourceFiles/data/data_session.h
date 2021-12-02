@@ -403,7 +403,9 @@ public:
 	[[nodiscard]] const std::vector<Dialogs::Key> &pinnedChatsOrder(
 		FilterId filterId) const;
 	void setChatPinned(Dialogs::Key key, FilterId filterId, bool pinned);
+#if 0 // mtp
 	void setPinnedFromEntryList(Dialogs::Key key, bool pinned);
+#endif
 	void clearPinnedChats(Folder *folder);
 	void applyPinnedChats(
 		Folder *folder,
@@ -822,10 +824,12 @@ private:
 	int computeUnreadBadge(const Dialogs::UnreadState &state) const;
 	bool computeUnreadBadgeMuted(const Dialogs::UnreadState &state) const;
 
+#if 0 // mtp
 	void applyDialog(Folder *requestFolder, const MTPDdialog &data);
 	void applyDialog(
 		Folder *requestFolder,
 		const MTPDdialogFolder &data);
+#endif
 
 	const Messages *messagesList(PeerId peerId) const;
 	not_null<Messages*> messagesListForInsert(PeerId peerId);
