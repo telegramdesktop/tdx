@@ -127,7 +127,9 @@ Session::Session(
 	_api->requestTermsUpdate();
 	_api->requestFullPeer(_user);
 
+#if 0 // mtp
 	_api->instance().setUserPhone(_user->phone());
+#endif
 
 	// Load current userpic and keep it loaded.
 	_user->loadUserpic();
@@ -152,6 +154,7 @@ Session::Session(
 		) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
 			local().writeSelf();
 
+#if 0 // mtp
 			if (update.flags & Flag::PhoneNumber) {
 				const auto phone = _user->phone();
 				_api->instance().setUserPhone(phone);
@@ -159,6 +162,7 @@ Session::Session(
 					_api->instance().requestConfig();
 				}
 			}
+#endif
 		}, _lifetime);
 
 #ifndef OS_MAC_STORE
