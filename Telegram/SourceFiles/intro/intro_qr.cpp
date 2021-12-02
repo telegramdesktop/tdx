@@ -240,11 +240,7 @@ void QrWidget::checkForTokenUpdate(const MTPUpdate &update) {
 bool QrWidget::applyState(const TLauthorizationState &state) {
 	return state.match([&](
 			const TLDauthorizationStateWaitPhoneNumber &data) {
-		api().request(TLrequestQrCodeAuthentication(
-			tl_vector<TLint53>(0)
-		)).fail([=](const Error &error) {
-			showTokenError(error);
-		}).send();
+		sendRequestCode();
 		return true;
 	}, [&](const TLDauthorizationStateWaitOtherDeviceConfirmation &data) {
 		_qrLinks.fire_copy(data.vlink().v);
@@ -252,6 +248,18 @@ bool QrWidget::applyState(const TLauthorizationState &state) {
 	}, [&](const auto &) {
 		return false;
 	});
+}
+
+void QrWidget::sendRequestCode() {
+	if (_requestId) {
+		return;
+	}
+	_requestId = api().request(TLrequestQrCodeAuthentication(
+		tl_vector<TLint53>(0)
+	)).fail([=](const Error &error) {
+		_requestId = 0;
+		showTokenError(error);
+	}).send();
 }
 
 void QrWidget::submit() {
