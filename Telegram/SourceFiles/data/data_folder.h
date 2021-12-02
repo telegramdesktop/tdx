@@ -42,10 +42,10 @@ public:
 	void clearChatsList();
 	[[nodiscard]] not_null<Dialogs::MainList*> chatsList();
 
+#if 0 // mtp
 	void applyDialog(const MTPDdialogFolder &data);
 	void applyPinnedUpdate(const MTPDupdateDialogPinned &data);
 
-#if 0 // mtp
 	TimeId adjustedChatListTimeId() const override;
 #endif
 	void applyDialog(const Tdb::TLDupdateUnreadChatCount &data);

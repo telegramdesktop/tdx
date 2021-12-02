@@ -165,6 +165,9 @@ void Entry::pinnedIndexChanged(FilterId filterId, int was, int now) {
 		// Force reorder in support mode.
 		_sortKeyInChatList = 0;
 	}
+	refreshChatListSortPositionFromTdb(
+		filterId,
+		tdbOrderInChatList(filterId));
 	updateChatListSortPosition();
 	updateChatListEntry();
 	if ((was != 0) != (now != 0)) {
@@ -225,21 +228,61 @@ void Entry::updateChatListSortPosition(
 		FilterId filterId,
 		uint64 order,
 		bool pinned) {
+	const auto pinnedUnchanged = [&] {
+		return (pinned == isPinnedDialog(filterId));
+	};
+	if (filterId) {
+		const auto i = _tdbOrderInFilterMap.find(filterId);
+		const auto unchanged = order
+			? (i != end(_tdbOrderInFilterMap) && i->second == order)
+			: (i == end(_tdbOrderInFilterMap));
+		if (unchanged && pinnedUnchanged()) {
+			return;
+		} else if (!order) {
+			_tdbOrderInFilterMap.erase(i);
+		} else if (i != end(_tdbOrderInFilterMap)) {
+			i->second = order;
+		} else {
+			_tdbOrderInFilterMap.emplace(filterId, order);
+		}
+	} else {
+		if (_tdbOrderInChatList == order && pinnedUnchanged()) {
+			return;
+		}
+		_tdbOrderInChatList = order;
+	}
 	if (const auto history = asHistory()) {
+		// Pinned index depends on Tdb order.
 		owner().setChatPinned(history, filterId, pinned);
 	}
+	refreshChatListSortPositionFromTdb(filterId, order);
+}
+
+void Entry::refreshChatListSortPositionFromTdb(
+		FilterId filterId,
+		uint64 order) {
+	const auto index = order ? lookupPinnedIndex(filterId) : 0;
+	const auto sortKey = index ? PinnedDialogPos(index) : order;
 	if (filterId) {
-		if (order != 0) {
-			_sortKeyInFilterMap[filterId] = order;
+		if (order) {
+			_sortKeyInFilterMap[filterId] = sortKey;
 		} else {
 			_sortKeyInFilterMap.remove(filterId);
 		}
 	} else {
-		_sortKeyInChatList = order;
+		_sortKeyInChatList = sortKey;
 	}
 	if (!filterId || order != 0) {
 		setChatListExistence(order != 0);
 	}
+}
+
+uint64 Entry::tdbOrderInChatList(FilterId filterId) const {
+	if (filterId) {
+		const auto i = _tdbOrderInFilterMap.find(filterId);
+		return (i != end(_tdbOrderInFilterMap)) ? i->second : uint64(0);
+	}
+	return _tdbOrderInChatList;
 }
 
 int Entry::lookupPinnedIndex(FilterId filterId) const {

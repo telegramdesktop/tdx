@@ -215,6 +215,7 @@ public:
 	bool needUpdateInChatList() const;
 	[[nodiscard]] virtual TimeId adjustedChatListTimeId() const;
 #endif
+	[[nodiscard]] uint64 tdbOrderInChatList(FilterId filterId) const;
 
 	void updateChatListSortPosition(
 		FilterId filterId,
@@ -289,10 +290,14 @@ private:
 	not_null<Row*> mainChatListLink(FilterId filterId) const;
 	Row *maybeMainChatListLink(FilterId filterId) const;
 
+	void refreshChatListSortPositionFromTdb(FilterId filterId, uint64 order);
+
 	const not_null<Data::Session*> _owner;
 	base::flat_map<FilterId, RowsByLetter> _chatListLinks;
 	uint64 _sortKeyInChatList = 0;
 	base::flat_map<FilterId, uint64> _sortKeyInFilterMap;
+	uint64 _tdbOrderInChatList = 0;
+	base::flat_map<FilterId, uint64> _tdbOrderInFilterMap;
 #if 0 // mtp
 	uint64 _sortKeyByDate = 0;
 #endif
