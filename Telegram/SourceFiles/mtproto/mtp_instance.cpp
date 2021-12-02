@@ -505,6 +505,7 @@ rpl::producer<DcId> Instance::Private::mainDcIdValue() const {
 }
 
 void Instance::Private::requestConfig() {
+#if 0 // mtp - don't pollute logs
 	if (_configLoader || isKeysDestroyer()) {
 		return;
 	}
@@ -517,6 +518,7 @@ void Instance::Private::requestConfig() {
 		},
 		_proxySettings.isEnabled());
 	_configLoader->load();
+#endif
 }
 
 void Instance::Private::setUserPhone(const QString &phone) {
