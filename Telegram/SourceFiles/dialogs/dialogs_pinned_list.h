@@ -24,21 +24,26 @@ public:
 
 	void setLimit(int limit);
 
+#if 0 // mtp
 	// Places on the last place in the list otherwise.
 	// Does nothing if already pinned.
 	void addPinned(Key key);
+#endif
 
 	// if (pinned) places on the first place in the list.
 	void setPinned(Key key, bool pinned);
 
 	void clear();
 
+#if 0 // mtp
 	void applyList(
 		not_null<Data::Session*> owner,
 		const QVector<MTPDialogPeer> &list);
 	void applyList(
 		not_null<Data::Forum*> forum,
 		const QVector<MTPint> &list);
+#endif
+
 	void applyList(const std::vector<not_null<History*>> &list);
 	void reorder(Key key1, Key key2);
 
@@ -47,7 +52,9 @@ public:
 	}
 
 private:
+#if 0 // mtp
 	int addPinnedGetPosition(Key key);
+#endif
 	void applyLimit(int limit);
 
 	FilterId _filterId = 0;
