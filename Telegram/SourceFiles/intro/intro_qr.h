@@ -49,6 +49,7 @@ private:
 	void handleTokenResult(const MTPauth_LoginToken &result);
 #endif
 	void showTokenError(const Tdb::Error &error);
+	void sendRequestCode();
 #if 0 // mtp
 	void importTo(MTP::DcId dcId, const QByteArray &token);
 #endif
@@ -62,9 +63,9 @@ private:
 	rpl::event_stream<QString> _qrLinks;
 #if 0 // mtp
 	base::Timer _refreshTimer;
+#endif
 	Tdb::RequestId _requestId = 0;
 	bool _forceRefresh = false;
-#endif
 };
 
 [[nodiscard]] QImage TelegramLogoImage();
