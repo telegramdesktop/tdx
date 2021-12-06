@@ -2129,7 +2129,8 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 			} else if (isUnread) {
 				readTill = item;
 			}
-			if (markingAsViewed && item->hasViews()) {
+			// Always inform TDLib about messages being viewed.
+			if (markingAsViewed && item->isRegular()) {
 				session->api().views().scheduleIncrement(item);
 			}
 			if (withReaction) {
