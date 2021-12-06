@@ -758,6 +758,12 @@ void Updates::sendPing() {
 }
 #endif
 
+bool Updates::isActiveChat(not_null<PeerData*> peer) const {
+	return ranges::find_if(_activeChats, [&](const auto &entry) {
+		return (entry.second.peer == peer);
+	}) != end(_activeChats);
+}
+
 void Updates::addActiveChat(rpl::producer<PeerData*> chat) {
 	const auto key = _activeChats.empty() ? 0 : _activeChats.back().first + 1;
 	std::move(
@@ -766,12 +772,23 @@ void Updates::addActiveChat(rpl::producer<PeerData*> chat) {
 		auto &active = _activeChats[key];
 		const auto was = active.peer;
 		if (was != peer) {
+			const auto already = peer && inActiveChats(peer);
 			active.peer = peer;
-#if 0 // todo
+			if (was && !inActiveChats(was)) {
+				_session->sender().request(TLcloseChat(
+					peerToTdbChat(was->id)
+				)).send();
+			}
+			if (peer && !already) {
+				_session->sender().request(TLopenChat(
+					peerToTdbChat(peer->id)
+				)).send();
+			}
+#if 0 // mtp
 			if (const auto channel = was ? was->asChannel() : nullptr) {
 				if (!inActiveChats(channel)) {
 					channel->ptsSetWaitingForShortPoll(-1);
-				}
+ 				}
 			}
 			if (const auto channel = peer ? peer->asChannel() : nullptr) {
 				channel->ptsSetWaitingForShortPoll(
@@ -780,7 +797,21 @@ void Updates::addActiveChat(rpl::producer<PeerData*> chat) {
 #endif
 		}
 	}, [=] {
+#if 0 // mtp
 		_activeChats.erase(key);
+#endif
+		const auto i = _activeChats.find(key);
+		if (i == end(_activeChats)) {
+			return;
+		}
+		const auto peer = i->second.peer;
+		_activeChats.erase(i);
+		if (!peer || isActiveChat(peer)) {
+			return;
+		}
+		_session->sender().request(TLcloseChat(
+			peerToTdbChat(peer->id)
+		)).send();
 	}, _activeChats[key].lifetime);
 }
 
