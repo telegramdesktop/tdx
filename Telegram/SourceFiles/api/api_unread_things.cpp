@@ -17,8 +17,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_unread_things.h"
 #include "apiwrap.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Api {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kPreloadIfLess = 5;
 constexpr auto kFirstRequestLimit = 10;
@@ -101,6 +105,23 @@ void UnreadThings::requestMentions(
 		MsgId(1));
 	const auto limit = loaded ? kNextRequestLimit : kFirstRequestLimit;
 	const auto addOffset = loaded ? -(limit + 1) : -limit;
+
+	const auto requestId = _api->sender().request(TLsearchChatMessages(
+		peerToTdbChat(history->peer->id),
+		tl_string(),
+		std::nullopt,
+		tl_int53(offsetId.bare),
+		tl_int32(addOffset + 2), // TDLib requires -offset < limit.
+		tl_int32(limit),
+		tl_searchMessagesFilterUnreadMention(),
+		tl_int53(0) // message_thread_id
+	)).done([=](const TLDmessages &result) {
+		_mentionsRequests.remove(history);
+		history->unreadMentions().addSlice(result, loaded);
+	}).fail([=] {
+		_mentionsRequests.remove(history);
+	}).send();
+#if 0 // mtp
 	const auto maxId = 0;
 	const auto minId = 0;
 	const auto history = thread->owningHistory();
@@ -121,6 +142,7 @@ void UnreadThings::requestMentions(
 	}).fail([=] {
 		_mentionsRequests.remove(thread);
 	}).send();
+#endif
 	_mentionsRequests.emplace(thread, requestId);
 }
 
@@ -139,6 +161,7 @@ void UnreadThings::requestReactions(
 	const auto minId = 0;
 	const auto history = thread->owningHistory();
 	const auto topic = thread->asTopic();
+#if 0 // todo
 	using Flag = MTPmessages_GetUnreadReactions::Flag;
 	const auto requestId = _api->request(MTPmessages_GetUnreadReactions(
 		MTP_flags(topic ? Flag::f_top_msg_id : Flag()),
@@ -156,6 +179,7 @@ void UnreadThings::requestReactions(
 		_reactionsRequests.remove(thread);
 	}).send();
 	_reactionsRequests.emplace(thread, requestId);
+#endif
 }
 
 } // namespace UnreadThings
