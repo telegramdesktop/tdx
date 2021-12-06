@@ -23,7 +23,7 @@ namespace {
 using namespace Tdb;
 
 // Send channel views each second.
-constexpr auto kSendViewsTimeout = crl::time(1000);
+constexpr auto kSendViewsTimeout = crl::time(100);
 constexpr auto kPollExtendedMediaPeriod = 30 * crl::time(1000);
 constexpr auto kMaxPollPerRequest = 100;
 

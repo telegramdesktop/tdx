@@ -7,6 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Tdb {
+class TLDmessages;
+class TLDupdateMessageMentionRead;
+} // namespace Tdb
+
 class History;
 
 namespace Data {
@@ -130,7 +135,11 @@ public:
 	void erase(MsgId msgId);
 	void clear();
 
+#if 0 // mtp
 	void addSlice(const MTPmessages_Messages &slice, int alreadyLoaded);
+#endif
+	void addSlice(const Tdb::TLDmessages &result, int alreadyLoaded);
+	void markAsRead(const Tdb::TLDupdateMessageMentionRead &update);
 
 	void checkAdd(MsgId msgId, bool resolved = false);
 

@@ -102,7 +102,9 @@ MessageFlags FlagsFromTdb(const TLDmessage &data) {
 		| (int(sendingOrFailedFlag) ? Flag::Local : Flag())
 		| (data.vscheduling_state() ? Flag() : Flag::HistoryEntry)
 		| (data.vis_outgoing().v ? Flag::Outgoing : Flag())
-		| (data.vcontains_unread_mention().v ? Flag::MentionsMe : Flag())
+		| (data.vcontains_unread_mention().v
+			? (Flag::MentionsMe | Flag::MediaIsUnread)
+			: Flag())
 		| (mediaUnread ? Flag::MediaIsUnread : Flag())
 		//| ((flags & MTP::f_silent) ? Flag::Silent : Flag()) // todo
 		| (data.vis_channel_post().v ? Flag::Post : Flag())
