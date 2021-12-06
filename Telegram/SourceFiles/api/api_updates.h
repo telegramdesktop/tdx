@@ -104,6 +104,7 @@ private:
 		MsgRange range,
 		const MTPupdates_ChannelDifference &result);
 #endif
+	bool isActiveChat(not_null<PeerData*> peer) const;
 
 	void updateOnline(crl::time lastNonIdleTime, bool gotOtherOffline);
 
