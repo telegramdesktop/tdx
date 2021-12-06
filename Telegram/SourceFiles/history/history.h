@@ -19,6 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Tdb {
 class TLDchatPosition;
 class TLmessage;
+class TLDmessages;
+class TLDupdateMessageMentionRead;
 } // namespace Tdb
 
 class History;

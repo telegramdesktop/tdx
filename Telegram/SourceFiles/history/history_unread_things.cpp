@@ -17,8 +17,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "apiwrap.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace HistoryUnreadThings {
 namespace {
+
+using namespace Tdb;
 
 template <typename Update>
 [[nodiscard]] typename Update::Flag UpdateFlag(Type type) {
@@ -125,6 +129,7 @@ void Proxy::clear() {
 	notifyUpdated();
 }
 
+#if 0 // mtp
 void Proxy::addSlice(const MTPmessages_Messages &slice, int alreadyLoaded) {
 	if (!alreadyLoaded && _data) {
 		resolveList().clear();
@@ -191,6 +196,61 @@ void Proxy::addSlice(const MTPmessages_Messages &slice, int alreadyLoaded) {
 	}
 	setCount(fullCount);
 	notifyUpdated();
+}
+#endif
+
+void Proxy::addSlice(const TLDmessages &result, int alreadyLoaded) {
+	if (!alreadyLoaded && _data) {
+		resolveList().clear();
+	}
+	auto fullCount = result.vtotal_count().v;
+
+	if (!result.vmessages().v.isEmpty() && !_data) {
+		createData();
+	}
+	auto added = false;
+	const auto list = _data ? &resolveList() : nullptr;
+	for (const auto &message : result.vmessages().v) {
+		if (message) {
+			const auto item = _history->addMessage(*message);
+			const auto is = [&] {
+				switch (_type) {
+				case Type::Mentions: return item->isUnreadMention();
+				case Type::Reactions: return item->hasUnreadReaction();
+				}
+				Unexpected("Type in Proxy::addSlice.");
+			}();
+			if (is) {
+				list->insert(item->id);
+				added = true;
+			}
+		}
+	}
+	if (!added) {
+		fullCount = loadedCount();
+	}
+	setCount(fullCount);
+	_history->session().changes().historyUpdated(
+		_history,
+		UpdateFlag(_type));
+}
+
+void Proxy::markAsRead(const TLDupdateMessageMentionRead &update) {
+	const auto fullCount = update.vunread_mention_count().v;
+	const auto removed = _data && resolveList().contains(
+		update.vmessage_id().v);
+	if (removed) {
+		resolveList().erase(update.vmessage_id().v);
+	}
+	const auto changed = (count(-1) != fullCount);
+	if (changed) {
+		setCount(fullCount);
+	}
+	if (changed || removed) {
+		_history->session().changes().historyUpdated(
+			_history,
+			UpdateFlag(_type));
+	}
 }
 
 void Proxy::checkAdd(MsgId msgId, bool resolved) {

@@ -2757,6 +2757,11 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateMessageInteractionInfo &data) {
 	}, [&](const TLDupdateMessageContentOpened &data) {
 	}, [&](const TLDupdateMessageMentionRead &data) {
+		const auto history = owner.historyLoaded(
+			peerFromTdbChat(data.vchat_id()));
+		if (history) {
+			history->unreadMentions().markAsRead(data);
+		}
 	}, [&](const TLDupdateMessageLiveLocationViewed &data) {
 	}, [&](const TLDupdateActiveLiveLocationMessages &data) {
 		for (const auto &message : data.vmessages().v) {
