@@ -1149,7 +1149,8 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			if (markingAsViewed && item->hasUnwatchedEffect()) {
 				startEffects.emplace(view);
 			}
-			if (markingAsViewed && item->hasViews()) {
+			// Always inform TDLib about messages being viewed.
+			if (markingAsViewed && item->isRegular()) {
 				session().api().views().scheduleIncrement(item);
 			}
 			if (withReaction) {
