@@ -1204,6 +1204,7 @@ bool HistoryItem::isIncomingUnreadMedia() const {
 void HistoryItem::markMediaAndMentionRead() {
 	_flags &= ~MessageFlag::MediaIsUnread;
 
+#if 0 // mtp
 	if (mentionsMe()) {
 		_history->updateChatListEntry();
 		_history->unreadMentions().erase(id);
@@ -1225,6 +1226,7 @@ void HistoryItem::markMediaAndMentionRead() {
 			}
 		}
 	}
+#endif
 }
 
 void HistoryItem::markReactionsRead() {
