@@ -58,6 +58,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtWidgets/QApplication>
 
+using namespace Tdb;
+
 namespace SendMenu {
 namespace {
 
@@ -886,7 +888,10 @@ void SetupUnreadMentionsMenu(
 		const auto peer = thread->peer();
 		const auto topic = thread->asTopic();
 		const auto rootId = topic ? topic->rootId() : 0;
-#if 0 // todo
+		peer->session().sender().request(TLreadAllChatMentions( // todo topics
+			peerToTdbChat(peer->id)
+		)).done(done).fail(done).send();
+#if 0 // mtp
 		using Flag = MTPmessages_ReadMentions::Flag;
 		peer->session().api().request(MTPmessages_ReadMentions(
 			MTP_flags(rootId ? Flag::f_top_msg_id : Flag()),
