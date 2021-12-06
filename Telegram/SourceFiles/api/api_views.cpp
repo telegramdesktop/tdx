@@ -15,8 +15,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "main/main_session.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Api {
 namespace {
+
+using namespace Tdb;
 
 // Send channel views each second.
 constexpr auto kSendViewsTimeout = crl::time(1000);
@@ -27,7 +31,9 @@ constexpr auto kMaxPollPerRequest = 100;
 
 ViewsManager::ViewsManager(not_null<ApiWrap*> api)
 : _session(&api->session())
+#if 0 // mtp
 , _api(&api->instance())
+#endif
 , _incrementTimer([=] { viewsIncrement(); })
 , _pollTimer([=] { sendPollRequests(); }) {
 }
@@ -89,6 +95,26 @@ void ViewsManager::viewsIncrement() {
 			continue;
 		}
 
+		const auto peer = i->first;
+		const auto finish = [=] {
+			_incrementRequests.erase(peer);
+			if (!_toIncrement.empty() && !_incrementTimer.isActive()) {
+				_incrementTimer.callOnce(kSendViewsTimeout);
+			}
+		};
+		auto ids = ranges::views::all(
+			i->second
+		) | ranges::views::transform([](MsgId id) {
+			return tl_int53(id.bare);
+		}) | ranges::to<QVector>();
+		const auto requestId = _session->sender().request(TLviewMessages(
+			peerToTdbChat(peer->id),
+			tl_int53(0), // message_thread_id
+			tl_vector<TLint53>(std::move(ids)),
+			tl_bool(false)
+		)).done(finish).fail(finish).send();
+
+#if 0 // mtp
 		QVector<MTPint> ids;
 		ids.reserve(i->second.size());
 		for (const auto &msgId : i->second) {
@@ -105,6 +131,7 @@ void ViewsManager::viewsIncrement() {
 		}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
 			fail(error, requestId);
 		}).afterDelay(5).send();
+#endif
 
 		_incrementRequests.emplace(i->first, requestId);
 		i = _toIncrement.erase(i);
@@ -196,6 +223,7 @@ void ViewsManager::sendPollRequests(
 	}
 }
 
+#if 0 // mtp
 void ViewsManager::done(
 		QVector<MTPint> ids,
 		const MTPmessages_MessageViews &result,
@@ -248,5 +276,6 @@ void ViewsManager::fail(const MTP::Error &error, mtpRequestId requestId) {
 		_incrementTimer.callOnce(kSendViewsTimeout);
 	}
 }
+#endif
 
 } // namespace Api
