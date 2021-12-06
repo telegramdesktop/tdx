@@ -615,7 +615,31 @@ void Histories::sendReadRequest(not_null<History*> history, State &state) {
 	state.sentReadDone = false;
 	DEBUG_LOG(("Reading: sending request now with till %1."
 		).arg(tillId.bare));
-#if 0 // todo
+
+	const auto finished = [=] {
+		const auto state = lookup(history);
+		Assert(state != nullptr);
+
+		if (state->sentReadTill == tillId) {
+			state->sentReadDone = true;
+			if (history->unreadCountRefreshNeeded(tillId)) {
+				requestDialogEntry(history);
+			} else {
+				state->sentReadTill = 0;
+			}
+		} else {
+			Assert(!state->sentReadTill || state->sentReadTill > tillId);
+		}
+		sendReadRequests();
+	};
+	session().sender().request(TLviewMessages(
+		peerToTdbChat(history->peer->id),
+		tl_int53(0), // message_thread_id
+		tl_vector<TLint53>(1, tl_int53(tillId.bare)),
+		tl_bool(true)
+	)).done(finished).fail(finished).send();
+
+#if 0 // mtp
 	sendRequest(history, RequestType::ReadInbox, [=](Fn<void()> finish) {
 		DEBUG_LOG(("Reading: sending request invoked with till %1."
 			).arg(tillId.bare));
