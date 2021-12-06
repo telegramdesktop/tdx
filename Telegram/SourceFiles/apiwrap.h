@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_stickers_set.h"
 #include "data/data_messages.h"
 #include "tdb/tdb_sender.h"
-#include "tdb/tdb_resolve_chats.h"
 
 class TaskQueue;
 struct MessageGroupId;
