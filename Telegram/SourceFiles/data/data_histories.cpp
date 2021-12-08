@@ -857,6 +857,7 @@ void Histories::deleteMessagesByDates(
 		TimeId minDate,
 		TimeId maxDate,
 		bool revoke) {
+#if 0 // todo
 	sendRequest(history, RequestType::Delete, [=](Fn<void()> finish) {
 		const auto peer = history->peer;
 		using Flag = MTPmessages_DeleteHistory::Flag;
@@ -881,6 +882,7 @@ void Histories::deleteMessagesByDates(
 		}).fail(finish).send();
 	});
 	history->destroyMessagesByDates(minDate, maxDate);
+#endif
 }
 
 void Histories::deleteMessages(const MessageIdsList &ids, bool revoke) {
