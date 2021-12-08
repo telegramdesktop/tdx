@@ -334,6 +334,9 @@ void Widget::fillCodeInfo(const TLauthenticationCodeInfo &info) {
 				const TLDauthenticationCodeTypeFlashCall &) {
 			LOG(("Tdb Error: authenticationCodeTypeFlashCall."));
 			return 0;
+		}, [](const Tdb::TLDauthenticationCodeTypeMissedCall &data) {
+			LOG(("Tdb Error: authenticationCodeTypeMissedCall."));
+			return 0;
 		}, [&](const auto &data) {
 			return data.vlength().v;
 		});

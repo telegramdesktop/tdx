@@ -14,9 +14,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "main/main_session.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Api {
 namespace {
 
+using namespace Tdb;
+
+constexpr auto TestApiId = 17349;
+constexpr auto SnapApiId = 611335;
+constexpr auto DesktopApiId = 2040;
+
+#if 0 // mtp
 [[nodiscard]] Websites::Entry ParseEntry(
 		not_null<Data::Session*> owner,
 		const MTPDwebAuthorization &data) {
@@ -35,6 +44,26 @@ namespace {
 	result.active = Authorizations::ActiveDateString(result.activeTime);
 	return result;
 }
+#endif
+[[nodiscard]] Websites::Entry ParseEntry(
+		not_null<Data::Session*> owner,
+		const TLDconnectedWebsite &data) {
+	auto result = Websites::Entry{
+		.hash = data.vid().v,
+		.bot = owner->user(data.vbot_user_id()),
+		.platform = data.vplatform().v,
+		.domain = data.vdomain_name().v,
+		.browser = data.vbrowser().v,
+		.ip = data.vip_address().v,
+		.location = data.vlocation().v,
+	};
+	result.activeTime = data.vlast_active_date().v
+		? data.vlast_active_date().v
+		: data.vlog_in_date().v;
+	result.active = Authorizations::ActiveDateString(result.activeTime);
+	return result;
+}
+
 
 } // namespace
 
@@ -48,6 +77,7 @@ void Websites::reload() {
 		return;
 	}
 
+#if 0 // mtp
 	_requestId = _api.request(MTPaccount_GetWebAuthorizations(
 	)).done([=](const MTPaccount_WebAuthorizations &result) {
 		_requestId = 0;
@@ -64,12 +94,32 @@ void Websites::reload() {
 	}).fail([=] {
 		_requestId = 0;
 	}).send();
+#endif
+
+	using namespace Tdb;
+	_requestId = _api.request(TLgetConnectedWebsites(
+	)).done([=](const TLDconnectedWebsites &data) {
+		_requestId = 0;
+		_lastReceived = crl::now();
+		const auto owner = &_session->data();
+		_list = ranges::views::all(
+			data.vwebsites().v
+		) | ranges::views::transform([&](const TLconnectedWebsite &auth) {
+			return ParseEntry(owner, auth.data());
+		}) | ranges::to<List>;
+		_listChanges.fire({});
+	}).fail([=](const Error &error) {
+		_requestId = 0;
+	}).send();
 }
 
 void Websites::cancelCurrentRequest() {
+#if 0 // mtp
 	_api.request(base::take(_requestId)).cancel();
+#endif
 }
 
+#if 0 // mtp
 void Websites::requestTerminate(
 		Fn<void(const MTPBool &result)> &&done,
 		Fn<void(const MTP::Error &error)> &&fail,
@@ -99,6 +149,39 @@ void Websites::requestTerminate(
 		}
 	} else {
 		send(MTPaccount_ResetWebAuthorizations());
+	}
+}
+#endif
+
+void Websites::requestTerminate(
+		Fn<void()> &&done,
+		Fn<void()> &&fail,
+		std::optional<uint64> hash,
+		UserData *botToBlock) {
+	const auto send = [&](auto request) {
+		_api.request(
+			std::move(request)
+		).done([=, done = std::move(done)] {
+			done();
+			if (hash) {
+				_list.erase(
+					ranges::remove(_list, *hash, &Entry::hash),
+					end(_list));
+			} else {
+				_list.clear();
+			}
+			_listChanges.fire({});
+		}).fail(
+			std::move(fail)
+		).send();
+	};
+	if (hash) {
+		send(TLdisconnectWebsite(tl_int64(*hash)));
+		if (botToBlock) {
+			botToBlock->session().api().blockedPeers().block(botToBlock);
+		}
+	} else {
+		send(TLdisconnectAllWebsites());
 	}
 }
 

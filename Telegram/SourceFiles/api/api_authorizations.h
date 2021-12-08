@@ -38,8 +38,8 @@ public:
 		Fn<void(const MTPBool &result)> &&done,
 		Fn<void(const MTP::Error &error)> &&fail,
 #endif
-		Fn<void(const Tdb::TLok &result)> &&done,
-		Fn<void(const Tdb::Error &error)> &&fail,
+		Fn<void()> &&done,
+		Fn<void()> &&fail,
 		std::optional<uint64> hash = std::nullopt);
 
 	[[nodiscard]] crl::time lastReceivedTime();

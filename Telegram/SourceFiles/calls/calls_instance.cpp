@@ -666,8 +666,6 @@ void Instance::handleCallUpdate(
 				Tdb::tl_bool(isVideo),
 				Tdb::tl_int64(0) // doLater busy.
 			)).send();
-		} else if (Core::App().settings().disableCalls()) {
-			LOG(("Ignoring call because of 'accept calls' settings."));
 		} else {
 			createCall(user, Call::Type::Incoming, id, isVideo);
 		}
