@@ -112,24 +112,18 @@ Authorizations::Entry ParseEntry(const Tdb::TLDsession &data) {
 		return version;
 	}();
 
-	result.name = QString("%1%2").arg(
-		appName,
-		appVer.isEmpty() ? QString() : (' ' + appVer));
-
-	const auto country = data.vcountry().v;
-	const auto platform = data.vplatform().v;
-
+	result.name = result.hash
+		? data.vdevice_model().v
+		: Core::App().settings().deviceModel();
+	result.system = data.vsystem_version().v;
+	result.platform = data.vplatform().v;
 	result.activeTime = data.vlast_active_date().v
 		? data.vlast_active_date().v
 		: data.vlog_in_date().v;
-	result.info = QString("%1, %2%3").arg(
-		data.vdevice_model().v,
-		platform.isEmpty() ? QString() : platform + ' ',
-		data.vsystem_version().v);
-	result.ip = data.vip().v
-		+ (country.isEmpty()
-			? QString()
-			: QString::fromUtf8(" \xe2\x80\x93 ") + country);
+	result.info = QString("%1%2").arg(
+		appName,
+		appVer.isEmpty() ? QString() : (' ' + appVer));
+	result.ip = data.vip_address().v;
 	if (!result.hash) {
 		result.active = tr::lng_status_online(tr::now);
 	} else {
@@ -143,9 +137,10 @@ Authorizations::Entry ParseEntry(const Tdb::TLDsession &data) {
 			&& lastDate.weekNumber() == nowDate.weekNumber()) {
 			result.active = langDayOfWeek(lastDate);
 		} else {
-			result.active = lastDate.toString(qsl("d.MM.yy"));
+			result.active = lastDate.toString(cDateFormat());
 		}
 	}
+	result.location = data.vlocation().v;
 
 	return result;
 }
@@ -202,6 +197,7 @@ void Authorizations::reload() {
 	)).done([=](const TLDsessions &data) {
 		_requestId = 0;
 		_lastReceived = crl::now();
+		_ttlDays = data.vinactive_session_ttl_days().v;
 		_list = (
 			data.vsessions().v
 		) | ranges::views::transform([](const TLsession &d) {
