@@ -2755,6 +2755,11 @@ void Updates::applyUpdate(const TLupdate &update) {
 			data.vedit_date().v,
 			HistoryMessageMarkupData(data.vreply_markup()));
 	}, [&](const TLDupdateMessageIsPinned &data) {
+		const auto peerId = peerFromTdbChat(data.vchat_id());
+		const auto id = data.vmessage_id().v;
+		if (const auto item = owner.message(peerId, id)) {
+			item->setIsPinned(data.vis_pinned().v);
+		}
 	}, [&](const TLDupdateMessageInteractionInfo &data) {
 	}, [&](const TLDupdateMessageContentOpened &data) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
