@@ -2756,6 +2756,12 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateMessageIsPinned &data) {
 	}, [&](const TLDupdateMessageInteractionInfo &data) {
 	}, [&](const TLDupdateMessageContentOpened &data) {
+		const auto peerId = peerFromTdbChat(data.vchat_id());
+		const auto id = data.vmessage_id().v;
+		if (const auto item = owner.message(peerId, id)) {
+			item->markMediaAndMentionRead();
+			_session->data().requestItemRepaint(item);
+		}
 	}, [&](const TLDupdateMessageMentionRead &data) {
 		const auto history = owner.historyLoaded(
 			peerFromTdbChat(data.vchat_id()));
