@@ -1241,6 +1241,8 @@ not_null<PeerData*> Session::processPeer(const TLchat &dialog) {
 
 	if (const auto user = result->asUser()) {
 	} else if (const auto chat = result->asChat()) {
+		using Flag = ChatDataFlag;
+
 		const auto canAddMembers = chat->canAddMembers();
 
 		chat->setName(data.vtitle().v);
@@ -1251,22 +1253,29 @@ not_null<PeerData*> Session::processPeer(const TLchat &dialog) {
 		}
 		chat->setDefaultRestrictions(
 			RestrictionsFromPermissions(data.vpermissions()));
+
+		const auto &videoChat = data.vvideo_chat().data();
 		{
-			const auto &videoChat = data.vvideo_chat().data();
 			const auto tlAs = videoChat.vdefault_participant_id();
 			const auto as = tlAs ? peerFromSender(*tlAs) : PeerId(0);
 			chat->setGroupCall(videoChat.vgroup_call_id().v);
 			chat->setGroupCallDefaultJoinAs(as);
-			chat->setFlags(chat->flags() // todo ?
-				| (videoChat.vhas_participants().v
-					? ChatDataFlag::CallNotEmpty
-					: ChatDataFlag(0)));
 		}
+		const auto setFlags = Flag::CallNotEmpty | Flag::NoForwards;
+		chat->setFlags((chat->flags() & ~setFlags) // todo ?
+			| (videoChat.vhas_participants().v
+				? Flag::CallNotEmpty
+				: Flag())
+			| (data.vhas_protected_content().v
+				? Flag::NoForwards
+				: Flag()));
 
 		if (canAddMembers != chat->canAddMembers()) {
 			updates |= UpdateFlag::Rights;
 		}
 	} else if (const auto channel = result->asChannel()) {
+		using Flag = ChannelDataFlag;
+
 		const auto wasInChannel = channel->amIn();
 		const auto canViewAdmins = channel->canViewAdmins();
 		const auto canViewMembers = channel->canViewMembers();
@@ -1290,17 +1299,21 @@ not_null<PeerData*> Session::processPeer(const TLchat &dialog) {
 			|| canAddMembers != channel->canAddMembers()) {
 			updates |= UpdateFlag::Rights;
 		}
+		const auto &videoChat = data.vvideo_chat().data();
 		{
-			const auto &videoChat = data.vvideo_chat().data();
 			const auto tlAs = videoChat.vdefault_participant_id();
 			const auto as = tlAs ? peerFromSender(*tlAs) : PeerId(0);
 			channel->setGroupCall(videoChat.vgroup_call_id().v);
 			channel->setGroupCallDefaultJoinAs(as);
-			channel->setFlags(channel->flags() // todo ?
-				| (videoChat.vhas_participants().v
-					? ChannelDataFlag::CallNotEmpty
-					: ChannelDataFlag(0)));
 		}
+		const auto setFlags = Flag::CallNotEmpty | Flag::NoForwards;
+		channel->setFlags((channel->flags() & ~setFlags) // todo ?
+			| (videoChat.vhas_participants().v
+				? Flag::CallNotEmpty
+				: Flag())
+			| (data.vhas_protected_content().v
+				? Flag::NoForwards
+				: Flag()));
 	}
 	if (!result->isFullLoaded()) {
 		result->setLoadedStatus(PeerData::LoadedStatus::Full);
