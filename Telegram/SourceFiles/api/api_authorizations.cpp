@@ -17,6 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Api {
 namespace {
 
+using namespace Tdb;
+
 constexpr auto TestApiId = 17349;
 constexpr auto SnapApiId = 611335;
 constexpr auto DesktopApiId = 2040;
@@ -259,14 +261,14 @@ void Authorizations::requestTerminate(
 #endif
 
 void Authorizations::requestTerminate(
-		Fn<void(const Tdb::TLok &result)> &&done,
-		Fn<void(const Tdb::Error &error)> &&fail,
+		Fn<void()> &&done,
+		Fn<void()> &&fail,
 		std::optional<uint64> hash) {
 	const auto send = [&](auto request) {
 		_api.request(
 			std::move(request)
-		).done([=, done = std::move(done)](const Tdb::TLok &result) {
-			done(result);
+		).done([=, done = std::move(done)] {
+			done();
 			if (hash) {
 				_list.erase(
 					ranges::remove(_list, *hash, &Entry::hash),
@@ -309,8 +311,12 @@ rpl::producer<int> Authorizations::totalValue() const {
 
 void Authorizations::updateTTL(int days) {
 	_api.request(_ttlRequestId).cancel();
+#if 0 // mtp
 	_ttlRequestId = _api.request(MTPaccount_SetAuthorizationTTL(
 		MTP_int(days)
+#endif
+	_ttlRequestId = _api.request(TLsetInactiveSessionTtl(
+		tl_int32(days)
 	)).done([=] {
 		_ttlRequestId = 0;
 	}).fail([=] {
@@ -327,12 +333,17 @@ void Authorizations::toggleCallsDisabled(uint64 hash, bool disabled) {
 	if (const auto sent = _toggleCallsDisabledRequests.take(hash)) {
 		_api.request(*sent).cancel();
 	}
+#if 0 // mtp
 	using Flag = MTPaccount_ChangeAuthorizationSettings::Flag;
 	const auto id = _api.request(MTPaccount_ChangeAuthorizationSettings(
 		MTP_flags(Flag::f_call_requests_disabled),
 		MTP_long(hash),
 		MTPBool(), // encrypted_requests_disabled
 		MTP_bool(disabled)
+#endif
+	const auto id = _api.request(TLtoggleSessionCanAcceptCalls(
+		tl_int64(hash),
+		tl_bool(!disabled)
 	)).done([=] {
 		_toggleCallsDisabledRequests.remove(hash);
 	}).fail([=] {
