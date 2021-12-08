@@ -2778,6 +2778,19 @@ void Updates::applyUpdate(const TLupdate &update) {
 		owner.applyDialogPosition(data);
 	}, [&](const TLDupdateChatDefaultMessageSenderId &data) {
 	}, [&](const TLDupdateChatHasProtectedContent &data) {
+		const auto peerId = peerFromTdbChat(data.vchat_id());
+		if (const auto peer = owner.peerLoaded(peerId)) {
+			const auto noforwards = data.vhas_protected_content().v;
+			if (const auto chat = peer->asChat()) {
+				using Flag = ChatDataFlag;
+				chat->setFlags((chat->flags() & ~Flag::NoForwards)
+					| (noforwards ? Flag::NoForwards : Flag()));
+			} else if (const auto channel = peer->asChannel()) {
+				using Flag = ChannelDataFlag;
+				channel->setFlags((channel->flags() & ~Flag::NoForwards)
+					| (noforwards ? Flag::NoForwards : Flag()));
+			}
+		}
 	}, [&](const TLDupdateChatIsMarkedAsUnread &data) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
 		if (const auto history = owner.historyLoaded(peerId)) {
