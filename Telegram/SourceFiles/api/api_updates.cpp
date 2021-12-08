@@ -2725,6 +2725,8 @@ void Updates::applyUpdate(const TLupdate &update) {
 		owner.applyLastMessage(data);
 	}, [&](const TLDupdateChatPosition &data) {
 		owner.applyDialogPosition(data);
+	}, [&](const TLDupdateChatDefaultMessageSenderId &data) {
+	}, [&](const TLDupdateChatHasProtectedContent &data) {
 	}, [&](const TLDupdateChatIsMarkedAsUnread &data) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
 		if (const auto history = owner.historyLoaded(peerId)) {
@@ -2809,7 +2811,7 @@ void Updates::applyUpdate(const TLupdate &update) {
 			}
 			owner.notifyHistoryChangeDelayed(history);
 		}
-	}, [&](const TLDupdateUserChatAction &data) {
+	}, [&](const TLDupdateChatAction &data) {
 	}, [&](const TLDupdateUserStatus &data) {
 	}, [&](const TLDupdateUser &data) {
 		owner.processUser(data.vuser());
