@@ -131,25 +131,24 @@ void CheckForSwitchInlineButton(not_null<HistoryItem*> item) {
 }
 
 [[nodiscard]] ChatRestrictions RestrictionsFromPermissions(
-		const TLchatPermissions & permissions) {
-	return permissions.match([&](const TLDchatPermissions &data) {
-		using Flag = ChatRestriction;
-		const auto bit = [&](const TLbool &check, Flag value) {
-			return check.v ? value : Flag(0);
-		};
-		return Flag(0)
-			| bit(data.vcan_add_web_page_previews(), Flag::EmbedLinks)
-			| bit(data.vcan_change_info(), Flag::ChangeInfo)
-			| bit(data.vcan_invite_users(), Flag::InviteUsers)
-			| bit(data.vcan_pin_messages(), Flag::PinMessages)
-			| bit(data.vcan_send_media_messages(), Flag::SendMedia)
-			| bit(data.vcan_send_messages(), Flag::SendMessages)
-			| bit(data.vcan_send_polls(), Flag::SendPolls)
-			| bit(data.vcan_send_other_messages(), Flag::SendStickers)
-			| bit(data.vcan_send_other_messages(), Flag::SendGames)
-			| bit(data.vcan_send_other_messages(), Flag::SendGifs)
-			| bit(data.vcan_send_other_messages(), Flag::SendInline);
-	});
+		const TLchatPermissions &permissions) {
+	const auto &data = permissions.data();
+	using Flag = ChatRestriction;
+	const auto bit = [&](const TLbool &check, Flag value) {
+		return check.v ? Flag(0) : value;
+	};
+	return Flag(0)
+		| bit(data.vcan_add_web_page_previews(), Flag::EmbedLinks)
+		| bit(data.vcan_change_info(), Flag::ChangeInfo)
+		| bit(data.vcan_invite_users(), Flag::InviteUsers)
+		| bit(data.vcan_pin_messages(), Flag::PinMessages)
+		| bit(data.vcan_send_media_messages(), Flag::SendMedia)
+		| bit(data.vcan_send_messages(), Flag::SendMessages)
+		| bit(data.vcan_send_polls(), Flag::SendPolls)
+		| bit(data.vcan_send_other_messages(), Flag::SendStickers)
+		| bit(data.vcan_send_other_messages(), Flag::SendGames)
+		| bit(data.vcan_send_other_messages(), Flag::SendGifs)
+		| bit(data.vcan_send_other_messages(), Flag::SendInline);
 }
 
 [[nodiscard]] ChatAdminRights AdminRightsFromChatMemberStatus(
@@ -1282,8 +1281,10 @@ not_null<PeerData*> Session::processPeer(const TLchat &dialog) {
 		const auto canViewMembers = channel->canViewMembers();
 		const auto canAddMembers = channel->canAddMembers();
 
-		channel->setDefaultRestrictions(
-			RestrictionsFromPermissions(data.vpermissions()));
+		if (!channel->isBroadcast()) {
+			channel->setDefaultRestrictions(
+				RestrictionsFromPermissions(data.vpermissions()));
+		}
 		channel->setName(data.vtitle().v, channel->username);
 
 		if (const auto photo = data.vphoto()) {
@@ -1345,7 +1346,8 @@ not_null<ChatData*> Session::processChat(const TLbasicGroup &chat) {
 	result->count = data.vmember_count().v;
 	if (const auto migratedTo = data.vupgraded_to_supergroup_id().v) {
 		const auto channel = this->channel(migratedTo);
-		channel->addFlags(ChannelDataFlag::Megagroup);
+		channel->setFlags((channel->flags() & ~ChannelDataFlag::Broadcast)
+			| ChannelDataFlag::Megagroup);
 		ApplyMigration(result, channel);
 	}
 	data.vstatus().match([&](const TLDchatMemberStatusCreator &data) {
@@ -1397,6 +1399,7 @@ not_null<ChannelData*> Session::processChannel(
 	using Flag = ChannelDataFlag;
 	result->date = data.vdate().v;
 	const auto setting = Flag::Megagroup
+		| Flag::Broadcast
 		| Flag::Gigagroup
 		| Flag::Scam
 		| Flag::Fake
@@ -1409,7 +1412,7 @@ not_null<ChannelData*> Session::processChannel(
 		| Flag::Creator
 		| Flag::Forbidden;
 	auto flags = (result->flags() & ~setting)
-		| (!data.vis_channel().v ? Flag::Megagroup : Flag())
+		| (data.vis_channel().v ? Flag::Broadcast : Flag::Megagroup)
 		| (data.vis_broadcast_group().v
 			? Flag::Gigagroup
 			: Flag())
