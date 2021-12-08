@@ -2500,7 +2500,11 @@ void ToggleMessagePinned(
 		const auto session = &peer->session();
 		const auto callback = crl::guard(session, [=](Fn<void()> &&close) {
 			close();
-#if 0 // todo
+			session->sender().request(TLunpinChatMessage(
+				peerToTdbChat(peer->id),
+				tl_int53(itemId.msg.bare)
+			)).send();
+#if 0 // mtp
 			session->api().request(MTPmessages_UpdatePinnedMessage(
 				MTP_flags(MTPmessages_UpdatePinnedMessage::Flag::f_unpin),
 				peer->input,
