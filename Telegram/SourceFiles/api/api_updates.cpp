@@ -2743,17 +2743,18 @@ void Updates::applyUpdate(const TLupdate &update) {
 		owner.processMessage(data.vmessage(), oldMessageId);
 	}, [&](const TLDupdateMessageContent &data) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
-		const auto itemId = MsgId(data.vmessage_id().v);
-		owner.updateMessageContent(
-			{ peerToChannel(peerId), itemId },
-			data.vnew_content());
+		const auto id = data.vmessage_id().v;
+		if (const auto item = owner.message(peerId, id)) {
+			item->updateContent(data.vnew_content());
+		}
 	}, [&](const TLDupdateMessageEdited &data) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
-		const auto itemId = MsgId(data.vmessage_id().v);
-		owner.updateMessageEdited(
-			{ peerToChannel(peerId), itemId },
-			data.vedit_date().v,
-			HistoryMessageMarkupData(data.vreply_markup()));
+		const auto id = data.vmessage_id().v;
+		if (const auto item = owner.message(peerId, id)) {
+			item->updateEditedInfo(
+				data.vedit_date().v,
+				HistoryMessageMarkupData(data.vreply_markup()));
+		}
 	}, [&](const TLDupdateMessageIsPinned &data) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
 		const auto id = data.vmessage_id().v;
@@ -2761,6 +2762,11 @@ void Updates::applyUpdate(const TLupdate &update) {
 			item->setIsPinned(data.vis_pinned().v);
 		}
 	}, [&](const TLDupdateMessageInteractionInfo &data) {
+		const auto peerId = peerFromTdbChat(data.vchat_id());
+		const auto id = data.vmessage_id().v;
+		if (const auto item = owner.message(peerId, id)) {
+			item->updateInteractionInfo(data.vinteraction_info());
+		}
 	}, [&](const TLDupdateMessageContentOpened &data) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
 		const auto id = data.vmessage_id().v;

@@ -3233,23 +3233,6 @@ not_null<HistoryItem*> Session::processMessage(
 	return result;
 }
 
-void Session::updateMessageContent(
-		const FullMsgId &fullId,
-		const TLmessageContent &data) {
-	if (const auto item = message(fullId)) {
-		item->updateContent(data);
-	}
-}
-
-void Session::updateMessageEdited(
-		const FullMsgId &fullId,
-		TimeId editDate,
-		HistoryMessageMarkupData &&markup) {
-	if (const auto item = message(fullId)) {
-		item->updateEditedInfo(editDate, std::move(markup));
-	}
-}
-
 int Session::unreadBadge() const {
 	return computeUnreadBadge(_chatsList.unreadState());
 }
