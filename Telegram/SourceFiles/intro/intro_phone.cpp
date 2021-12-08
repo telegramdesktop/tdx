@@ -215,8 +215,11 @@ void PhoneWidget::submit() {
 		tl_string(phone),
 		tl_phoneNumberAuthenticationSettings(
 			tl_bool(false), // allow_flash_call
+			tl_bool(false), // allow_missed_call
 			tl_bool(false), // is_current_phone_number
-			tl_bool(false)) // allow_sms_retriever_api
+			tl_bool(false), // has_unknown_phone_number
+			tl_bool(false), // allow_sms_retriever_api
+			tl_vector<TLstring>()) // authentication_tokens
 	)).done([=] {
 		_sentRequest = false;
 		go(StepType::Code);

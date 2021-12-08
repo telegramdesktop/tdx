@@ -882,25 +882,20 @@ void SessionsContent::terminateOne(uint64 hash) {
 void SessionsContent::terminateOne(uint64 hash) {
 	const auto weak = Ui::MakeWeak(this);
 	auto callback = [=] {
-		auto done = crl::guard(weak, [=](const Tdb::TLok &result) {
-			_inner->terminatingOne(hash, false);
-			const auto removeByHash = [&](std::vector<Entry> &list) {
+		auto done = crl::guard(weak, [=] {
+			const auto removeByHash = [&](std::vector<EntryData> &list) {
 				list.erase(
-					ranges::remove(list, hash, &Entry::hash),
+					ranges::remove(
+						list,
+						hash,
+						[](const EntryData &entry) { return entry.hash; }),
 					end(list));
 			};
 			removeByHash(_data.incomplete);
 			removeByHash(_data.list);
 			_inner->showData(_data);
 		});
-		auto fail = crl::guard(weak, [=](const Tdb::Error &error) {
-			_inner->terminatingOne(hash, false);
-		});
-		_authorizations->requestTerminate(
-			std::move(done),
-			std::move(fail),
-			hash);
-		_inner->terminatingOne(hash, true);
+		_authorizations->requestTerminate(std::move(done), [] {}, hash);
 	};
 	terminate(std::move(callback), tr::lng_settings_reset_one_sure(tr::now));
 }
@@ -917,8 +912,8 @@ void SessionsContent::terminateAll() {
 			[=](const MTPBool &result) { reset(); },
 			[=](const MTP::Error &result) { reset(); });
 #endif
-			[=](const Tdb::TLok &result) { reset(); },
-			[=](const Tdb::Error &result) { reset(); });
+			reset,
+			reset);
 		_loading = true;
 	};
 	terminate(std::move(callback), tr::lng_settings_reset_sure(tr::now));
