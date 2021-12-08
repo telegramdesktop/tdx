@@ -102,6 +102,7 @@ MessageFlags FlagsFromTdb(const TLDmessage &data) {
 		| (int(sendingOrFailedFlag) ? Flag::Local : Flag())
 		| (data.vscheduling_state() ? Flag() : Flag::HistoryEntry)
 		| (data.vis_outgoing().v ? Flag::Outgoing : Flag())
+		| (data.vcan_be_saved().v ? Flag() : Flag::NoForwards)
 		| (data.vcontains_unread_mention().v
 			? (Flag::MentionsMe | Flag::MediaIsUnread)
 			: Flag())
