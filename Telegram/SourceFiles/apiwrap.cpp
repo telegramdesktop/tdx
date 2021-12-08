@@ -1453,22 +1453,42 @@ void ApiWrap::migrateFail(not_null<PeerData*> peer, const QString &error) {
 
 void ApiWrap::markContentsRead(
 		const base::flat_set<not_null<HistoryItem*>> &items) {
-#if 0 // todo
+#if 0 // mtp
 	auto markedIds = QVector<MTPint>();
 	auto channelMarkedIds = base::flat_map<
 		not_null<ChannelData*>,
 		QVector<MTPint>>();
 	markedIds.reserve(items.size());
+#endif
+	auto viewed = base::flat_map<not_null<History*>, QVector<TLint53>>();
 	for (const auto &item : items) {
 		if (!item->markContentsRead(true) || !item->isRegular()) {
 			continue;
+		} else if (item->isUnreadMedia()) {
+			sender().request(TLopenMessageContent(
+				peerToTdbChat(item->history()->peer->id),
+				tl_int53(item->id.bare)
+			)).send();
+		} else {
+			viewed[item->history()].push_back(tl_int53(item->id.bare));
 		}
+#if 0 // mtp
 		if (const auto channel = item->history()->peer->asChannel()) {
 			channelMarkedIds[channel].push_back(MTP_int(item->id));
 		} else {
 			markedIds.push_back(MTP_int(item->id));
 		}
+#endif
 	}
+	for (const auto &[history, ids] : viewed) {
+		sender().request(TLviewMessages(
+			peerToTdbChat(history->peer->id),
+			tl_int53(0), // message_thread_id
+			tl_vector<TLint53>(ids),
+			tl_bool(false)
+		)).send();
+	}
+#if 0 // mtp
 	if (!markedIds.isEmpty()) {
 		request(MTPmessages_ReadMessageContents(
 			MTP_vector<MTPint>(markedIds)
@@ -1488,8 +1508,20 @@ void ApiWrap::markContentsRead(
 void ApiWrap::markContentsRead(not_null<HistoryItem*> item) {
 	if (!item->markContentsRead(true) || !item->isRegular()) {
 		return;
+	} else if (item->isUnreadMedia()) {
+		sender().request(TLopenMessageContent(
+			peerToTdbChat(item->history()->peer->id),
+			tl_int53(item->id.bare)
+		)).send();
+	} else {
+		sender().request(TLviewMessages(
+			peerToTdbChat(item->history()->peer->id),
+			tl_int53(0), // message_thread_id
+			tl_vector<TLint53>(1, tl_int53(item->id.bare)),
+			tl_bool(false)
+		)).send();
 	}
-#if 0 // todo
+#if 0 // mtp
 	const auto ids = MTP_vector<MTPint>(1, MTP_int(item->id));
 	if (const auto channel = item->history()->peer->asChannel()) {
 		request(MTPchannels_ReadMessageContents(
