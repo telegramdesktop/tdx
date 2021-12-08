@@ -579,14 +579,6 @@ public:
 		const Tdb::TLmessage &data,
 		NewMessageType type);
 
-	void updateMessageContent(
-		const FullMsgId &fullId,
-		const Tdb::TLmessageContent &data);
-	void updateMessageEdited(
-		const FullMsgId &fullId,
-		TimeId editDate,
-		HistoryMessageMarkupData &&markup);
-
 	[[nodiscard]] int unreadBadge() const;
 	[[nodiscard]] bool unreadBadgeMuted() const;
 	[[nodiscard]] int unreadBadgeIgnoreOne(Dialogs::Key key) const;
