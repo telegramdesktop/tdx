@@ -309,6 +309,8 @@ auto HistoryMessageMarkupData::buttonData(
 		return ButtonData{ type, data.vquery().v.toUtf8() };
 	}, [&](const TLDinlineKeyboardButtonTypeBuy &data) {
 		return ButtonData{ Type::Buy };
+	}, [&](const TLDinlineKeyboardButtonTypeUser &data) {
+		return ButtonData{ Type::Default }; // todo
 	});
 }
 
@@ -441,7 +443,7 @@ HistoryMessageRepliesData::HistoryMessageRepliesData(
 		return;
 	}
 	const auto &fields = data->data();
-	const auto &repliers = fields.vrecent_repliers().v;
+	const auto &repliers = fields.vrecent_replier_ids().v;
 	recentRepliers.reserve(repliers.size());
 	for (const auto &sender : repliers) {
 		recentRepliers.push_back(peerFromSender(sender));
