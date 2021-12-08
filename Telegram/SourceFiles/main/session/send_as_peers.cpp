@@ -14,8 +14,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "apiwrap.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Main {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kRequestEach = 30 * crl::time(1000);
 
@@ -80,9 +84,15 @@ rpl::producer<not_null<PeerData*>> SendAsPeers::updated() const {
 void SendAsPeers::saveChosen(
 		not_null<PeerData*> peer,
 		not_null<PeerData*> chosen) {
+#if 0 // mtp
 	peer->session().api().request(MTPmessages_SaveDefaultSendAs(
 		peer->input,
 		chosen->input
+	)).send();
+#endif
+	peer->session().sender().request(TLsetChatDefaultMessageSender(
+		peerToTdbChat(peer->id),
+		peerToSender(chosen->id)
 	)).send();
 
 	setChosen(peer, chosen->id);
@@ -134,6 +144,7 @@ not_null<PeerData*> SendAsPeers::ResolveChosen(
 }
 
 void SendAsPeers::request(not_null<PeerData*> peer) {
+#if 0 // mtp
 	peer->session().api().request(MTPchannels_GetSendAs(
 		peer->input
 	)).done([=](const MTPchannels_SendAsPeers &result) {
@@ -155,6 +166,17 @@ void SendAsPeers::request(not_null<PeerData*> peer) {
 				}
 			}
 		});
+#endif
+	peer->session().sender().request(TLgetChatAvailableMessageSenders(
+		peerToTdbChat(peer->id)
+	)).done([=](const TLDmessageSenders &result) {
+		auto list = std::vector<not_null<PeerData*>>();
+		auto &owner = peer->owner();
+		for (const auto &id : result.vsenders().v) {
+			if (const auto peer = owner.peerLoaded(peerFromSender(id))) {
+				list.push_back(peer);
+			}
+		}
 		if (parsed.size() > 1) {
 			auto &now = _lists[peer];
 			if (now != parsed) {

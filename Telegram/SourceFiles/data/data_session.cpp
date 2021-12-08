@@ -80,6 +80,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "spellcheck/spellcheck_highlight_syntax.h"
 
 #include "history/history_unread_things.h"
+#include "main/session/send_as_peers.h"
 
 namespace Data {
 namespace {
@@ -1315,6 +1316,11 @@ not_null<PeerData*> Session::processPeer(const TLchat &dialog) {
 				? Flag::NoForwards
 				: Flag()));
 	}
+
+	if (const auto sender = data.vdefault_message_sender_id()) {
+		session().sendAsPeers().setChosen(result, peerFromSender(*sender));
+	}
+
 	if (!result->isFullLoaded()) {
 		result->setLoadedStatus(PeerData::LoadedStatus::Full);
 	}
