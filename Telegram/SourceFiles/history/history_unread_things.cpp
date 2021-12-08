@@ -236,11 +236,14 @@ void Proxy::addSlice(const TLDmessages &result, int alreadyLoaded) {
 }
 
 void Proxy::markAsRead(const TLDupdateMessageMentionRead &update) {
+	const auto id = update.vmessage_id().v;
+	if (const auto item = _history->owner().message(_history->peer, id)) {
+		item->markContentsRead();
+	}
 	const auto fullCount = update.vunread_mention_count().v;
-	const auto removed = _data && resolveList().contains(
-		update.vmessage_id().v);
+	const auto removed = _data && resolveList().contains(id);
 	if (removed) {
-		resolveList().erase(update.vmessage_id().v);
+		resolveList().erase(id);
 	}
 	const auto changed = (count(-1) != fullCount);
 	if (changed) {
