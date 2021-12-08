@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_transcribes.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
+#include "main/session/send_as_peers.h"
 #include "mtproto/mtp_instance.h"
 #include "mtproto/mtproto_config.h"
 #include "mtproto/mtproto_dc_options.h"
@@ -2783,6 +2784,15 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateChatPosition &data) {
 		owner.applyDialogPosition(data);
 	}, [&](const TLDupdateChatDefaultMessageSenderId &data) {
+		const auto peer = owner.peerLoaded(peerFromTdbChat(data.vchat_id()));
+		if (peer) {
+			auto &sendAsPeers = session().sendAsPeers();
+			if (const auto sender = data.vdefault_message_sender_id()) {
+				sendAsPeers.setChosen(peer, peerFromSender(*sender));
+			} else {
+				sendAsPeers.setChosen(peer, PeerId());
+			}
+		}
 	}, [&](const TLDupdateChatHasProtectedContent &data) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
 		if (const auto peer = owner.peerLoaded(peerId)) {
