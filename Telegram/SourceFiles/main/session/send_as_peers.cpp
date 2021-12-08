@@ -105,7 +105,7 @@ void SendAsPeers::setChosen(not_null<PeerData*> peer, PeerId chosenId) {
 	const auto fallback = peer->amAnonymous()
 		? peer
 		: peer->session().user();
-	if (fallback->id == chosenId) {
+	if (!chosenId || fallback->id == chosenId) {
 		_chosen.remove(peer);
 	} else {
 		_chosen[peer] = chosenId;
