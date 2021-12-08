@@ -19,7 +19,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
+#include "tdb/tdb_sender.h"
+
 namespace {
+
+using namespace Tdb;
 
 [[nodiscard]] bool IsOldForPin(
 		MsgId id,
@@ -89,6 +93,14 @@ void PinMessageBox(
 			return;
 		}
 
+		const auto finished = crl::guard(box, [=] { box->closeBox(); });
+		state->requestId = peer->session().sender().request(TLpinChatMessage(
+			peerToTdbChat(peer->id),
+			tl_int53(msgId.bare),
+			tl_bool(state->notify && !state->notify->checked()),
+			tl_bool(state->pinForPeer && !state->pinForPeer->checked())
+		)).done(finished).fail(finished).send();
+#if 0 // mtp
 		auto flags = MTPmessages_UpdatePinnedMessage::Flags(0);
 		if (state->notify && !state->notify->checked()) {
 			flags |= MTPmessages_UpdatePinnedMessage::Flag::f_silent;
@@ -106,6 +118,7 @@ void PinMessageBox(
 		}).fail([=] {
 			box->closeBox();
 		}).send();
+#endif
 	};
 
 	Ui::ConfirmBox(box, {
