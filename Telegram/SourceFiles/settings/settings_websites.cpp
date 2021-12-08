@@ -543,6 +543,7 @@ void Content::terminateOne(uint64 hash) {
 
 	const auto bot = i->bot;
 	auto callback = [=](bool block) {
+#if 0 // mtp
 		auto done = crl::guard(weak, [=](const MTPBool &result) {
 			_data.erase(
 				ranges::remove(_data, hash, &EntryData::hash),
@@ -551,6 +552,14 @@ void Content::terminateOne(uint64 hash) {
 		});
 		auto fail = crl::guard(weak, [=](const MTP::Error &error) {
 		});
+#endif
+		auto done = crl::guard(weak, [=] {
+			_data.erase(
+				ranges::remove(_data, hash, &EntryData::hash),
+				end(_data));
+			_inner->showData(_data);
+		});
+		auto fail = [] {};
 		_websites->requestTerminate(
 			std::move(done),
 			std::move(fail),
@@ -571,9 +580,12 @@ void Content::terminateAll() {
 			_websites->cancelCurrentRequest();
 			_websites->reload();
 		});
+#if 0 // mtp
 		_websites->requestTerminate(
 			[=](const MTPBool &result) { reset(); },
 			[=](const MTP::Error &result) { reset(); });
+#endif
+		_websites->requestTerminate(reset, reset);
 		_loading = true;
 	};
 	terminate(

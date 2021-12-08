@@ -2015,6 +2015,7 @@ void Controller::saveForwards() {
 		|| *_savingData.noForwards != _peer->allowsForwarding()) {
 		return continueSave();
 	}
+#if 0 // todo
 	_api.request(MTPmessages_ToggleNoForwards(
 		_peer->input,
 		MTP_bool(*_savingData.noForwards)
@@ -2028,6 +2029,7 @@ void Controller::saveForwards() {
 			cancelSave();
 		}
 	}).send();
+#endif
 }
 
 void Controller::saveJoinToWrite() {
