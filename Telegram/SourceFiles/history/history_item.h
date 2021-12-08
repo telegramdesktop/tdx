@@ -17,6 +17,7 @@ namespace Tdb {
 class TLmessage;
 class TLDmessage;
 class TLmessageContent;
+class TLmessageInteractionInfo;
 } // namespace Tdb
 
 class HiddenSenderInfo;
@@ -536,6 +537,7 @@ public:
 	void customEmojiRepaint();
 
 	void updateContent(const Tdb::TLmessageContent &content);
+	void updateInteractionInfo(const Tdb::TLmessageInteractionInfo *info);
 	void updateEditedInfo(
 		TimeId editDate,
 		HistoryMessageMarkupData &&markup);
