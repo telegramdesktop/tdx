@@ -2794,11 +2794,11 @@ void Updates::applyUpdate(const TLupdate &update) {
 		owner.applyLastMessage(data);
 	}, [&](const TLDupdateChatPosition &data) {
 		owner.applyDialogPosition(data);
-	}, [&](const TLDupdateChatDefaultMessageSenderId &data) {
+	}, [&](const TLDupdateChatMessageSender &data) {
 		const auto peer = owner.peerLoaded(peerFromTdbChat(data.vchat_id()));
 		if (peer) {
 			auto &sendAsPeers = session().sendAsPeers();
-			if (const auto sender = data.vdefault_message_sender_id()) {
+			if (const auto sender = data.vmessage_sender_id()) {
 				sendAsPeers.setChosen(peer, peerFromSender(*sender));
 			} else {
 				sendAsPeers.setChosen(peer, PeerId());
@@ -2876,9 +2876,13 @@ void Updates::applyUpdate(const TLupdate &update) {
 			history->unreadMentions().setCount(
 				data.vunread_mention_count().v);
 		}
+	}, [&](const TLDupdateChatUnreadReactionCount &data) {
+	}, [&](const TLDupdateChatAvailableReactions &data) {
+	}, [&](const TLDupdateMessageUnreadReactions &data) {
+	}, [&](const TLDupdateReactions &data) {
 	}, [&](const TLDupdateChatNotificationSettings &data) {
 	}, [&](const TLDupdateScopeNotificationSettings &data) {
-	}, [&](const TLDupdateChatMessageTtlSetting &data) {
+	}, [&](const TLDupdateChatMessageTtl &data) {
 	}, [&](const TLDupdateChatActionBar &data) {
 	}, [&](const TLDupdateChatTheme &data) {
 	}, [&](const TLDupdateChatReplyMarkup &data) {

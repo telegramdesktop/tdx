@@ -489,13 +489,26 @@ DocumentId DocumentData::IdFromTdb(const TLsticker &data) {
 
 void DocumentData::setFromTdb(const TLsticker &data) {
 	const auto &fields = data.data();
-	const auto animated = fields.vis_animated().v;
+	const auto stickerType = fields.vtype().match([&](
+		const TLDstickerTypeAnimated &) {
+		return StickerType::Tgs;
+	}, [&](const TLDstickerTypeStatic &) {
+		return StickerType::Webp;
+	}, [&](const TLDstickerTypeVideo &) {
+		return StickerType::Webm;
+	}, [&](const TLDstickerTypeMask &) {
+		return StickerType::Webp;
+	});
 	setFileName(QString());// animated ? u"sticker.tgs"_q : u"sticker.webp"_q
-	setMimeString(animated ? u"application/x-tgsticker"_q : u"image/webp"_q);
+	setMimeString((stickerType == StickerType::Tgs)
+		? u"application/x-tgsticker"_q
+		: (stickerType == StickerType::Webm)
+		? u"video/webm"_q
+		: u"image/webp"_q);
 	updateThumbnails(nullptr, fields.vthumbnail());
 	setTdbLocation(fields.vsticker());
 	recountIsImage();
-	dimensions = animated
+	dimensions = (stickerType == StickerType::Tgs)
 		? kLottieStickerDimensions
 		: QSize(fields.vwidth().v, fields.vheight().v);
 	type = StickerDocument;
@@ -504,7 +517,7 @@ void DocumentData::setFromTdb(const TLsticker &data) {
 	_flags = (_flags | kStreamingSupportedUnknown)
 		& ~Flag::HasAttachedStickers;
 	const auto stickerData = sticker();
-	stickerData->type = animated ? StickerType::Tgs : StickerType::Webp;
+	stickerData->type = stickerType;
 	stickerData->alt = fields.vemoji().v;
 	stickerData->outlineGenerator = PathFromOutlineGenerator(
 		fields.voutline().v);
