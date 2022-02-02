@@ -254,6 +254,7 @@ void LoaderTdb::apply(const TLfile &file) {
 		_proxyPosition = 0;
 	}
 	const auto was = _waitingOffsets.size();
+	const auto weak = base::make_weak(this);
 	for (auto i = begin(_waitingOffsets); i != end(_waitingOffsets);) {
 		const auto offset = *i;
 		const auto limit = partSize(offset);
@@ -275,6 +276,9 @@ void LoaderTdb::apply(const TLfile &file) {
 		}
 		_proxyPosition += limit;
 		_parts.fire({ offset, std::move(bytes) });
+		if (!weak) {
+			return;
+		}
 		i = _waitingOffsets.erase(i);
 	}
 	if (!_loadingActive && !_waitingOffsets.empty()) {
