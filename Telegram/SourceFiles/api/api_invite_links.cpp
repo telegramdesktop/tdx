@@ -886,7 +886,7 @@ auto InviteLinks::parse(
 		.admin = peer->owner().user(invite.data().vcreator_user_id().v),
 		.date = invite.data().vdate().v,
 		.startDate = invite.data().vedit_date().v,
-		.expireDate = invite.data().vexpire_date().v,
+		.expireDate = invite.data().vexpiration_date().v,
 		.usageLimit = invite.data().vmember_limit().v,
 		.usage = invite.data().vmember_count().v,
 		.requested = invite.data().vpending_join_request_count().v,

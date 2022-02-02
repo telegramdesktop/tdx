@@ -204,6 +204,7 @@ Tdb::TLmessage PrepareLogMessage(
 		Tdb::tl_bool(false), // canBeSaved.
 		Tdb::tl_bool(false), // canBeDeletedForMe.
 		Tdb::tl_bool(false), // canBeDeletedForAll.
+		Tdb::tl_bool(false), // canGetAddedReactions
 		Tdb::tl_bool(false), // statistics.
 		Tdb::tl_bool(false), // thread.
 		Tdb::tl_bool(false), // views.
@@ -217,6 +218,7 @@ Tdb::TLmessage PrepareLogMessage(
 			? std::make_optional(*message.data().vforward_info())
 			: std::nullopt, // forwards.
 		std::nullopt, // interactions.
+		Tdb::tl_vector<Tdb::TLunreadReaction>(),
 		Tdb::tl_int53(0), // replyInChat
 		Tdb::tl_int53(0), // replyToId.
 		Tdb::tl_int53(0), // threadId.
@@ -545,8 +547,8 @@ TextWithEntities GenerateInviteLinkChangeText(
 #endif
 	const auto wasLabel = prevLink.vname().v;
 	const auto nowLabel = newLink.vname().v;
-	const auto wasExpireDate = prevLink.vexpire_date().v;
-	const auto nowExpireDate = newLink.vexpire_date().v;
+	const auto wasExpireDate = prevLink.vexpiration_date().v;
+	const auto nowExpireDate = newLink.vexpiration_date().v;
 	const auto wasUsageLimit = prevLink.vmember_limit().v;
 	const auto nowUsageLimit = newLink.vmember_limit().v;
 	const auto wasRequestApproval = prevLink.vcreates_join_request().v;
@@ -929,7 +931,7 @@ void GenerateItems(
 	using LogLocation = TLDchatEventLocationChanged;
 	using LogSlowMode = TLDchatEventSlowModeDelayChanged;
 	using LogStartCall = TLDchatEventVideoChatCreated;
-	using LogDiscardCall = TLDchatEventVideoChatDiscarded;
+	using LogDiscardCall = TLDchatEventVideoChatEnded;
 	using LogMute = TLDchatEventVideoChatParticipantIsMutedToggled;
 	using LogCallSetting = TLDchatEventVideoChatMuteNewParticipantsToggled;
 	using LogJoinByInvite = TLDchatEventMemberJoinedByInviteLink;
@@ -937,13 +939,15 @@ void GenerateItems(
 	using LogInviteRevoke = TLDchatEventInviteLinkRevoked;
 	using LogInviteEdit = TLDchatEventInviteLinkEdited;
 	using LogVolume = TLDchatEventVideoChatParticipantVolumeLevelChanged;
-	using LogTTL = TLDchatEventMessageTtlSettingChanged;
+	using LogTTL = TLDchatEventMessageTtlChanged;
 	using LogJoinByRequest = TLDchatEventMemberJoinedByRequest;
 	using LogNoForwards = TLDchatEventHasProtectedContentToggled;
+	using LogEventActionChangeAvailableReactions = TLDchatEventAvailableReactionsChanged;
 
 	const auto session = &history->session();
 	const auto id = event.vid().v;
-	const auto from = history->owner().user(event.vuser_id().v);
+	const auto from = history->owner().peer(
+		peerFromSender(event.vmember_id()));
 	const auto channel = history->peer->asChannel();
 	const auto broadcast = channel->isBroadcast();
 	const auto &action = event.vaction();
@@ -1839,8 +1843,8 @@ void GenerateItems(
 		const auto was = data.vprev_value().v;
 		const auto now = data.vnew_value().v;
 #endif
-		const auto was = data.vold_message_ttl_setting().v;
-		const auto now = data.vnew_message_ttl_setting().v;
+		const auto was = data.vold_message_ttl().v;
+		const auto now = data.vnew_message_ttl().v;
 		const auto wrap = [](int duration) -> TextWithEntities {
 			const auto text = (duration == 5)
 				? u"5 seconds"_q
@@ -1946,6 +1950,7 @@ void GenerateItems(
 			ExtractSentDate(data.vmessage()),
 			realId);
 	};
+#endif
 
 	const auto createChangeAvailableReactions = [&](
 			const LogChangeAvailableReactions &data) {
@@ -1985,7 +1990,6 @@ void GenerateItems(
 		});
 		addSimpleServiceMessage(text);
 	};
-#endif
 
 	const auto createChangeUsernames = [&](const LogChangeUsernames &data) {
 		const auto newValue = data.vnew_value().v;
@@ -2452,8 +2456,8 @@ void GenerateItems(
 		createToggleNoForwards,
 #if 0 // doLater
 		createSendMessage,
-		createChangeAvailableReactions,
 #endif
+		createChangeAvailableReactions,
 		createChangeUsernames,
 		createToggleForum,
 		createCreateTopic,

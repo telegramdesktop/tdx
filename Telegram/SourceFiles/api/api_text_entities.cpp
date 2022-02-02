@@ -396,6 +396,8 @@ EntitiesInText EntitiesFromTdb(
 						.userId = uint64(data.vuser_id().v),
 					});
 					return EntityType::MentionName;
+				}, [&](const TLDtextEntityTypeSpoiler &data) {
+					return EntityType::Spoiler;
 				}, [&](const TLDtextEntityTypeMediaTimestamp &data) {
 					// #TODO entities media timestamp links
 					return EntityType::Invalid;

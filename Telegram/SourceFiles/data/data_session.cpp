@@ -1318,7 +1318,7 @@ not_null<PeerData*> Session::processPeer(const TLchat &dialog) {
 				: Flag()));
 	}
 
-	if (const auto sender = data.vdefault_message_sender_id()) {
+	if (const auto sender = data.vmessage_sender_id()) {
 		session().sendAsPeers().setChosen(result, peerFromSender(*sender));
 	}
 
