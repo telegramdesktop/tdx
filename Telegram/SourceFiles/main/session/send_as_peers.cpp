@@ -83,7 +83,7 @@ void SendAsPeers::saveChosen(
 		chosen->input
 	)).send();
 #endif
-	peer->session().sender().request(TLsetChatDefaultMessageSender(
+	peer->session().sender().request(TLsetChatMessageSender(
 		peerToTdbChat(peer->id),
 		peerToSender(chosen->id)
 	)).send();
