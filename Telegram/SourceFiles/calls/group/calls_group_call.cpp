@@ -1909,7 +1909,7 @@ void GroupCall::discard() {
 		inputCall()
 	)).done([=](const MTPUpdates &result) {
 #endif
-	_tdbApi.request(Tdb::TLdiscardGroupCall(
+	_tdbApi.request(Tdb::TLendGroupCall(
 		Tdb::tl_int32(_id)
 	)).done([=] {
 		// Here 'this' could be destroyed by updates, so we set Ended after
