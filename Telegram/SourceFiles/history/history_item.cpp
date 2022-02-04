@@ -1618,6 +1618,7 @@ void HistoryItem::setStoryFields(not_null<Data::Story*> story) {
 	setText(story->caption());
 }
 
+#if 0 // mtp
 void HistoryItem::applyEdition(const MTPDmessageService &message) {
 	if (message.vaction().type() == mtpc_messageActionHistoryClear) {
 		const auto wasGrouped = history()->owner().groups().isGrouped(this);
@@ -1782,6 +1783,7 @@ void HistoryItem::applyEditionToHistoryCleared() {
 			MTPint() // ttl_period
 		).c_messageService());
 }
+#endif
 
 void HistoryItem::updateReplyMarkup(HistoryMessageMarkupData &&markup) {
 	setReplyMarkup(std::move(markup));
@@ -1880,6 +1882,7 @@ Storage::SharedMediaTypesMask HistoryItem::sharedMediaTypes() const {
 	}
 	return result;
 }
+#endif
 
 void HistoryItem::indexAsNewItem() {
 	if (isRegular()) {
@@ -2338,9 +2341,69 @@ void HistoryItem::toggleReaction(
 	_history->owner().notifyItemDataChange(this);
 }
 
+void HistoryItem::setReactions(
+		const QVector<TLmessageReaction> &list,
+		const QVector<TLunreadReaction> &unread) {
+	Expects(!_reactions);
+	Expects(unread.empty() || !list.empty());
+
+	if (changeReactions(list) && changeUnreadReactions(unread)) {
+		_flags |= MessageFlag::HasUnreadReaction;
+	}
+}
+
+bool HistoryItem::changeReactions(
+		const QVector<TLmessageReaction> &list) {
+	if (list.empty()) {
+		return (base::take(_reactions) != nullptr);
+	} else if (!_reactions) {
+		_reactions = std::make_unique<Data::MessageReactions>(this);
+	}
+	return _reactions->change(list);
+}
+
+bool HistoryItem::changeUnreadReactions(
+		const QVector<TLunreadReaction> &list) {
+	return _reactions && _reactions->change(list);
+}
+
+void HistoryItem::updateReactions(const QVector<TLmessageReaction> &list) {
+	const auto hadUnread = hasUnreadReaction();
+	const auto changed = changeReactions(list);
+	if (!changed) {
+		return;
+	}
+	const auto hasUnread = _reactions && _reactions->hasUnread();
+	if (!hasUnread && hadUnread) {
+		markReactionsRead();
+	}
+	history()->owner().notifyItemDataChange(this);
+}
+
+void HistoryItem::updateUnreadReactions(
+		const QVector<TLunreadReaction> &list) {
+	const auto wasRecentUsers = LookupRecentUnreadReactedUsers(this);
+	const auto hadUnread = hasUnreadReaction();
+	const auto changed = changeUnreadReactions(list);
+	if (!changed) {
+		return;
+	}
+	const auto hasUnread = _reactions && _reactions->hasUnread();
+	if (hasUnread && !hadUnread) {
+		_flags |= MessageFlag::HasUnreadReaction;
+
+		addToUnreadThings(HistoryUnreadThings::AddType::New);
+	} else if (!hasUnread && hadUnread) {
+		markReactionsRead();
+	}
+	CheckReactionNotificationSchedule(this, wasRecentUsers);
+}
+
+#if 0 // mtp
 void HistoryItem::updateReactionsUnknown() {
 	_reactionsLastRefreshed = 1;
 }
+#endif
 
 const std::vector<Data::MessageReaction> &HistoryItem::reactions() const {
 	static const auto kEmpty = std::vector<Data::MessageReaction>();
@@ -2387,9 +2450,11 @@ Data::ReactionId HistoryItem::lookupUnreadReaction(
 	return {};
 }
 
+#if 0 // mtp
 crl::time HistoryItem::lastReactionsRefreshTime() const {
 	return _reactionsLastRefreshed;
 }
+#endif
 
 bool HistoryItem::hasDirectLink() const {
 	return isRegular() && _history->peer->isChannel();
@@ -3397,6 +3462,7 @@ void HistoryItem::createComponentsHelper(
 	createComponents(std::move(config));
 }
 
+#if 0 // mtp
 void HistoryItem::setReactions(const MTPMessageReactions *reactions) {
 	Expects(!_reactions);
 
@@ -4714,6 +4780,7 @@ void HistoryItem::applyAction(const MTPMessageAction &action) {
 	}, [](const auto &) {
 	});
 }
+#endif
 
 void HistoryItem::setSelfDestruct(
 		HistoryServiceSelfDestruct::Type type,
