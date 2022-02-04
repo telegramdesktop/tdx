@@ -34,6 +34,7 @@ struct PreparedServiceText {
 	std::vector<ClickHandlerPtr> links;
 };
 
+#if 0 // mtp
 [[nodiscard]] MessageFlags FlagsFromMTP(
 	MsgId id,
 	MTPDmessage::Flags flags,
@@ -60,6 +61,7 @@ enum class MediaCheckResult {
 [[nodiscard]] std::vector<not_null<UserData*>> ParseInvitedToCallUsers(
 	not_null<HistoryItem*> item,
 	const QVector<MTPlong> &users);
+#endif
 
 inline constexpr auto kMaxUnreadReactions = 5; // Now 3, but just in case.
 using OnStackUsers = std::array<UserData*, kMaxUnreadReactions>;

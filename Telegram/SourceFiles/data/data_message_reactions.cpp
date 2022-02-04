@@ -310,7 +310,9 @@ PossibleItemReactions::PossibleItemReactions(
 Reactions::Reactions(not_null<Session*> owner)
 : _owner(owner)
 , _topRefreshTimer([=] { refreshTop(); })
+#if 0 // mtp
 , _repaintTimer([=] { repaintCollected(); })
+#endif
 , _sendPaidTimer([=] { sendPaid(); }) {
 #if 0 // mtp
 	refreshDefault();
@@ -323,7 +325,6 @@ Reactions::Reactions(not_null<Session*> owner)
 		refreshDefault();
 		requestEffects();
 	}, _lifetime);
-#endif
 
 	_owner->session().changes().messageUpdates(
 		MessageUpdate::Flag::Destroyed
@@ -358,6 +359,7 @@ Reactions::Reactions(not_null<Session*> owner)
 			applyFavorite(id);
 		}, _lifetime);
 	});
+#endif
 }
 
 Reactions::~Reactions() = default;
@@ -1520,6 +1522,7 @@ void Reactions::send(not_null<HistoryItem*> item, bool addToRecent) {
 #endif
 }
 
+#if 0 // mtp
 void Reactions::poll(not_null<HistoryItem*> item, crl::time now) {
 	// Group them by one second.
 	const auto last = item->lastReactionsRefreshTime();
@@ -1709,7 +1712,6 @@ void Reactions::pollCollected() {
 				});
 			}
 		};
-#if 0 // todo
 		_pollRequestId = api.request(MTPmessages_GetMessagesReactions(
 			peer->input,
 			MTP_vector<MTPint>(ids)
@@ -1719,7 +1721,6 @@ void Reactions::pollCollected() {
 		}).fail([=] {
 			finalize();
 		}).send();
-#endif
 	}
 }
 
@@ -1756,6 +1757,7 @@ void Reactions::CheckUnknownForUnread(
 	}, [](const auto &) {
 	});
 }
+#endif
 
 void Reactions::sendPaid() {
 	if (!_sendingPaid.empty()) {
@@ -2014,6 +2016,7 @@ void MessageReactions::remove(const ReactionId &id) {
 	owner.notifyItemDataChange(_item);
 }
 
+#if 0 // mtp
 bool MessageReactions::checkIfChanged(
 		const QVector<MTPReactionCount> &list,
 		const QVector<MTPMessagePeerReaction> &recent,
@@ -2220,6 +2223,102 @@ bool MessageReactions::change(
 		if (_paid->top != paidTop) {
 			_paid->top = std::move(paidTop);
 			changed = true;
+		}
+	}
+	return changed;
+}
+#endif
+
+bool MessageReactions::change(const QVector<TLmessageReaction> &list) {
+	auto &owner = _item->history()->owner();
+	auto changed = false;
+	auto existing = base::flat_set<QString>();
+	auto parsed = base::flat_map<QString, std::vector<RecentReaction>>();
+	for (const auto &reaction : list) {
+		const auto &data = reaction.data();
+		const auto reaction = data.vreaction().v;
+		if (data.vis_chosen().v && _chosen != reaction) {
+			_chosen = reaction;
+			changed = true;
+		} else if (!data.vis_chosen().v && _chosen == reaction) {
+			_chosen = QString();
+			changed = true;
+		}
+		const auto nowCount = data.vtotal_count().v;
+		auto &wasCount = _list[reaction];
+		if (wasCount != nowCount) {
+			wasCount = nowCount;
+			changed = true;
+		}
+		existing.emplace(reaction);
+		const auto i = _recent.find(reaction);
+		for (const auto &sender : data.vrecent_sender_ids().v) {
+			const auto peer = owner.peer(peerFromSender(sender));
+			auto recent = RecentReaction{ .peer = peer };
+			if (i != end(_recent)) {
+				const auto j = ranges::find_if(i->second, [&](
+						const RecentReaction &existing) {
+					return (existing.peer == peer) && existing.unread;
+				});
+				if (j != end(i->second)) {
+					recent.unread = true;
+					recent.big = j->big;
+				}
+			}
+			parsed[reaction].push_back(std::move(recent));
+		}
+	}
+	if (_list.size() != existing.size()) {
+		changed = true;
+		for (auto i = begin(_list); i != end(_list);) {
+			if (!existing.contains(i->first)) {
+				i = _list.erase(i);
+			} else {
+				++i;
+			}
+		}
+		if (!_chosen.isEmpty() && !_list.contains(_chosen)) {
+			_chosen = QString();
+		}
+	}
+	if (_recent != parsed) {
+		changed = true;
+		_recent = std::move(parsed);
+	}
+	return changed;
+}
+
+bool MessageReactions::change(const QVector<TLunreadReaction> &list) {
+	enum class State {
+		Read,
+		Unread,
+		UnreadBig,
+	};
+	const auto resolve = [&](not_null<PeerData*> peer) {
+		const auto i = ranges::find(list, peer->id, [](
+				const TLunreadReaction &reaction) {
+			return peerFromSender(reaction.data().vsender_id());
+		});
+		return (i == list.end())
+			? State::Read
+			: i->data().vis_big().v
+			? State::UnreadBig
+			: State::Unread;
+	};
+	auto changed = false;
+	for (auto &[emoji, list] : _recent) {
+		for (auto &reaction : list) {
+			const auto now = resolve(reaction.peer);
+			const auto was = !reaction.unread
+				? State::Read
+				: reaction.big
+				? State::UnreadBig
+				: State::Unread;
+			if (now != was) {
+				changed = true;
+				reaction.unread = (now != State::Read);
+				reaction.big = (now == State::UnreadBig);
+			}
 		}
 	}
 	return changed;

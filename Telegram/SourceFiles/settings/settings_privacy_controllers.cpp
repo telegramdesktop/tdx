@@ -56,11 +56,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
 
 namespace Settings {
 namespace {
+
+using namespace Tdb;
 
 using UserPrivacy = Api::UserPrivacy;
 using PrivacyRule = Api::UserPrivacy::Rule;
@@ -161,6 +165,67 @@ AdminLog::OwnedItem GenerateForwardedItem(
 		const QString &text) {
 	Expects(history->peer->isUser());
 
+	const auto id = history->nextNonHistoryEntryId();
+	const auto fake = tl_message(
+		tl_int53(id.bare),
+		peerToSender(history->peer->id),
+		peerToTdbChat(history->peer->id),
+		std::nullopt, // sending_state
+		std::nullopt, // scheduling_state
+		tl_bool(false), // is_outgoing
+		tl_bool(false), // is_pinned
+		tl_bool(false), // is_from_offline
+		tl_bool(false), // can_be_edited
+		tl_bool(false), // can_be_forwarded
+		tl_bool(false), // can_be_replied_in_another_chat
+		tl_bool(true), // can_be_saved
+		tl_bool(true), // can_be_deleted_only_for_self
+		tl_bool(false), // can_be_deleted_for_all_users
+		tl_bool(false), // can_get_added_reactions
+		tl_bool(false), // can_get_statistics
+		tl_bool(false), // can_get_message_thread
+		tl_bool(false), // can_get_read_date
+		tl_bool(false), // can_get_viewers
+		tl_bool(false), // can_get_media_timestamp_links
+		tl_bool(false), // has_timestamped_media
+		tl_bool(false), // is_channel_post
+		tl_bool(false), // contains_unread_mention
+		tl_int32(base::unixtime::now()), // date
+		tl_int32(0), // edit_date
+		tl_messageForwardInfo(
+			tl_messageOriginUser(
+				tl_int53(history->session().userId().bare)),
+			tl_int32(base::unixtime::now()), // date
+			null, // source
+			tl_string()), // public_service_announcement_type
+		std::nullopt, // import_info
+		std::nullopt, // interaction_info
+		tl_vector<TLunreadReaction>(), // unread_reactions
+		std::nullopt, // fact_check
+		std::nullopt, // reply_to
+		tl_int53(0), // message_thread_id
+		tl_int53(0), // saved_messages_topic_id
+		std::nullopt, // self_destruct_type
+		tl_double(0), // self_destruct_in
+		tl_double(0), // auto_delete_in
+		tl_int53(0), // via_bot_user_id
+		tl_int53(0), // sender_business_bot_user_id
+		tl_int32(0), // sender_boost_count
+		tl_string(), // author_signature
+		tl_int64(0), // media_album_id
+		tl_int64(0), // effect_id
+		tl_string(), // restriction_reason
+		tl_messageText(
+			tl_formattedText(tl_string(text), tl_vector<TLtextEntity>()),
+			std::nullopt,
+			std::nullopt), // web_page
+		std::nullopt); // reply_markup
+	const auto item = history->makeMessage(
+		id,
+		fake.data(),
+		MessageFlag::FakeHistoryItem);
+
+#if 0 // mtp
 	using Flag = MTPDmessage::Flag;
 	const auto flags = Flag::f_from_id | Flag::f_fwd_from;
 	const auto item = MTP_message(
@@ -211,6 +276,7 @@ AdminLog::OwnedItem GenerateForwardedItem(
 	}, [](auto &&) -> not_null<HistoryItem*> {
 		Unexpected("Type in GenerateForwardedItem.");
 	});
+#endif
 
 	return AdminLog::OwnedItem(delegate, item);
 }

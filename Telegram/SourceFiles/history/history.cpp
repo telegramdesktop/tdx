@@ -431,6 +431,7 @@ void History::setForwardDraft(
 	}
 }
 
+#if 0 // mtp
 not_null<HistoryItem*> History::createItem(
 		MsgId id,
 		const MTPMessage &message,
@@ -452,7 +453,6 @@ not_null<HistoryItem*> History::createItem(
 	return result;
 }
 
-#if 0 // mtp
 std::vector<not_null<HistoryItem*>> History::createItems(
 		const QVector<MTPMessage> &data) {
 	auto result = std::vector<not_null<HistoryItem*>>();
@@ -505,6 +505,7 @@ not_null<HistoryItem*> History::createItem(
 	return makeMessage(id, message.data(), localFlags);
 }
 
+#if 0 // mtp
 not_null<HistoryItem*> History::addNewMessage(
 		MsgId id,
 		const MTPMessage &message,
@@ -526,6 +527,7 @@ not_null<HistoryItem*> History::addNewMessage(
 	}
 	return addNewItem(item, newMessage);
 }
+#endif
 
 not_null<HistoryItem*> History::addMessage(
 		const TLmessage &message,
@@ -3482,6 +3484,7 @@ void History::removeJoinedMessage() {
 	}
 }
 
+#if 0 // mtp
 void History::reactionsEnabledChanged(bool enabled) {
 	if (!enabled) {
 		for (const auto &item : _items) {
@@ -3493,6 +3496,7 @@ void History::reactionsEnabledChanged(bool enabled) {
 		}
 	}
 }
+#endif
 
 bool History::isEmpty() const {
 	return blocks.empty();
@@ -3647,16 +3651,21 @@ void History::clear(ClearType type) {
 		if (type == ClearType::DeleteChat) {
 			setLastServerMessage(nullptr);
 		} else if (_lastMessage && *_lastMessage) {
+#if 0 // mtp
 			if ((*_lastMessage)->isRegular()) {
 				(*_lastMessage)->applyEditionToHistoryCleared();
 			} else {
 				_lastMessage = std::nullopt;
 			}
+#endif
+			_lastMessage = std::nullopt;
 		}
 		const auto tillId = (_lastMessage && *_lastMessage)
 			? (*_lastMessage)->id
 			: std::numeric_limits<MsgId>::max();
+#if 0 // mtp
 		clearUpTill(tillId);
+#endif
 		if (blocks.empty() && _lastMessage && *_lastMessage) {
 			addItemToBlock(*_lastMessage);
 		}
@@ -3679,6 +3688,7 @@ void History::clear(ClearType type) {
 	owner().sendHistoryChangeNotifications();
 }
 
+#if 0 // mtp
 void History::clearUpTill(MsgId availableMinId) {
 	auto remove = std::vector<not_null<HistoryItem*>>();
 	remove.reserve(_items.size());
@@ -3697,6 +3707,7 @@ void History::clearUpTill(MsgId availableMinId) {
 	}
 	requestChatListMessage();
 }
+#endif
 
 void History::applyGroupAdminChanges(const base::flat_set<UserId> &changes) {
 	for (const auto &block : blocks) {
