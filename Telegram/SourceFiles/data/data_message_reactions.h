@@ -362,9 +362,9 @@ private:
 	bool _waitingForReactions = false;
 	bool _waitingForEffects = false;
 
+#if 0 // mtp
 	base::flat_map<FullMsgId, mtpRequestId> _sentRequests;
 
-#if 0 // mtp
 	base::flat_map<not_null<HistoryItem*>, crl::time> _repaintItems;
 	base::Timer _repaintTimer;
 	base::flat_set<not_null<HistoryItem*>> _pollItems;
