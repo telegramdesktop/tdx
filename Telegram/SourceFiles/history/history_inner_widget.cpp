@@ -1161,10 +1161,12 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 				_widget->enqueueMessageHighlight({ item });
 			}
 		}
+#if 0 // mtp
 		session().data().reactions().poll(item, context.now);
 		if (item->hasUnpaidContent()) {
 			session().api().views().pollExtendedMedia(item);
 		}
+#endif
 		_reactionsManager->recordCurrentReactionEffect(
 			item->fullId(),
 			QPoint(0, top));

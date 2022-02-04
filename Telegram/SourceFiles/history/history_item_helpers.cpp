@@ -476,6 +476,7 @@ ClickHandlerPtr ReportSponsoredClickHandler(not_null<HistoryItem*> item) {
 	});
 }
 
+#if 0 // mtp
 MessageFlags FlagsFromMTP(
 		MsgId id,
 		MTPDmessage::Flags flags,
@@ -668,6 +669,7 @@ std::vector<not_null<UserData*>> ParseInvitedToCallUsers(
 		return owner.user(id.v);
 	}) | ranges::to_vector;
 }
+#endif
 
 PreparedServiceText GenerateJoinedText(
 		not_null<History*> history,

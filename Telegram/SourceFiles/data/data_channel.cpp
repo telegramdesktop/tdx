@@ -1022,7 +1022,9 @@ void ChannelData::setAllowedReactions(Data::AllowedReactions value) {
 		_allowedReactions = std::move(value);
 		const auto now = enabled(_allowedReactions);
 		if (was != now) {
+#if 0 // mtp
 			owner().reactions().updateAllInHistory(this, now);
+#endif
 		}
 		session().changes().peerUpdated(this, UpdateFlag::Reactions);
 	}
