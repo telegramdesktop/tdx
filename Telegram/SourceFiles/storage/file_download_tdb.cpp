@@ -74,12 +74,13 @@ void TdbFileLoader::sendRequest() {
 		tl_bool(false)
 	)).done([=](const TLfile &result) {
 		_requestId = 0;
-		apply(result);
-		if (!_requestId && !_finished) {
+		const auto weak = base::make_weak(this);
+		apply(result, weak);
+		if (weak && !_requestId && !_finished) {
 			session().tdb().updates(
 			) | rpl::start_with_next([=](const TLupdate &update) {
 				update.match([&](const TLDupdateFile &data) {
-					apply(data.vfile());
+					apply(data.vfile(), weak);
 				}, [](const auto &) {});
 			}, _loadingLifetime);
 		}
@@ -101,7 +102,9 @@ void TdbFileLoader::startLoadingWithPartial(const QByteArray &data) {
 	startLoading();
 }
 
-void TdbFileLoader::apply(const TLfile &file) {
+void TdbFileLoader::apply(
+		const TLfile &file,
+		const base::weak_ptr<TdbFileLoader> &weak) {
 	const auto &fields = file.data();
 	if (fields.vid().v != _fileId) {
 		return;
@@ -144,7 +147,7 @@ void TdbFileLoader::apply(const TLfile &file) {
 			cancel(true);
 			return;
 		}
-		if (!feedPart(_loadOffset, bytes)) {
+		if (!feedPart(_loadOffset, bytes) || !weak) {
 			break;
 		}
 		_loadOffset += read;

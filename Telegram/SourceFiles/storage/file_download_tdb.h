@@ -45,7 +45,9 @@ private:
 	void sendRequest();
 	void cancelRequest();
 
-	void apply(const Tdb::TLfile &file);
+	void apply(
+		const Tdb::TLfile &file,
+		const base::weak_ptr<TdbFileLoader> &weak);
 	bool setFinalSize(int size);
 	bool feedPart(int offset, const QByteArray &bytes);
 
