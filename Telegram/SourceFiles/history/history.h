@@ -109,7 +109,9 @@ public:
 	void checkLocalMessages();
 	void removeJoinedMessage();
 
+#if 0 // mtp
 	void reactionsEnabledChanged(bool enabled);
+#endif
 
 	bool isEmpty() const;
 	bool isDisplayedEmpty() const;
@@ -127,7 +129,9 @@ public:
 		ClearHistory,
 	};
 	void clear(ClearType type);
+#if 0 // mtp
 	void clearUpTill(MsgId availableMinId);
+#endif
 
 	void applyGroupAdminChanges(const base::flat_set<UserId> &changes);
 
@@ -146,11 +150,13 @@ public:
 
 	void unpinMessagesFor(MsgId topicRootId);
 
+#if 0 // mtp
 	not_null<HistoryItem*> addNewMessage(
 		MsgId id,
 		const MTPMessage &msg,
 		MessageFlags localFlags,
 		NewMessageType type);
+#endif
 	not_null<HistoryItem*> addNewLocalMessage(
 		MsgId id,
 		MessageFlags flags,
@@ -214,12 +220,12 @@ public:
 		MsgId oldMessageId = 0);
 
 	// Used only internally and for channel admin log.
+#if 0 // mtp
 	not_null<HistoryItem*> createItem(
 		MsgId id,
 		const MTPMessage &message,
 		MessageFlags localFlags,
 		bool detachExistingItem);
-#if 0 // mtp
 	std::vector<not_null<HistoryItem*>> createItems(
 		const QVector<MTPMessage> &data);
 #endif
