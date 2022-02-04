@@ -11,6 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_message_reaction_id.h"
 #include "data/stickers/data_custom_emoji.h"
 
+namespace Tdb {
+class TLDupdateReactions;
+class TLreaction;
+} // namespace Tdb
+
 namespace Ui {
 class AnimatedIcon;
 } // namespace Ui
@@ -73,6 +78,7 @@ public:
 	}
 	[[nodiscard]] Main::Session &session() const;
 
+#if 0 // mtp
 	void refreshTop();
 	void refreshRecent();
 	void refreshRecentDelayed();
@@ -80,6 +86,8 @@ public:
 	void refreshMyTags(SavedSublist *sublist = nullptr);
 	void refreshMyTagsDelayed();
 	void refreshTags();
+#endif
+	void refresh(const Tdb::TLDupdateReactions &data);
 
 	enum class Type {
 		Active,
@@ -163,6 +171,7 @@ private:
 	[[nodiscard]] not_null<CustomEmojiManager::Listener*> resolveListener();
 	void customEmojiResolveDone(not_null<DocumentData*> document) override;
 
+#if 0 // mtp
 	void requestTop();
 	void requestRecent();
 	void requestDefault();
@@ -178,6 +187,7 @@ private:
 		SavedSublist *sublist,
 		const MTPDmessages_savedReactionTags &data);
 	void updateTags(const MTPDmessages_reactions &data);
+#endif
 
 	void recentUpdated();
 	void defaultUpdated();
@@ -201,8 +211,13 @@ private:
 	void applyFavorite(const ReactionId &id);
 	void scheduleMyTagsUpdate(SavedSublist *sublist);
 
+#if 0 // mtp
 	[[nodiscard]] std::optional<Reaction> parse(
 		const MTPAvailableReaction &entry);
+#endif
+	void updateFromData(const Tdb::TLDupdateReactions &data);
+	[[nodiscard]] std::optional<Reaction> parse(
+		const Tdb::TLreaction &entry);
 
 	void loadImage(
 		ImageSet &set,
