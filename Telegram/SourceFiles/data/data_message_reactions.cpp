@@ -32,8 +32,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "styles/style_chat.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Data {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kRefreshFullListEach = 60 * 60 * crl::time(1000);
 constexpr auto kPollEach = 20 * crl::time(1000);
@@ -260,6 +264,7 @@ Reactions::Reactions(not_null<Session*> owner)
 : _owner(owner)
 , _topRefreshTimer([=] { refreshTop(); })
 , _repaintTimer([=] { repaintCollected(); }) {
+#if 0 // mtp
 	refreshDefault();
 
 	_myTags.emplace(nullptr);
@@ -270,6 +275,7 @@ Reactions::Reactions(not_null<Session*> owner)
 		refreshDefault();
 		requestEffects();
 	}, _lifetime);
+#endif
 
 	_owner->session().changes().messageUpdates(
 		MessageUpdate::Flag::Destroyed
@@ -303,6 +309,7 @@ Main::Session &Reactions::session() const {
 	return _owner->session();
 }
 
+#if 0 // mtp
 void Reactions::refreshTop() {
 	requestTop();
 }
@@ -325,6 +332,11 @@ void Reactions::refreshRecentDelayed() {
 
 void Reactions::refreshDefault() {
 	requestDefault();
+}
+#endif
+
+void Reactions::refresh(const TLDupdateReactions &data) {
+	updateFromData(data);
 }
 
 void Reactions::refreshMyTags(SavedSublist *sublist) {
@@ -604,10 +616,14 @@ void Reactions::preloadImageFor(const ReactionId &id) {
 		}
 	} else if (set.effect && !_waitingForEffects) {
 		_waitingForEffects = true;
+#if 0 // mtp
 		refreshEffects();
+#endif
 	} else if (!set.effect && !_waitingForReactions) {
 		_waitingForReactions = true;
+#if 0 // mtp
 		refreshDefault();
+#endif
 	}
 }
 
@@ -820,6 +836,7 @@ void Reactions::downloadTaskFinished() {
 	}
 }
 
+#if 0 // mtp
 void Reactions::requestTop() {
 	if (_topRequestId) {
 		return;
@@ -983,6 +1000,8 @@ void Reactions::updateRecent(const MTPDmessages_reactions &data) {
 void Reactions::updateDefault(const MTPDmessages_availableReactions &data) {
 	_defaultHash = data.vhash().v;
 
+#endif
+void Reactions::updateFromData(const Tdb::TLDupdateReactions &data) {
 	const auto &list = data.vreactions().v;
 	const auto oldCache = base::take(_iconsCache);
 	const auto toCache = [&](DocumentData *document) {
@@ -1267,6 +1286,7 @@ void Reactions::resolve(const ReactionId &id) {
 	}
 }
 
+#if 0 // mtp
 std::optional<Reaction> Reactions::parse(const MTPAvailableReaction &entry) {
 	const auto &data = entry.data();
 	const auto emoji = qs(data.vreaction());
@@ -1337,6 +1357,40 @@ std::optional<Reaction> Reactions::parse(const MTPAvailableEffect &entry) {
 		.effect = true,
 		.premium = data.is_premium_required(),
 	});
+}
+#endif
+
+std::optional<Reaction> Reactions::parse(const TLreaction &entry) {
+	const auto &data = entry.data();
+	const auto emoji = data.vreaction().v;
+	const auto known = (Ui::Emoji::Find(emoji) != nullptr);
+	if (!known) {
+		LOG(("API Error: Unknown emoji in reactions: %1").arg(emoji));
+	}
+	const auto selectAnimation = _owner->processDocument(
+		data.vselect_animation());
+	return known
+		? std::make_optional(Reaction{
+			.emoji = emoji,
+			.title = data.vtitle().v,
+			.staticIcon = _owner->processDocument(data.vstatic_icon()),
+			.appearAnimation = _owner->processDocument(
+				data.vappear_animation()),
+			.selectAnimation = selectAnimation,
+			//.activateAnimation = _owner->processDocument(
+			//	data.vactivate_animation()),
+			//.activateEffects = _owner->processDocument(
+			//	data.veffect_animation()),
+			.centerIcon = (data.vcenter_animation()
+				? _owner->processDocument(*data.vcenter_animation()).get()
+				: nullptr),
+			.aroundAnimation = (data.varound_animation()
+				? _owner->processDocument(
+					*data.varound_animation()).get()
+				: nullptr),
+			.active = data.vis_active().v,
+		})
+		: std::nullopt;
 }
 
 void Reactions::send(not_null<HistoryItem*> item, bool addToRecent) {
