@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Tdb {
 class TLDupdateReactions;
 class TLreaction;
+class TLunreadReaction;
+class TLmessageReaction;
 } // namespace Tdb
 
 namespace Ui {
@@ -128,6 +130,7 @@ public:
 		ImageSize size);
 
 	void send(not_null<HistoryItem*> item, bool addToRecent);
+#if 0 // mtp
 	[[nodiscard]] bool sending(not_null<HistoryItem*> item) const;
 
 	void poll(not_null<HistoryItem*> item, crl::time now);
@@ -144,6 +147,7 @@ public:
 	static void CheckUnknownForUnread(
 		not_null<Session*> owner,
 		const MTPMessage &message);
+#endif
 
 private:
 	struct ImageSet {
@@ -227,8 +231,10 @@ private:
 	void resolveImages();
 	void downloadTaskFinished();
 
+#if 0 // mtp
 	void repaintCollected();
 	void pollCollected();
+#endif
 
 	const not_null<Session*> _owner;
 
@@ -292,11 +298,13 @@ private:
 
 	base::flat_map<FullMsgId, mtpRequestId> _sentRequests;
 
+#if 0 // mtp
 	base::flat_map<not_null<HistoryItem*>, crl::time> _repaintItems;
 	base::Timer _repaintTimer;
 	base::flat_set<not_null<HistoryItem*>> _pollItems;
 	base::flat_set<not_null<HistoryItem*>> _pollingItems;
 	mtpRequestId _pollRequestId = 0;
+#endif
 
 	mtpRequestId _saveFaveRequestId = 0;
 
@@ -324,6 +332,8 @@ public:
 
 	void add(const ReactionId &id, bool addToRecent);
 	void remove(const ReactionId &id);
+
+#if 0 // mtp
 	bool change(
 		const QVector<MTPReactionCount> &list,
 		const QVector<MTPMessagePeerReaction> &recent,
@@ -332,6 +342,10 @@ public:
 		const QVector<MTPReactionCount> &list,
 		const QVector<MTPMessagePeerReaction> &recent,
 		bool ignoreChosen) const;
+#endif
+	bool change(const QVector<Tdb::TLmessageReaction> &list);
+	bool change(const QVector<Tdb::TLunreadReaction> &list);
+
 	[[nodiscard]] const std::vector<MessageReaction> &list() const;
 	[[nodiscard]] auto recent() const
 		-> const base::flat_map<ReactionId, std::vector<RecentReaction>> &;

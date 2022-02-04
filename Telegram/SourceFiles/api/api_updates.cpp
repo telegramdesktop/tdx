@@ -2733,6 +2733,14 @@ void Updates::applyUpdate(const TLupdate &update) {
 		if (history) {
 			history->unreadMentions().markAsRead(data);
 		}
+	}, [&](const TLDupdateMessageUnreadReactions &data) {
+		const auto peerId = peerFromTdbChat(data.vchat_id());
+		const auto id = data.vmessage_id().v;
+		if (const auto item = owner.message(peerId, id)) {
+			item->updateUnreadReactions(data.vunread_reactions().v);
+			item->history()->unreadReactions().setCount(
+				data.vunread_reaction_count().v);
+		}
 	}, [&](const TLDupdateMessageLiveLocationViewed &data) {
 	}, [&](const TLDupdateNewChat &data) {
 		owner.processPeer(data.vchat());
@@ -2848,7 +2856,6 @@ void Updates::applyUpdate(const TLupdate &update) {
 				channel->setAllowedReactions(std::move(list));
 			}
 		}
-	}, [&](const TLDupdateMessageUnreadReactions &data) {
 	}, [&](const TLDupdateReactions &data) {
 		owner.reactions().refresh(data.vreactions());
 	}, [&](const TLDupdateChatNotificationSettings &data) {
