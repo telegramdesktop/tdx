@@ -2875,11 +2875,33 @@ void Updates::applyUpdate(const TLupdate &update) {
 		if (const auto history = owner.historyLoaded(peerId)) {
 			history->unreadMentions().setCount(
 				data.vunread_mention_count().v);
+
 		}
 	}, [&](const TLDupdateChatUnreadReactionCount &data) {
+		const auto peerId = peerFromTdbChat(data.vchat_id());
+		if (const auto history = owner.historyLoaded(peerId)) {
+			history->unreadReactions().setCount(
+				data.vunread_reaction_count().v);
+		}
 	}, [&](const TLDupdateChatAvailableReactions &data) {
+		const auto peerId = peerFromTdbChat(data.vchat_id());
+		if (const auto peer = owner.peerLoaded(peerId)) {
+			if (peer->isUser()) {
+				return;
+			}
+			auto list = base::flat_set<QString>();
+			for (const auto &reaction : data.vavailable_reactions().v) {
+				list.emplace(reaction.v);
+			}
+			if (const auto chat = peer->asChat()) {
+				chat->setAllowedReactions(std::move(list));
+			} else if (const auto channel = peer->asChannel()) {
+				channel->setAllowedReactions(std::move(list));
+			}
+		}
 	}, [&](const TLDupdateMessageUnreadReactions &data) {
 	}, [&](const TLDupdateReactions &data) {
+		owner.reactions().refresh(data.vreactions());
 	}, [&](const TLDupdateChatNotificationSettings &data) {
 	}, [&](const TLDupdateScopeNotificationSettings &data) {
 	}, [&](const TLDupdateChatMessageTtl &data) {

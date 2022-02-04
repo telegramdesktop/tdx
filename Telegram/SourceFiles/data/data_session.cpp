@@ -1237,7 +1237,16 @@ not_null<PeerData*> Session::processPeer(const TLchat &dialog) {
 		data.vlast_read_inbox_message_id().v,
 		data.vlast_read_outbox_message_id().v);
 	history->unreadMentions().setCount(data.vunread_mention_count().v);
+	history->unreadReactions().setCount(data.vunread_reaction_count().v);
 	history->setUnreadMark(data.vis_marked_as_unread().v);
+
+	const auto availableReactions = [&] {
+		auto list = base::flat_set<QString>();
+		for (const auto &reaction : data.vavailable_reactions().v) {
+			list.emplace(reaction.v);
+		}
+		return list;
+	};
 
 	if (const auto user = result->asUser()) {
 	} else if (const auto chat = result->asChat()) {
@@ -1269,6 +1278,7 @@ not_null<PeerData*> Session::processPeer(const TLchat &dialog) {
 			| (data.vhas_protected_content().v
 				? Flag::NoForwards
 				: Flag()));
+		chat->setAllowedReactions(availableReactions());
 
 		if (canAddMembers != chat->canAddMembers()) {
 			updates |= UpdateFlag::Rights;
@@ -1316,6 +1326,7 @@ not_null<PeerData*> Session::processPeer(const TLchat &dialog) {
 			| (data.vhas_protected_content().v
 				? Flag::NoForwards
 				: Flag()));
+		channel->setAllowedReactions(availableReactions());
 	}
 
 	if (const auto sender = data.vmessage_sender_id()) {
