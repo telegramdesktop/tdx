@@ -14,14 +14,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "apiwrap.h"
 
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Support {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kPreloadMessagesCount = 50;
 
 } // namespace
 
+#if 0 // mtp
 int SendPreloadRequest(not_null<History*> history, Fn<void()> retry) {
+#endif
+uint64 SendPreloadRequest(not_null<History*> history, Fn<void()> retry) {
 	auto offsetId = MsgId();
 	auto offset = 0;
 	auto loadCount = kPreloadMessagesCount;
@@ -31,6 +39,32 @@ int SendPreloadRequest(not_null<History*> history, Fn<void()> retry) {
 		offsetId = around;
 	}
 	const auto offsetDate = 0;
+
+	return history->session().sender().request(TLgetChatHistory(
+		peerToTdbChat(history->peer->id),
+		tl_int53(offsetId.bare),
+		tl_int32(offset),
+		tl_int32(loadCount),
+		tl_bool(false)
+	)).done([=](const TLmessages &result) {
+		if (const auto around = history->loadAroundId()) {
+			if (around != offsetId) {
+				retry();
+				return;
+			}
+			history->clear(History::ClearType::Unload);
+			history->getReadyFor(ShowAtUnreadMsgId);
+		} else if (offsetId) {
+			retry();
+			return;
+		} else {
+			history->clear(History::ClearType::Unload);
+			history->getReadyFor(ShowAtTheEndMsgId);
+		}
+		history->addOlderSlice(result.data().vmessages().v);
+	}).send();
+
+#if 0 // mtp
 	const auto maxId = 0;
 	const auto minId = 0;
 	const auto historyHash = uint64(0);
@@ -72,6 +106,7 @@ int SendPreloadRequest(not_null<History*> history, Fn<void()> retry) {
 			finish();
 		}).send();
 	});
+#endif
 }
 
 } // namespace Support

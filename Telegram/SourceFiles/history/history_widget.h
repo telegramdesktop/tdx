@@ -743,7 +743,10 @@ private:
 	TextWithEntities _delayedShowAtMsgHighlightPart;
 
 	History *_supportPreloadHistory = nullptr;
+#if 0 // mtp
 	int _supportPreloadRequest = 0; // Not real mtpRequestId.
+#endif
+	Tdb::RequestId _supportPreloadRequest = 0;
 
 	object_ptr<HistoryView::TopBarWidget> _topBar;
 	object_ptr<Ui::ContinuousScroll> _scroll;
