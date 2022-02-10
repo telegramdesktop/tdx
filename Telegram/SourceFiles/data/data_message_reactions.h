@@ -370,13 +370,13 @@ private:
 	base::flat_set<not_null<HistoryItem*>> _pollItems;
 	base::flat_set<not_null<HistoryItem*>> _pollingItems;
 	mtpRequestId _pollRequestId = 0;
-#endif
 
 	base::flat_map<not_null<HistoryItem*>, crl::time> _sendPaidItems;
 	base::flat_map<not_null<HistoryItem*>, mtpRequestId> _sendingPaid;
 	base::Timer _sendPaidTimer;
 
 	mtpRequestId _saveFaveRequestId = 0;
+#endif
 
 	rpl::lifetime _lifetime;
 
