@@ -31,8 +31,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Api {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kContextReactionsLimit = 50;
 
@@ -73,7 +77,10 @@ struct CachedRead {
 	: data(Peers{ .state = WhoReadState::Unknown }) {
 	}
 	rpl::variable<Peers> data;
+#if 0 // mtp
 	mtpRequestId requestId = 0;
+#endif
+	RequestId requestId = 0;
 };
 
 struct CachedReacted {
@@ -81,7 +88,10 @@ struct CachedReacted {
 	: data(PeersWithReactions{ .state = WhoReadState::Unknown }) {
 	}
 	rpl::variable<PeersWithReactions> data;
+#if 0 // mtp
 	mtpRequestId requestId = 0;
+#endif
+	RequestId requestId = 0;
 };
 
 struct Context {
@@ -150,13 +160,19 @@ struct State {
 		const auto i = contexts.find(key);
 		for (auto &[item, entry] : i->second->cachedRead) {
 			if (const auto requestId = entry.requestId) {
+#if 0 // mtp
 				item->history()->session().api().request(requestId).cancel();
+#endif
+				item->history()->session().sender().request(requestId).cancel();
 			}
 		}
 		for (auto &[item, map] : i->second->cachedReacted) {
 			for (auto &[reaction, entry] : map) {
 				if (const auto requestId = entry.requestId) {
+#if 0 // mtp
 					item->history()->session().api().request(requestId).cancel();
+#endif
+					item->history()->session().sender().request(requestId).cancel();
 				}
 			}
 		}
@@ -177,13 +193,19 @@ struct State {
 	) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
 		const auto i = context->cachedRead.find(update.item);
 		if (i != end(context->cachedRead)) {
+#if 0 // mtp
 			session->api().request(i->second.requestId).cancel();
+#endif
+			session->sender().request(i->second.requestId).cancel();
 			context->cachedRead.erase(i);
 		}
 		const auto j = context->cachedReacted.find(update.item);
 		if (j != end(context->cachedReacted)) {
 			for (auto &[reaction, entry] : j->second) {
+#if 0 // mtp
 				session->api().request(entry.requestId).cancel();
+#endif
+				session->sender().request(entry.requestId).cancel();
 			}
 			context->cachedReacted.erase(j);
 		}
@@ -280,6 +302,7 @@ struct State {
 				}
 			}).send();
 		} else {
+#if 0 // mtp
 			entry.requestId = session->api().request(
 				MTPmessages_GetMessageReadParticipants(
 					item->history()->peer->input,
@@ -295,6 +318,20 @@ struct State {
 						.peer = UserId(id.data().vuser_id()),
 						.date = id.data().vdate().v,
 					});
+				}
+#endif
+			entry.requestId = session->sender().request(
+				TLgetMessageViewers(
+					peerToTdbChat(item->history()->peer->id),
+					tl_int53(item->id.bare))
+			).done([=](const TLusers &result) {
+				const auto &list = result.data().vuser_ids().v;
+				auto &entry = context->cacheRead(item);
+				entry.requestId = 0;
+				auto parsed = Peers();
+				parsed.list.reserve(list.size());
+				for (const auto &id : list) {
+					parsed.list.push_back(UserId(id.v));
 				}
 				entry.data = std::move(parsed);
 			}).fail([=] {
@@ -334,6 +371,7 @@ struct State {
 		const auto context = PreparedContextAt(weak.data(), session);
 		auto &entry = context->cacheReacted(item, reaction);
 		if (!entry.requestId) {
+#if 0 // mtp
 			using Flag = MTPmessages_GetMessageReactionsList::Flag;
 			entry.requestId = session->api().request(
 				MTPmessages_GetMessageReactionsList(
@@ -373,6 +411,31 @@ struct State {
 					}
 					entry.data = std::move(parsed);
 				});
+#endif
+			entry.requestId = session->sender().request(
+				TLgetMessageAddedReactions(
+					peerToTdbChat(item->history()->peer->id),
+					tl_int53(item->id.bare),
+					tl_string(reaction),
+					tl_string(), // offset
+					tl_int32(kContextReactionsLimit))
+			).done([=](const TLaddedReactions &result) {
+				auto &entry = context->cacheReacted(item, reaction);
+				entry.requestId = 0;
+
+				const auto &data = result.data();
+				const auto &list = data.vreactions().v;
+				auto parsed = PeersWithReactions{
+					.fullReactionsCount = data.vtotal_count().v,
+				};
+				parsed.list.reserve(list.size());
+				for (const auto &reaction : list) {
+					parsed.list.push_back(PeerWithReaction{
+						.peer = peerFromSender(reaction.data().vsender_id()),
+						.reaction = reaction.data().vreaction().v,
+					});
+				}
+				entry.data = std::move(parsed);
 			}).fail([=] {
 				auto &entry = context->cacheReacted(item, reaction);
 				entry.requestId = 0;
