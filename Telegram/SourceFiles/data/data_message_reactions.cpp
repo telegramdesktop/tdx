@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 
 #include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_account.h"
 
 namespace Data {
 namespace {
@@ -246,15 +247,30 @@ Reactions::Reactions(not_null<Session*> owner)
 	});
 #endif
 {
-	const auto appConfig = &_owner->session().account().appConfig();
-	appConfig->value(
-	) | rpl::start_with_next([=] {
-		const auto favorite = appConfig->get<QString>(
-			u"reactions_default"_q,
-			QString::fromUtf8("\xf0\x9f\x91\x8d"));
-		if (_favorite != favorite && !_saveFaveRequestId) {
-			_favorite = favorite;
-			_updated.fire({});
+	const auto setDefault = [=](const TLoptionValue &value) {
+		value.match([&](const TLDoptionValueString &data) {
+			const auto favorite = data.vvalue().v;
+			if (_favorite != favorite) {
+				_favorite = favorite;
+				_updated.fire({});
+			}
+		}, [](const auto &) {
+			LOG(("Tdb Error: Bad type of \"default_reaction\" option."));
+		});
+	};
+	_owner->session().sender().request(TLgetOption(
+		tl_string("default_reaction")
+	)).done([=](const TLoptionValue &result) {
+		setDefault(result);
+	}).send();
+
+	_owner->session().tdb().updates(
+	) | rpl::start_with_next([=](const TLupdate &update) {
+		if (update.type() == id_updateOption) {
+			const auto &data = update.c_updateOption();
+			if (data.vname().v == "default_reaction") {
+				setDefault(data.vvalue());
+			}
 		}
 	}, _lifetime);
 }
@@ -314,6 +330,7 @@ const Reaction *Reactions::favorite() const {
 }
 
 void Reactions::setFavorite(const ReactionId &id) {
+#if 0 // mtp
 	const auto api = &_owner->session().api();
 	if (_saveFaveRequestId) {
 		api->request(_saveFaveRequestId).cancel();
@@ -325,6 +342,11 @@ void Reactions::setFavorite(const ReactionId &id) {
 	}).fail([=] {
 		_saveFaveRequestId = 0;
 	}).send();
+#endif
+	_owner->session().sender().request(TLsetOption(
+		tl_string("default_reaction"),
+		tl_optionValueString(tl_string(emoji))
+	)).send();
 
 	applyFavorite(id);
 }
