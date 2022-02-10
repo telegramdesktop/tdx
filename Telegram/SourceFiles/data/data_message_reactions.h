@@ -236,9 +236,9 @@ private:
 	base::flat_set<not_null<HistoryItem*>> _pollItems;
 	base::flat_set<not_null<HistoryItem*>> _pollingItems;
 	mtpRequestId _pollRequestId = 0;
-#endif
 
 	mtpRequestId _saveFaveRequestId = 0;
+#endif
 
 	rpl::lifetime _lifetime;
 
