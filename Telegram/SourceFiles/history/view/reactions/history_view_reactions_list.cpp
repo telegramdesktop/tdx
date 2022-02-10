@@ -24,8 +24,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "lang/lang_keys.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+
 namespace HistoryView::Reactions {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kPerPageFirst = 20;
 constexpr auto kPerPage = 100;
@@ -278,12 +283,45 @@ void Controller::loadMore(const ReactionId &reaction) {
 	} else if (reaction.empty() && _allOffset.isEmpty() && !_all.empty()) {
 		return;
 	}
+
 	_api.request(_loadRequestId).cancel();
 
 	const auto &offset = reaction.empty()
 		? _allOffset
 		: _filteredOffset;
 
+	_loadRequestId = _api.request(TLgetMessageAddedReactions(
+		peerToTdbChat(_item->history()->peer->id),
+		tl_int53(_item->id.bare),
+		tl_string(reaction),
+		tl_string(offset),
+		tl_int32(offset.isEmpty() ? kPerPageFirst : kPerPage)
+	)).done([=](const TLaddedReactions &result) {
+		_loadRequestId = 0;
+		const auto filtered = !reaction.isEmpty();
+		const auto shown = (reaction == _shownReaction);
+		const auto &data = result.data();
+		auto &owner = _item->history()->owner();
+		(filtered ? _filteredOffset : _allOffset) = data.vnext_offset().v;
+		for (const auto &reaction : data.vreactions().v) {
+			const auto &data = reaction.data();
+			const auto peer = owner.peerLoaded(
+				peerFromSender(data.vsender_id()));
+			const auto reaction = data.vreaction().v;
+			if (peer && (!shown || appendRow(peer, reaction))) {
+				if (filtered) {
+					_filtered.emplace_back(peer);
+				} else {
+					_all.emplace_back(peer, reaction);
+				}
+			}
+		}
+		if (shown) {
+			setDescriptionText(QString());
+			delegate()->peerListRefreshRows();
+		}
+	}).send();
+#if 0 // mtp
 	using Flag = MTPmessages_GetMessageReactionsList::Flag;
 	const auto flags = Flag(0)
 		| (offset.isEmpty() ? Flag(0) : Flag::f_offset)
@@ -326,6 +364,7 @@ void Controller::loadMore(const ReactionId &reaction) {
 			delegate()->peerListRefreshRows();
 		}
 	}).send();
+#endif
 }
 
 void Controller::rowClicked(not_null<PeerListRow*> row) {

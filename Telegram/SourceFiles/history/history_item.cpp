@@ -2608,11 +2608,18 @@ void HistoryItem::setReactions(
 bool HistoryItem::changeReactions(
 		const QVector<TLmessageReaction> &list) {
 	if (list.empty()) {
+		_flags &= ~MessageFlag::CanViewReactions;
 		return (base::take(_reactions) != nullptr);
 	} else if (!_reactions) {
 		_reactions = std::make_unique<Data::MessageReactions>(this);
 	}
-	return _reactions->change(list);
+	const auto result = _reactions->change(list);
+	if (!_reactions->recent().empty()) {
+		_flags |= MessageFlag::CanViewReactions;
+	} else {
+		_flags &= ~MessageFlag::CanViewReactions;
+	}
+	return result;
 }
 
 bool HistoryItem::changeUnreadReactions(
