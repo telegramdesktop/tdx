@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 
 #include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_account.h"
 
 namespace Data {
 namespace {
@@ -464,6 +465,7 @@ const Reaction *Reactions::favorite() const {
 }
 
 void Reactions::setFavorite(const ReactionId &id) {
+#if 0 // mtp
 	const auto api = &_owner->session().api();
 	if (_saveFaveRequestId) {
 		api->request(_saveFaveRequestId).cancel();
@@ -475,6 +477,11 @@ void Reactions::setFavorite(const ReactionId &id) {
 	}).fail([=] {
 		_saveFaveRequestId = 0;
 	}).send();
+#endif
+	_owner->session().sender().request(TLsetOption(
+		tl_string("default_reaction"),
+		tl_optionValueString(tl_string(emoji))
+	)).send();
 
 	applyFavorite(id);
 }
