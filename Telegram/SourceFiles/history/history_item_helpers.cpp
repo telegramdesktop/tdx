@@ -101,6 +101,9 @@ MessageFlags FlagsFromTdb(const TLDmessage &data) {
 		| (data.vreply_to_message_id().v ? Flag::HasReplyInfo : Flag())
 		| (data.vreply_markup() ? Flag::HasReplyMarkup : Flag())
 		| (data.vscheduling_state() ? Flag::IsOrWasScheduled : Flag()) // todo was scheduled, but now isn't?
+		| (data.vcan_get_added_reactions().v
+			? Flag::CanViewReactions
+			: Flag())
 		| (views ? Flag::HasViews : Flag());
 }
 
