@@ -578,6 +578,14 @@ void AddReactionsText(
 
 } // namespace
 
+#include "tdb/tdb_sender.h"
+
+namespace {
+
+using namespace Tdb;
+
+} // namespace
+
 void EditAllowedReactionsBox(
 		not_null<Ui::GenericBox*> box,
 		EditAllowedReactionsArgs &&args) {
@@ -780,10 +788,19 @@ void SaveAllowedReactions(
 		not_null<PeerData*> peer,
 		const Data::AllowedReactions &allowed) {
 	auto ids = allowed.some | ranges::views::transform(
+		Data::ReactionToTL
+	) | ranges::to<QVector>;
+
+	peer->session().sender().request(TLsetChatAvailableReactions(
+		peerToTdbChat(peer->id),
+		tl_vector<TLstring>(std::move(ids))
+	)).send();
+
+#if 0 // mtp
+	auto ids = allowed.some | ranges::views::transform(
 		Data::ReactionToMTP
 	) | ranges::to<QVector<MTPReaction>>;
 
-#if 0 // todo
 	using Type = Data::AllowedReactionsType;
 	const auto updated = (allowed.type != Type::Some)
 		? MTP_chatReactionsAll(MTP_flags((allowed.type == Type::Default)
