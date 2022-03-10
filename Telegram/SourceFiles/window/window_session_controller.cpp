@@ -92,6 +92,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 #include "styles/style_layers.h" // st::boxLabel
 
+#include "tdb/tdb_format_phone.h"
+
 namespace Window {
 namespace {
 
@@ -412,7 +414,10 @@ void SessionNavigation::resolvePhone(
 				Ui::MakeInformBox(tr::lng_username_by_phone_not_found(
 					tr::now,
 					lt_phone,
+					Tdb::FormatPhone(phone))),
+#if 0 // mtp
 					Ui::FormatPhone(phone))),
+#endif
 				Ui::LayerOption::CloseOther);
 		}
 	}).send();
