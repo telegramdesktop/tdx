@@ -1202,7 +1202,7 @@ std::vector<not_null<const Value*>> FormController::submitGetErrors() {
 		} else if (AcceptErrorRequiresRestart(error.message)) {
 			suggestRestart();
 		} else {
-			_view->show(Box<Ui::InformBox>(
+			_view->show(Ui::MakeInformBox(
 				Lang::Hard::SecureAcceptError() + "\n" + error.message));
 		}
 	}).send();
@@ -1570,7 +1570,7 @@ void FormController::recoverPassword() {
 		}, box->lifetime());
 	}, [=](const QString &error) {
 		_recoverRequestLifetime.destroy();
-		_view->show(Box<Ui::InformBox>(Lang::Hard::ServerError()
+		_view->show(Ui::MakeInformBox(Lang::Hard::ServerError()
 			+ '\n'
 			+ error));
 	}, _recoverRequestLifetime);

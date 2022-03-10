@@ -238,7 +238,7 @@ void SignupWidget::registerUserFail(const Error &error) {
 
 	const auto &type = error.message;
 	if (type == u"PHONE_NUMBER_FLOOD") {
-		Ui::show(Box<Ui::InformBox>(tr::lng_error_phone_flood(tr::now)));
+		Ui::show(Ui::MakeInformBox(tr::lng_error_phone_flood(tr::now)));
 	} else if (type == u"PHONE_NUMBER_INVALID"
 		|| type == u"PHONE_NUMBER_BANNED"
 		|| type == u"PHONE_CODE_EXPIRED"
