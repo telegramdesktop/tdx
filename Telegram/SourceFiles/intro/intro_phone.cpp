@@ -332,7 +332,7 @@ void PhoneWidget::phoneSetFail(const Error &error) {
 	_sentRequest = false;
 	const auto &type = error.message;
 	if (type == u"PHONE_NUMBER_FLOOD") {
-		Ui::show(Box<Ui::InformBox>(tr::lng_error_phone_flood(tr::now)));
+		Ui::show(Ui::MakeInformBox(tr::lng_error_phone_flood(tr::now)));
 	} else if (type == u"PHONE_NUMBER_INVALID") {
 		showPhoneError(tr::lng_bad_phone());
 	} else if (type == u"PHONE_NUMBER_BANNED") {
