@@ -280,7 +280,7 @@ void Widget::handleUpdate(const TLupdate &update) {
 		if (data.vtype().v.startsWith("AUTH_KEY_DROP_")) {
 			Core::App().forceLogOut(_account, text);
 		} else {
-			Ui::show(Box<Ui::InformBox>(text));
+			Ui::show(Ui::MakeInformBox(text));
 		}
 	}, [&](const TLDupdateAuthorizationState &data) {
 		handleAuthorizationState(data.vauthorization_state());
