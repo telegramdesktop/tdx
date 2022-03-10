@@ -673,6 +673,7 @@ void DownloadManager::resolve(
 		--sessionData(session).resolveSentRequests;
 		check();
 	};
+#if 0 // todo
 	for (auto &[peer, perPeer] : prepared) {
 		if (const auto channelId = peerToChannel(peer)) {
 			session->api().request(MTPchannels_GetMessages(
@@ -695,6 +696,7 @@ void DownloadManager::resolve(
 			}).fail(requestFinished).send();
 		}
 	}
+#endif
 	data.resolveSentRequests += prepared.size();
 	check();
 }

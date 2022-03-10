@@ -707,7 +707,7 @@ void CloudManager::sendSwitchingToLanguageRequest() {
 	}).fail([=](const Tdb::Error &error) {
 		_switchingToLanguageRequest = 0;
 		if (error.message == "LANG_CODE_NOT_SUPPORTED") {
-			Ui::show(Box<Ui::InformBox>(tr::lng_language_not_found(tr::now)));
+			Ui::show(Ui::MakeInformBox(tr::lng_language_not_found(tr::now)));
 		}
 	}).send();
 }
