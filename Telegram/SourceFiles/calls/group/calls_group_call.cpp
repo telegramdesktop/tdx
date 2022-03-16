@@ -1192,7 +1192,8 @@ void GroupCall::start(TimeId scheduleDate, bool rtmp) {
 	_createRequestId = _tdbApi.request(Tdb::TLcreateVideoChat(
 		peerToTdbChat(_peer->id),
 		Tdb::tl_string(), // title
-		Tdb::tl_int32(scheduleDate)
+		Tdb::tl_int32(scheduleDate),
+		Tdb::tl_bool(rtmp)
 	)).done([=](const Tdb::TLDgroupCallId &data) {
 		if (!_instance && !_id) {
 			const auto id = data.vid().v;
