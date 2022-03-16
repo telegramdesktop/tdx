@@ -2903,6 +2903,10 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateSuggestedActions &data) {
 	}, [&](const TLDupdateChatPendingJoinRequests &data) {
 	}, [&](const TLDupdateAnimatedEmojiMessageClicked &data) {
+	}, [&](const TLDupdateFileDownloads &data) {
+	}, [&](const TLDupdateFileAddedToDownloads &data) {
+	}, [&](const TLDupdateFileDownload &data) {
+	}, [&](const TLDupdateFileRemovedFromDownloads &data) {
 	});
 	session().data().sendHistoryChangeNotifications();
 }
