@@ -426,6 +426,8 @@ void GroupCall::processFullCall(const MTPphone_GroupCall &call) {
 
 void GroupCall::applyCallFields(const Tdb::TLDgroupCall &data) {
 	_joinMuted = data.vmute_new_participants().v;
+	_listenersHidden = data.vhas_hidden_listeners().v;
+	_rtmp = data.vis_rtmp_stream().v;
 	_canChangeJoinMuted = data.vcan_toggle_mute_new_participants().v;
 	_isJoined = data.vis_joined().v;
 
