@@ -444,7 +444,10 @@ private:
 
 	struct LoadingPart {
 		std::shared_ptr<LoadPartTask> task;
+#if 0 // mtp
 		mtpRequestId requestId = 0;
+#endif
+		Tdb::RequestId requestId = 0;
 	};
 
 	enum class FinishType {
@@ -589,7 +592,7 @@ private:
 	void addVideoOutput(const std::string &endpoint, SinkPointer sink);
 	void setVideoEndpointLarge(VideoEndpoint endpoint);
 
-	void unixtime(Fn<void(int64)> &&callback);
+	Tdb::RequestId unixtime(Fn<void(int64)> &&callback);
 
 	void markEndpointActive(
 		VideoEndpoint endpoint,
