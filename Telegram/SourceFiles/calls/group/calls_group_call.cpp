@@ -44,6 +44,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Calls {
 namespace {
 
+using namespace Tdb;
+
 constexpr auto kMaxInvitePerSlice = 10;
 constexpr auto kCheckLastSpokeInterval = crl::time(1000);
 #if 0 // goodToRemove
@@ -307,7 +309,7 @@ struct ParticipantVideoParams {
 
 [[nodiscard]] bool VideoParamsAreEqual(
 		const VideoParams &was,
-		const tl::conditional<Tdb::TLgroupCallParticipantVideoInfo> &now) {
+		const tl::conditional<TLgroupCallParticipantVideoInfo> &now) {
 	if (!now) {
 		return !was;
 	}
@@ -326,7 +328,7 @@ struct ParticipantVideoParams {
 	auto index = 0;
 	for (const auto &group : list) {
 		const auto equal = group.match([&](
-				const Tdb::TLDgroupCallVideoSourceGroup &data) {
+				const TLDgroupCallVideoSourceGroup &data) {
 			const auto &group = was.ssrcGroups[index++];
 			if (gsl::make_span(data.vsemantics().v.toUtf8())
 				!= gsl::make_span(group.semantics)) {
@@ -352,7 +354,7 @@ struct ParticipantVideoParams {
 }
 
 [[nodiscard]] VideoParams ParseVideoParams(
-		const tl::conditional<Tdb::TLgroupCallParticipantVideoInfo> &params) {
+		const tl::conditional<TLgroupCallParticipantVideoInfo> &params) {
 	if (!params) {
 		return VideoParams();
 	}
@@ -490,8 +492,8 @@ std::shared_ptr<ParticipantVideoParams> ParseVideoParams(
 		const tl::conditional<MTPGroupCallParticipantVideo> &camera,
 		const tl::conditional<MTPGroupCallParticipantVideo> &screen,
 #endif
-		const tl::conditional<Tdb::TLgroupCallParticipantVideoInfo> &camera,
-		const tl::conditional<Tdb::TLgroupCallParticipantVideoInfo> &screen,
+		const tl::conditional<TLgroupCallParticipantVideoInfo> &camera,
+		const tl::conditional<TLgroupCallParticipantVideoInfo> &screen,
 		const std::shared_ptr<ParticipantVideoParams> &existing) {
 	using namespace tgcalls;
 
@@ -1189,19 +1191,19 @@ void GroupCall::start(TimeId scheduleDate, bool rtmp) {
 		hangup();
 	}).send();
 #endif
-	_createRequestId = _tdbApi.request(Tdb::TLcreateVideoChat(
+	_createRequestId = _tdbApi.request(TLcreateVideoChat(
 		peerToTdbChat(_peer->id),
-		Tdb::tl_string(), // title
-		Tdb::tl_int32(scheduleDate),
-		Tdb::tl_bool(rtmp)
-	)).done([=](const Tdb::TLDgroupCallId &data) {
+		tl_string(), // title
+		tl_int32(scheduleDate),
+		tl_bool(rtmp)
+	)).done([=](const TLDgroupCallId &data) {
 		if (!_instance && !_id) {
 			const auto id = data.vid().v;
 			setScheduledDate(scheduleDate);
 			if (const auto chat = _peer->asChat()) {
-				chat->setGroupCall(id, scheduleDate);
+				chat->setGroupCall(id, scheduleDate, rtmp);
 			} else if (const auto group = _peer->asChannel()) {
-				group->setGroupCall(id, scheduleDate);
+				group->setGroupCall(id, scheduleDate, rtmp);
 			} else {
 				Unexpected("Peer type in GroupCall::join.");
 			}
@@ -1452,7 +1454,7 @@ void GroupCall::saveDefaultJoinAs(not_null<PeerData*> as) {
 		joinAs()->input
 	)).send();
 #endif
-	_tdbApi.request(Tdb::TLsetVideoChatDefaultParticipant(
+	_tdbApi.request(TLsetVideoChatDefaultParticipant(
 		peerToTdbChat(_peer->id),
 		peerToSender(joinAs()->id)
 	)).send();
@@ -1528,15 +1530,15 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 				_serverTimeMs = TimestampInMsFromMsgId(response.outerMsgId);
 				_serverTimeMsGotAt = crl::now();
 #endif
-			_tdbApi.request(Tdb::TLjoinGroupCall(
-				Tdb::tl_int32(_id),
+			_tdbApi.request(TLjoinGroupCall(
+				tl_int32(_id),
 				peerToSender(joinAs()->id),
-				Tdb::tl_int32(ssrc),
-				Tdb::tl_string(json),
-				Tdb::tl_bool(wasMuteState != MuteState::Active),
-				Tdb::tl_bool(!wasVideoStopped),
-				Tdb::tl_string(_joinHash)
-			)).done([=](const Tdb::TLDtext &data) {
+				tl_int32(ssrc),
+				tl_string(json),
+				tl_bool(wasMuteState != MuteState::Active),
+				tl_bool(!wasVideoStopped),
+				tl_string(_joinHash)
+			)).done([=](const TLDtext &data) {
 				unixtime([=](int64 time) {
 					_serverTimeMs = time;
 					_serverTimeMsGotAt = crl::now();
@@ -1684,11 +1686,11 @@ void GroupCall::rejoinPresentation() {
 					MTP_dataJSON(MTP_bytes(json)))
 			).done([=](const MTPUpdates &updates) {
 #endif
-			_tdbApi.request(Tdb::TLstartGroupCallScreenSharing(
-				Tdb::tl_int32(_id),
-				Tdb::tl_int32(ssrc),
-				Tdb::tl_string(json)
-			)).done([=](const Tdb::TLDtext &data) {
+			_tdbApi.request(TLstartGroupCallScreenSharing(
+				tl_int32(_id),
+				tl_int32(ssrc),
+				tl_string(json)
+			)).done([=](const TLDtext &data) {
 				_screenJoinState.finish(ssrc);
 				_mySsrcs.emplace(ssrc);
 
@@ -1765,8 +1767,8 @@ void GroupCall::leavePresentation() {
 		MTPphone_LeaveGroupCallPresentation(inputCall())
 	).done([=](const MTPUpdates &updates) {
 #endif
-	_tdbApi.request(Tdb::TLendGroupCallScreenSharing(
-		Tdb::tl_int32(_id)
+	_tdbApi.request(TLendGroupCallScreenSharing(
+		tl_int32(_id)
 	)).done([=] {
 		_screenJoinState.finish();
 
@@ -1910,8 +1912,8 @@ void GroupCall::discard() {
 		inputCall()
 	)).done([=](const MTPUpdates &result) {
 #endif
-	_tdbApi.request(Tdb::TLendGroupCall(
-		Tdb::tl_int32(_id)
+	_tdbApi.request(TLendGroupCall(
+		tl_int32(_id)
 	)).done([=] {
 		// Here 'this' could be destroyed by updates, so we set Ended after
 		// updates being handled, but in a guarded way.
@@ -1985,8 +1987,8 @@ void GroupCall::leave() {
 		MTP_int(base::take(_joinState.ssrc))
 	)).done([=](const MTPUpdates &result) {
 #endif
-	session->api().sender().request(Tdb::TLleaveGroupCall(
-		Tdb::tl_int32(_id)
+	session->api().sender().request(TLleaveGroupCall(
+		tl_int32(_id)
 	)).done([=] {
 		// Here 'this' could be destroyed by updates, so we set Ended after
 		// updates being handled, but in a guarded way.
@@ -2010,8 +2012,8 @@ void GroupCall::startScheduledNow() {
 		_peer->session().api().applyUpdates(result);
 	}).send();
 #endif
-	_tdbApi.request(Tdb::TLstartScheduledGroupCall(
-		Tdb::tl_int32(_id)
+	_tdbApi.request(TLstartScheduledGroupCall(
+		tl_int32(_id)
 	)).send();
 }
 
@@ -2027,9 +2029,9 @@ void GroupCall::toggleScheduleStartSubscribed(bool subscribed) {
 		_peer->session().api().applyUpdates(result);
 	}).send();
 #endif
-	_tdbApi.request(Tdb::TLtoggleGroupCallEnabledStartNotification(
-		Tdb::tl_int32(_id),
-		Tdb::tl_bool(subscribed)
+	_tdbApi.request(TLtoggleGroupCallEnabledStartNotification(
+		tl_int32(_id),
+		tl_bool(subscribed)
 	)).send();
 }
 
@@ -2214,7 +2216,7 @@ void GroupCall::checkMediaChannelDescriptions(
 	}
 }
 
-void GroupCall::handleUpdate(const Tdb::TLDupdateGroupCall &update) {
+void GroupCall::handleUpdate(const TLDupdateGroupCall &update) {
 	const auto &call = update.vgroup_call().data();
 	if ((call.vid().v == _id) && (call.vduration().v > 0)) {
 		LOG(("Call Info: Hangup after groupCallDiscarded."));
@@ -2224,7 +2226,7 @@ void GroupCall::handleUpdate(const Tdb::TLDupdateGroupCall &update) {
 }
 
 void GroupCall::handleUpdate(
-		const Tdb::TLDupdateGroupCallParticipant &update) {
+		const TLDupdateGroupCallParticipant &update) {
 	if (update.vgroup_call_id().v != _id) {
 		return;
 	}
@@ -2313,7 +2315,7 @@ void GroupCall::applyQueuedSelfUpdates() {
 	}
 }
 
-void GroupCall::applySelfUpdate(const Tdb::TLDgroupCallParticipant &data) {
+void GroupCall::applySelfUpdate(const TLDgroupCallParticipant &data) {
 	const auto ssrc = uint32(data.vaudio_source_id().v);
 	if (data.vorder().v.isEmpty()) {
 		if (ssrc == _joinState.ssrc) {
@@ -2672,9 +2674,9 @@ void GroupCall::changeTitle(const QString &title) {
 		_titleChanged.fire({});
 	}).send();
 #endif
-	_tdbApi.request(Tdb::TLsetGroupCallTitle(
-		Tdb::tl_int32(_id),
-		Tdb::tl_string(title)
+	_tdbApi.request(TLsetGroupCallTitle(
+		tl_int32(_id),
+		tl_string(title)
 	)).done([=] {
 		_titleChanged.fire({});
 	}).send();
@@ -2720,15 +2722,15 @@ void GroupCall::toggleRecording(
 	};
 
 	if (enabled) {
-		_tdbApi.request(Tdb::TLstartGroupCallRecording(
-			Tdb::tl_int32(_id),
-			Tdb::tl_string(title),
-			Tdb::tl_bool(video),
-			Tdb::tl_bool(videoPortrait)
+		_tdbApi.request(TLstartGroupCallRecording(
+			tl_int32(_id),
+			tl_string(title),
+			tl_bool(video),
+			tl_bool(videoPortrait)
 		)).done(finish).fail(finish).send();
 	} else {
-		_tdbApi.request(Tdb::TLendGroupCallRecording(
-			Tdb::tl_int32(_id)
+		_tdbApi.request(TLendGroupCallRecording(
+			tl_int32(_id)
 		)).done(finish).fail(finish).send();
 	}
 }
@@ -2888,11 +2890,11 @@ bool GroupCall::tryCreateScreencast() {
 	return true;
 }
 
-void GroupCall::unixtime(Fn<void(int64)> &&callback) {
-	_tdbApi.request(Tdb::TLgetOption(
-		Tdb::tl_string("unix_time")
-	)).done([c = std::move(callback)](const Tdb::TLoptionValue &value) {
-		c(Tdb::OptionValue<int64>(value) * 1000);
+RequestId GroupCall::unixtime(Fn<void(int64)> &&callback) {
+	return _tdbApi.request(TLgetOption(
+		tl_string("unix_time")
+	)).done([c = std::move(callback)](const TLoptionValue &value) {
+		c(OptionValue<int64>(value) * 1000);
 	}).send();
 }
 
@@ -2908,19 +2910,19 @@ void GroupCall::broadcastPartStart(std::shared_ptr<LoadPartTask> task) {
 	};
 	using Status = tgcalls::BroadcastPart::Status;
 	using Quality = tgcalls::VideoChannelDescription::Quality;
-	const auto requestId = _tdbApi.request(Tdb::TLgetGroupCallStreamSegment(
-		Tdb::tl_int32(_id),
-		Tdb::tl_int53(time),
-		Tdb::tl_int32(scale),
-		Tdb::tl_int32(videoChannel),
+	const auto requestId = _tdbApi.request(TLgetGroupCallStreamSegment(
+		tl_int32(_id),
+		tl_int53(time),
+		tl_int32(scale),
+		tl_int32(videoChannel),
 		((videoQuality == Quality::Full)
-			? Tdb::tl_groupCallVideoQualityFull()
+			? tl_groupCallVideoQualityFull()
 			: (videoQuality == Quality::Medium)
-			? Tdb::tl_groupCallVideoQualityMedium()
-			: Tdb::tl_groupCallVideoQualityThumbnail())
-	)).done([=](const Tdb::TLDfilePart &part) {
+			? tl_groupCallVideoQualityMedium()
+			: tl_groupCallVideoQualityThumbnail())
+	)).done([=](const TLDfilePart &part) {
 		auto data = part.vdata().v;
-		unixtime([=, data = std::move(data)](int64 time) {
+		_broadcastParts[raw].requestId = unixtime([=](int64 time) {
 			const auto size = data.size();
 			auto bytes = std::vector<uint8_t>(size);
 			memcpy(bytes.data(), data.constData(), size);
@@ -2941,11 +2943,11 @@ void GroupCall::broadcastPartStart(std::shared_ptr<LoadPartTask> task) {
 			rejoin();
 			return;
 		}
-		const auto status = (Tdb::IsFloodError(error)
+		const auto status = (IsFloodError(error)
 			|| error.message == u"TIME_TOO_BIG"_q)
 			? Status::NotReady
 			: Status::ResyncNeeded;
-		unixtime([=](int64 time) {
+		_broadcastParts[raw].requestId = unixtime([=](int64 time) {
 			finish({
 				.timestampMilliseconds = time,
 				.responseTimestamp = float64(time),
@@ -2955,7 +2957,7 @@ void GroupCall::broadcastPartStart(std::shared_ptr<LoadPartTask> task) {
 	}).send();
 	_broadcastParts.emplace(
 		raw,
-		LoadingPart{ std::move(task), mtpRequestId(requestId) });
+		LoadingPart{ std::move(task), requestId });
 #if 0 // goodToRemove
 	using Flag = MTPDinputGroupCallStream::Flag;
 	const auto requestId = _api.request(MTPupload_GetFile(
@@ -3105,7 +3107,32 @@ void GroupCall::requestCurrentTimeStart(
 			task->done(value);
 		}
 	};
-#if 0 // todo
+	_requestCurrentTimeRequestId = _tdbApi.request(
+		TLgetGroupCallStreams(tl_int32(_id))
+	).done([=](const TLgroupCallStreams &result) {
+		const auto &data = result.data();
+		const auto &list = data.vstreams().v;
+		const auto empty = list.isEmpty();
+		if (!empty) {
+			const auto &first = list.front().data();
+			finish(first.vtime_offset().v);
+		} else {
+			finish(0);
+		}
+		_emptyRtmp = empty;
+	}).fail([=](const Tdb::Error &error) {
+		finish(0);
+
+		if (error.message == u"GROUPCALL_JOIN_MISSING"_q
+			|| error.message == u"GROUPCALL_FORBIDDEN"_q) {
+			for (const auto &[task, part] : _broadcastParts) {
+				_tdbApi.request(part.requestId).cancel();
+			}
+			setState(State::Joining);
+			rejoin();
+		}
+	}).send();
+#if 0 // mtp
 	_requestCurrentTimeRequestId = _api.request(
 		MTPphone_GetGroupCallStreamChannels(inputCall())
 	).done([=](const MTPphone_GroupCallStreamChannels &result) {
@@ -3699,44 +3726,44 @@ void GroupCall::sendSelfUpdate(SendUpdateType type) {
 			rejoin();
 		}
 	};
-	const auto tlId = Tdb::tl_int32(_id);
+	const auto tlId = tl_int32(_id);
 	const auto tlSelf = peerToSender(joinAs()->id);
 	switch (type) {
 	case SendUpdateType::RaiseHand: {
 		_tdbApi.request(
-			Tdb::TLtoggleGroupCallParticipantIsHandRaised(
+			TLtoggleGroupCallParticipantIsHandRaised(
 				tlId,
 				tlSelf,
-				Tdb::tl_bool(muted() == MuteState::RaisedHand))
+				tl_bool(muted() == MuteState::RaisedHand))
 		).fail(failed).send();
 	} break;
 	case SendUpdateType::CameraStopped: {
 		_tdbApi.request(
-			Tdb::TLtoggleGroupCallIsMyVideoEnabled(
+			TLtoggleGroupCallIsMyVideoEnabled(
 				tlId,
-				Tdb::tl_bool(isSharingCamera()))
+				tl_bool(isSharingCamera()))
 		).fail(failed).send();
 	} break;
 	case SendUpdateType::CameraPaused: {
 		_tdbApi.request(
-			Tdb::TLtoggleGroupCallIsMyVideoPaused(
+			TLtoggleGroupCallIsMyVideoPaused(
 				tlId,
-				Tdb::tl_bool(isCameraPaused()))
+				tl_bool(isCameraPaused()))
 		).fail(failed).send();
 	} break;
 	case SendUpdateType::ScreenPaused: {
 		_tdbApi.request(
-			Tdb::TLtoggleGroupCallScreenSharingIsPaused(
+			TLtoggleGroupCallScreenSharingIsPaused(
 				tlId,
-				Tdb::tl_bool(isScreenPaused()))
+				tl_bool(isScreenPaused()))
 		).fail(failed).send();
 	} break;
 	case SendUpdateType::Mute: {
 		_tdbApi.request(
-			Tdb::TLtoggleGroupCallParticipantIsMuted(
+			TLtoggleGroupCallParticipantIsMuted(
 				tlId,
 				tlSelf,
-				Tdb::tl_bool(muted() != MuteState::Active))
+				tl_bool(muted() != MuteState::Active))
 		).fail(failed).send();
 	} break;
 	};
@@ -3837,10 +3864,10 @@ void GroupCall::toggleMute(const Group::MuteRequest &data) {
 #if 0 // goodToRemove
 		editParticipant(data.peer, data.mute, std::nullopt);
 #endif
-		_tdbApi.request(Tdb::TLtoggleGroupCallParticipantIsMuted(
-			Tdb::tl_int32(_id),
+		_tdbApi.request(TLtoggleGroupCallParticipantIsMuted(
+			tl_int32(_id),
 			peerToSender(data.peer->id),
-			Tdb::tl_bool(data.mute)
+			tl_bool(data.mute)
 		)).send();
 	}
 }
@@ -3858,10 +3885,10 @@ void GroupCall::changeVolume(const Group::VolumeRequest &data) {
 #if 0 // goodToRemove
 		editParticipant(data.peer, false, data.volume);
 #endif
-		_tdbApi.request(Tdb::TLsetGroupCallParticipantVolumeLevel(
-			Tdb::tl_int32(_id),
+		_tdbApi.request(TLsetGroupCallParticipantVolumeLevel(
+			tl_int32(_id),
 			peerToSender(data.peer->id),
-			Tdb::tl_int32(data.volume)
+			tl_int32(data.volume)
 		)).send();
 	}
 }
@@ -3911,7 +3938,7 @@ std::variant<int, not_null<UserData*>> GroupCall::inviteUsers(
 	const auto owner = &_peer->owner();
 
 	auto count = 0;
-	auto slice = QVector<Tdb::TLint53>();
+	auto slice = QVector<TLint53>();
 #if 0 // goodToRemove
 	auto slice = QVector<MTPInputUser>();
 #endif
@@ -3927,9 +3954,9 @@ std::variant<int, not_null<UserData*>> GroupCall::inviteUsers(
 			_peer->session().api().applyUpdates(result);
 		}).send();
 #endif
-		_tdbApi.request(Tdb::TLinviteGroupCallParticipants(
-			Tdb::tl_int32(_id),
-			Tdb::tl_vector<Tdb::TLint53>(slice)
+		_tdbApi.request(TLinviteGroupCallParticipants(
+			tl_int32(_id),
+			tl_vector<TLint53>(slice)
 		)).send();
 		slice.clear();
 	};
