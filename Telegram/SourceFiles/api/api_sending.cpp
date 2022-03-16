@@ -416,7 +416,8 @@ void SendPreparedAlbumIfReady(
 				? tl_messageSchedulingStateSendAtDate(
 					tl_int32(action.options.scheduled))
 				: std::optional<TLmessageSchedulingState>())),
-		tl_vector(std::move(contents))
+		tl_vector(std::move(contents)),
+		tl_bool(false) // only_preview
 	)).done([=](const TLmessages &result) {
 		//if (clearCloudDraft) {
 		//	// todo drafts - unnecessary?..
