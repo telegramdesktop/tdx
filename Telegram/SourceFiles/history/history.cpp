@@ -3003,11 +3003,19 @@ void History::applyPosition(const TLDchatPosition &data) {
 		owner().setNotTopPromoted(this);
 	}
 	data.vlist().match([&](const TLDchatListMain &) {
-		clearFolder();
-		updateChatListSortPosition(FilterId(), order, pinned);
+		if (order || (folderKnown() && !folder())) {
+			clearFolder();
+			updateChatListSortPosition(FilterId(), order, pinned);
+		}
 	}, [&](const TLDchatListArchive &) {
-		setFolder(owner().folder(Data::Folder::kId));
-		updateChatListSortPosition(FilterId(), order, pinned);
+		if (order) {
+			setFolder(owner().folder(Data::Folder::kId));
+		} else {
+			clearFolder();
+		}
+		if (order || (folderKnown() && folder())) {
+			updateChatListSortPosition(FilterId(), order, pinned);
+		}
 	}, [&](const TLDchatListFilter &data) {
 		if (folderKnown()) {
 			const auto filterId = data.vchat_filter_id().v;
