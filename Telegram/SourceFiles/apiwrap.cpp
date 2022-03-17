@@ -533,7 +533,25 @@ void ApiWrap::toggleHistoryArchived(
 		not_null<History*> history,
 		bool archived,
 		Fn<void()> callback) {
-#if 0 // todo
+	if (const auto already = _historyArchivedRequests.take(history)) {
+		sender().request(already->first).cancel();
+	}
+	const auto isPinned = history->isPinnedDialog(0);
+	const auto requestId = sender().request(TLaddChatToList(
+		peerToTdbChat(history->peer->id),
+		(archived ? tl_chatListArchive() : tl_chatListMain())
+	)).done([=] {
+		if (const auto data = _historyArchivedRequests.take(history)) {
+			data->second();
+		}
+		if (isPinned) {
+			_session->data().notifyPinnedDialogsOrderUpdated();
+		}
+	}).fail([=] {
+		_historyArchivedRequests.remove(history);
+	}).send();
+	_historyArchivedRequests.emplace(history, requestId, callback);
+#if 0 // mtp
 	if (const auto already = _historyArchivedRequests.take(history)) {
 		request(already->first).cancel();
 	}
