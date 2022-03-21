@@ -66,7 +66,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QClipboard>
 #include <QtSvg/QSvgRenderer>
 
+#include "tdb/tdb_sender.h"
+
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kStickersPerRow = 5;
 constexpr auto kEmojiPerRow = 8;
@@ -78,7 +82,10 @@ constexpr auto kStickerMoveDuration = crl::time(200);
 using Data::StickersSet;
 using Data::StickersPack;
 using SetFlag = Data::StickersSetFlag;
+#if 0 // mtp
 using TLStickerSet = MTPmessages_StickerSet;
+#endif
+using TLStickerSet = TLstickerSet;
 
 [[nodiscard]] std::optional<QColor> ComputeImageColor(
 		const style::icon &lockIcon,
@@ -380,7 +387,10 @@ private:
 	void startOverAnimation(int index, float64 from, float64 to);
 	int stickerFromGlobalPos(const QPoint &p) const;
 
+#if 0 // mtp
 	void installDone(const MTPmessages_StickerSetInstallResult &result);
+#endif
+	void installDone();
 
 	void requestReorder(not_null<DocumentData*> document, int index);
 	void fillDeleteStickerBox(not_null<Ui::GenericBox*> box, int index);
@@ -674,6 +684,7 @@ void ChangeSetNameBox(
 		const auto buttonWidth = state->saveButton
 			? state->saveButton->width()
 			: 0;
+#if 0 // mtp
 		state->requestId = data->session().api().request(
 			MTPstickers_RenameStickerSet(
 				Data::InputStickerSet(input),
@@ -688,6 +699,31 @@ void ChangeSetNameBox(
 			close();
 		}).fail([=](const MTP::Error &error) {
 			show->showToast(error.type());
+			close();
+		}).send();
+#endif
+		const auto &sets = data->stickers().sets();
+		const auto it = sets.find(input.id);
+		if (it == sets.end()) {
+			show->showToast(u"Set not found!"_q);
+			return;
+		}
+		state->requestId = data->session().sender().request(
+			TLsetStickerSetTitle(
+				tl_string(it->second->shortName),
+				tl_string(text))
+		).done([=] {
+			state->requestId = data->session().sender().request(
+				TLgetStickerSet(tl_int64(input.id))
+			).done([=](const TLstickerSet &result) {
+				done(result);
+				close();
+			}).fail([=](const Error &error) {
+				show->showToast(error.message);
+				close();
+			}).send();
+		}).fail([=](const Error &error) {
+			show->showToast(error.message);
 			close();
 		}).send();
 		if (state->saveButton) {
@@ -712,7 +748,11 @@ void ChangeSetNameBox(
 			state->requestId.value() | rpl::map(rpl::mappers::_1 > 0));
 	}
 	box->addButton(tr::lng_cancel(), [=] {
+#if 0 // mtp
 		data->session().api().request(state->requestId.current()).cancel();
+#endif
+		data->session().sender().request(
+			state->requestId.current()).cancel();
 		close();
 	});
 }
@@ -902,6 +942,7 @@ StickerSetBox::Inner::Inner(
 , _previewTimer([=] { showPreview(); }) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
+#if 0 // mtp
 	_api.request(MTPmessages_GetStickerSet(
 		Data::InputStickerSet(_input),
 		MTP_int(0) // hash
@@ -911,6 +952,27 @@ StickerSetBox::Inner::Inner(
 		_loaded = true;
 		_errors.fire(Error::NotFound);
 	}).send();
+#endif
+	if (_input.id) {
+		_api.request(TLgetStickerSet(
+			tl_int64(_input.id)
+		)).done([=](const TLstickerSet &result) {
+			applySet(result);
+		}).fail([=] {
+			_loaded = true;
+			_errors.fire(Error::NotFound);
+		}).send();
+	} else {
+		_api.request(TLsearchStickerSet(
+			tl_string(_input.shortName),
+			tl_bool(true)
+		)).done([=](const TLstickerSet &result) {
+			applySet(result);
+		}).fail([=] {
+			_loaded = true;
+			_errors.fire(Error::NotFound);
+		}).send();
+	}
 
 	_session->api().updateStickers();
 
@@ -930,14 +992,21 @@ void StickerSetBox::Inner::applySet(const TLStickerSet &set) {
 	setCursor(style::cur_default);
 	const auto owner = &_session->data();
 	const auto premiumPossible = _session->premiumPossible();
+#if 0 // mtp
 	set.match([&](const MTPDmessages_stickerSet &data) {
 		const auto &v = data.vdocuments().v;
+#endif
+	set.match([&](const TLDstickerSet &data) {
+		_input.id = set.data().vid().v;
+
+		const auto &v = data.vstickers().v;
 		_pack.reserve(v.size());
 		_elements.reserve(v.size());
 		for (const auto &item : v) {
 			const auto document = owner->processDocument(item);
 			const auto sticker = document->sticker();
 			if (!sticker) {
+				_pack.push_back(nullptr);
 				continue;
 			}
 			_pack.push_back(document);
@@ -948,6 +1017,46 @@ void StickerSetBox::Inner::applySet(const TLStickerSet &set) {
 				});
 			}
 		}
+
+		const auto &emojis = data.vemojis().v;
+		Assert(emojis.size() == _pack.size());
+		for (auto i = 0, l = int(emojis.size()); i != l; ++i) {
+			if (const auto document = _pack[i]) {
+				for (const auto &string : emojis[i].data().vemojis().v) {
+					if (const auto emoji = Ui::Emoji::Find(string.v)) {
+						_emoji[emoji].push_back(document);
+					}
+				}
+			}
+		}
+		_pack.erase(ranges::remove(_pack, nullptr), _pack.end());
+		_setTitle = _show->session().data().stickers().getSetTitle(
+			data);
+		_setShortName = data.vname().v;
+		_setId = data.vid().v;
+		_setCount = _pack.size();
+		_setFlags = Data::ParseStickersSetFlags(data);
+		_setInstallDate = data.vis_installed().v ? base::unixtime::now() : 0;
+		_setThumbnail = [&] {
+			if (const auto thumbnail = data.vthumbnail()) {
+				return Images::FromThumbnail(*thumbnail);
+			}
+			return ImageWithLocation();
+		}();
+		_setThumbnailType = [&] {
+			if (const auto thumbnail = data.vthumbnail()) {
+				return thumbnail->data().vformat().match([](
+						const TLDthumbnailFormatTgs &) {
+					return StickerType::Tgs;
+				}, [](const TLDthumbnailFormatWebm &) {
+					return StickerType::Webm;
+				}, [](const auto &) {
+					return StickerType::Webp;
+				});
+			}
+			return StickerType::Webp;
+		}();
+#if 0 // mtp
 		for (const auto &pack : data.vpacks().v) {
 			pack.match([&](const MTPDstickerPack &pack) {
 				if (const auto emoji = Ui::Emoji::Find(qs(pack.vemoticon()))) {
@@ -996,6 +1105,7 @@ void StickerSetBox::Inner::applySet(const TLStickerSet &set) {
 				}
 				return ImageWithLocation();
 			}();
+#endif
 			const auto &sets = _session->data().stickers().sets();
 			const auto it = sets.find(_setId);
 			if (it != sets.cend()) {
@@ -1012,9 +1122,11 @@ void StickerSetBox::Inner::applySet(const TLStickerSet &set) {
 				set->emoji = _emoji;
 				set->setThumbnail(_setThumbnail, _setThumbnailType);
 			}
+#if 0 // mtp
 		};
 	}, [&](const MTPDmessages_stickerSetNotModified &data) {
 		LOG(("API Error: Unexpected messages.stickerSetNotModified."));
+#endif
 	});
 
 	if (_pack.isEmpty()) {
@@ -1050,8 +1162,11 @@ rpl::producer<StickerSetBox::Error> StickerSetBox::Inner::errors() const {
 	return _errors.events();
 }
 
+#if 0 // mtp
 void StickerSetBox::Inner::installDone(
 		const MTPmessages_StickerSetInstallResult &result) {
+#endif
+void StickerSetBox::Inner::installDone() {
 	auto &stickers = _session->data().stickers();
 	auto &sets = stickers.setsRef();
 	const auto type = setType();
@@ -1121,10 +1236,13 @@ void StickerSetBox::Inner::installDone(
 		}
 	}
 
+#if 0 // mtp
 	if (result.type() == mtpc_messages_stickerSetInstallResultArchive) {
 		stickers.applyArchivedResult(
 			result.c_messages_stickerSetInstallResultArchive());
 	} else {
+#endif
+	{
 		auto &storage = _session->local();
 		if (wasArchived && type != Data::StickersType::Emoji) {
 			if (type == Data::StickersType::Masks) {
@@ -1275,6 +1393,11 @@ void StickerSetBox::Inner::requestReorder(
 		_apiReorder.emplace(&_session->mtp());
 	}
 	_reorderRequests.emplace_back([document, index, this] {
+		_apiReorder->request(TLsetStickerPositionInSet(
+			tl_inputFileId(tl_int32(document->tdbFileId())),
+			tl_int32(index)
+		)).done([this, document] {
+#if 0 // mtp
 		_apiReorder->request(
 			MTPstickers_ChangeStickerPosition(
 				document->mtpInput(),
@@ -1286,16 +1409,30 @@ void StickerSetBox::Inner::requestReorder(
 						Data::StickersType::Stickers);
 				}, [](const auto &) {
 				});
+#endif
 				if (!_reorderRequests.empty()) {
 					_reorderRequests.pop_front();
 				}
 				if (_reorderRequests.empty()) {
+					_apiReorder->request(TLgetStickerSet(
+						tl_int64(_setId)
+					)).done([this, document](const TLstickerSet &result) {
+						document->owner().stickers().feedSetFull(result);
+						document->owner().stickers().notifyUpdated(
+							Data::StickersType::Stickers);
+					}).fail([show = _show](const Tdb::Error &error) {
+						show->showToast(error.message);
+					}).send();
 					// applySet(result); // Causes stickers blink.
 				} else {
 					_reorderRequests.front()();
 				}
+#if 0 // mtp
 			}).fail([show = _show](const MTP::Error &error) {
 				show->showToast(error.type());
+#endif
+			}).fail([show = _show](const Tdb::Error &error) {
+				show->showToast(error.message);
 			}).send();
 	});
 	if (_reorderRequests.size() == 1) {
@@ -1557,6 +1694,7 @@ void StickerSetBox::Inner::fillDeleteStickerBox(
 		const auto buttonWidth = state->saveButton
 			? state->saveButton->width()
 			: 0;
+#if 0 // mtp
 		state->requestId = document->owner().session().api().request(
 			MTPstickers_RemoveStickerFromSet(document->mtpInput()
 		)).done([=](const TLStickerSet &result) {
@@ -1575,6 +1713,33 @@ void StickerSetBox::Inner::fillDeleteStickerBox(
 		}).fail([=](const MTP::Error &error) {
 			if (const auto strongBox = weakBox.data()) {
 				strongBox->uiShow()->showToast(error.type());
+			}
+		}).send();
+#endif
+		state->requestId = document->owner().session().sender().request(
+			TLremoveStickerFromSet(
+				tl_inputFileId(tl_int32(document->tdbFileId())))
+		).done([=] {
+			document->owner().session().sender().request(TLgetStickerSet(
+				tl_int64(_setId)
+			)).done([=](const TLstickerSet &result) {
+				document->owner().stickers().feedSetFull(result);
+				document->owner().stickers().notifyUpdated(
+					Data::StickersType::Stickers);
+				if (const auto strong = weak.data()) {
+					applySet(result);
+				}
+				if (const auto strongBox = weakBox.data()) {
+					strongBox->closeBox();
+				}
+			}).fail([=](const Tdb::Error &error) {
+				if (const auto strongBox = weakBox.data()) {
+					strongBox->uiShow()->showToast(error.message);
+				}
+			}).send();
+		}).fail([=](const Tdb::Error &error) {
+			if (const auto strongBox = weakBox.data()) {
+				strongBox->uiShow()->showToast(error.message);
 			}
 		}).send();
 		if (state->saveButton) {
@@ -1599,7 +1764,10 @@ void StickerSetBox::Inner::fillDeleteStickerBox(
 			state->requestId.value() | rpl::map(rpl::mappers::_1 > 0));
 	}
 	box->addButton(tr::lng_close(), [=] {
+#if 0 // mtp
 		document->owner().session().api().request(
+#endif
+		document->owner().session().sender().request(
 			state->requestId.current()).cancel();
 		box->closeBox();
 	});
@@ -2113,6 +2281,7 @@ void StickerSetBox::Inner::install() {
 	if (_installRequest) {
 		return;
 	}
+#if 0 // mtp
 	_installRequest = _api.request(MTPmessages_InstallStickerSet(
 		Data::InputStickerSet(_input),
 		MTP_bool(false)
@@ -2121,9 +2290,20 @@ void StickerSetBox::Inner::install() {
 	}).fail([=] {
 		_errors.fire(Error::NotFound);
 	}).send();
+#endif
+	_installRequest = _api.request(TLchangeStickerSet(
+		tl_int64(_input.id),
+		tl_bool(true),
+		tl_bool(false)
+	)).done([=] {
+		installDone();
+	}).fail([=] {
+		_errors.fire(Error::NotFound);
+	}).send();
 }
 
 void StickerSetBox::Inner::archiveStickers() {
+#if 0 // mtp
 	_api.request(MTPmessages_InstallStickerSet(
 		Data::InputStickerSet(_input),
 		MTP_boolTrue()
@@ -2131,6 +2311,16 @@ void StickerSetBox::Inner::archiveStickers() {
 		if (result.type() == mtpc_messages_stickerSetInstallResultSuccess) {
 			_setArchived.fire_copy(_setId);
 		}
+	}).fail([=] {
+		_show->showToast(Lang::Hard::ServerError());
+	}).send();
+#endif
+	_api.request(TLchangeStickerSet(
+		tl_int64(_input.id),
+		tl_bool(true),
+		tl_bool(true)
+	)).done([=] {
+		_setArchived.fire_copy(_setId);
 	}).fail([=] {
 		_show->showToast(Lang::Hard::ServerError());
 	}).send();

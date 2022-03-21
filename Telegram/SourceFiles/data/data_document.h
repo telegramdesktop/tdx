@@ -133,6 +133,8 @@ public:
 	[[nodiscard]] static DocumentId IdFromTdb(const Tdb::TLvideoNote &data);
 	void setFromTdb(const Tdb::TLvideoNote &data);
 
+	[[nodiscard]] FileId tdbFileId() const;
+
 	[[nodiscard]] Data::Session &owner() const;
 	[[nodiscard]] Main::Session &session() const;
 

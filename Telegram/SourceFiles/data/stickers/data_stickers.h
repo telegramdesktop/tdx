@@ -11,6 +11,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_stickers_set.h"
 #include "settings.h"
 
+namespace Tdb {
+class TLstickerSet;
+class TLstickerSetInfo;
+class TLDstickerSet;
+class TLDstickerSetInfo;
+} // namespace Tdb
+
 class HistoryItem;
 class DocumentData;
 
@@ -220,6 +227,10 @@ public:
 		not_null<DocumentData*> document,
 		bool faved);
 
+	void setsReceived(const QVector<Tdb::TLstickerSetInfo> &data);
+	void masksReceived(const QVector<Tdb::TLstickerSetInfo> &data);
+
+#if 0 // mtp
 	void setsReceived(const QVector<MTPStickerSet> &data, uint64 hash);
 	void masksReceived(const QVector<MTPStickerSet> &data, uint64 hash);
 	void emojiReceived(const QVector<MTPStickerSet> &data, uint64 hash);
@@ -234,6 +245,7 @@ public:
 	void featuredEmojiSetsReceived(
 		const MTPmessages_FeaturedStickers &result);
 	void gifsReceived(const QVector<MTPDocument> &items, uint64 hash);
+#endif
 
 	[[nodiscard]] std::vector<not_null<DocumentData*>> getPremiumList(
 		uint64 seed);
@@ -244,6 +256,7 @@ public:
 	[[nodiscard]] auto getEmojiListFromSet(not_null<DocumentData*> document)
 		-> std::optional<std::vector<not_null<EmojiPtr>>>;
 
+#if 0 // mtp
 	not_null<StickersSet*> feedSet(const MTPStickerSet &data);
 	not_null<StickersSet*> feedSet(const MTPStickerSetCovered &data);
 	not_null<StickersSet*> feedSetFull(const MTPDmessages_stickerSet &data);
@@ -257,6 +270,13 @@ public:
 	void newSetReceived(const MTPDmessages_stickerSet &set);
 
 	[[nodiscard]] QString getSetTitle(const MTPDstickerSet &s);
+#endif
+
+	StickersSet *feedSet(const Tdb::TLstickerSetInfo &value);
+	StickersSet *feedSetFull(const Tdb::TLstickerSet &value);
+	[[nodiscard]] QString getSetTitle(
+		const Tdb::TLDstickerSetInfo &data) const;
+	[[nodiscard]] QString getSetTitle(const Tdb::TLDstickerSet &data) const;
 
 	[[nodiscard]] RecentStickerPack &getRecentPack() const;
 
@@ -288,12 +308,17 @@ private:
 		StickersPack &&pack,
 		const std::vector<TimeId> &&dates,
 		const QVector<MTPStickerPack> &packs);
+#if 0 // mtp
 	void somethingReceived(
 		const QVector<MTPStickerSet> &list,
 		uint64 hash,
 		StickersType type);
 	void featuredReceived(
 		const MTPDmessages_featuredStickers &data,
+		StickersType type);
+#endif
+	void somethingReceived(
+		const QVector<Tdb::TLstickerSetInfo> &list,
 		StickersType type);
 
 	const not_null<Session*> _owner;

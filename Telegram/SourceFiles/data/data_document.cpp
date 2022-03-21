@@ -874,6 +874,10 @@ void DocumentData::setTdbLocation(const TLfile &file) {
 	size = fields.vsize().v;
 }
 
+FileId DocumentData::tdbFileId() const {
+	return _tdbFileId;
+}
+
 bool DocumentData::isWallPaper() const {
 	return (type == WallPaperDocument);
 }
