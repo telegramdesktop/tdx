@@ -43,7 +43,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+
 namespace {
+
+using namespace Tdb;
 
 using Data::StickersSet;
 using Data::StickersSetsOrder;
@@ -273,7 +278,10 @@ private:
 	const style::PeerListItem &_st;
 	const std::shared_ptr<ChatHelpers::Show> _show;
 	const not_null<Main::Session*> _session;
+#if 0 // mtp
 	MTP::Sender _api;
+#endif
+	Sender _api;
 
 	const Section _section;
 	const bool _isInstalledTab;
@@ -331,7 +339,10 @@ private:
 	object_ptr<Ui::BoxContentDivider> _megagroupDivider = { nullptr };
 	object_ptr<Ui::FlatLabel> _megagroupSubTitle = { nullptr };
 	base::Timer _megagroupSetAddressChangedTimer;
+#if 0 // mtp
 	mtpRequestId _megagroupSetRequestId = 0;
+#endif
+	RequestId _megagroupSetRequestId = 0;
 
 };
 
@@ -411,7 +422,10 @@ StickersBox::StickersBox(
 : _st(st::stickersRowItem)
 , _show(std::move(show))
 , _session(&_show->session())
+#if 0 // mtp
 , _api(&_session->mtp())
+#endif
+, _api(&_session->sender())
 , _tabs(this, st::stickersTabs)
 , _unreadBadge(
 	this,
@@ -433,7 +447,10 @@ StickersBox::StickersBox(
 : _st(st::stickersRowItem)
 , _show(std::move(show))
 , _session(&_show->session())
+#if 0 // mtp
 , _api(&_session->mtp())
+#endif
+, _api(&_session->sender())
 , _section(Section::Installed)
 , _isMasks(false)
 , _isEmoji(false)
@@ -445,6 +462,7 @@ StickersBox::StickersBox(
 	}, lifetime());
 }
 
+#if 0 // mtp
 StickersBox::StickersBox(
 	QWidget*,
 	std::shared_ptr<ChatHelpers::Show> show,
@@ -458,6 +476,18 @@ StickersBox::StickersBox(
 , _isEmoji(false)
 , _attached(0, this, _show, Section::Attached)
 , _attachedType(Data::StickersType::Stickers)
+, _attachedSets(attachedSets) {
+}
+#endif
+StickersBox::StickersBox(
+	QWidget*,
+	not_null<Window::SessionController*> controller,
+	const Tdb::TLvector<TLstickerSetInfo> &attachedSets)
+: _controller(controller)
+, _api(&controller->session().sender())
+, _section(Section::Attached)
+, _isMasks(false)
+, _attached(0, this, controller, Section::Attached)
 , _attachedSets(attachedSets) {
 }
 
@@ -515,15 +545,21 @@ void StickersBox::showAttachedStickers() {
 }
 
 void StickersBox::getArchivedDone(
+#if 0 // mtp
 		const MTPmessages_ArchivedStickers &result,
+#endif
+		const TLstickerSets &result,
 		uint64 offsetId) {
 	_archivedRequestId = 0;
 	_archivedLoaded = true;
+#if 0 // mtp
 	if (result.type() != mtpc_messages_archivedStickers) {
 		return;
 	}
 
 	auto &stickers = result.c_messages_archivedStickers();
+#endif
+	const auto &stickers = result.data();
 	auto &archived = archivedSetsOrderRef();
 	if (offsetId) {
 		auto index = archived.indexOf(offsetId);
@@ -786,6 +822,14 @@ void StickersBox::loadMoreArchived() {
 			}
 		}
 	}
+	_archivedRequestId = _api.request(TLgetArchivedStickerSets(
+		tl_bool(_isMasks),
+		tl_int64(lastId),
+		tl_int32(kArchivedLimitPerPage)
+	)).done([=](const TLstickerSets &result) {
+		getArchivedDone(result, lastId);
+	}).send();
+#if 0 // mtp
 	const auto flags = _isMasks
 		? MTPmessages_GetArchivedStickers::Flag::f_masks
 		: MTPmessages_GetArchivedStickers::Flags(0);
@@ -796,6 +840,7 @@ void StickersBox::loadMoreArchived() {
 	)).done([=](const MTPmessages_ArchivedStickers &result) {
 		getArchivedDone(result, lastId);
 	}).send();
+#endif
 }
 
 void StickersBox::paintEvent(QPaintEvent *e) {
@@ -934,6 +979,20 @@ void StickersBox::installSet(uint64 setId) {
 	}
 	if (!(set->flags & SetFlag::Installed)
 		|| (set->flags & SetFlag::Archived)) {
+		_api.request(TLchangeStickerSet(
+			tl_int64(set->id),
+			tl_bool(true), // installed
+			tl_bool(false) // archived
+		)).fail([=] {
+			const auto &sets = session().data().stickers().sets();
+			const auto it = sets.find(setId);
+			if (it == sets.cend()) {
+				rebuildList();
+			} else {
+				session().data().stickers().undoInstallLocally(setId);
+			}
+		}).send();
+#if 0 // mtp
 		_api.request(MTPmessages_InstallStickerSet(
 			set->mtpInput(),
 			MTP_boolFalse()
@@ -942,11 +1001,13 @@ void StickersBox::installSet(uint64 setId) {
 		}).fail([=](const MTP::Error &error) {
 			installFail(error, setId);
 		}).send();
+#endif
 
 		session().data().stickers().installLocally(setId);
 	}
 }
 
+#if 0 // mtp
 void StickersBox::installDone(
 		const MTPmessages_StickerSetInstallResult &result) const {
 	if (result.type() == mtpc_messages_stickerSetInstallResultArchive) {
@@ -964,12 +1025,14 @@ void StickersBox::installFail(const MTP::Error &error, uint64 setId) {
 		session().data().stickers().undoInstallLocally(setId);
 	}
 }
+#endif
 
 void StickersBox::preloadArchivedSets() {
 	if (!_tabs) {
 		return;
 	}
 	if (!_archivedRequestId) {
+#if 0 // mtp
 		const auto flags = _isMasks
 			? MTPmessages_GetArchivedStickers::Flag::f_masks
 			: MTPmessages_GetArchivedStickers::Flags(0);
@@ -978,6 +1041,14 @@ void StickersBox::preloadArchivedSets() {
 			MTP_long(0),
 			MTP_int(kArchivedLimitFirstRequest)
 		)).done([=](const MTPmessages_ArchivedStickers &result) {
+			getArchivedDone(result, 0);
+		}).send();
+#endif
+		_archivedRequestId = _api.request(TLgetArchivedStickerSets(
+			tl_bool(_isMasks),
+			tl_int64(0),
+			tl_int32(kArchivedLimitFirstRequest)
+		)).done([=](const TLstickerSets &result) {
 			getArchivedDone(result, 0);
 		}).send();
 	}
@@ -1186,7 +1257,10 @@ StickersBox::Inner::Inner(
 , _st(st::stickersRowItem)
 , _show(std::move(show))
 , _session(&_show->session())
+#if 0 // mtp
 , _api(&_session->mtp())
+#endif
+, _api(&_session->sender())
 , _section(section)
 , _isInstalledTab(_section == Section::Installed
 	|| _section == Section::Masks)
@@ -1225,7 +1299,10 @@ StickersBox::Inner::Inner(
 , _st(st::stickersRowItem)
 , _show(std::move(show))
 , _session(&_show->session())
+#if 0 // mtp
 , _api(&_session->mtp())
+#endif
+, _api(&_session->sender())
 , _section(StickersBox::Section::Installed)
 , _isInstalledTab(_section == Section::Installed
 	|| _section == Section::Masks)
@@ -2131,6 +2208,17 @@ void StickersBox::Inner::handleMegagroupSetAddressChange() {
 			}
 		}
 	} else if (!_megagroupSetRequestId) {
+		_megagroupSetRequestId = _api.request(TLsearchStickerSet(
+			tl_string(text)
+		)).done([=](const TLstickerSet &result) {
+			_megagroupSetRequestId = 0;
+			const auto set = session().data().stickers().feedSetFull(result);
+			setMegagroupSelectedSet(set->identifier());
+		}).fail([=] {
+			_megagroupSetRequestId = 0;
+			setMegagroupSelectedSet({});
+		}).send();
+#if 0 // mtp
 		_megagroupSetRequestId = _api.request(MTPmessages_GetStickerSet(
 			MTP_inputStickerSetShortName(MTP_string(text)),
 			MTP_int(0) // hash
@@ -2146,6 +2234,7 @@ void StickersBox::Inner::handleMegagroupSetAddressChange() {
 			_megagroupSetRequestId = 0;
 			setMegagroupSelectedSet({});
 		}).send();
+#endif
 	} else {
 		_megagroupSetAddressChangedTimer.callOnce(kHandleMegagroupSetAddressChangeTimeout);
 	}

@@ -1494,15 +1494,22 @@ void LocalStickersManager::install(uint64 setId) {
 		sendInstallRequest(setId, input);
 		return;
 	}
+#if 0 // mtp
 	_api.request(MTPmessages_GetStickerSet(
 		input,
 		MTP_int(0) // hash
 	)).done([=](const MTPmessages_StickerSet &result) {
 		result.match([&](const MTPDmessages_stickerSet &data) {
+#endif
+	_api.request(TLgetStickerSet(
+		tl_int64(setId)
+	)).done([=](const TLstickerSet &data) {
 			_session->data().stickers().feedSetFull(data);
+#if 0 // mtp
 		}, [](const MTPDmessages_stickerSetNotModified &) {
 			LOG(("API Error: Unexpected messages.stickerSetNotModified."));
 		});
+#endif
 		sendInstallRequest(setId, input);
 	}).send();
 }
@@ -1514,6 +1521,7 @@ bool LocalStickersManager::isInstalledLocally(uint64 setId) const {
 void LocalStickersManager::sendInstallRequest(
 		uint64 setId,
 		const MTPInputStickerSet &input) {
+#if 0 // mtp
 	_api.request(MTPmessages_InstallStickerSet(
 		input,
 		MTP_bool(false)
@@ -1523,6 +1531,12 @@ void LocalStickersManager::sendInstallRequest(
 				result.c_messages_stickerSetInstallResultArchive());
 		}
 	}).fail([=] {
+#endif
+	_api.request(TLchangeStickerSet(
+		tl_int64(setId),
+		tl_bool(true),
+		tl_bool(false)
+	)).fail([=] {
 		notInstalledLocally(setId);
 		_session->data().stickers().undoInstallLocally(setId);
 	}).send();
