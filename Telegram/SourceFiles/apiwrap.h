@@ -26,6 +26,7 @@ struct ChatRestrictionsInfo;
 namespace Tdb {
 class Account;
 class Sender;
+class TLstickerSet;
 } // namespace Tdb
 
 namespace Main {
