@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/variant.h"
 #include "base/timer.h"
 
+namespace Tdb {
+class TLstickerSets;
+} // namespace Tdb
+
 class StickerPremiumMark;
 
 namespace Main {
@@ -356,7 +360,10 @@ private:
 
 	void cancelSetsSearch();
 	void showSearchResults();
+#if 0 // mtp
 	void searchResultsDone(const MTPmessages_FoundStickerSets &result);
+#endif
+	void searchResultsDone(const Tdb::TLstickerSets &result);
 	void refreshSearchRows();
 	void refreshSearchRows(const std::vector<uint64> *cloudSets);
 	void fillFilteredStickersRow();
