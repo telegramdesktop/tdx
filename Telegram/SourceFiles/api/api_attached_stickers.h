@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mtproto/sender.h"
 
+#include "tdb/tdb_request_id.h"
+
 class ApiWrap;
 class DocumentData;
 class PhotoData;
@@ -32,12 +34,21 @@ public:
 		not_null<DocumentData*> document);
 
 private:
+#if 0 // mtp
 	void request(
 		not_null<Window::SessionController*> controller,
 		MTPmessages_GetAttachedStickers &&mtpRequest);
 
 	MTP::Sender _api;
 	mtpRequestId _requestId = 0;
+#endif
+
+	void request(
+		not_null<Window::SessionController*> controller,
+		FileId fileId);
+
+	const not_null<ApiWrap*> _api;
+	Tdb::RequestId _requestId;
 
 };
 
