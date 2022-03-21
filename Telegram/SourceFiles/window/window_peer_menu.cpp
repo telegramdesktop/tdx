@@ -1564,7 +1564,10 @@ void PeerMenuDeleteContact(
 		user->name());
 	const auto deleteSure = [=](Fn<void()> &&close) {
 		close();
-#if 0 // todo
+		user->session().sender().request(TLremoveContacts(
+			tl_vector<TLint53>(1, tl_int53(peerToUser(user->id).bare))
+		)).send();
+#if 0 // mtp
 		user->session().api().request(MTPcontacts_DeleteContacts(
 			MTP_vector<MTPInputUser>(1, user->inputUser)
 		)).done([=](const MTPUpdates &result) {
@@ -1842,8 +1845,14 @@ void PeerMenuBlockUserBox(
 
 		box->closeBox();
 
-#if 0 // todo
 		if (const auto clearReply = std::get_if<ClearReply>(&suggestClear)) {
+			peer->session().sender().request(TLblockMessageSenderFromReplies(
+				tl_int53(clearReply->replyId.msg.bare),
+				tl_bool(clearChecked),
+				tl_bool(fromUserChecked),
+				tl_bool(reportChecked)
+			)).send();
+#if 0 // mtp
 			using Flag = MTPcontacts_BlockFromReplies::Flag;
 			peer->session().api().request(MTPcontacts_BlockFromReplies(
 				MTP_flags((clearChecked ? Flag::f_delete_message : Flag(0))
@@ -1853,11 +1862,20 @@ void PeerMenuBlockUserBox(
 			)).done([=](const MTPUpdates &result) {
 				peer->session().updates().applyUpdates(result);
 			}).send();
+#endif
 		} else {
 			peer->session().api().blockedPeers().block(peer);
 			if (reportChecked) {
+#if 0 // mtp
 				peer->session().api().request(MTPmessages_ReportSpam(
 					peer->input
+				)).send();
+#endif
+				peer->session().sender().request(TLreportChat(
+					peerToTdbChat(peer->id),
+					tl_vector<TLint53>(),
+					tl_chatReportReasonSpam(),
+					tl_string()
 				)).send();
 			}
 			if (clearChecked) {
@@ -1867,7 +1885,6 @@ void PeerMenuBlockUserBox(
 				window->sessionController()->showBackFromStack();
 			}
 		}
-#endif
 
 		window->showToast(
 			tr::lng_new_contact_block_done(tr::now, lt_user, name));
