@@ -61,7 +61,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QClipboard>
 #include <QtSvg/QSvgRenderer>
 
+#include "tdb/tdb_sender.h"
+
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kStickersPerRow = 5;
 constexpr auto kEmojiPerRow = 8;
@@ -311,8 +315,12 @@ private:
 	void startOverAnimation(int index, float64 from, float64 to);
 	int stickerFromGlobalPos(const QPoint &p) const;
 
+#if 0 // mtp
 	void gotSet(const MTPmessages_StickerSet &set);
 	void installDone(const MTPmessages_StickerSetInstallResult &result);
+#endif
+	void gotSet(const TLstickerSet &set);
+	void installDone();
 
 	void chosen(
 		int index,
@@ -330,7 +338,10 @@ private:
 	const std::shared_ptr<ChatHelpers::Show> _show;
 	const not_null<Main::Session*> _session;
 
+#if 0 // mtp
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 	std::vector<Element> _elements;
 	std::unique_ptr<Lottie::MultiPlayer> _lottiePlayer;
 
@@ -656,7 +667,10 @@ StickerSetBox::Inner::Inner(
 : RpWidget(parent)
 , _show(std::move(show))
 , _session(&_show->session())
+#if 0 // mtp
 , _api(&_session->mtp())
+#endif
+, _api(&_session->sender())
 , _setId(set.id)
 , _setAccessHash(set.accessHash)
 , _setShortName(set.shortName)
@@ -673,6 +687,7 @@ StickerSetBox::Inner::Inner(
 , _previewTimer([=] { showPreview(); }) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
+#if 0 // mtp
 	_api.request(MTPmessages_GetStickerSet(
 		Data::InputStickerSet(_input),
 		MTP_int(0) // hash
@@ -682,6 +697,26 @@ StickerSetBox::Inner::Inner(
 		_loaded = true;
 		_errors.fire(Error::NotFound);
 	}).send();
+#endif
+	if (_input.id) {
+		_api.request(TLgetStickerSet(
+			tl_int64(_input.id)
+		)).done([=](const TLstickerSet &result) {
+			gotSet(result);
+		}).fail([=] {
+			_loaded = true;
+			_errors.fire(Error::NotFound);
+		}).send();
+	} else {
+		_api.request(TLsearchStickerSet(
+			tl_string(_input.shortName)
+		)).done([=](const TLstickerSet &result) {
+			gotSet(result);
+		}).fail([=] {
+			_loaded = true;
+			_errors.fire(Error::NotFound);
+		}).send();
+	}
 
 	_session->api().updateStickers();
 
@@ -693,7 +728,10 @@ StickerSetBox::Inner::Inner(
 	setMouseTracking(true);
 }
 
+#if 0 // mtp
 void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
+#endif
+void StickerSetBox::Inner::gotSet(const TLstickerSet &set) {
 	_pack.clear();
 	_emoji.clear();
 	_elements.clear();
@@ -701,14 +739,21 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 	setCursor(style::cur_default);
 	const auto owner = &_session->data();
 	const auto premiumPossible = _session->premiumPossible();
+#if 0 // mtp
 	set.match([&](const MTPDmessages_stickerSet &data) {
 		const auto &v = data.vdocuments().v;
+#endif
+	set.match([&](const TLDstickerSet &data) {
+		_input.id = set.data().vid().v;
+
+		const auto &v = data.vstickers().v;
 		_pack.reserve(v.size());
 		_elements.reserve(v.size());
 		for (const auto &item : v) {
 			const auto document = owner->processDocument(item);
 			const auto sticker = document->sticker();
 			if (!sticker) {
+				_pack.push_back(nullptr);
 				continue;
 			}
 			_pack.push_back(document);
@@ -719,6 +764,33 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 				});
 			}
 		}
+
+		const auto &emojis = data.vemojis().v;
+		Assert(emojis.size() == _pack.size());
+		for (auto i = 0, l = int(emojis.size()); i != l; ++i) {
+			if (const auto document = _pack[i]) {
+				for (const auto &string : emojis[i].data().vemojis().v) {
+					if (const auto emoji = Ui::Emoji::Find(string.v)) {
+						_emoji[emoji].push_back(document);
+					}
+				}
+			}
+		}
+		_pack.erase(ranges::remove(_pack, nullptr), _pack.end());
+		_setTitle = _show->session().data().stickers().getSetTitle(
+			data);
+		_setShortName = data.vname().v;
+		_setId = data.vid().v;
+		_setCount = _pack.size();
+		_setFlags = Data::ParseStickersSetFlags(data);
+		_setInstallDate = data.vis_installed().v ? base::unixtime::now() : 0;
+		_setThumbnail = [&] {
+			if (const auto thumbnail = data.vthumbnail()) {
+				return Images::FromThumbnail(*thumbnail);
+			}
+			return ImageWithLocation();
+		}();
+#if 0 // mtp
 		for (const auto &pack : data.vpacks().v) {
 			pack.match([&](const MTPDstickerPack &pack) {
 				if (const auto emoji = Ui::Emoji::Find(qs(pack.vemoticon()))) {
@@ -764,6 +836,7 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 				}
 				return ImageWithLocation();
 			}();
+#endif
 			const auto &sets = _session->data().stickers().sets();
 			const auto it = sets.find(_setId);
 			if (it != sets.cend()) {
@@ -780,9 +853,11 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 				set->emoji = _emoji;
 				set->setThumbnail(_setThumbnail, _setThumbnailType);
 			}
+#if 0 // mtp
 		});
 	}, [&](const MTPDmessages_stickerSetNotModified &data) {
 		LOG(("API Error: Unexpected messages.stickerSetNotModified."));
+#endif
 	});
 
 	if (_pack.isEmpty()) {
@@ -818,8 +893,11 @@ rpl::producer<StickerSetBox::Error> StickerSetBox::Inner::errors() const {
 	return _errors.events();
 }
 
+#if 0 // mtp
 void StickerSetBox::Inner::installDone(
 		const MTPmessages_StickerSetInstallResult &result) {
+#endif
+void StickerSetBox::Inner::installDone() {
 	auto &stickers = _session->data().stickers();
 	auto &sets = stickers.setsRef();
 	const auto type = setType();
@@ -889,10 +967,13 @@ void StickerSetBox::Inner::installDone(
 		}
 	}
 
+#if 0 // mtp
 	if (result.type() == mtpc_messages_stickerSetInstallResultArchive) {
 		stickers.applyArchivedResult(
 			result.c_messages_stickerSetInstallResultArchive());
 	} else {
+#endif
+	{
 		auto &storage = _session->local();
 		if (wasArchived && type != Data::StickersType::Emoji) {
 			if (type == Data::StickersType::Masks) {
@@ -1429,6 +1510,7 @@ void StickerSetBox::Inner::install() {
 	if (_installRequest) {
 		return;
 	}
+#if 0 // mtp
 	_installRequest = _api.request(MTPmessages_InstallStickerSet(
 		Data::InputStickerSet(_input),
 		MTP_bool(false)
@@ -1437,9 +1519,20 @@ void StickerSetBox::Inner::install() {
 	}).fail([=] {
 		_errors.fire(Error::NotFound);
 	}).send();
+#endif
+	_installRequest = _api.request(TLchangeStickerSet(
+		tl_int64(_input.id),
+		tl_bool(true),
+		tl_bool(false)
+	)).done([=] {
+		installDone();
+	}).fail([=] {
+		_errors.fire(Error::NotFound);
+	}).send();
 }
 
 void StickerSetBox::Inner::archiveStickers() {
+#if 0 // mtp
 	_api.request(MTPmessages_InstallStickerSet(
 		Data::InputStickerSet(_input),
 		MTP_boolTrue()
@@ -1447,6 +1540,16 @@ void StickerSetBox::Inner::archiveStickers() {
 		if (result.type() == mtpc_messages_stickerSetInstallResultSuccess) {
 			_setArchived.fire_copy(_setId);
 		}
+	}).fail([=] {
+		_show->showToast(Lang::Hard::ServerError());
+	}).send();
+#endif
+	_api.request(TLchangeStickerSet(
+		tl_int64(_input.id),
+		tl_bool(true),
+		tl_bool(true)
+	)).done([=] {
+		_setArchived.fire_copy(_setId);
 	}).fail([=] {
 		_show->showToast(Lang::Hard::ServerError());
 	}).send();

@@ -13,6 +13,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_stickers_set.h"
 #include "ui/effects/animations.h"
 
+#include "tdb/tdb_sender.h"
+
+namespace Tdb {
+class TLstickerSets;
+class TLstickerSetInfo;
+} // namespace Tdb
+
 namespace style {
 struct RippleAnimation;
 struct PeerListItem;
@@ -68,10 +75,16 @@ public:
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<ChannelData*> megagroup,
 		bool isEmoji);
+#if 0 // mtp
 	StickersBox(
 		QWidget*,
 		std::shared_ptr<ChatHelpers::Show> show,
 		const QVector<MTPStickerSetCovered> &attachedSets);
+#endif
+	StickersBox(
+		QWidget*,
+		not_null<Window::SessionController*> controller,
+		const Tdb::TLvector<Tdb::TLstickerSetInfo> &attachedSets);
 	StickersBox(
 		QWidget*,
 		std::shared_ptr<ChatHelpers::Show> show,
@@ -127,14 +140,19 @@ private:
 
 	QPixmap grabContentCache();
 
+#if 0 // mtp
 	void installDone(const MTPmessages_StickerSetInstallResult &result) const;
 	void installFail(const MTP::Error &error, uint64 setId);
+#endif
 
 	void preloadArchivedSets();
 	void requestArchivedSets();
 	void loadMoreArchived();
 	void getArchivedDone(
+#if 0 // mtp
 		const MTPmessages_ArchivedStickers &result,
+#endif
+		const Tdb::TLstickerSets &result,
 		uint64 offsetId);
 	void showAttachedStickers();
 
@@ -146,7 +164,10 @@ private:
 	const style::PeerListItem &_st;
 	const std::shared_ptr<ChatHelpers::Show> _show;
 	const not_null<Main::Session*> _session;
+#if 0 // mtp
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 
 	object_ptr<Ui::SettingsSlider> _tabs = { nullptr };
 	QList<Section> _tabIndices;
@@ -167,7 +188,10 @@ private:
 	Tab *_tab = nullptr;
 
 	const Data::StickersType _attachedType = {};
+#if 0 // mtp
 	const QVector<MTPStickerSetCovered> _attachedSets;
+#endif
+	const Tdb::TLvector<Tdb::TLstickerSetInfo> _attachedSets;
 	const std::vector<StickerSetIdentifier> _emojiSets;
 
 	ChannelData *_megagroupSet = nullptr;
@@ -175,7 +199,10 @@ private:
 	std::unique_ptr<Ui::SlideAnimation> _slideAnimation;
 	object_ptr<Ui::PlainShadow> _titleShadow = { nullptr };
 
+#if 0 // mtp
 	mtpRequestId _archivedRequestId = 0;
+#endif
+	Tdb::RequestId _archivedRequestId = 0;
 	bool _archivedLoaded = false;
 	bool _allArchivedLoaded = false;
 	bool _someArchivedLoaded = false;

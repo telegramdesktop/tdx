@@ -1400,7 +1400,7 @@ void ApiWrap::migrateChat(
 		return;
 	}
 
-#if 0 // todo
+#if 0 // mtp
 	request(MTPmessages_MigrateChat(
 		chat->inputChat
 	)).done([=](const MTPUpdates &result) {
@@ -1570,7 +1570,11 @@ void ApiWrap::deleteAllFromParticipant(
 void ApiWrap::deleteAllFromParticipantSend(
 		not_null<ChannelData*> channel,
 		not_null<PeerData*> from) {
-#if 0 // todo
+	sender().request(TLdeleteChatMessagesBySender(
+		peerToTdbChat(channel->id),
+		peerToSender(from->id)
+	)).send();
+#if 0 // mtp
 	request(MTPchannels_DeleteParticipantHistory(
 		channel->inputChannel,
 		from->input
@@ -1592,11 +1596,19 @@ void ApiWrap::scheduleStickerSetRequest(uint64 setId, uint64 access) {
 }
 
 void ApiWrap::requestStickerSets() {
-#if 0 // todo
 	for (auto &[id, info] : _stickerSetRequests) {
 		if (info.id) {
 			continue;
 		}
+		info.id = sender().request(TLgetStickerSet(
+			tl_int64(id)
+		)).done([=, setId = id](const TLstickerSet &result) {
+			_stickerSetRequests.remove(setId);
+			_session->data().stickers().feedSetFull(result);
+		}).fail([=, setId = id] {
+			_stickerSetRequests.remove(setId);
+		}).send();
+#if 0 // mtp
 		info.id = request(MTPmessages_GetStickerSet(
 			MTP_inputStickerSetID(
 				MTP_long(id),
@@ -1607,8 +1619,8 @@ void ApiWrap::requestStickerSets() {
 		}).fail([=, setId = id] {
 			_stickerSetRequests.remove(setId);
 		}).afterDelay(kSmallDelayMs).send();
-	}
 #endif
+	}
 }
 
 void ApiWrap::saveStickerSets(
@@ -2890,6 +2902,7 @@ void ApiWrap::requestStickers(TimeId now) {
 		|| _stickersUpdateRequest) {
 		return;
 	}
+#if 0 // mtp
 	const auto done = [=](const MTPmessages_AllStickers &result) {
 		_session->data().stickers().setLastUpdate(crl::now());
 		_stickersUpdateRequest = 0;
@@ -2907,6 +2920,14 @@ void ApiWrap::requestStickers(TimeId now) {
 		LOG(("App Fail: Failed to get stickers!"));
 		done(MTP_messages_allStickersNotModified());
 	}).send();
+#endif
+	_stickersUpdateRequest = sender().request(TLgetInstalledStickerSets(
+		tl_bool(false) // masks
+	)).done([=](const TLstickerSets &result) {
+		_session->data().stickers().setLastUpdate(crl::now());
+		_stickersUpdateRequest = 0;
+		_session->data().stickers().setsReceived(result.data().vsets().v);
+	}).send();
 }
 
 void ApiWrap::requestMasks(TimeId now) {
@@ -2914,6 +2935,7 @@ void ApiWrap::requestMasks(TimeId now) {
 		|| _masksUpdateRequest) {
 		return;
 	}
+#if 0 // mtp
 	const auto done = [=](const MTPmessages_AllStickers &result) {
 		_session->data().stickers().setLastMasksUpdate(crl::now());
 		_masksUpdateRequest = 0;
@@ -2930,6 +2952,14 @@ void ApiWrap::requestMasks(TimeId now) {
 	)).done(done).fail([=] {
 		LOG(("App Fail: Failed to get masks!"));
 		done(MTP_messages_allStickersNotModified());
+	}).send();
+#endif
+	_masksUpdateRequest = sender().request(TLgetInstalledStickerSets(
+		tl_bool(true) // masks
+	)).done([=](const TLstickerSets &result) {
+		_session->data().stickers().setLastUpdate(crl::now());
+		_masksUpdateRequest = 0;
+		_session->data().stickers().masksReceived(result.data().vsets().v);
 	}).send();
 }
 

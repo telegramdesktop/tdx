@@ -53,10 +53,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h"
 #include "styles/style_menu_icons.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 #include <QtWidgets/QApplication>
 
 namespace ChatHelpers {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kSearchRequestDelay = 400;
 constexpr auto kRecentDisplayLimit = 20;
@@ -187,7 +191,10 @@ StickersListWidget::StickersListWidget(
 , _show(std::move(descriptor.show))
 , _features(descriptor.features)
 , _overBg(st::roundRadiusLarge, st().overBg)
+#if 0 // mtp
 , _api(&session().mtp())
+#endif
+, _api(&session().sender())
 , _localSetsManager(std::make_unique<LocalStickersManager>(&session()))
 , _section(Section::Stickers)
 , _isMasks(_mode == Mode::Masks)
@@ -372,6 +379,7 @@ void StickersListWidget::preloadMoreOfficial() {
 	if (_officialRequestId) {
 		return;
 	}
+#if 0 // mtp
 	_officialRequestId = _api.request(MTPmessages_GetOldFeaturedStickers(
 		MTP_int(_officialOffset),
 		MTP_int(kOfficialLoadLimit),
@@ -381,6 +389,14 @@ void StickersListWidget::preloadMoreOfficial() {
 		result.match([&](const MTPDmessages_featuredStickersNotModified &d) {
 			LOG(("Api Error: messages.featuredStickersNotModified."));
 		}, [&](const MTPDmessages_featuredStickers &data) {
+#endif
+	_officialRequestId = _api.request(TLgetTrendingStickerSets(
+		tl_int32(_officialOffset),
+		tl_int32(kOfficialLoadLimit)
+	)).done([=](const TLstickerSets &result) {
+		_officialRequestId = 0;
+		const auto &data = result.data();
+
 			const auto &list = data.vsets().v;
 			_officialOffset += list.size();
 			for (int i = 0, l = list.size(); i != l; ++i) {
@@ -396,7 +412,11 @@ void StickersListWidget::preloadMoreOfficial() {
 					externalLayout,
 					AppendSkip::Installed);
 			}
+
+#if 0 // mtp
 		});
+#endif
+
 		resizeToWidth(width());
 		repaintItems();
 	}).send();
@@ -547,6 +567,16 @@ void StickersListWidget::sendSearchRequest() {
 	}
 
 	_search->setLoading(true);
+	_searchRequestId = _api.request(TLsearchStickerSets(
+		tl_string(_searchQuery)
+	)).done([=](const TLstickerSets &result) {
+		searchResultsDone(result);
+	}).fail([=] {
+		// show error?
+		_search->setLoading(false);
+		_searchRequestId = 0;
+	}).send();
+#if 0 // mtp
 	const auto hash = uint64(0);
 	_searchRequestId = _api.request(MTPmessages_SearchStickerSets(
 		MTP_flags(0),
@@ -559,6 +589,7 @@ void StickersListWidget::sendSearchRequest() {
 		_search->setLoading(false);
 		_searchRequestId = 0;
 	}).handleAllErrors().send();
+#endif
 }
 
 void StickersListWidget::searchForSets(
@@ -811,10 +842,14 @@ auto StickersListWidget::shownSets() -> std::vector<Set> & {
 }
 
 void StickersListWidget::searchResultsDone(
+#if 0 // mtp
 		const MTPmessages_FoundStickerSets &result) {
+#endif
+		const TLstickerSets &result) {
 	_search->setLoading(false);
 	_searchRequestId = 0;
 
+#if 0 // mtp
 	if (result.type() == mtpc_messages_foundStickerSetsNotModified) {
 		LOG(("API Error: "
 			"messages.foundStickerSetsNotModified not expected."));
@@ -822,6 +857,7 @@ void StickersListWidget::searchResultsDone(
 	}
 
 	Assert(result.type() == mtpc_messages_foundStickerSets);
+#endif
 
 	auto it = _searchCache.find(_searchQuery);
 	if (it == _searchCache.cend()) {
@@ -829,7 +865,10 @@ void StickersListWidget::searchResultsDone(
 			_searchQuery,
 			std::vector<uint64>()).first;
 	}
+#if 0 // mtp
 	auto &d = result.c_messages_foundStickerSets();
+#endif
+	const auto &d = result.data();
 	for (const auto &data : d.vsets().v) {
 		const auto set = session().data().stickers().feedSet(data);
 		if (set->stickers.empty() && set->covers.empty()) {
@@ -2299,11 +2338,16 @@ void StickersListWidget::refreshMegagroupStickers(GroupStickersPlace place) {
 		return;
 	}
 	_megagroupSetIdRequested = set.id;
+#if 0 // mtp
 	_api.request(MTPmessages_GetStickerSet(
 		Data::InputStickerSet(set),
 		MTP_int(0) // hash
 	)).done([=](const MTPmessages_StickerSet &result) {
 		result.match([&](const MTPDmessages_stickerSet &data) {
+#endif
+	_api.request(TLgetStickerSet(
+		tl_int64(set.id)
+	)).done([=](const TLstickerSet &data) {
 			if (const auto set = session().data().stickers().feedSetFull(data)) {
 				refreshStickers();
 				if (set->id == _megagroupSetIdRequested) {
@@ -2312,9 +2356,11 @@ void StickersListWidget::refreshMegagroupStickers(GroupStickersPlace place) {
 					LOG(("API Error: Got different set."));
 				}
 			}
+#if 0 // mtp
 		}, [](const MTPDmessages_stickerSetNotModified &) {
 			LOG(("API Error: Unexpected messages.stickerSetNotModified."));
 		});
+#endif
 	}).send();
 }
 
@@ -2711,6 +2757,7 @@ object_ptr<Ui::BoxContent> MakeConfirmRemoveSetBox(
 			const auto it = sets.find(setId);
 			if (it != sets.cend()) {
 				const auto set = it->second.get();
+#if 0 // mtp
 				if (set->id && set->accessHash) {
 					session->api().request(MTPmessages_UninstallStickerSet(
 						MTP_inputStickerSetID(
@@ -2723,6 +2770,12 @@ object_ptr<Ui::BoxContent> MakeConfirmRemoveSetBox(
 							MTP_string(set->shortName)))
 					).send();
 				}
+#endif
+				_api.request(TLchangeStickerSet(
+					tl_int64(setId),
+					tl_bool(false),
+					tl_bool(false)
+				)).send();
 				auto writeRecent = false;
 				auto &recent = session->data().stickers().getRecentPack();
 				for (auto i = recent.begin(); i != recent.cend();) {
