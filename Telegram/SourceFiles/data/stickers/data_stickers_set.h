@@ -9,6 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_cloud_file.h"
 
+namespace Tdb {
+class TLDstickerSet;
+class TLDstickerSetInfo;
+} // namespace Tdb
+
 class DocumentData;
 enum class StickerType : uchar;
 
@@ -66,6 +71,11 @@ using StickersSetFlags = base::flags<StickersSetFlag>;
 
 [[nodiscard]] StickersSetFlags ParseStickersSetFlags(
 	const MTPDstickerSet &data);
+
+[[nodiscard]] StickersSetFlags ParseStickersSetFlags(
+	const Tdb::TLDstickerSet &data);
+[[nodiscard]] StickersSetFlags ParseStickersSetFlags(
+	const Tdb::TLDstickerSetInfo &data);
 
 class StickersSet final {
 public:

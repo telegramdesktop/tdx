@@ -15,7 +15,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_download.h"
 #include "ui/image/image.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Data {
+
+using namespace Tdb;
 
 StickersSetThumbnailView::StickersSetThumbnailView(
 	not_null<StickersSet*> owner)
@@ -57,6 +61,34 @@ StickersSetFlags ParseStickersSetFlags(const MTPDstickerSet &data) {
 		| (data.is_text_color() ? Flag::TextColor : Flag())
 		| (data.is_channel_emoji_status() ? Flag::ChannelStatus : Flag())
 		| (data.is_creator() ? Flag::AmCreator : Flag());
+}
+
+StickersSetFlags ParseStickersSetFlags(const TLDstickerSet &data) {
+	using Flag = StickersSetFlag;
+	return (data.vis_archived().v ? Flag::Archived : Flag())
+		| (data.vis_official().v ? Flag::Official : Flag())
+		| (data.vsticker_type().type() == id_stickerTypeMask
+			? Flag::Masks
+			: Flag())
+		| (data.vis_installed().v ? Flag::Installed : Flag())
+		| (data.vsticker_type().type() == id_stickerTypeVideo
+			? Flag::Webm
+			: Flag())
+		| (data.vneeds_repainting().v ? Flag::TextColor : Flag());
+}
+
+StickersSetFlags ParseStickersSetFlags(const TLDstickerSetInfo &data) {
+	using Flag = StickersSetFlag;
+	return (data.vis_archived().v ? Flag::Archived : Flag())
+		| (data.vis_official().v ? Flag::Official : Flag())
+		| (data.vsticker_type().type() == id_stickerTypeMask
+			? Flag::Masks
+			: Flag())
+		| (data.vis_installed().v ? Flag::Installed : Flag())
+		| (data.vsticker_type().type() == id_stickerTypeVideo
+			? Flag::Webm
+			: Flag())
+		| (data.vneeds_repainting().v ? Flag::TextColor : Flag());
 }
 
 StickersSet::StickersSet(
