@@ -655,6 +655,7 @@ void AttachWebView::botSendData(QByteArray data) {
 		return;
 	}
 	const auto randomId = base::RandomValue<uint64>();
+#if 0 // todo
 	_session->api().request(MTPmessages_SendWebViewData(
 		_bot->inputUser,
 		MTP_long(randomId),
@@ -663,6 +664,7 @@ void AttachWebView::botSendData(QByteArray data) {
 	)).done([=](const MTPUpdates &result) {
 		_session->api().applyUpdates(result);
 	}).send();
+#endif
 	crl::on_main(this, [=] { cancel(); });
 }
 
@@ -1493,6 +1495,7 @@ void AttachWebView::started(uint64 queryId) {
 	base::timer_each(
 		kProlongTimeout
 	) | rpl::start_with_next([=] {
+#if 0 // todo
 		using Flag = MTPmessages_ProlongWebView::Flag;
 		_session->api().request(base::take(_prolongId)).cancel();
 		_prolongId = _session->api().request(MTPmessages_ProlongWebView(
@@ -1510,6 +1513,7 @@ void AttachWebView::started(uint64 queryId) {
 		)).done([=] {
 			_prolongId = 0;
 		}).send();
+#endif
 	}, _panel->lifetime());
 }
 
