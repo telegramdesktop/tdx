@@ -1183,11 +1183,11 @@ void WebViewInstance::started(uint64 queryId) {
 	}) | rpl::start_with_next([=] {
 		close();
 	}, _panel->lifetime());
-
 	const auto action = *_context.action;
 	base::timer_each(
 		kProlongTimeout
 	) | rpl::start_with_next([=] {
+#if 0 // todo
 		using Flag = MTPmessages_ProlongWebView::Flag;
 		_session->api().request(base::take(_prolongId)).cancel();
 		_prolongId = _session->api().request(MTPmessages_ProlongWebView(
@@ -1205,6 +1205,7 @@ void WebViewInstance::started(uint64 queryId) {
 		)).done([=] {
 			_prolongId = 0;
 		}).send();
+#endif
 	}, _panel->lifetime());
 }
 
@@ -1394,6 +1395,7 @@ void WebViewInstance::botSendData(QByteArray data) {
 		return;
 	}
 	_dataSent = true;
+#if 0 // todo
 	_session->api().request(MTPmessages_SendWebViewData(
 		_bot->inputUser,
 		MTP_long(base::RandomValue<uint64>()),
@@ -1402,6 +1404,7 @@ void WebViewInstance::botSendData(QByteArray data) {
 	)).done([session = _session](const MTPUpdates &result) {
 		session->api().applyUpdates(result);
 	}).send();
+#endif
 	botClose();
 }
 
