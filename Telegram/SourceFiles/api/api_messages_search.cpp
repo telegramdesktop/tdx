@@ -22,6 +22,7 @@ namespace {
 
 constexpr auto kSearchPerPage = 50;
 
+#if 0 // mtp
 [[nodiscard]] MessageIdsList HistoryItemsFromTL(
 		not_null<Data::Session*> data,
 		const QVector<MTPMessage> &messages) {
@@ -43,6 +44,7 @@ constexpr auto kSearchPerPage = 50;
 	}
 	return result;
 }
+#endif
 
 [[nodiscard]] QString RequestToToken(
 		const MessagesSearch::Request &request) {
@@ -149,6 +151,7 @@ void MessagesSearch::searchReceived(
 		const TLMessages &result,
 		mtpRequestId requestId,
 		const QString &nextToken) {
+#if 0 // todo
 	if (requestId != _requestId) {
 		return;
 	}
@@ -203,6 +206,7 @@ void MessagesSearch::searchReceived(
 		? MsgId()
 		: found.messages.back().msg;
 	_messagesFounds.fire(std::move(found));
+#endif
 }
 
 rpl::producer<FoundMessages> MessagesSearch::messagesFounds() const {

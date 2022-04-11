@@ -1349,9 +1349,7 @@ not_null<ChatData*> Session::processChat(const TLbasicGroup &chat) {
 	});
 	const auto result = this->chat(data.vid().v);
 	using Flag = ChatDataFlag;
-	const auto setting = Flag::Deactivated
-		| Flag::Left
-		| Flag::Kicked;
+	const auto setting = Flag::Deactivated | Flag::Left;
 	auto flags = (result->flags() & ~setting)
 		| (!data.vis_active().v ? Flag::Deactivated : Flag());
 	result->count = data.vmember_count().v;
@@ -1386,7 +1384,7 @@ not_null<ChatData*> Session::processChat(const TLbasicGroup &chat) {
 		flags |= Flag::Left;
 	}, [&](const TLDchatMemberStatusBanned &data) {
 		result->setAdminRights(ChatAdminRights());
-		flags |= Flag::Kicked;
+		LOG(("Tdb Error: Should not get banned in basic groups."));
 	});
 	result->setFlags(flags);
 	return result;
