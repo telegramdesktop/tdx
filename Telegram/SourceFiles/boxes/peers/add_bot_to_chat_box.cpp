@@ -156,6 +156,21 @@ void AddBotToGroupBoxController::requestExistingRights(
 		return;
 	}
 	_existingRightsChannel = channel;
+	_bot->session().sender().request(_existingRightsRequestId).cancel();
+	_bot->session().sender().request(Tdb::TLgetChatMember(
+		peerToTdbChat(_existingRightsChannel->id),
+		peerToSender(_bot->id)
+	)).done([=](const Tdb::TLchatMember &data) {
+		const auto participant = Api::ChatParticipant(data, channel);
+		_existingRights = participant.rights().flags;
+		_existingRank = participant.rank();
+		addBotToGroup(_existingRightsChannel);
+	}).fail([=] {
+		_existingRights = ChatAdminRights();
+		_existingRank = QString();
+		addBotToGroup(_existingRightsChannel);
+	}).send();
+#if 0 // mtp
 	_bot->session().api().request(_existingRightsRequestId).cancel();
 	_existingRightsRequestId = _bot->session().api().request(
 		MTPchannels_GetParticipant(
@@ -176,6 +191,7 @@ void AddBotToGroupBoxController::requestExistingRights(
 		_existingRank = QString();
 		addBotToGroup(_existingRightsChannel);
 	}).send();
+#endif
 }
 
 void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
