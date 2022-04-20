@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_type.h"
 #include "window/window_adaptive.h"
 #include "mtproto/sender.h"
+#include "tdb/tdb_sender.h"
 
 class PhotoData;
 class MainWidget;
@@ -220,6 +221,8 @@ public:
 		std::optional<QString> voicechatHash;
 		FullMsgId clickFromMessageId;
 		QString clickFromAttachBotWebviewUrl;
+
+		QString messageLink;
 	};
 	void showPeerByLink(const PeerByLinkInfo &info);
 
@@ -296,9 +299,12 @@ private:
 	void resolveUsername(
 		const QString &username,
 		Fn<void(not_null<PeerData*>)> done);
+	void resolveMessageByLink(const PeerByLinkInfo &info);
+#if 0 // mtp
 	void resolveChannelById(
 		ChannelId channelId,
 		Fn<void(not_null<ChannelData*>)> done);
+#endif
 
 	void resolveDone(
 		const MTPcontacts_ResolvedPeer &result,
@@ -325,7 +331,10 @@ private:
 
 	const not_null<Main::Session*> _session;
 
+	Tdb::Sender _api;
+#if 0 // mtp
 	MTP::Sender _api;
+#endif
 
 	mtpRequestId _resolveRequestId = 0;
 
