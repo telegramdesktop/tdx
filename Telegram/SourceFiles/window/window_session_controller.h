@@ -278,9 +278,12 @@ private:
 	void resolveUsername(
 		const QString &username,
 		Fn<void(not_null<PeerData*>)> done);
+	void resolveMessageByLink(const PeerByLinkInfo &info);
+#if 0 // mtp
 	void resolveChannelById(
 		ChannelId channelId,
 		Fn<void(not_null<ChannelData*>)> done);
+#endif
 
 	void resolveDone(
 		const MTPcontacts_ResolvedPeer &result,
