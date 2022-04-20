@@ -97,6 +97,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Window {
 namespace {
 
+using namespace Tdb;
+
 constexpr auto kCustomThemesInMemory = 5;
 constexpr auto kMaxChatEntryHistorySize = 50;
 
@@ -353,7 +355,10 @@ void DateClickHandler::onClick(ClickContext context) const {
 
 SessionNavigation::SessionNavigation(not_null<Main::Session*> session)
 : _session(session)
+#if 0 // mtp
 , _api(&_session->mtp()) {
+#endif
+, _api(&_session->sender()) {
 }
 
 SessionNavigation::~SessionNavigation() = default;
@@ -364,6 +369,9 @@ Main::Session &SessionNavigation::session() const {
 
 void SessionNavigation::showPeerByLink(const PeerByLinkInfo &info) {
 	Core::App().hideMediaView();
+	if (!info.messageLink.isEmpty()) {
+		resolveMessageByLink(info);
+	} else
 	if (!info.phone.isEmpty()) {
 		resolvePhone(info.phone, [=](not_null<PeerData*> peer) {
 			showPeerByLinkResolved(peer, info);
@@ -388,10 +396,12 @@ void SessionNavigation::showPeerByLink(const PeerByLinkInfo &info) {
 				showPeerByLinkResolved(peer, info);
 			}
 		});
+#if 0 // mtp
 	} else if (const auto id = std::get_if<ChannelId>(&info.usernameOrId)) {
 		resolveChannelById(*id, [=](not_null<ChannelData*> channel) {
 			showPeerByLinkResolved(channel, info);
 		});
+#endif
 	}
 }
 
@@ -403,6 +413,14 @@ void SessionNavigation::resolvePhone(
 		return;
 	}
 	_api.request(base::take(_resolveRequestId)).cancel();
+	_resolveRequestId = _api.request(TLsearchUserByPhoneNumber(
+		tl_string(phone)
+	)).done([=](const TLuser &result) {
+		_resolveRequestId = 0;
+		parentController()->hideLayer();
+		done(_session->data().processUser(result));
+	}).fail([=](const Error &error) {
+#if 0 // mtp
 	_resolveRequestId = _api.request(MTPcontacts_ResolvePhone(
 		MTP_string(phone)
 	)).done([=](const MTPcontacts_ResolvedPeer &result) {
@@ -410,6 +428,8 @@ void SessionNavigation::resolvePhone(
 	}).fail([=](const MTP::Error &error) {
 		_resolveRequestId = 0;
 		if (error.code() == 400) {
+#endif
+		if (error.code == 404) {
 			parentController()->show(
 				Ui::MakeInformBox(tr::lng_username_by_phone_not_found(
 					tr::now,
@@ -458,6 +478,7 @@ void SessionNavigation::resolveUsername(
 		return;
 	}
 	_api.request(base::take(_resolveRequestId)).cancel();
+#if 0 // mtp
 	_resolveRequestId = _api.request(MTPcontacts_ResolveUsername(
 		MTP_string(username)
 	)).done([=](const MTPcontacts_ResolvedPeer &result) {
@@ -465,6 +486,16 @@ void SessionNavigation::resolveUsername(
 	}).fail([=](const MTP::Error &error) {
 		_resolveRequestId = 0;
 		if (error.code() == 400) {
+#endif
+	_resolveRequestId = _api.request(TLsearchPublicChat(
+		tl_string(username)
+	)).done([=](const TLchat &result) {
+		_resolveRequestId = 0;
+		parentController()->hideLayer();
+		done(_session->data().processPeer(result));
+	}).fail([=](const Error &error) {
+		_resolveRequestId = 0;
+		if (error.code == 400) {
 			parentController()->show(
 				Ui::MakeInformBox(
 					tr::lng_username_not_found(tr::now, lt_user, username)),
@@ -487,6 +518,31 @@ void SessionNavigation::resolveDone(
 	});
 }
 
+void SessionNavigation::resolveMessageByLink(const PeerByLinkInfo &info) {
+	_api.request(base::take(_resolveRequestId)).cancel();
+	_resolveRequestId = _api.request(TLgetMessageLinkInfo(
+		tl_string(info.messageLink)
+	)).done([=](const TLDmessageLinkInfo &data) {
+		const auto peerId = peerFromTdbChat(data.vchat_id());
+		if (const auto peer = _session->data().peerLoaded(peerId)) {
+			showPeerByLinkResolved(peer, {
+				.messageId = (data.vmessage()
+					? data.vmessage()->data().vid().v
+					: 0),
+				.repliesInfo = ((data.vmessage() && data.vfor_comment().v)
+					? RepliesByLinkInfo{ ThreadId{
+						.id = data.vmessage()->data().vmessage_thread_id().v,
+					} }
+					: RepliesByLinkInfo()),
+				.clickFromMessageId = info.clickFromMessageId,
+			});
+		}
+	}).fail([=](const Error &error) {
+		uiShow()->showToast(tr::lng_error_post_link_invalid(tr::now));
+	}).send();
+}
+
+#if 0 // mtp
 void SessionNavigation::resolveChannelById(
 		ChannelId channelId,
 		Fn<void(not_null<ChannelData*>)> done) {
@@ -513,6 +569,7 @@ void SessionNavigation::resolveChannelById(
 		});
 	}).fail(fail).send();
 }
+#endif
 
 void SessionNavigation::showMessageByLinkResolved(
 		not_null<HistoryItem*> item,
