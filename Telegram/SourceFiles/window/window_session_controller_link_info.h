@@ -56,6 +56,8 @@ struct PeerByLinkInfo {
 	std::optional<QString> voicechatHash;
 	FullMsgId clickFromMessageId;
 	std::shared_ptr<InlineBots::WebViewContext> clickFromBotWebviewContext;
+
+	QString messageLink;
 };
 
 } // namespace Window
