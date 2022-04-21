@@ -1043,7 +1043,58 @@ void SessionNavigation::showRepliesForMessage(
 	const auto postPeer = history->peer;
 	_showingRepliesHistory = history;
 	_showingRepliesRootId = rootId;
-#if 0 // todo
+	_showingRepliesRequestId = _api.request(TLgetMessageThread(
+		peerToTdbChat(history->peer->id),
+		tl_int53(rootId.bare)
+	)).done([=](const TLmessageThreadInfo &result) {
+		_showingRepliesRequestId = 0;
+		const auto &data = result.data();
+		auto item = (HistoryItem*)nullptr;
+		for (const auto &message : data.vmessages().v) {
+			const auto added = _session->data().processMessage(
+				message,
+				NewMessageType::Existing);
+			if (!item) {
+				item = added;
+			}
+		}
+		if (const auto group = _session->data().groups().find(item)) {
+			item = group->items.front();
+		}
+		if (item) {
+			const auto &info = data.vreply_info().data();
+			if (const auto maxId = info.vlast_message_id().v) {
+				item->setRepliesMaxId(maxId);
+			}
+			item->setRepliesInboxReadTill(
+				info.vlast_read_inbox_message_id().v,
+				data.vunread_message_count().v);
+			item->setRepliesOutboxReadTill(
+				info.vlast_read_outbox_message_id().v);
+			const auto post = _session->data().message(postPeer, rootId);
+			if (post && item->history()->peer != postPeer) {
+				post->setCommentsItemId(item->fullId());
+				if (const auto maxId = info.vlast_message_id().v) {
+					post->setRepliesMaxId(maxId);
+				}
+				post->setRepliesInboxReadTill(
+					info.vlast_read_inbox_message_id().v,
+					data.vunread_message_count().v);
+				post->setRepliesOutboxReadTill(
+					info.vlast_read_outbox_message_id().v);
+			}
+			showSection(std::make_shared<HistoryView::RepliesMemento>(
+				item,
+				commentId));
+		}
+	}).fail([=](const Error &error) {
+		_showingRepliesRequestId = 0;
+		if (error.message == u"CHANNEL_PRIVATE"_q
+			|| error.message == u"USER_BANNED_IN_CHANNEL"_q) {
+			Ui::Toast::Show(tr::lng_group_not_accessible(tr::now));
+		}
+	}).send();
+#if 0 // mtp
 	_showingRepliesRequestId = _api.request(
 		MTPmessages_GetDiscussionMessage(
 			history->peer->input,
