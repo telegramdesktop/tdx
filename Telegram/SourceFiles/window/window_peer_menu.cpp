@@ -2475,7 +2475,6 @@ void PeerMenuAddChannelMembers(
 		navigation->parentController()->show(Box<MaxInviteBox>(channel));
 		return;
 	}
-#if 0 // todo
 	const auto api = &channel->session().api();
 	api->chatParticipants().requestForAdd(channel, crl::guard(navigation, [=](
 			const Api::ChatParticipants::TLMembers &data) {
@@ -2497,7 +2496,6 @@ void PeerMenuAddChannelMembers(
 			channel,
 			{ already.begin(), already.end() });
 	}));
-#endif
 }
 
 void ToggleMessagePinned(
@@ -2591,7 +2589,12 @@ void UnpinAllMessages(
 		if (!strong) {
 			return;
 		}
-#if 0 // todo
+		strong->session().sender().request(TLunpinAllChatMessages(
+			peerToTdbChat(history->peer->id) // todo topics
+		)).done([=] {
+			history->unpinAllMessages();
+		}).send();
+#if 0 // mtp
 		const auto api = &strong->session().api();
 		const auto sendRequest = [=](auto self) -> void {
 			const auto history = strong->owningHistory();
