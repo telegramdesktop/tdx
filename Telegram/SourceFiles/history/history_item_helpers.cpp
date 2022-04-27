@@ -100,7 +100,9 @@ MessageFlags FlagsFromTdb(const TLDmessage &data) {
 	});
 	return sendingOrFailedFlag
 		| (int(sendingOrFailedFlag) ? Flag::Local : Flag())
-		| (data.vscheduling_state() ? Flag() : Flag::HistoryEntry)
+		| (data.vscheduling_state()
+			? Flag::IsOrWasScheduled // todo was scheduled, but now isn't?
+			: Flag::HistoryEntry)
 		| (data.vis_outgoing().v ? Flag::Outgoing : Flag())
 		| (data.vcan_be_saved().v ? Flag() : Flag::NoForwards)
 		| (data.vcontains_unread_mention().v
@@ -119,6 +121,18 @@ MessageFlags FlagsFromTdb(const TLDmessage &data) {
 			: Flag())
 		| (views ? Flag::HasViews : Flag())
 		| (invertMedia ? Flag::InvertMedia : Flag());
+}
+
+TimeId MessageDateFromTdb(const TLDmessage &data) {
+	if (const auto &state = data.vscheduling_state()) {
+		return state->match([&](
+				const TLDmessageSchedulingStateSendAtDate &data) {
+			return data.vsend_date().v;
+		}, [&](const TLDmessageSchedulingStateSendWhenOnline &data) {
+			return Api::kScheduledUntilOnlineTimestamp;
+		});
+	}
+	return data.vdate().v;
 }
 
 QString GetErrorTextForSending(

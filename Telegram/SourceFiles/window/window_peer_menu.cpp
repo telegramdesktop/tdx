@@ -2436,7 +2436,17 @@ QPointer<Ui::BoxContent> ShowSendNowMessagesBox(
 		callback = std::move(successCallback)
 	](Fn<void()> &&close) {
 		close();
-#if 0 // todo
+		for (const auto item : session->data().idsToItems(list)) {
+			session->sender().request(TLeditMessageSchedulingState(
+				peerToTdbChat(history->peer->id),
+				tl_int53(
+					session->scheduledMessages().lookupId(item).bare),
+				std::nullopt
+			)).fail([=](const Error &error) {
+				const auto code = error.code;
+			}).send();
+		}
+#if 0 // mtp
 		auto ids = QVector<MTPint>();
 		auto sorted = session->data().idsToItems(list);
 		ranges::sort(sorted, ranges::less(), &HistoryItem::date);

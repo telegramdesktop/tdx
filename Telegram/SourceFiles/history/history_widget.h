@@ -577,7 +577,7 @@ private:
 		const QVector<std::optional<Tdb::TLmessage>> &messages);
 	void addMessagesToBack(
 		not_null<PeerData*> peer,
-		const QVector< std::optional<Tdb::TLmessage>> &messages);
+		const QVector<std::optional<Tdb::TLmessage>> &messages);
 
 	void updateSendRestriction();
 	[[nodiscard]] QString computeSendRestriction() const;
