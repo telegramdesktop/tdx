@@ -28,6 +28,7 @@ class Session;
 } // namespace Main
 
 [[nodiscard]] MessageFlags FlagsFromTdb(const Tdb::TLDmessage &data);
+[[nodiscard]] TimeId MessageDateFromTdb(const Tdb::TLDmessage &data);
 
 struct PreparedServiceText {
 	TextWithEntities text;
