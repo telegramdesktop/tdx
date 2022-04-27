@@ -565,7 +565,7 @@ private:
 		const QVector<std::optional<Tdb::TLmessage>> &messages);
 	void addMessagesToBack(
 		not_null<PeerData*> peer,
-		const QVector< std::optional<Tdb::TLmessage>> &messages);
+		const QVector<std::optional<Tdb::TLmessage>> &messages);
 
 	void updateHistoryGeometry(bool initial = false, bool loadedDown = false, const ScrollChange &change = { ScrollChangeNone, 0 });
 	void updateListSize();
