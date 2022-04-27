@@ -3246,7 +3246,7 @@ bool HistoryItem::hasUnpaidContent() const {
 
 void HistoryItem::applyTTL(const TLDmessage &data) {
 	if (const auto period = data.vttl().v) {
-		applyTTL(data.vdate().v + period);
+		applyTTL(MessageDateFromTdb(data) + period);
 	}
 }
 

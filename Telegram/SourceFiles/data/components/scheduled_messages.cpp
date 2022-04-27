@@ -19,21 +19,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_helpers.h"
 #include "apiwrap.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Data {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kRequestTimeLimit = 60 * crl::time(1000);
 
 [[nodiscard]] MsgId RemoteToLocalMsgId(MsgId id) {
 	Expects(IsServerMsgId(id));
 
+#if 0 // mtp
 	return ServerMaxMsgId + id + 1;
+#endif
+	return id;
 }
 
 [[nodiscard]] MsgId LocalToRemoteMsgId(MsgId id) {
+#if 0 // mtp
 	Expects(IsScheduledMsgId(id));
 
 	return (id - ServerMaxMsgId - 1);
+#endif
+	return id;
 }
 
 [[nodiscard]] bool TooEarlyForRequest(crl::time received) {
@@ -99,9 +109,11 @@ constexpr auto kRequestTimeLimit = 60 * crl::time(1000);
 
 } // namespace
 
+#if 0 // mtp
 bool IsScheduledMsgId(MsgId id) {
 	return (id > ServerMaxMsgId) && (id < ScheduledMaxMsgId);
 }
+#endif
 
 ScheduledMessages::ScheduledMessages(not_null<Main::Session*> session)
 : _session(session)
@@ -376,6 +388,17 @@ void ScheduledMessages::apply(
 }
 #endif
 
+void ScheduledMessages::append(not_null<HistoryItem*> item) {
+	Expects(item->isScheduled());
+
+	const auto history = item->history();
+	auto &list = _data[history];
+	list.items.emplace_back(item);
+	sort(list);
+	_updates.fire_copy(history);
+}
+
+#if 0 // mtp
 void ScheduledMessages::appendSending(not_null<HistoryItem*> item) {
 	Expects(item->isSending());
 	Expects(item->isScheduled());
@@ -393,6 +416,7 @@ void ScheduledMessages::removeSending(not_null<HistoryItem*> item) {
 
 	item->destroy();
 }
+#endif
 
 rpl::producer<> ScheduledMessages::updates(not_null<History*> history) {
 	request(history);
@@ -460,7 +484,15 @@ void ScheduledMessages::request(not_null<History*> history) {
 	if (request.requestId || TooEarlyForRequest(request.lastReceived)) {
 		return;
 	}
-#if 0 // todo
+	const auto i = _data.find(history);
+	request.requestId = _session->sender().request(
+		TLgetChatScheduledMessages(peerToTdbChat(peer->id))
+	).done([=](const TLmessages &result) {
+		parse(history, result);
+	}).fail([=] {
+		_requests.remove(history);
+	}).send();
+#if 0 // mtp
 	const auto i = _data.find(history);
 	const auto hash = (i != end(_data))
 		? countListHash(i->second)
@@ -473,6 +505,44 @@ void ScheduledMessages::request(not_null<History*> history) {
 		_requests.remove(history);
 	}).send();
 #endif
+}
+
+void ScheduledMessages::parse(
+		not_null<History*> history,
+		const TLmessages &result) {
+	auto &request = _requests[history];
+	request.lastReceived = crl::now();
+	request.requestId = 0;
+	if (!_clearTimer.isActive()) {
+		_clearTimer.callOnce(kRequestTimeLimit * 2);
+	}
+
+	const auto &data = result.data();
+	const auto count = data.vtotal_count().v;
+	const auto &messages = data.vmessages().v;
+
+	if (messages.isEmpty()) {
+		clearNotSending(history);
+		return;
+	}
+	auto received = base::flat_set<not_null<HistoryItem*>>();
+	auto clear = base::flat_set<not_null<HistoryItem*>>();
+	auto &list = _data.emplace(history, List()).first->second;
+	for (const auto &message : messages) {
+		if (message) {
+			received.emplace(
+				_session->data().processMessage(
+					*message,
+					NewMessageType::Existing));
+		}
+	}
+	for (const auto &owned : list.items) {
+		const auto item = owned.get();
+		if (!item->isSending() && !received.contains(item)) {
+			clear.emplace(item);
+		}
+	}
+	updated(history, received, clear);
 }
 
 #if 0 // mtp
@@ -608,9 +678,11 @@ void ScheduledMessages::remove(not_null<const HistoryItem*> item) {
 	Assert(i != end(_data));
 	auto &list = i->second;
 
+#if 0 // mtp
 	if (!item->isSending() && !item->hasFailed()) {
 		list.itemById.remove(lookupId(item));
 	}
+#endif
 	const auto k = ranges::find(list.items, item, &OwnedItem::get);
 	Assert(k != list.items.end());
 	k->release();
