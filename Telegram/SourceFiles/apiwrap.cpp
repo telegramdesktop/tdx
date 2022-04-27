@@ -579,6 +579,8 @@ void ApiWrap::sendMessageFail(
 		uint64 randomId,
 		FullMsgId itemId) {
 	const auto show = ShowForPeer(peer);
+
+#if 0 // mtp
 	if (show && error == u"PEER_FLOOD"_q) {
 		show->showBox(
 			Ui::MakeInformBox(
@@ -637,6 +639,7 @@ void ApiWrap::sendMessageFail(
 			}
 		}
 	}
+#endif
 }
 
 void ApiWrap::requestMessageData(

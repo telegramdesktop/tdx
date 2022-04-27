@@ -485,7 +485,11 @@ not_null<HistoryItem*> History::createItem(
 		}
 		return result;
 	}
-	return makeMessage(id, message.data(), localFlags);
+	const auto result = makeMessage(id, message.data(), localFlags);
+	if (result->isScheduled()) {
+		owner().scheduledMessages().append(result);
+	}
+	return result;
 }
 
 #if 0 // mtp
@@ -666,7 +670,9 @@ not_null<HistoryItem*> History::addNewItem(
 		not_null<HistoryItem*> item,
 		bool unread) {
 	if (item->isScheduled()) {
+#if 0 // mtp
 		owner().scheduledMessages().appendSending(item);
+#endif
 		return item;
 	} else if (item->isBusinessShortcut()) {
 		owner().shortcutMessages().appendSending(item);

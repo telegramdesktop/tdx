@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "base/timer.h"
 
+namespace Tdb {
+class TLmessages;
+} // namespace Tdb
+
 class History;
 
 namespace Main {
@@ -21,7 +25,9 @@ namespace Data {
 class Session;
 struct MessagesSlice;
 
+#if 0 // mtp
 [[nodiscard]] bool IsScheduledMsgId(MsgId id);
+#endif
 
 class ScheduledMessages final {
 public:
@@ -46,10 +52,12 @@ public:
 		not_null<HistoryItem*> local);
 #endif
 
+	void append(not_null<HistoryItem*> item);
+
+#if 0 // mtp
 	void appendSending(not_null<HistoryItem*> item);
 	void removeSending(not_null<HistoryItem*> item);
 
-#if 0 // mtp
 	void sendNowSimpleMessage(
 		const MTPDupdateShortSentMessage &update,
 		not_null<HistoryItem*> local);
@@ -73,6 +81,7 @@ private:
 
 	void request(not_null<History*> history);
 
+	void parse(not_null<History*> history, const Tdb::TLmessages &result);
 #if 0 // mtp
 	void parse(
 		not_null<History*> history,
