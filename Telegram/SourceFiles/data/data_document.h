@@ -24,6 +24,7 @@ class TLvideoNote;
 class TLthumbnail;
 class TLminithumbnail;
 class TLclosedVectorPath;
+class TLnotificationSound;
 } // namespace Tdb
 
 enum class ChatRestriction;
@@ -132,6 +133,9 @@ public:
 	void setFromTdb(const Tdb::TLvoiceNote &data);
 	[[nodiscard]] static DocumentId IdFromTdb(const Tdb::TLvideoNote &data);
 	void setFromTdb(const Tdb::TLvideoNote &data);
+	[[nodiscard]] static DocumentId IdFromTdb(
+		const Tdb::TLnotificationSound &data);
+	void setFromTdb(const Tdb::TLnotificationSound &data);
 
 	[[nodiscard]] FileId tdbFileId() const;
 
