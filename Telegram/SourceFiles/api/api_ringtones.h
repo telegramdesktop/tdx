@@ -8,9 +8,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "mtproto/sender.h"
+#include "tdb/tdb_sender.h"
 
 class ApiWrap;
 class PeerData;
+
+namespace Tdb {
+class FileGenerator;
+} // namespace Tdb
 
 namespace Main {
 class Session;
@@ -43,6 +48,7 @@ public:
 	[[nodiscard]] crl::time maxDuration() const;
 
 private:
+#if 0 // goodToRemove
 	struct UploadedData {
 		QString filename;
 		QString filemime;
@@ -54,6 +60,12 @@ private:
 	MTP::Sender _api;
 
 	base::flat_map<FullMsgId, UploadedData> _uploads;
+#endif
+	const not_null<Main::Session*> _session;
+	Tdb::Sender _tdbApi;
+	using UploadToken = QString;
+	base::flat_map<UploadToken, std::shared_ptr<Tdb::FileGenerator>> _uploads;
+
 	rpl::event_stream<QString> _uploadFails;
 	rpl::event_stream<DocumentId> _uploadDones;
 
