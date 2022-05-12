@@ -27,6 +27,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 #include <QGuiApplication>
 #include <QStyle>
 
@@ -140,6 +142,23 @@ void StartRtmpProcess::close() {
 
 void StartRtmpProcess::requestUrl(bool revoke) {
 	const auto session = &_request->peer->session();
+	const auto done = [=](const Tdb::TLDrtmpUrl &data) {
+		processUrl(RtmpInfo{
+			.url = data.vurl().v,
+			.key = data.vstream_key().v,
+		});
+	};
+	const auto fail = [=] {
+		_request->showToast(Lang::Hard::ServerError());
+	};
+	_request->id = (!revoke)
+		? session->sender().request(
+			Tdb::TLgetVideoChatRtmpUrl(peerToTdbChat(_request->peer->id))
+		).done(done).fail(fail).send()
+		: session->sender().request(
+			Tdb::TLreplaceVideoChatRtmpUrl(peerToTdbChat(_request->peer->id))
+		).done(done).fail(fail).send();
+#if 0 // goodToRemove
 	_request->id = session->api().request(MTPphone_GetGroupCallStreamRtmpUrl(
 		_request->peer->input,
 		MTP_bool(revoke)
@@ -152,6 +171,7 @@ void StartRtmpProcess::requestUrl(bool revoke) {
 	}).fail([=] {
 		_request->show->showToast(Lang::Hard::ServerError());
 	}).send();
+#endif
 }
 
 void StartRtmpProcess::processUrl(RtmpInfo data) {
