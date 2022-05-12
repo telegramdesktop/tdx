@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_stickers.h"
 #include "window/window_session_controller.h"
 #include "main/main_session.h"
+#include "tdb/tdb_sender.h"
 
 namespace Api {
 namespace {
@@ -129,6 +130,20 @@ void ToggleSavedRingtone(
 		Data::FileOrigin origin,
 		Fn<void()> &&done,
 		bool saved) {
+	auto &api = document->owner().session().sender();
+	if (saved) {
+		api.request(Tdb::TLaddSavedNotificationSound(
+			Tdb::tl_inputFileId(Tdb::tl_int32(document->id)))
+		).done([=](const Tdb::TLnotificationSound &result) {
+			document->owner().processDocument(result);
+			done();
+		}).send();
+	} else {
+		api.request(Tdb::TLremoveSavedNotificationSound(
+			Tdb::tl_int64(document->id)
+		)).done(std::move(done)).send();
+	}
+#if 0 // goodToRemove
 	ToggleExistingMedia(
 		document,
 		std::move(origin),
@@ -136,6 +151,7 @@ void ToggleSavedRingtone(
 			return MTPaccount_SaveRingtone(d->mtpInput(), MTP_bool(!saved));
 		},
 		std::move(done));
+#endif
 }
 
 } // namespace Api
