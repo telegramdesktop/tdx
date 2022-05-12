@@ -462,6 +462,23 @@ void DocumentData::setFromTdb(const TLaudio &data) {
 	}
 }
 
+DocumentId DocumentData::IdFromTdb(const TLnotificationSound &data) {
+	return data.data().vid().v;
+}
+
+void DocumentData::setFromTdb(const TLnotificationSound &data) {
+	setFromTdb(Tdb::tl_audio(
+		data.data().vduration(),
+		data.data().vtitle(),
+		Tdb::tl_string(), // Performer.
+		data.data().vtitle(), // File name.
+		Tdb::tl_string("mp3"), // Mime type.
+		std::nullopt, // Album mini covers.
+		std::nullopt, // Album covers.
+		data.data().vsound()));
+	date = data.data().vdate().v;
+}
+
 DocumentId DocumentData::IdFromTdb(const TLanimation &data) {
 	return data.data().vanimation().data().vid().v;
 }
