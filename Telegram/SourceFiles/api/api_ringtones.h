@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class ApiWrap;
 class PeerData;
 
+namespace Tdb {
+class FileGenerator;
+} // namespace Tdb
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -43,17 +47,24 @@ public:
 	[[nodiscard]] crl::time maxDuration() const;
 
 private:
+#if 0 // goodToRemove
 	struct UploadedData {
 		QString filename;
 		QString filemime;
 		QByteArray content;
 	};
 	void ready(const FullMsgId &msgId, const MTPInputFile &file);
+#endif
 
 	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
 
+#if 0 // goodToRemove
 	base::flat_map<FullMsgId, UploadedData> _uploads;
+#endif
+	using UploadToken = QString;
+	base::flat_map<UploadToken, std::shared_ptr<Tdb::FileGenerator>> _uploads;
+
 	rpl::event_stream<QString> _uploadFails;
 	rpl::event_stream<DocumentId> _uploadDones;
 

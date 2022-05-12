@@ -20,8 +20,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "storage/file_upload.h"
 #include "storage/localimageloader.h"
+#include "tdb/tdb_file_generator.h"
 
 namespace Api {
+#if 0 // goodToRemove
 namespace {
 
 std::shared_ptr<FilePrepareResult> PrepareRingtoneDocument(
@@ -58,10 +60,12 @@ std::shared_ptr<FilePrepareResult> PrepareRingtoneDocument(
 }
 
 } // namespace
+#endif
 
 Ringtones::Ringtones(not_null<ApiWrap*> api)
 : _session(&api->session())
 , _api(&api->instance()) {
+#if 0 // goodToRemove
 	crl::on_main(_session, [=] {
 		// You can't use _session->lifetime() in the constructor,
 		// only queued, because it is not constructed yet.
@@ -70,12 +74,14 @@ Ringtones::Ringtones(not_null<ApiWrap*> api)
 			ready(data.fullId, data.info.file);
 		}, _session->lifetime());
 	});
+#endif
 }
 
 void Ringtones::upload(
 		const QString &filename,
 		const QString &filemime,
 		const QByteArray &content) {
+#if 0 // goodToRemove
 	const auto ready = PrepareRingtoneDocument(
 		_api.instance().mainDcId(),
 		filename,
@@ -98,8 +104,42 @@ void Ringtones::upload(
 	}
 	_uploads.emplace(fakeId, uploadedData);
 	_session->uploader().upload(fakeId, ready);
+#endif
+	const auto token = filename + QString::number(content.size());
+
+	auto generator = std::make_unique<Tdb::FileGenerator>(
+		&_session->tdb(),
+		content);
+	auto inputFile = generator->inputFile();
+
+	const auto eraseExisted = [=] {
+		const auto it = _uploads.find(token);
+		if (it != end(_uploads)) {
+			it->second->cancel();
+			_uploads.erase(it);
+		}
+	};
+	eraseExisted();
+
+	generator->lifetime().add(eraseExisted);
+
+	_uploads.emplace(token, std::move(generator));
+
+	_api.request(TLaddSavedNotificationSound(
+		std::move(inputFile)
+	)).done([=](const Tdb::TLnotificationSound &result) {
+		const auto document = _session->data().processDocument(result);
+		_list.documents.insert(_list.documents.begin(), document->id);
+		const auto media = document->createMediaView();
+		media->setBytes(content);
+		document->owner().notifySettings().cacheSound(document);
+		_uploadDones.fire_copy(document->id);
+	}).fail([=](const Tdb::Error &error) {
+		_uploadFails.fire_copy(error.message);
+	}).send();
 }
 
+#if 0 // goodToRemove
 void Ringtones::ready(const FullMsgId &msgId, const MTPInputFile &file) {
 	const auto maybeUploadedData = _uploads.take(msgId);
 	if (!maybeUploadedData) {
@@ -121,11 +161,13 @@ void Ringtones::ready(const FullMsgId &msgId, const MTPInputFile &file) {
 		_uploadFails.fire_copy(error.type());
 	}).send();
 }
+#endif
 
 void Ringtones::requestList() {
 	if (_list.requestId) {
 		return;
 	}
+#if 0 // goodToRemove
 	_list.requestId = _api.request(
 		MTPaccount_GetSavedRingtones(MTP_long(_list.hash))
 	).done([=](const MTPaccount_SavedRingtones &result) {
@@ -142,6 +184,19 @@ void Ringtones::requestList() {
 			_list.updates.fire({});
 		}, [&](const MTPDaccount_savedRingtonesNotModified &) {
 		});
+#endif
+	_list.requestId = _api.request(TLgetSavedNotificationSounds(
+	)).done([=](const TLDnotificationSounds &data) {
+		_list.requestId = 0;
+		_list.documents.clear();
+		_list.documents.reserve(data.vnotification_sounds().v.size());
+		auto &owner = _session->data();
+		for (const auto &s : data.vnotification_sounds().v) {
+			const auto document = owner.processDocument(s);
+			document->forceToCache(true);
+			_list.documents.emplace_back(document->id);
+		}
+		_list.updates.fire({});
 	}).fail([=] {
 		_list.requestId = 0;
 	}).send();

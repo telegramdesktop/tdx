@@ -3040,6 +3040,7 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateFavoriteStickers &data) {
 	}, [&](const TLDupdateSavedAnimations &data) {
 	}, [&](const TLDupdateSavedNotificationSounds &data) {
+		session().api().ringtones().applyUpdate();
 	}, [&](const TLDupdateSelectedBackground &data) {
 	}, [&](const TLDupdateChatThemes &data) {
 	}, [&](const TLDupdateLanguagePackStrings &data) {
