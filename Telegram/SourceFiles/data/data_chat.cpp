@@ -639,7 +639,7 @@ void ApplyChatUpdate(
 	//	chat->setGroupCallDefaultJoinAs(0);
 	//}
 
-	//chat->setMessagesTTL(update.vttl_period().value_or_empty());
+	//TTL of messages goes from updates.
 
 	//update.vbot_commands(); // todo
 	//if (const auto info = update.vbot_info()) {
