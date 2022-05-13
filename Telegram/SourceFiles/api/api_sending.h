@@ -18,6 +18,7 @@ struct FileLoadResult;
 
 namespace Tdb {
 class TLinputMessageContent;
+class TLmessageSchedulingState;
 class TLmessageSendOptions;
 } // namespace Tdb
 
@@ -54,5 +55,8 @@ void SendConfirmedFile(
 void SendPreparedMessage(
 	const SendAction &action,
 	Tdb::TLinputMessageContent content);
+
+[[nodiscard]] std::optional<Tdb::TLmessageSchedulingState> ScheduledToTL(
+	TimeId scheduled);
 
 } // namespace Api
