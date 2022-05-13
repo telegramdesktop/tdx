@@ -2927,6 +2927,10 @@ void Updates::applyUpdate(const TLupdate &update) {
 		});
 		owner.notifySettings().apply(type, data.vnotification_settings());
 	}, [&](const TLDupdateChatMessageTtl &data) {
+		const auto peerId = peerFromTdbChat(data.vchat_id());
+		if (const auto peer = owner.peerLoaded(peerId)) {
+			peer->setMessagesTTL(data.vmessage_ttl().v);
+		}
 	}, [&](const TLDupdateChatActionBar &data) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
 		if (const auto peer = owner.peerLoaded(peerId)) {
