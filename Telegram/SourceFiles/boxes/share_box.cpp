@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_account.h"
 #include "ui/boxes/confirm_box.h"
 #include "apiwrap.h"
+#include "api/api_sending.h" // ScheduledToTL
 #include "ui/chat/forward_options_box.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/checkbox.h"
@@ -54,6 +55,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
 
+#include "tdb/tdb_sender.h"
+
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
 
@@ -73,8 +76,11 @@ public:
 
 	void peopleReceived(
 		const QString &query,
+		const Tdb::TLchats &result);
+#if 0 // goodToRemove
 		const QVector<MTPPeer> &my,
 		const QVector<MTPPeer> &people);
+#endif
 
 	void activateSkipRow(int direction);
 	void activateSkipColumn(int direction);
@@ -179,7 +185,10 @@ private:
 
 ShareBox::ShareBox(QWidget*, Descriptor &&descriptor)
 : _descriptor(std::move(descriptor))
+#if 0 // goodToRemove
 , _api(&_descriptor.session->mtp())
+#endif
+, _api(&_descriptor.session->sender())
 , _select(
 	this,
 	(_descriptor.stMultiSelect
@@ -343,6 +352,25 @@ bool ShareBox::searchByUsername(bool searchCache) {
 		}
 		return true;
 	}
+
+	const auto peopleDone = [=](
+			const Tdb::TLchats &result,
+			Tdb::RequestId requestId) {
+		auto query = _peopleQuery;
+
+		auto i = _peopleQueries.find(requestId);
+		if (i != _peopleQueries.cend()) {
+			query = i.value();
+			_peopleCache[query] = result;
+			_peopleQueries.erase(i);
+		}
+
+		if (_peopleRequest == requestId) {
+			_inner->peopleReceived(query, result);
+			_peopleRequest = 0;
+		}
+	};
+
 	if (!query.isEmpty()) {
 		if (searchCache) {
 			auto i = _peopleCache.constFind(query);
@@ -355,6 +383,17 @@ bool ShareBox::searchByUsername(bool searchCache) {
 		} else if (_peopleQuery != query) {
 			_peopleQuery = query;
 			_peopleFull = false;
+			_peopleRequest = _api.request(Tdb::TLsearchPublicChats(
+				Tdb::tl_string(_peopleQuery)
+			)).done([=](const Tdb::TLchats &chats, Tdb::RequestId requestId) {
+				peopleDone(chats, requestId);
+			}).fail([=](const Tdb::Error &error, mtpRequestId requestId) {
+				if (_peopleRequest == requestId) {
+					_peopleRequest = 0;
+					_peopleFull = true;
+				}
+			}).send();
+#if 0 // goodToRemove
 			_peopleRequest = _api.request(MTPcontacts_Search(
 				MTP_string(_peopleQuery),
 				MTP_int(SearchPeopleLimit)
@@ -363,6 +402,7 @@ bool ShareBox::searchByUsername(bool searchCache) {
 			}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
 				peopleFail(error, requestId);
 			}).send();
+#endif
 			_peopleQueries.insert(_peopleRequest, _peopleQuery);
 		}
 	}
@@ -375,6 +415,7 @@ void ShareBox::needSearchByUsername() {
 	}
 }
 
+#if 0 // goodToRemove
 void ShareBox::peopleDone(
 		const MTPcontacts_Found &result,
 		mtpRequestId requestId) {
@@ -412,6 +453,7 @@ void ShareBox::peopleFail(const MTP::Error &error, mtpRequestId requestId) {
 		_peopleFull = true;
 	}
 }
+#endif
 
 void ShareBox::setInnerFocus() {
 	if (_comment->isHidden()) {
@@ -1213,13 +1255,17 @@ rpl::producer<> ShareBox::Inner::searchRequests() const {
 
 void ShareBox::Inner::peopleReceived(
 		const QString &query,
+		const Tdb::TLchats &result) {
+#if 0 // goodToRemove
 		const QVector<MTPPeer> &my,
 		const QVector<MTPPeer> &people) {
+#endif
 	_lastQuery = query.toLower().trimmed();
 	if (_lastQuery.at(0) == '@') {
 		_lastQuery = _lastQuery.mid(1);
 	}
 	int32 already = _byUsernameFiltered.size();
+#if 0 // goodToRemove
 	_byUsernameFiltered.reserve(already + my.size() + people.size());
 	d_byUsernameFiltered.reserve(already + my.size() + people.size());
 	const auto feedList = [&](const QVector<MTPPeer> &list) {
@@ -1228,6 +1274,15 @@ void ShareBox::Inner::peopleReceived(
 					peerFromMTP(data))) {
 				const auto history = _descriptor.session->data().history(
 					peer);
+#endif
+	_byUsernameFiltered.reserve(already + result.data().vchat_ids().v.size());
+	d_byUsernameFiltered.reserve(_byUsernameFiltered.size());
+	const auto feedList = [&] {
+		for (const auto &chatId : result.data().vchat_ids().v) {
+			const auto peerId = peerFromTdbChat(chatId);
+			auto &owner = _descriptor.session->data();
+			if (const auto peer = owner.peerLoaded(peerId)) {
+				const auto history = owner.historyLoaded(peer);
 				if (!history->asForum()
 					&& !_descriptor.filterCallback(history)) {
 					continue;
@@ -1245,8 +1300,11 @@ void ShareBox::Inner::peopleReceived(
 			}
 		}
 	};
+#if 0 // goodToRemove
 	feedList(my);
 	feedList(people);
+#endif
+	feedList();
 
 	_searching = false;
 	refresh();
@@ -1375,7 +1433,7 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 			return;
 		}
 
-#if 0 // todo
+#if 0 // goodToRemove
 		using Flag = MTPmessages_ForwardMessages::Flag;
 		const auto commonSendFlags = Flag(0)
 			| Flag::f_with_my_score
@@ -1398,6 +1456,7 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 			}
 			return result;
 		};
+#endif
 		auto &api = history->owner().session().api();
 		auto &histories = history->owner().histories();
 		const auto requestType = Data::Histories::RequestType::Send;
@@ -1418,6 +1477,7 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 			const auto threadHistory = thread->owningHistory();
 			histories.sendRequest(threadHistory, requestType, [=](
 					Fn<void()> finish) {
+#if 0 // goodToRemove
 				auto &api = threadHistory->session().api();
 				const auto sendFlags = commonSendFlags
 					| (topMsgId ? Flag::f_top_msg_id : Flag(0))
@@ -1437,12 +1497,16 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 				)).done([=](const MTPUpdates &updates, mtpRequestId reqId) {
 					threadHistory->session().api().applyUpdates(updates);
 					state->requests.remove(reqId);
+#endif
+				const auto requestDone = [=] {
 					if (state->requests.empty()) {
 						if (show->valid()) {
 							show->showToast(tr::lng_share_done(tr::now));
 							show->hideLayer();
 						}
 					}
+				};
+#if 0 // goodToRemove
 					finish();
 				}).fail([=](const MTP::Error &error) {
 					if (error.type() == u"VOICE_MESSAGES_FORBIDDEN"_q) {
@@ -1454,11 +1518,77 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 					}
 					finish();
 				}).afterRequest(threadHistory->sendRequestId).send();
+#endif
+
+				auto &api = threadHistory->session().sender();
+				auto tlOptions = Tdb::tl_messageSendOptions(
+					Tdb::tl_bool(ShouldSendSilent(peer, options)),
+					Tdb::tl_bool(true), // From background.
+					Api::ScheduledToTL(options.scheduled));
+
+				// If we have only one message to send
+				// Then there is a chance we should send a game score.
+				if (msgIds.size() == 1) {
+					auto tlCopyOptions = [&](
+							) -> std::optional<Tdb::TLmessageCopyOptions> {
+						if (!dropNames && !dropCaptions) {
+							return std::nullopt;
+						}
+						return Tdb::tl_messageCopyOptions(
+							Tdb::tl_bool(dropNames),
+							Tdb::tl_bool(dropCaptions),
+							Tdb::tl_formattedText(
+								Tdb::tl_string(),
+								Tdb::tl_vector<Tdb::TLtextEntity>()));
+					}();
+
+					threadHistory->sendRequestId = api.request(
+						Tdb::TLsendMessage(
+							peerToTdbChat(peer->id),
+							Tdb::tl_int53(0), // Message thread id.
+							Tdb::tl_int53(0), // Reply to message id.
+							std::move(tlOptions),
+							Tdb::tl_inputMessageForwarded(
+								peerToTdbChat(data->peer->id),
+								msgIds.front(),
+								Tdb::tl_bool(true), // In game share.
+								std::move(tlCopyOptions))
+					)).done([=](
+							const Tdb::TLmessage &message,
+							Tdb::RequestId reqId) {
+						peer->owner().processMessage(
+							message,
+							NewMessageType::Unread);
+						data->requests.remove(reqId);
+						requestDone();
+						finish();
+					}).fail([=] {
+						finish();
+					}).send();
+				} else {
+					threadHistory->sendRequestId = api.request(
+						Tdb::TLforwardMessages(
+							peerToTdbChat(peer->id),
+							peerToTdbChat(data->peer->id),
+							Tdb::tl_vector<Tdb::TLint53>(msgIds),
+							std::move(tlOptions),
+							Tdb::tl_bool(dropNames),
+							Tdb::tl_bool(dropCaptions),
+							Tdb::tl_bool(false) // Only preview.
+					)).done([=](
+							const Tdb::TLmessages &messages,
+							Tdb::RequestId reqId) {
+						data->requests.remove(reqId);
+						requestDone();
+						finish();
+					}).fail([=] {
+						finish();
+					}).send();
+				}
 				return threadHistory->sendRequestId;
 			});
 			state->requests.insert(threadHistory->sendRequestId);
 		}
-#endif
 	};
 }
 
@@ -1629,6 +1759,7 @@ void ShareGameScoreByHash(
 			resolveMessageAndShareScore(peer);
 		} else {
 			const auto owner = &controller->session().data();
+#if 0 // goodToRemove
 			controller->session().api().request(MTPchannels_GetChannels(
 				MTP_vector<MTPInputChannel>(
 					1,
@@ -1639,6 +1770,11 @@ void ShareGameScoreByHash(
 				result.match([&](const auto &data) {
 					owner->processChats(data.vchats());
 				});
+#endif
+			controller->session().sender().request(Tdb::TLgetSupergroup(
+				Tdb::tl_int53(peerToChannel(peerId).bare)
+			)).done([=](const Tdb::TLsupergroup &result) {
+				owner->processChannel(result);
 				if (const auto peer = owner->peerLoaded(peerId)) {
 					resolveMessageAndShareScore(peer);
 				}
