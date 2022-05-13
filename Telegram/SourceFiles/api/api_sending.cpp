@@ -899,4 +899,14 @@ void SendPreparedMessage(
 	}).send();
 }
 
+std::optional<TLmessageSchedulingState> ScheduledToTL(TimeId scheduled) {
+	if (!scheduled) {
+		return std::nullopt;
+	} else if (scheduled == kScheduledTillOnline) {
+		return tl_messageSchedulingStateSendWhenOnline();
+	} else {
+		return tl_messageSchedulingStateSendAtDate(tl_int32(scheduled));
+	}
+}
+
 } // namespace Api

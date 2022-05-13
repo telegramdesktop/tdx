@@ -146,10 +146,12 @@ private:
 	void addPeerToMultiSelect(not_null<Data::Thread*> thread);
 	void innerSelectedChanged(not_null<Data::Thread*> thread, bool checked);
 
+#if 0 // goodToRemove
 	void peopleDone(
 		const MTPcontacts_Found &result,
 		mtpRequestId requestId);
 	void peopleFail(const MTP::Error &error, mtpRequestId requestId);
+#endif
 
 	void showMenu(not_null<Ui::RpWidget*> parent);
 
@@ -174,7 +176,10 @@ private:
 	bool _peopleFull = false;
 	mtpRequestId _peopleRequest = 0;
 
+#if 0 // goodToRemove
 	using PeopleCache = QMap<QString, MTPcontacts_Found>;
+#endif
+	using PeopleCache = QMap<QString, Tdb::TLchats>;
 	PeopleCache _peopleCache;
 
 	using PeopleQueries = QMap<mtpRequestId, QString>;
