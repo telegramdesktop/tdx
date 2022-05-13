@@ -3043,6 +3043,8 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateRecentStickers &data) {
 	}, [&](const TLDupdateFavoriteStickers &data) {
 	}, [&](const TLDupdateSavedAnimations &data) {
+		session().data().stickers().setLastSavedGifsUpdate(0);
+		session().api().updateStickers();
 	}, [&](const TLDupdateSavedNotificationSounds &data) {
 		session().api().ringtones().applyUpdate();
 	}, [&](const TLDupdateSelectedBackground &data) {
