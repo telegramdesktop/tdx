@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tdb/tdb_sender.h"
 
 namespace Api {
+#if 0 // goodToRemove
 namespace {
 
 template <typename ToggleRequestCallback, typename DoneCallback>
@@ -47,6 +48,7 @@ void ToggleExistingMedia(
 }
 
 } // namespace
+#endif
 
 void ToggleFavedSticker(
 		std::shared_ptr<ChatHelpers::Show> show,
@@ -70,6 +72,17 @@ void ToggleFavedSticker(
 	auto done = [=] {
 		document->owner().stickers().setFaved(show, document, faved);
 	};
+	auto &api = document->owner().session().sender();
+	if (faved) {
+		api.request(Tdb::TLaddFavoriteSticker(
+			Tdb::tl_inputFileId(Tdb::tl_int32(document->id))
+		)).done(std::move(done)).send();
+	} else {
+		api.request(Tdb::TLremoveFavoriteSticker(
+			Tdb::tl_inputFileId(Tdb::tl_int32(document->id))
+		)).done(std::move(done)).send();
+	}
+#if 0 // goodToRemove
 	ToggleExistingMedia(
 		document,
 		std::move(origin),
@@ -77,6 +90,7 @@ void ToggleFavedSticker(
 			return MTPmessages_FaveSticker(d->mtpInput(), MTP_bool(!faved));
 		},
 		std::move(done));
+#endif
 }
 
 void ToggleRecentSticker(
@@ -91,6 +105,19 @@ void ToggleRecentSticker(
 			document->owner().stickers().removeFromRecentSet(document);
 		}
 	};
+	auto &api = document->owner().session().sender();
+	if (saved) {
+		api.request(Tdb::TLaddRecentSticker(
+			Tdb::tl_bool(false),
+			Tdb::tl_inputFileId(Tdb::tl_int32(document->id))
+		)).done(std::move(done)).send();
+	} else {
+		api.request(Tdb::TLremoveRecentSticker(
+			Tdb::tl_bool(false),
+			Tdb::tl_inputFileId(Tdb::tl_int32(document->id))
+		)).done(std::move(done)).send();
+	}
+#if 0 // goodToRemove
 	ToggleExistingMedia(
 		document,
 		std::move(origin),
@@ -101,6 +128,7 @@ void ToggleRecentSticker(
 				MTP_bool(!saved));
 		},
 		std::move(done));
+#endif
 }
 
 void ToggleSavedGif(
@@ -116,6 +144,17 @@ void ToggleSavedGif(
 			document->owner().stickers().addSavedGif(show, document);
 		}
 	};
+	auto &api = document->owner().session().sender();
+	if (saved) {
+		api.request(Tdb::TLaddSavedAnimation(
+			Tdb::tl_inputFileId(Tdb::tl_int32(document->id))
+		)).done(std::move(done)).send();
+	} else {
+		api.request(Tdb::TLremoveSavedAnimation(
+			Tdb::tl_inputFileId(Tdb::tl_int32(document->id))
+		)).done(std::move(done)).send();
+	}
+#if 0 // goodToRemove
 	ToggleExistingMedia(
 		document,
 		std::move(origin),
@@ -123,6 +162,7 @@ void ToggleSavedGif(
 			return MTPmessages_SaveGif(d->mtpInput(), MTP_bool(!saved));
 		},
 		std::move(done));
+#endif
 }
 
 void ToggleSavedRingtone(
