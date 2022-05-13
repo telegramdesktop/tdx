@@ -66,7 +66,6 @@ Args TTLValidator::createArgs() const {
 	auto callback = [=](
 			TimeId period,
 			Fn<void()>) {
-#if 0 // todo
 		auto &api = peer->session().api();
 		if (state->savingRequestId) {
 			if (period == state->savingPeriod) {
@@ -75,17 +74,23 @@ Args TTLValidator::createArgs() const {
 			api.request(state->savingRequestId).cancel();
 		}
 		state->savingPeriod = period;
+#if 0 // goodToRemove
 		state->savingRequestId = api.request(MTPmessages_SetHistoryTTL(
 			peer->input,
 			MTP_int(period)
 		)).done([=](const MTPUpdates &result) {
 			peer->session().api().applyUpdates(result);
+#endif
+		state->savingRequestId = api.sender().request(
+			Tdb::TLsetChatMessageTtl(
+				peerToTdbChat(peer->id),
+				Tdb::tl_int32(period)
+		)).done([=] {
 			ShowAutoDeleteToast(show, peer);
 			state->savingRequestId = 0;
 		}).fail([=] {
 			state->savingRequestId = 0;
 		}).send();
-#endif
 		show->hideLayer();
 	};
 	auto about1 = peer->isUser()
