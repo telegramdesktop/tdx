@@ -120,6 +120,23 @@ void ShareBotGame(
 	const auto randomId = base::RandomValue<uint64>();
 	const auto replyTo = thread->topicRootId();
 	const auto topicRootId = replyTo;
+	const auto api = &chat->session().api();
+	history->sendRequestId = api->sender().request(Tdb::TLsendMessage(
+		peerToTdbChat(chat->id), // todo topics
+		Tdb::tl_int53(0), // Message thread id.
+		Tdb::tl_int53(0), // Reply to message id.
+		std::nullopt, // Options.
+		Tdb::tl_inputMessageGame(
+			peerToTdbChat(bot->id),
+			Tdb::tl_string(shortName))
+	)).done([=](const Tdb::TLmessage &result) {
+		history->owner().processMessage(result, NewMessageType::Unread);
+	}).fail([=] {
+#if 0 // doLater
+		api->sendMessageFail(error, chat);
+#endif
+	}).send();
+#if 0 // goodToRemove
 	auto flags = MTPmessages_SendMedia::Flags(0);
 	if (replyTo) {
 		flags |= MTPmessages_SendMedia::Flag::f_reply_to;
@@ -151,6 +168,7 @@ void ShareBotGame(
 	}, [=](const MTP::Error &error, const MTP::Response &) {
 		history->session().api().sendMessageFail(error, history->peer);
 	});
+#endif
 }
 
 } // namespace
