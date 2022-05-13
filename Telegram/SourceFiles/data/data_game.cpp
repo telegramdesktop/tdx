@@ -24,7 +24,9 @@ void GameData::setFromTdb(const Tdb::TLgame &data) {
 	if (const auto animation = fields.vanimation()) {
 		document = owner->processDocument(*animation);
 	}
-	photo = owner->processPhoto(fields.vphoto());
+	if (!fields.vphoto().data().vsizes().v.empty()) {
+		photo = owner->processPhoto(fields.vphoto());
+	}
 	description = fields.vdescription().v;
 	title = fields.vtitle().v;
 	shortName = fields.vshort_name().v;
