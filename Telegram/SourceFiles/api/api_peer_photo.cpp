@@ -162,9 +162,7 @@ PeerPhoto::PeerPhoto(not_null<ApiWrap*> api)
 		// only queued, because it is not constructed yet.
 		_session->uploader().photoReady(
 		) | rpl::start_with_next([=](const Storage::UploadedMedia &data) {
-#if 0 // todo
 			ready(data.fullId, data.info.file, std::nullopt);
-#endif
 		}, _session->lifetime());
 	});
 #endif
@@ -381,7 +379,17 @@ void PeerPhoto::set(not_null<PeerData*> peer, not_null<PhotoData*> photo) {
 	if (peer->userpicPhotoId() == photo->id) {
 		return;
 	}
-#if 0 // todo
+	if (peer->isSelf()) {
+		_api.request(TLsetProfilePhoto(
+			tl_inputChatPhotoPrevious(tl_int64(photo->id))
+		)).send();
+	} else {
+		_api.request(TLsetChatPhoto(
+			peerToTdbChat(peer->id),
+			tl_inputChatPhotoPrevious(tl_int64(photo->id))
+		)).send();
+	}
+#if 0 // goodToRemove
 	if (peer == _session->user()) {
 		_api.request(MTPphotos_UpdateProfilePhoto(
 			MTP_flags(0),
