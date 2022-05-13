@@ -1360,7 +1360,7 @@ void ApplyChannelUpdate(
 	//	channel->setGroupCallDefaultJoinAs(0);
 	//}
 
-	//channel->setMessagesTTL(update.vttl_period().value_or_empty());
+	//TTL of messages goes from updates.
 
 	// todo
 	//update.vcan_get_members();

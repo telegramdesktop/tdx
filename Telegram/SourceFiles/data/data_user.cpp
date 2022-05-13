@@ -760,7 +760,7 @@ void ApplyUserUpdate(
 	//	MTP_inputNotifyPeer(user->input),
 	//	update.vnotify_settings());
 
-	//user->setMessagesTTL(update.vttl_period().value_or_empty());
+	//TTL of messages goes from updates.
 
 	//update.vcommands(); // todo
 	//update.vdescription();
