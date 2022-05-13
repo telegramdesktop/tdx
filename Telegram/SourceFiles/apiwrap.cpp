@@ -3251,7 +3251,19 @@ void ApiWrap::requestSavedGifs(TimeId now) {
 		|| _savedGifsUpdateRequest) {
 		return;
 	}
-#if 0 // todo
+	_savedGifsUpdateRequest = sender().request(TLgetSavedAnimations(
+	)).done([=](const TLDanimations &data) {
+		_session->data().stickers().setLastSavedGifsUpdate(crl::now());
+		_savedGifsUpdateRequest = 0;
+
+		_session->data().stickers().gifsReceived(data.vanimations().v, 0);
+	}).fail([=] {
+		_session->data().stickers().setLastSavedGifsUpdate(crl::now());
+		_savedGifsUpdateRequest = 0;
+
+		LOG(("App Fail: Failed to get saved gifs!"));
+	}).send();
+#if 0 // goodToRemove
 	_savedGifsUpdateRequest = request(MTPmessages_GetSavedGifs(
 		MTP_long(Api::CountSavedGifsHash(_session))
 	)).done([=](const MTPmessages_SavedGifs &result) {

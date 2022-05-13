@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings.h"
 
 namespace Tdb {
+class TLanimation;
 class TLstickerSet;
 class TLstickerSetInfo;
 class TLDstickerSet;
@@ -246,6 +247,7 @@ public:
 		const MTPmessages_FeaturedStickers &result);
 	void gifsReceived(const QVector<MTPDocument> &items, uint64 hash);
 #endif
+	void gifsReceived(const QVector<Tdb::TLanimation> &items, uint64 hash);
 
 	[[nodiscard]] std::vector<not_null<DocumentData*>> getPremiumList(
 		uint64 seed);
