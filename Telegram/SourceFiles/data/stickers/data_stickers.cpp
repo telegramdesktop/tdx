@@ -1126,6 +1126,8 @@ void Stickers::featuredReceived(
 }
 
 void Stickers::gifsReceived(const QVector<MTPDocument> &items, uint64 hash) {
+#endif
+void Stickers::gifsReceived(const QVector<TLanimation> &items, uint64 hash) {
 	auto &saved = savedGifsRef();
 	saved.clear();
 
@@ -1152,7 +1154,6 @@ void Stickers::gifsReceived(const QVector<MTPDocument> &items, uint64 hash) {
 
 	notifySavedGifsUpdated();
 }
-#endif
 
 std::vector<not_null<DocumentData*>> Stickers::getListByEmoji(
 		std::vector<EmojiPtr> emoji,
