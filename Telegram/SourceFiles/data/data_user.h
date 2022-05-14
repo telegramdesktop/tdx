@@ -17,6 +17,7 @@ struct BotCommand;
 } // namespace Data
 
 namespace Tdb {
+class TLbotInfo;
 class TLDuserFullInfo;
 class TLbotInfo;
 } // namespace Tdb
