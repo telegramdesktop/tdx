@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_peer_bot_command.h"
 
+namespace Tdb {
+class TLbotCommands;
+} // namespace Tdb
+
 namespace Data {
 
 struct BotCommands final {
@@ -30,5 +34,6 @@ public:
 #if 0 // mtp
 [[nodiscard]] BotCommands BotCommandsFromTL(const MTPBotInfo &result);
 #endif
+[[nodiscard]] BotCommands BotCommandsFromTL(const Tdb::TLbotCommands &result);
 
 } // namespace Data

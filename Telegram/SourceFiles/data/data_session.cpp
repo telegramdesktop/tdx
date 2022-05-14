@@ -1130,8 +1130,7 @@ not_null<UserData*> Session::processUser(const TLuser &user) {
 
 	const auto canShareThisContact = result->canShareThisContactFast();
 
-	const auto firstName = data.vtype().match([](
-			const TLDuserTypeDeleted &) {
+	const auto firstName = data.vtype().match([](const TLDuserTypeDeleted &) {
 		return tr::lng_deleted(tr::now);
 	}, [&](const auto &) {
 		return TextUtilities::SingleLine(data.vfirst_name().v);

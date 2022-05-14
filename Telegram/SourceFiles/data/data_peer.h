@@ -31,6 +31,7 @@ class Session;
 } // namespace Main
 
 namespace Tdb {
+class TLbotMenuButton;
 class TLprofilePhoto;
 class TLchatPhotoInfo;
 class TLchatPhoto;
