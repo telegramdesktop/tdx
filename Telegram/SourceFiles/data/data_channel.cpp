@@ -1442,10 +1442,14 @@ void ApplyChannelUpdate(
 	//	SetTopPinnedMessageId(channel, pinned->v);
 	//}
 	if (channel->isMegagroup()) {
-		//update.vbot_commands(); // todo
-		//if (channel->mgInfo->updateBotCommands(update.vbot_info())) {
-		//	channel->owner().botCommandsChanged(channel);
-		//}
+		auto commands = ranges::views::all(
+			update.vbot_commands().v
+		) | ranges::views::transform(
+			Data::BotCommandsFromTL
+		) | ranges::to_vector;
+		if (channel->mgInfo->setBotCommands(std::move(commands))) {
+			channel->owner().botCommandsChanged(channel);
+		}
 
 		//update.vsticker_set_id();// todo
 		//const auto stickerSet = update.vstickerset();
