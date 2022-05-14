@@ -642,12 +642,12 @@ void ApplyChatUpdate(
 
 	//TTL of messages goes from updates.
 
-	//update.vbot_commands(); // todo
-	//if (const auto info = update.vbot_info()) {
-	//	chat->setBotCommands(*info);
-	//} else {
-	//	chat->setBotCommands(MTP_vector<MTPBotInfo>());
-	//}
+	{
+		auto &&commands = ranges::views::all(
+			update.vbot_commands().v
+		) | ranges::views::transform(Data::BotCommandsFromTL);
+		chat->setBotCommands(std::move(commands) | ranges::to_vector);
+	}
 
 	//chat->setFullFlags(update.vflags().v);
 	if (const auto photo = update.vphoto()) {

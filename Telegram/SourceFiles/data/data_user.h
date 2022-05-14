@@ -20,6 +20,7 @@ struct BusinessDetails;
 } // namespace Data
 
 namespace Tdb {
+class TLbotInfo;
 class TLDuserFullInfo;
 class TLbotInfo;
 class TLbirthdate;

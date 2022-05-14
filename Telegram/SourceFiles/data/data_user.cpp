@@ -383,7 +383,9 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 		if (changedCommands || changedButton || privacyChanged) {
 			owner().botCommandsChanged(this);
 		}
+#if 0 // goodToRemove
 	} break;
+#endif
 	}
 }
 #endif
@@ -762,8 +764,6 @@ void ApplyUserUpdate(
 
 	//TTL of messages goes from updates.
 
-	//update.vcommands(); // todo
-	//update.vdescription();
 	if (const auto info = update.vbot_info()) {
 		user->setBotInfo(*info);
 	} else {
@@ -789,6 +789,46 @@ void ApplyUserUpdate(
 	//update.vshare_text(); // todo
 	user->setCommonChatsCount(update.vgroup_in_common_count().v);
 	//user->checkFolder(update.vfolder_id().value_or_empty());
+	//user->setThemeEmoji(qs(update.vtheme_emoticon().value_or_empty()));
+
+	if (const auto info = user->botInfo.get()) {
+		const auto &tlInfo = update.vbot_info();
+		const auto group = [&] {
+			if (!tlInfo) {
+				return ChatAdminRights();
+			}
+			const auto &d = tlInfo->data();
+			return !d.vdefault_group_administrator_rights()
+				? ChatAdminRights()
+				: ChatAdminRightsInfo(
+					tl_chatMemberStatusAdministrator(
+						tl_string(), // Dummy rank.
+						tl_bool(false), // Can be edited.
+						*(d.vdefault_group_administrator_rights()))).flags;
+		}();
+		const auto channel = [&] {
+			if (!tlInfo) {
+				return ChatAdminRights();
+			}
+			const auto &d = tlInfo->data();
+			return !d.vdefault_channel_administrator_rights()
+				? ChatAdminRights()
+				: ChatAdminRightsInfo(
+					tl_chatMemberStatusAdministrator(
+						tl_string(), // Dummy rank.
+						tl_bool(false), // Can be edited.
+						*(d.vdefault_channel_administrator_rights()))).flags;
+		}();
+		if (info->groupAdminRights != group
+			|| info->channelAdminRights != channel) {
+			info->groupAdminRights = group;
+			info->channelAdminRights = channel;
+			user->session().changes().peerUpdated(
+				user,
+				Data::PeerUpdate::Flag::Rights);
+		}
+	}
+
 	user->fullUpdated();
 }
 
