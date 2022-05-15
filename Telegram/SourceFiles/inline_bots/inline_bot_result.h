@@ -22,6 +22,10 @@ namespace Data {
 class LocationPoint;
 } // namespace Data
 
+namespace Tdb {
+class TLinlineQueryResult;
+} // namespace Tdb
+
 namespace InlineBots {
 
 namespace Layout {
@@ -48,6 +52,11 @@ public:
 		uint64 queryId,
 		const MTPBotInlineResult &mtpData);
 #endif
+
+	static std::unique_ptr<Result> Create(
+		not_null<Main::Session*> session,
+		uint64 queryId,
+		const Tdb::TLinlineQueryResult &tlData);
 
 	uint64 getQueryId() const {
 		return _queryId;
