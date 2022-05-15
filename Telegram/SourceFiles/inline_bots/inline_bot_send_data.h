@@ -15,6 +15,10 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Tdb {
+class TLlocation;
+} // namespace Tdb
+
 class History;
 
 namespace InlineBots {
@@ -86,6 +90,39 @@ public:
 
 };
 
+class SendDataTDLib : public SendDataCommon {
+public:
+	using SendDataCommon::SendDataCommon;
+
+	SentMessageFields getSentMessageFields() const override {
+		return {};
+	}
+
+	void addToHistory(
+		const Result *owner,
+		not_null<History*> history,
+		MessageFlags flags,
+		MsgId msgId,
+		PeerId fromId,
+		TimeId date,
+		UserId viaBotId,
+		FullReplyTo replyToId,
+		const QString &postAuthor,
+		HistoryMessageMarkupData &&markup) const override {
+	};
+
+	bool isValid() const override {
+		return true;
+	}
+
+	QString getErrorOnSend(
+		const Result *owner,
+		not_null<History*> history) const override {
+		return QString();
+	};
+
+};
+
 // Plain text message.
 class SendText : public SendDataCommon {
 public:
@@ -117,6 +154,12 @@ public:
 	SendGeo(
 		not_null<Main::Session*> session,
 		const MTPDgeoPoint &point)
+	: SendDataCommon(session)
+	, _location(point) {
+	}
+	SendGeo(
+		not_null<Main::Session*> session,
+		const Tdb::TLlocation &point)
 	: SendDataCommon(session)
 	, _location(point) {
 	}
@@ -160,6 +203,20 @@ public:
 	SendVenue(
 		not_null<Main::Session*> session,
 		const MTPDgeoPoint &point,
+		const QString &venueId,
+		const QString &provider,
+		const QString &title,
+		const QString &address)
+	: SendDataCommon(session)
+	, _location(point)
+	, _venueId(venueId)
+	, _provider(provider)
+	, _title(title)
+	, _address(address) {
+	}
+	SendVenue(
+		not_null<Main::Session*> session,
+		const Tdb::TLlocation &point,
 		const QString &venueId,
 		const QString &provider,
 		const QString &title,

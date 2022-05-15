@@ -32,7 +32,7 @@ Widget::Widget(
 	not_null<Window::SessionController*> controller)
 : RpWidget(parent)
 , _controller(controller)
-#if 0 // mtp
+#if 0 // goodToRemove
 , _api(&_controller->session().mtp())
 #endif
 , _api(&_controller->session().sender())
@@ -368,19 +368,28 @@ void Widget::inlineBotChanged() {
 	_requesting.fire(false);
 }
 
-#if 0 // mtp
+#if 0 // goodToRemove
 void Widget::inlineResultsDone(const MTPmessages_BotResults &result) {
+#endif
+void Widget::inlineResultsDone(const Tdb::TLinlineQueryResults &result) {
 	_inlineRequestId = 0;
 	_requesting.fire(false);
 
 	auto it = _inlineCache.find(_inlineQuery);
 	auto adding = (it != _inlineCache.cend());
+#if 0 // goodToRemove
 	if (result.type() == mtpc_messages_botResults) {
 		auto &d = result.c_messages_botResults();
 		_controller->session().data().processUsers(d.vusers());
+#endif
+	if (true) {
+		const auto &d = result.data();
 
 		auto &v = d.vresults().v;
+#if 0 // goodToRemove
 		auto queryId = d.vquery_id().v;
+#endif
+		const auto queryId = d.vinline_query_id().v;
 
 		if (it == _inlineCache.cend()) {
 			it = _inlineCache.emplace(
@@ -388,6 +397,7 @@ void Widget::inlineResultsDone(const MTPmessages_BotResults &result) {
 				std::make_unique<CacheEntry>()).first;
 		}
 		auto entry = it->second.get();
+#if 0 // goodToRemove
 		entry->nextOffset = qs(d.vnext_offset().value_or_empty());
 		if (const auto switchPm = d.vswitch_pm()) {
 			entry->switchPmText = qs(switchPm->data().vtext());
@@ -397,6 +407,20 @@ void Widget::inlineResultsDone(const MTPmessages_BotResults &result) {
 			entry->switchPmText = qs(switchWebView->data().vtext());
 			entry->switchPmStartToken = QString();
 			entry->switchPmUrl = switchWebView->data().vurl().v;
+		}
+#endif
+		entry->nextOffset = d.vnext_offset().v;
+		if (const auto button = d.vbutton()) {
+			const auto &data = button->data();
+			entry->switchPmText = data.vtext().v;
+			data.vtype().match([&](
+				const TLDinlineQueryResultsButtonTypeStartBot &data) {
+				entry->switchPmStartToken = data.vparameter().v;
+				entry->switchPmUrl = QByteArray();
+			}, [&](const TLDinlineQueryResultsButtonTypeWebApp &data) {
+				entry->switchPmStartToken = QString();
+				entry->switchPmUrl = data.vurl().v.toUtf8();
+			});
 		}
 
 		if (const auto count = v.size()) {
@@ -426,7 +450,6 @@ void Widget::inlineResultsDone(const MTPmessages_BotResults &result) {
 	}
 	onScroll();
 }
-#endif
 
 void Widget::queryInlineBot(UserData *bot, PeerData *peer, QString query) {
 	bool force = false;
@@ -467,7 +490,7 @@ void Widget::onInlineRequest() {
 		}
 	}
 	_requesting.fire(true);
-#if 0 // todo
+#if 0 // goodToRemove
 	_inlineRequestId = _api.request(MTPmessages_GetInlineBotResults(
 		MTP_flags(0),
 		_inlineBot->inputUser,
@@ -481,6 +504,28 @@ void Widget::onInlineRequest() {
 		// show error?
 		_requesting.fire(false);
 		_inlineRequestId = 0;
+	}).handleAllErrors().send();
+#endif
+	_inlineRequestId = _api.request(Tdb::TLgetInlineQueryResults(
+		Tdb::tl_int53(_inlineBot->id.value),
+		peerToTdbChat(_inlineQueryPeer->id),
+		std::nullopt, // Location.
+		Tdb::tl_string(_inlineQuery),
+		Tdb::tl_string(nextOffset)
+	)).done([this](
+			const Tdb::TLinlineQueryResults &result,
+			Tdb::RequestId requestId) {
+		if (_inlineRequestId == requestId) {
+			inlineResultsDone(result);
+		}
+	}).fail([this](const Tdb::Error &, Tdb::RequestId requestId) {
+		if (_inlineRequestId == requestId) {
+			// show error?
+			_requesting.fire(false);
+			_inlineRequestId = 0;
+		}
+	}).send();
+#if 0 // doLater
 	}).handleAllErrors().send();
 #endif
 }
