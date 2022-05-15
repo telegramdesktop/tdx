@@ -57,6 +57,205 @@ Result::Result(not_null<Main::Session*> session, const Creator &creator)
 std::unique_ptr<Result> Result::Create(
 		not_null<Main::Session*> session,
 		uint64 queryId,
+		const Tdb::TLinlineQueryResult &tlData) {
+	using Type = Result::Type;
+
+	const auto processThumbnail = [&](
+			not_null<Result*> result,
+			tl::conditional<Tdb::TLthumbnail> thumb) {
+		if (thumb) {
+			result->_thumbnail.update(
+				result->_session,
+				Images::FromThumbnail(*thumb));
+		}
+	};
+	const auto processSendDocument = [&](not_null<Result*> result) {
+		result->sendData = std::make_unique<internal::SendFile>(
+			result->_session,
+			result->_document,
+			QString(),
+			EntitiesInText());
+	};
+
+	const auto processGeo = [&](not_null<Result*> result) {
+		const auto point = result->getLocationPoint();
+		if (!point) {
+			return;
+		}
+		const auto scale = 1 + (cScale() * style::DevicePixelRatio()) / 200;
+		const auto zoom = 15 + (scale - 1);
+		const auto w = st::inlineThumbSize / scale;
+		const auto h = st::inlineThumbSize / scale;
+
+		auto location = GeoPointLocation();
+		location.lat = point->lat();
+		location.lon = point->lon();
+		location.access = point->accessHash();
+		location.width = w;
+		location.height = h;
+		location.zoom = zoom;
+		location.scale = scale;
+		result->_locationThumbnail.update(result->_session, ImageWithLocation{
+			.location = ImageLocation({ location }, w, h)
+		});
+	};
+
+	const auto createResult = [&](Type type) {
+		return std::make_unique<Result>(session, Creator{ queryId, type });
+	};
+
+#if 0 // todo invoice
+#endif
+
+	return tlData.match([&](const Tdb::TLDinlineQueryResultArticle &data) {
+		auto result = createResult(Type::Article);
+
+		result->_id = data.vid().v;
+		result->_title = data.vtitle().v;
+		result->_description = data.vdescription().v;
+		result->_url = data.vurl().v;
+		// data.vhide_url().v; ??
+		processThumbnail(result.get(), data.vthumbnail());
+
+		result->sendData = std::make_unique<internal::SendDataTDLib>(session);
+
+		return result;
+	}, [&](const Tdb::TLDinlineQueryResultContact &data) {
+		auto result = createResult(Type::Contact);
+
+		result->_id = data.vid().v;
+		processThumbnail(result.get(), data.vthumbnail());
+		result->sendData = std::make_unique<internal::SendContact>(
+			session,
+			data.vcontact().data().vfirst_name().v,
+			data.vcontact().data().vlast_name().v,
+			data.vcontact().data().vphone_number().v);
+
+		return result;
+	}, [&](const Tdb::TLDinlineQueryResultLocation &data) {
+		auto result = createResult(Type::Geo);
+
+		result->_id = data.vid().v;
+		result->_title = data.vtitle().v;
+		processThumbnail(result.get(), data.vthumbnail());
+		result->sendData = std::make_unique<internal::SendGeo>(
+			session,
+			data.vlocation());
+		processGeo(result.get());
+
+		return result;
+	}, [&](const Tdb::TLDinlineQueryResultVenue &data) {
+		auto result = createResult(Type::Venue);
+
+		result->_id = data.vid().v;
+		result->_title = data.vvenue().data().vtitle().v;
+		result->_description = data.vvenue().data().vaddress().v;
+		processThumbnail(result.get(), data.vthumbnail());
+		result->sendData = std::make_unique<internal::SendVenue>(
+			session,
+			data.vvenue().data().vlocation(),
+			data.vvenue().data().vid().v,
+			data.vvenue().data().vprovider().v,
+			data.vvenue().data().vtitle().v,
+			data.vvenue().data().vaddress().v);
+		// data.vvenue().data().vtype().v ??
+		processGeo(result.get());
+
+		return result;
+	}, [&](const Tdb::TLDinlineQueryResultGame &data) {
+		auto result = createResult(Type::Game);
+
+		result->_id = data.vid().v;
+		result->_title = data.vgame().data().vtitle().v;
+		result->_description = data.vgame().data().vdescription().v;
+		result->_game = session->data().processGame(data.vgame());
+		result->sendData = std::make_unique<internal::SendGame>(
+			session,
+			result->_game);
+		if (const auto gif = data.vgame().data().vanimation()) {
+			result->_document = session->data().processDocument(*gif);
+		}
+
+		return result;
+	}, [&](const Tdb::TLDinlineQueryResultAnimation &data) {
+		auto result = createResult(Type::Gif);
+
+		result->_id = data.vid().v;
+		result->_title = data.vtitle().v;
+		result->_document = session->data().processDocument(
+			data.vanimation());
+		processSendDocument(result.get());
+
+		return result;
+	}, [&](const Tdb::TLDinlineQueryResultAudio &data) {
+		auto result = createResult(Type::Audio);
+
+		result->_id = data.vid().v;
+		result->_title = data.vaudio().data().vtitle().v;
+		result->_description = data.vaudio().data().vperformer().v;
+		result->_document = session->data().processDocument(data.vaudio());
+		processSendDocument(result.get());
+
+		return result;
+	}, [&](const Tdb::TLDinlineQueryResultDocument &data) {
+		auto result = createResult(Type::File);
+
+		result->_id = data.vid().v;
+		result->_title = data.vtitle().v;
+		result->_description = data.vdescription().v;
+		result->_document = session->data().processDocument(data.vdocument());
+		processSendDocument(result.get());
+
+		return result;
+	}, [&](const Tdb::TLDinlineQueryResultPhoto &data) {
+		auto result = createResult(Type::Photo);
+
+		result->_id = data.vid().v;
+		result->_title = data.vtitle().v;
+		result->_description = data.vdescription().v;
+		result->_photo = session->data().processPhoto(data.vphoto());
+
+		result->sendData = std::make_unique<internal::SendPhoto>(
+			session,
+			result->_photo,
+			QString(),
+			EntitiesInText());
+
+		return result;
+	}, [&](const Tdb::TLDinlineQueryResultSticker &data) {
+		auto result = createResult(Type::Sticker);
+
+		result->_id = data.vid().v;
+		result->_document = session->data().processDocument(data.vsticker());
+		processSendDocument(result.get());
+
+		return result;
+	}, [&](const Tdb::TLDinlineQueryResultVideo &data) {
+		auto result = createResult(Type::Video);
+
+		result->_id = data.vid().v;
+		result->_title = data.vtitle().v;
+		result->_description = data.vdescription().v;
+		result->_document = session->data().processDocument(data.vvideo());
+		processSendDocument(result.get());
+
+		return result;
+	}, [&](const Tdb::TLDinlineQueryResultVoiceNote &data) {
+		auto result = createResult(Type::Audio);
+
+		result->_id = data.vid().v;
+		result->_title = data.vtitle().v;
+		result->_document = session->data().processDocument(
+			data.vvoice_note());
+		processSendDocument(result.get());
+
+		return result;
+	});
+}
+
+std::unique_ptr<Result> Result::Create(
+		not_null<Main::Session*> session,
+		uint64 queryId,
 		const MTPBotInlineResult &data) {
 	using Type = Result::Type;
 
