@@ -2939,6 +2939,20 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateChatTheme &data) {
 	}, [&](const TLDupdateChatReplyMarkup &data) {
 	}, [&](const TLDupdateChatDraftMessage &data) {
+		const auto peerId = peerFromTdbChat(data.vchat_id());
+		if (const auto draft = data.vdraft_message()) {
+			Data::ApplyPeerCloudDraft(&session(), peerId, draft->data());
+		} else {
+			Data::ClearPeerCloudDraft(
+				&session(),
+				peerId,
+				base::unixtime::now());
+		}
+		if (const auto history = owner.historyLoaded(peerId)) {
+			for (const auto &position : data.vpositions().v) {
+				history->applyPosition(position.data());
+			}
+		}
 	}, [&](const TLDupdateChatFilters &data) {
 	}, [&](const TLDupdateChatOnlineMemberCount &data) {
 	}, [&](const TLDupdateNotification &data) {

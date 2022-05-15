@@ -2455,6 +2455,8 @@ void ApiWrap::saveDraftsToCloud() {
 			cloudDraft = history->createCloudDraft(topicRootId, nullptr);
 		}
 
+		auto &textWithTags = cloudDraft->textWithTags;
+#if 0 // goodToRemove
 		auto flags = MTPmessages_SaveDraft::Flags(0);
 		auto &textWithTags = cloudDraft->textWithTags;
 		if (cloudDraft->webpage.removed) {
@@ -2472,8 +2474,70 @@ void ApiWrap::saveDraftsToCloud() {
 			_session,
 			TextUtilities::ConvertTextTagsToEntities(textWithTags.tags),
 			Api::ConvertOption::SkipLocal);
+#endif
+		auto tlDraft = [&]() -> std::optional<TLdraftMessage> {
+			if (!cloudDraft->reply && textWithTags.text.isEmpty()) {
+				return std::nullopt;
+			}
+			return tl_draftMessage(
+				Api::MessageReplyTo(history, cloudDraft->reply),
+				tl_int32(0), // date
+				tl_inputMessageText(
+					Api::FormattedTextToTdb(TextWithEntities{
+						textWithTags.text,
+						TextUtilities::ConvertTextTagsToEntities(
+							textWithTags.tags)
+					}),
+					Data::LinkPreviewOptions(cloudDraft->webpage),
+					tl_bool(true)),
+				tl_int64(0)); // effect_id
+		}();
+
+		const auto finishDraft = [=] {
+			sender().request(TLgetOption(
+				tl_string("unix_time")
+			)).done([=](const TLoptionValue &value) {
+				history->finishSavingCloudDraft(OptionValue<int64>(value));
+			}).send();
+		};
 
 		history->startSavingCloudDraft(topicRootId);
+
+		cloudDraft->saveRequestId = sender().request(TLsetChatDraftMessage(
+			peerToTdbChat(history->peer->id),
+			tl_int53(0), // Thread. // todo topics
+			std::move(tlDraft)
+		)).done([=](const TLok &, Tdb::RequestId requestId) {
+			finishDraft();
+
+			if (const auto cloudDraft = history->cloudDraft()) {
+				if (cloudDraft->saveRequestId == requestId) {
+					cloudDraft->saveRequestId = 0;
+					history->draftSavedToCloud();
+				}
+			}
+			auto i = _draftsSaveRequestIds.find(history);
+			if (i != _draftsSaveRequestIds.cend()
+				&& i->second == requestId) {
+				_draftsSaveRequestIds.erase(history);
+				checkQuitPreventFinished();
+			}
+		}).fail([=](const Tdb::Error &error, Tdb::RequestId requestId) {
+			finishDraft();
+
+			if (const auto cloudDraft = history->cloudDraft()) {
+				if (cloudDraft->saveRequestId == requestId) {
+					history->clearCloudDraft();
+				}
+			}
+			auto i = _draftsSaveRequestIds.find(history);
+			if (i != _draftsSaveRequestIds.cend()
+				&& i->second == requestId) {
+				_draftsSaveRequestIds.erase(history);
+				checkQuitPreventFinished();
+			}
+		}).send();
+#if 0 // goodToRemove
 		cloudDraft->saveRequestId = request(MTPmessages_SaveDraft(
 			MTP_flags(flags),
 			ReplyToForMTP(history, cloudDraft->reply),
@@ -2518,6 +2582,7 @@ void ApiWrap::saveDraftsToCloud() {
 				checkQuitPreventFinished();
 			}
 		}).send();
+#endif
 
 		i->second = cloudDraft->saveRequestId;
 		++i;

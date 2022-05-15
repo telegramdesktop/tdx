@@ -17,13 +17,21 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Tdb {
+class TLDdraftMessage;
+class TLlinkPreviewOptions;
+} // namespace Tdb
+
 namespace Data {
 
 void ApplyPeerCloudDraft(
 	not_null<Main::Session*> session,
 	PeerId peerId,
 	MsgId topicRootId,
+	const Tdb::TLDdraftMessage &draft);
+#if 0 // goodToRemove
 	const MTPDdraftMessage &draft);
+#endif
 void ClearPeerCloudDraft(
 	not_null<Main::Session*> session,
 	PeerId peerId,
@@ -44,6 +52,9 @@ struct WebPageDraft {
 	friend inline bool operator==(const WebPageDraft&, const WebPageDraft&)
 		= default;
 };
+
+[[nodiscard]] std::optional<Tdb::TLlinkPreviewOptions> LinkPreviewOptions(
+	const WebPageDraft &webpage);
 
 struct Draft {
 	Draft() = default;
