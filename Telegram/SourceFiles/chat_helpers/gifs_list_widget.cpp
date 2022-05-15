@@ -42,6 +42,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 #include "styles/style_menu_icons.h"
 
+#include "tdb/tdb_option.h"
+
 #include <QtWidgets/QApplication>
 
 namespace ChatHelpers {
@@ -291,17 +293,27 @@ void GifsListWidget::cancelGifsSearch() {
 
 #if 0 // mtp
 void GifsListWidget::inlineResultsDone(const MTPmessages_BotResults &result) {
+#endif
+void GifsListWidget::inlineResultsDone(
+		const Tdb::TLinlineQueryResults &result) {
 	_search->setLoading(false);
 	_inlineRequestId = 0;
 
 	auto it = _inlineCache.find(_inlineQuery);
 	auto adding = (it != _inlineCache.cend());
+#if 0 // goodToRemove
 	if (result.type() == mtpc_messages_botResults) {
 		auto &d = result.c_messages_botResults();
 		session().data().processUsers(d.vusers());
+#endif
+	if (!result.data().vresults().v.empty()) {
+		const auto &d = result.data();
 
 		auto &v = d.vresults().v;
+#if 0 // goodToRemove
 		auto queryId = d.vquery_id().v;
+#endif
+		const auto queryId = d.vinline_query_id().v;
 
 		if (it == _inlineCache.cend()) {
 			it = _inlineCache.emplace(
@@ -309,7 +321,10 @@ void GifsListWidget::inlineResultsDone(const MTPmessages_BotResults &result) {
 				std::make_unique<InlineCacheEntry>()).first;
 		}
 		const auto entry = it->second.get();
+#if 0 // goodToRemove
 		entry->nextOffset = qs(d.vnext_offset().value_or_empty());
+#endif
+		entry->nextOffset = d.vnext_offset().v;
 		if (const auto count = v.size()) {
 			entry->results.reserve(entry->results.size() + count);
 		}
@@ -337,7 +352,6 @@ void GifsListWidget::inlineResultsDone(const MTPmessages_BotResults &result) {
 	}
 	checkLoadMore();
 }
-#endif
 
 void GifsListWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
@@ -860,8 +874,21 @@ void GifsListWidget::searchForGifs(const QString &query) {
 	}
 
 	if (!_searchBot && !_searchBotRequestId) {
-		auto username = kSearchBotUsername.utf16();
-#if 0 // todo
+		_searchBotRequestId = _api.request(Tdb::TLgetOption(
+			Tdb::tl_string("animation_search_bot_username")
+		)).done([=](const Tdb::TLoptionValue &result) {
+			_searchBotRequestId = _api.request(Tdb::TLsearchPublicChat(
+				Tdb::tl_string(Tdb::OptionValue<QString>(result))
+			)).done([=](const Tdb::TLchat &result) {
+				const auto peer = controller()->session().data().processPeer(
+					result);
+				if (const auto user = peer ? peer->asUser() : nullptr) {
+					_searchBot = user;
+				}
+			}).send();
+		}).send();
+
+#if 0 // goodToRemove
 		_searchBotRequestId = _api.request(MTPcontacts_ResolveUsername(
 			MTP_string(username)
 		)).done([=](const MTPcontacts_ResolvedPeer &result) {
@@ -913,7 +940,7 @@ void GifsListWidget::sendInlineRequest() {
 	}
 
 	_search->setLoading(true);
-#if 0 // todo
+#if 0 // goodToRemove
 	_inlineRequestId = _api.request(MTPmessages_GetInlineBotResults(
 		MTP_flags(0),
 		_searchBot->inputUser,
@@ -927,6 +954,22 @@ void GifsListWidget::sendInlineRequest() {
 		// show error?
 		_search->setLoading(false);
 		_inlineRequestId = 0;
+	}).handleAllErrors().send();
+#endif
+	_inlineRequestId = _api.request(Tdb::TLgetInlineQueryResults(
+		peerToTdbChat(_searchBot->id),
+		peerToTdbChat(_inlineQueryPeer->id),
+		std::nullopt, // Location.
+		Tdb::tl_string(_inlineQuery),
+		Tdb::tl_string(nextOffset)
+	)).done([this](const Tdb::TLinlineQueryResults &result) {
+		inlineResultsDone(result);
+	}).fail([this] {
+		// show error?
+		_search->setLoading(false);
+		_inlineRequestId = 0;
+	}).send();
+#if 0 // doLater
 	}).handleAllErrors().send();
 #endif
 }
