@@ -17,6 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "storage/localstorage.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Data {
 
 Draft::Draft(
@@ -47,6 +49,7 @@ Draft::Draft(
 , previewState(previewState) {
 }
 
+#if 0 // goodToRemove
 void ApplyPeerCloudDraft(
 		not_null<Main::Session*> session,
 		PeerId peerId,
@@ -77,6 +80,39 @@ void ApplyPeerCloudDraft(
 
 	history->setCloudDraft(std::move(cloudDraft));
 	history->applyCloudDraft(topicRootId);
+}
+#endif
+
+void ApplyPeerCloudDraft(
+		not_null<Main::Session*> session,
+		PeerId peerId,
+		const Tdb::TLDdraftMessage &draft) {
+	draft.vinput_message_text().match([&](const Tdb::TLDinputMessageText &d) {
+		const auto history = session->data().history(peerId);
+		const auto date = draft.vdate().v;
+		if (history->skipCloudDraftUpdate(date)) {
+			return;
+		}
+		const auto text = Api::FormattedTextFromTdb(session, d.vtext());
+		const auto textWithTags = TextWithTags{
+			text.text,
+			TextUtilities::ConvertEntitiesToTextTags(text.entities)
+		};
+		const auto replyTo = draft.vreply_to_message_id().v;
+		auto cloudDraft = std::make_unique<Draft>(
+			textWithTags,
+			replyTo,
+			MessageCursor(QFIXED_MAX, QFIXED_MAX, QFIXED_MAX),
+			(d.vdisable_web_page_preview().v
+				? Data::PreviewState::Cancelled
+				: Data::PreviewState::Allowed));
+		cloudDraft->date = date;
+
+		history->setCloudDraft(std::move(cloudDraft));
+		history->applyCloudDraft();
+	}, [](const auto &) {
+		Unexpected("Unsupported draft content type.");
+	});
 }
 
 void ClearPeerCloudDraft(

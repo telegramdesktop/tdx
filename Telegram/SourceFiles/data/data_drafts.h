@@ -15,13 +15,20 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Tdb {
+class TLDdraftMessage;
+} // namespace Tdb
+
 namespace Data {
 
 void ApplyPeerCloudDraft(
 	not_null<Main::Session*> session,
 	PeerId peerId,
 	MsgId topicRootId,
+	const Tdb::TLDdraftMessage &draft);
+#if 0 // goodToRemove
 	const MTPDdraftMessage &draft);
+#endif
 void ClearPeerCloudDraft(
 	not_null<Main::Session*> session,
 	PeerId peerId,
