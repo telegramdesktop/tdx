@@ -151,9 +151,10 @@ private:
 
 	int32 showInlineRows(bool newResults);
 	bool refreshInlineRows(int32 *added = 0);
-#if 0 // mtp
+#if 0 // goodToRemove
 	void inlineResultsDone(const MTPmessages_BotResults &result);
 #endif
+	void inlineResultsDone(const Tdb::TLinlineQueryResults &result);
 
 	void updateSelected();
 	void paintInlineItems(Painter &p, QRect clip);
@@ -182,7 +183,7 @@ private:
 	const std::shared_ptr<Show> _show;
 	std::unique_ptr<Ui::TabbedSearch> _search;
 
-#if 0 // mtp
+#if 0 // goodToRemove
 	MTP::Sender _api;
 #endif
 	Tdb::Sender _api;
