@@ -125,9 +125,10 @@ private:
 	int showInlineRows(bool newResults);
 	void recountContentMaxHeight();
 	bool refreshInlineRows(int *added = nullptr);
-#if 0 // mtp
+#if 0 // goodToRemove
 	void inlineResultsDone(const MTPmessages_BotResults &result);
 #endif
+	void inlineResultsDone(const Tdb::TLinlineQueryResults &result);
 
 	const not_null<Window::SessionController*> _controller;
 	MTP::Sender _api;
