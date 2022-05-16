@@ -167,7 +167,11 @@ void UserPhotosSliceBuilder::sliceToLimits() {
 		}
 	} else if (removeFromBegin < 0
 		&& (!_skippedBefore || *_skippedBefore > 0)) {
+		_insufficientPhotosAround.fire(
+			Api::PeerPhoto::UserPhotoId(_ids.size() + _skippedAfter));
+#if 0 // goodToRemove
 		_insufficientPhotosAround.fire(_ids.empty() ? 0 : _ids.front());
+#endif
 	}
 }
 

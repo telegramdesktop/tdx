@@ -536,7 +536,7 @@ void PeerPhoto::requestUserPhotos(
 		return;
 	}
 
-#if 0 // todo
+#if 0 // goodToRemove
 	const auto requestId = _api.request(MTPphotos_GetUserPhotos(
 		user->inputUser,
 		MTP_int(0),
@@ -550,10 +550,20 @@ void PeerPhoto::requestUserPhotos(
 		}, [](const MTPDphotos_photosSlice &d) {
 			return d.vcount().v;
 		});
+#endif
+	const auto requestId = _api.request(TLgetUserProfilePhotos(
+		tl_int53(user->id.value),
+		tl_int32(afterId),
+		tl_int32(kSharedMediaLimit)
+	)).done([this, user](const TLchatPhotos &result) {
+		_userPhotosRequests.remove(user);
+		const auto fullCount = result.data().vtotal_count().v;
 
 		auto &owner = _session->data();
 		auto photoIds = result.match([&](const auto &data) {
+#if 0 // goodToRemove
 			owner.processUsers(data.vusers());
+#endif
 
 			auto photoIds = std::vector<PhotoId>();
 			photoIds.reserve(data.vphotos().v.size());
