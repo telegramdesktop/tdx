@@ -3783,7 +3783,6 @@ void ApiWrap::requestSharedMedia(
 		return;
 	}
 
-#if 0 // todo
 	const auto prepared = Api::PrepareSearchRequest(
 		peer,
 		topicRootId,
@@ -3799,8 +3798,12 @@ void ApiWrap::requestSharedMedia(
 	auto &histories = history->owner().histories();
 	const auto requestType = Data::Histories::RequestType::History;
 	histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
+#if 0 // goodToRemove
 		return request(
 			std::move(*prepared)
+#endif
+		return sender().request(
+			base::duplicate(*prepared)
 		).done([=](const Api::SearchRequestResult &result) {
 			_sharedMediaRequests.remove(key);
 			auto parsed = Api::ParseSearchResult(
@@ -3817,10 +3820,8 @@ void ApiWrap::requestSharedMedia(
 		}).send();
 	});
 	_sharedMediaRequests.emplace(key);
-#endif
 }
 
-#if 0 // mtp
 void ApiWrap::sharedMediaDone(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
@@ -3846,7 +3847,6 @@ void ApiWrap::sharedMediaDone(
 		}
 	}
 }
-#endif
 
 void ApiWrap::sendAction(const SendAction &action) {
 	if (!action.options.scheduled
