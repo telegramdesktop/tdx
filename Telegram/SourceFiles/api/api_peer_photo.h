@@ -29,7 +29,7 @@ namespace Api {
 
 class PeerPhoto final {
 public:
-	using UserPhotoId = PhotoId;
+	using UserPhotoId = uint;
 	explicit PeerPhoto(not_null<ApiWrap*> api);
 
 	enum class EmojiListType {
