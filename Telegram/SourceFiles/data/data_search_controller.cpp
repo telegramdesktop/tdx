@@ -16,16 +16,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "apiwrap.h"
 
+#include "tdb/tdb_sender.h"
+
 namespace Api {
 namespace {
 
 constexpr auto kSharedMediaLimit = 100;
+constexpr auto kFirstSharedMediaLimit = 10;
+#if 0 // goodToRemove
 constexpr auto kFirstSharedMediaLimit = 0;
+#endif
 constexpr auto kDefaultSearchTimeoutMs = crl::time(200);
 
 } // namespace
 
-#if 0 // mtp
 std::optional<SearchRequest> PrepareSearchRequest(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
@@ -33,6 +37,7 @@ std::optional<SearchRequest> PrepareSearchRequest(
 		const QString &query,
 		MsgId messageId,
 		Data::LoadDirection direction) {
+#if 0 // goodToRemove
 	const auto filter = [&] {
 		using Type = Storage::SharedMediaType;
 		switch (type) {
@@ -69,7 +74,50 @@ std::optional<SearchRequest> PrepareSearchRequest(
 
 	const auto minId = 0;
 	const auto maxId = 0;
+#endif
+	const auto filter = [&] {
+		using Type = Storage::SharedMediaType;
+		switch (type) {
+		case Type::Photo:
+			return Tdb::tl_searchMessagesFilterPhoto();
+		case Type::Video:
+			return Tdb::tl_searchMessagesFilterVideo();
+		case Type::PhotoVideo:
+			return Tdb::tl_searchMessagesFilterPhotoAndVideo();
+		case Type::MusicFile:
+			return Tdb::tl_searchMessagesFilterAudio();
+		case Type::File:
+			return Tdb::tl_searchMessagesFilterDocument();
+		case Type::VoiceFile:
+			return Tdb::tl_searchMessagesFilterVoiceNote();
+		case Type::RoundVoiceFile:
+			return Tdb::tl_searchMessagesFilterVoiceAndVideoNote();
+		case Type::RoundFile:
+			return Tdb::tl_searchMessagesFilterVideoNote();
+		case Type::GIF:
+			return Tdb::tl_searchMessagesFilterAnimation();
+		case Type::Link:
+			return Tdb::tl_searchMessagesFilterUrl();
+		case Type::ChatPhoto:
+			return Tdb::tl_searchMessagesFilterChatPhoto();
+		case Type::Pinned:
+			return Tdb::tl_searchMessagesFilterPinned();
+		}
+		return Tdb::tl_searchMessagesFilterEmpty();
+	}();
+	if constexpr (Tdb::TLDsearchMessagesFilterEmpty::Is<decltype(filter)>()) {
+		if (query.isEmpty()) {
+			return std::nullopt;
+		}
+	}
+#if 0 // mtp
 	const auto limit = messageId ? kSharedMediaLimit : kFirstSharedMediaLimit;
+#endif
+	const auto limit = !messageId
+		? kFirstSharedMediaLimit
+		: (direction == Data::LoadDirection::After)
+		? (kSharedMediaLimit - 1)
+		: kSharedMediaLimit;
 	const auto offsetId = [&] {
 		switch (direction) {
 		case Data::LoadDirection::Before:
@@ -86,6 +134,18 @@ std::optional<SearchRequest> PrepareSearchRequest(
 		}
 		Unexpected("Direction in PrepareSearchRequest");
 	}();
+	return Tdb::TLsearchChatMessages(
+		peerToTdbChat(peer->id),
+		Tdb::tl_string(query),
+		std::nullopt, // From.
+		Tdb::tl_int53(std::max(offsetId, MsgId(0)).bare),
+		Tdb::tl_int32(addOffset),
+		Tdb::tl_int32((direction == Data::LoadDirection::After)
+			? (limit + 1) // Must be more than -addOffset.
+			: limit),
+		filter,
+		Tdb::tl_int53(0)); // Thread.
+#if 0 // goodToRemove
 	const auto hash = uint64(0);
 
 	const auto mtpOffsetId = int(std::clamp(
@@ -108,6 +168,7 @@ std::optional<SearchRequest> PrepareSearchRequest(
 		MTP_int(maxId),
 		MTP_int(minId),
 		MTP_long(hash));
+#endif
 }
 
 SearchResult ParseSearchResult(
@@ -119,6 +180,9 @@ SearchResult ParseSearchResult(
 	auto result = SearchResult();
 	result.noSkipRange = MsgRange{ messageId, messageId };
 
+	result.fullCount = data.data().vtotal_count().v;
+
+#if 0 // goodToRemove
 	auto messages = [&] {
 		switch (data.type()) {
 		case mtpc_messages_messages: {
@@ -162,16 +226,29 @@ SearchResult ParseSearchResult(
 	}();
 
 	if (!messages) {
+#endif
+	if (data.data().vmessages().v.empty()) {
 		return result;
 	}
 
 	const auto addType = NewMessageType::Existing;
+	result.messageIds.reserve(data.data().vmessages().v.size());
+#if 0 // goodToRemove
 	result.messageIds.reserve(messages->size());
 	for (const auto &message : *messages) {
 		const auto item = peer->owner().addNewMessage(
 			message,
 			MessageFlags(),
 			addType);
+#endif
+	if (!messageId && !data.data().vmessages().v.empty()) {
+		result.noSkipRange.from = ServerMaxMsgId;
+	}
+	for (const auto &message : data.data().vmessages().v) {
+		if (!message) {
+			continue;
+		}
+		const auto item = peer->owner().processMessage(*message, addType);
 		if (item) {
 			const auto itemId = item->id;
 			if ((type == Storage::SharedMediaType::kCount)
@@ -197,7 +274,6 @@ SearchResult ParseSearchResult(
 	}
 	return result;
 }
-#endif
 
 SearchController::CacheEntry::CacheEntry(
 	not_null<Main::Session*> session,
@@ -378,7 +454,6 @@ void SearchController::requestMore(
 	if (listData->requests.contains(key)) {
 		return;
 	}
-#if 0 // todo
 	auto prepared = PrepareSearchRequest(
 		listData->peer,
 		query.topicRootId,
@@ -393,8 +468,12 @@ void SearchController::requestMore(
 	const auto type = ::Data::Histories::RequestType::History;
 	const auto history = _session->data().history(listData->peer);
 	auto requestId = histories.sendRequest(history, type, [=](Fn<void()> finish) {
+#if 0 // goodToRemove
 		return _session->api().request(
 			std::move(*prepared)
+#endif
+		return _session->sender().request(
+			base::duplicate(*prepared)
 		).done([=](const SearchRequestResult &result) {
 			listData->requests.remove(key);
 			auto parsed = ParseSearchResult(
@@ -415,7 +494,6 @@ void SearchController::requestMore(
 	listData->requests.emplace(key, [=] {
 		_session->data().histories().cancelRequest(requestId);
 	});
-#endif
 }
 
 DelayedSearchController::DelayedSearchController(
