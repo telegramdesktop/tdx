@@ -1262,11 +1262,61 @@ void ApiWrap::requestWallPaper(
 }
 
 void ApiWrap::requestFullPeer(not_null<PeerData*> peer) {
-#if 0 // todo
 	if (_fullPeerRequests.contains(peer)) {
 		return;
 	}
 
+	const auto requestId = [&] {
+		const auto failHandler = [=](const Tdb::Error &error) {
+			_fullPeerRequests.remove(peer);
+			migrateFail(peer, error.message);
+		};
+		const auto finish = [=] {
+			_fullPeerRequests.remove(peer);
+			_session->changes().peerUpdated(
+				peer,
+				Data::PeerUpdate::Flag::FullInfo);
+		};
+		if (const auto user = peer->asUser()) {
+			if (_session->supportMode()) {
+				_session->supportHelper().refreshInfo(user);
+			}
+			return sender().request(TLgetUserFullInfo(
+				tl_int53(user->id.value)
+			)).done([=](const TLDuserFullInfo &data) {
+				Data::ApplyUserUpdate(user, data);
+				finish();
+#if 0 // doLater ?
+				if (user == _session->user() && !_session->validateSelf(fields.vid().v)) {
+					constexpr auto kRequestUserAgainTimeout = crl::time(10000);
+					base::call_delayed(kRequestUserAgainTimeout, _session, [=] {
+						requestFullPeer(user);
+					});
+					return;
+				}
+#endif
+			}).fail(failHandler).send();
+		} else if (const auto chat = peer->asChat()) {
+			return sender().request(TLgetBasicGroupFullInfo(
+				tl_int53(chat->id.value)
+			)).done([=](const TLDbasicGroupFullInfo &data) {
+				Data::ApplyChatUpdate(chat, data);
+				finish();
+			}).fail(failHandler).send();
+		} else if (const auto channel = peer->asChannel()) {
+			return sender().request(TLgetSupergroupFullInfo(
+				tl_int53(channel->id.value)
+			)).done([=](const TLDsupergroupFullInfo &data) {
+				Data::ApplyChannelUpdate(channel, data);
+				finish();
+				migrateDone(channel, channel);
+			}).fail(failHandler).send();
+		}
+		Unexpected("Peer type in requestFullPeer.");
+	}();
+	_fullPeerRequests.emplace(peer, requestId);
+
+#if 0 // goodToRemove
 	const auto requestId = [&] {
 		const auto failHandler = [=](const MTP::Error &error) {
 			_fullPeerRequests.remove(peer);

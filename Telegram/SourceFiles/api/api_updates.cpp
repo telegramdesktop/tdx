@@ -2992,24 +2992,17 @@ void Updates::applyUpdate(const TLupdate &update) {
 		owner.processChannel(data.vsupergroup());
 	}, [&](const TLDupdateSecretChat &data) {
 	}, [&](const TLDupdateUserFullInfo &data) {
-		const auto user = owner.user(UserId(data.vuser_id()));
-		data.vuser_full_info().match([&](const TLDuserFullInfo &data) {
-			::Data::ApplyUserUpdate(user, data);
-		});
+		::Data::ApplyUserUpdate(
+			owner.user(UserId(data.vuser_id())),
+			data.vuser_full_info().data());
 	}, [&](const TLDupdateBasicGroupFullInfo &data) {
-		const auto chat = owner.chat(
-			ChatId(data.vbasic_group_id()));
-		data.vbasic_group_full_info().match([&](
-			const TLDbasicGroupFullInfo &data) {
-			::Data::ApplyChatUpdate(chat, data);
-		});
+		::Data::ApplyChatUpdate(
+			owner.chat(ChatId(data.vbasic_group_id())),
+			data.vbasic_group_full_info().data());
 	}, [&](const TLDupdateSupergroupFullInfo &data) {
-		const auto channel = owner.channel(
-			ChannelId(data.vsupergroup_id()));
-		data.vsupergroup_full_info().match([&](
-			const TLDsupergroupFullInfo &data) {
-			::Data::ApplyChannelUpdate(channel, data);
-		});
+		::Data::ApplyChannelUpdate(
+			owner.channel(ChannelId(data.vsupergroup_id())),
+			data.vsupergroup_full_info().data());
 	}, [&](const TLDupdateServiceNotification &data) {
 	}, [&](const TLDupdateFile &data) {
 	}, [&](const TLDupdateFileGenerationStart &data) {
