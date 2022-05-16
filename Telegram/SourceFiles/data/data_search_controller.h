@@ -17,6 +17,11 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Tdb {
+class TLmessages;
+class TLsearchChatMessages;
+} // namespace Tdb
+
 namespace Data {
 enum class LoadDirection : char;
 } // namespace Data
@@ -29,10 +34,13 @@ struct SearchResult {
 	int fullCount = 0;
 };
 
+#if 0 // goodToRemove
 using SearchRequest = MTPmessages_Search;
 using SearchRequestResult = MTPmessages_Messages;
+#endif
+using SearchRequest = Tdb::TLsearchChatMessages;
+using SearchRequestResult = Tdb::TLmessages;
 
-#if 0 // mtp
 std::optional<SearchRequest> PrepareSearchRequest(
 	not_null<PeerData*> peer,
 	MsgId topicRootId,
@@ -47,7 +55,6 @@ SearchResult ParseSearchResult(
 	MsgId messageId,
 	Data::LoadDirection direction,
 	const SearchRequestResult &data);
-#endif
 
 class SearchController final {
 public:
