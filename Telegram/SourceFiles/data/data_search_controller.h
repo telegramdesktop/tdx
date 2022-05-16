@@ -17,6 +17,13 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Tdb {
+class TLmessages;
+class TLsearchChatMessages;
+class TLgetChatHistory;
+class TLmessages;
+} // namespace Tdb
+
 namespace Data {
 enum class LoadDirection : char;
 } // namespace Data
@@ -29,14 +36,21 @@ struct SearchResult {
 	int fullCount = 0;
 };
 
+#if 0 // goodToRemove
 using SearchRequest = MTPmessages_Search;
 using SearchRequestResult = MTPmessages_Messages;
+#endif
+using SearchRequest = Tdb::TLsearchChatMessages;
+using SearchRequestResult = Tdb::TLmessages;
 
 using HistoryResult = SearchResult;
+#if 0 // mtp
 using HistoryRequest = MTPmessages_GetHistory;
 using HistoryRequestResult = MTPmessages_Messages;
+#endif
+using HistoryRequest = Tdb::TLgetChatHistory;
+using HistoryRequestResult = Tdb::TLmessages;
 
-#if 0 // mtp
 [[nodiscard]] std::optional<SearchRequest> PrepareSearchRequest(
 	not_null<PeerData*> peer,
 	MsgId topicRootId,
@@ -51,7 +65,6 @@ using HistoryRequestResult = MTPmessages_Messages;
 	MsgId messageId,
 	Data::LoadDirection direction,
 	const SearchRequestResult &data);
-#endif
 
 [[nodiscard]] HistoryRequest PrepareHistoryRequest(
 	not_null<PeerData*> peer,
