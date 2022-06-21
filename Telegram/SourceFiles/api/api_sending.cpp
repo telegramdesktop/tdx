@@ -845,12 +845,25 @@ void SendConfirmedFile(
 	session->uploader().start(file, ready);
 }
 
+TLmessageSendOptions MessageSendOptions(
+		not_null<PeerData*> peer,
+		const SendAction &action) {
+	return tl_messageSendOptions(
+		tl_bool(ShouldSendSilent(peer, action.options)),
+		tl_bool(false), // from_background
+		((action.options.scheduled == kScheduledTillOnline)
+			? tl_messageSchedulingStateSendWhenOnline()
+			: (action.options.scheduled > 0)
+			? tl_messageSchedulingStateSendAtDate(
+				tl_int32(action.options.scheduled))
+			: std::optional<TLmessageSchedulingState>()));
+}
+
 void SendPreparedMessage(
 		const SendAction &action,
 		TLinputMessageContent content) {
 	const auto history = action.history;
 	const auto peer = history->peer;
-	const auto silentPost = ShouldSendSilent(peer, action.options);
 	const auto clearCloudDraft = action.clearDraft;
 	//if (clearCloudDraft) {
 	//	// todo drafts - unnecessary?..
@@ -862,15 +875,7 @@ void SendPreparedMessage(
 		peerToTdbChat(peer->id),
 		tl_int53(0), // message_thread_id
 		tl_int53(action.replyTo.bare),
-		tl_messageSendOptions(
-			tl_bool(silentPost),
-			tl_bool(false), // from_background
-			((action.options.scheduled == kScheduledTillOnline)
-				? tl_messageSchedulingStateSendWhenOnline()
-				: (action.options.scheduled > 0)
-				? tl_messageSchedulingStateSendAtDate(
-					tl_int32(action.options.scheduled))
-				: std::optional<TLmessageSchedulingState>())),
+		MessageSendOptions(peer, action),
 		std::move(content)
 	)).done([=](const TLmessage &result) {
 		//if (clearCloudDraft) {
