@@ -22,8 +22,8 @@ public:
 		FileId fileId,
 		LocationType type,
 		const QString &toFile,
-		int loadSize,
-		int fullSize,
+		int64 loadSize,
+		int64 fullSize,
 		LoadToCacheSetting toCache,
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading,
@@ -32,7 +32,7 @@ public:
 
 	[[nodiscard]] FileId fileId() const;
 
-	int currentOffset() const override;
+	int64 currentOffset() const override;
 
 private:
 	Storage::Cache::Key cacheKey() const override;
@@ -48,11 +48,11 @@ private:
 	void apply(
 		const Tdb::TLfile &file,
 		const base::weak_ptr<TdbFileLoader> &weak);
-	bool setFinalSize(int size);
-	bool feedPart(int offset, const QByteArray &bytes);
+	bool setFinalSize(int64 size);
+	bool feedPart(int64 offset, const QByteArray &bytes);
 
 	const FileId _fileId = 0;
-	int _loadOffset = 0;
+	int64 _loadOffset = 0;
 	std::unique_ptr<Tdb::FileProxy> _proxy;
 	Tdb::RequestId _requestId = 0;
 
