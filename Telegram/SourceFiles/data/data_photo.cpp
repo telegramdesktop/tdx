@@ -112,7 +112,8 @@ void PhotoData::setFromTdb(const TLphoto &data) {
 			? Images::FromProgressiveSize(*i, 1)
 			: image("mbsa"_q)),
 		large,
-		ImageWithLocation(), // todo video in photo
+		ImageWithLocation(), // todo video small in photo
+		ImageWithLocation(), // todo video large in photo
 		crl::time());
 }
 
