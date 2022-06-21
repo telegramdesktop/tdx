@@ -4239,6 +4239,36 @@ void ApiWrap::sendInlineResult(
 
 	const auto history = action.history;
 	const auto peer = history->peer;
+
+	sender().request(TLsendInlineQueryResultMessage(
+		peerToTdbChat(peer->id),
+		tl_int53(0),
+		tl_int53(action.replyTo.bare),
+		MessageSendOptions(peer, action),
+		tl_int64(data->getQueryId()),
+		tl_string(data->getId()),
+		tl_bool(action.options.hideViaBot)
+	)).done([=](const TLmessage &result) {
+		//if (clearCloudDraft) {
+		//	// todo drafts - unnecessary?..
+		//	history->finishSavingCloudDraft(
+		//		UnixtimeFromMsgId(response.outerMsgId));
+		//}
+		_session->data().processMessage(result, NewMessageType::Unread);
+	}).fail([=](const Error &error) {
+		const auto code = error.code;
+		//if (error.type() == qstr("MESSAGE_EMPTY")) {
+		//	lastMessage->destroy();
+		//} else {
+		//	sendMessageFail(error, peer, randomId, newId);
+		//}
+		//if (clearCloudDraft) {
+		//	// todo drafts - unnecessary?..
+		//	history->finishSavingCloudDraft(
+		//		UnixtimeFromMsgId(response.outerMsgId));
+		//}
+	}).send();
+#if 0 // mtp
 	const auto newId = FullMsgId(
 		peer->id,
 		localMessageId
@@ -4295,7 +4325,6 @@ void ApiWrap::sendInlineResult(
 	history->clearCloudDraft(topicRootId);
 	history->startSavingCloudDraft(topicRootId);
 
-#if 0 // todo
 	auto &histories = history->owner().histories();
 	histories.sendPreparedMessage(
 		history,
