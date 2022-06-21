@@ -1650,7 +1650,7 @@ std::unique_ptr<Ui::ChatTheme> DefaultChatThemeOn(rpl::lifetime &lifetime) {
 	return result;
 }
 
-TLpaymentFormTheme WebViewTheme() {
+TLthemeParameters WebViewTheme() {
 	const auto colorToInt = [=](const style::color &color) {
 		const auto value = uint32(0xFF000000U)
 			| (uint32(color->c.red()) << 16)
@@ -1658,7 +1658,7 @@ TLpaymentFormTheme WebViewTheme() {
 			| (uint32(color->c.blue()));
 		return tl_int32(*reinterpret_cast<const int32*>(&value));
 	};
-	return tl_paymentFormTheme(
+	return tl_themeParameters(
 		colorToInt(st::windowBg), // background_color
 		colorToInt(st::boxDividerBg), // secondary_background_color
 		colorToInt(st::windowBg), // header_background_color

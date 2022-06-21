@@ -256,13 +256,15 @@ void Account::createSession(
 			tl_bool(true), // is_contact
 			tl_bool(true), // is_mutual_contact
 			tl_bool(false), // is_verified
+			tl_bool(false), // is_premium
 			tl_bool(false), // is_support
 			tl_string(), // restriction_reason
 			tl_bool(false), // is_scam
 			tl_bool(false), // is_fake,
 			tl_bool(true), // have_access
 			tl_userTypeRegular(),
-			tl_string()), // language_code
+			tl_string(), // language_code
+			tl_bool(false)), // added_to_attachment_menu
 		serialized,
 		streamVersion,
 		std::move(settings));

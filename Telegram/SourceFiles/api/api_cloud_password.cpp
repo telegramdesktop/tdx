@@ -49,6 +49,7 @@ Core::CloudPasswordState TLToCloudPasswordState(
 	return result;
 }
 
+#if 0 // mtp
 [[nodiscard]] Core::CloudPasswordState ProcessMtpState(
 		const MTPaccount_password &state) {
 	return state.match([&](const MTPDaccount_password &data) {
@@ -56,6 +57,7 @@ Core::CloudPasswordState TLToCloudPasswordState(
 		return Core::ParseCloudPasswordState(data);
 	});
 }
+#endif
 
 } // namespace
 
@@ -235,18 +237,10 @@ auto CloudPassword::cancelResetPassword()
 }
 
 void CloudPassword::apply(const TLpasswordState &state) {
-	auto parsed = TLToCloudPasswordState(state.data());
-	if (_state) {
-		*_state = std::move(parsed);
-	} else {
-		_state = std::make_unique<Core::CloudPasswordState>(
-			std::move(parsed));
-	}
-	_state->outdatedClient = false;
-	_stateChanges.fire_copy(*_state);
+	apply(TLToCloudPasswordState(state.data()));
 }
 
-rpl::producer<rpl::no_value, QString> CloudPassword::set(
+rpl::producer<CloudPassword::SetOk, QString> CloudPassword::set(
 		const QString &oldPassword,
 		const QString &newPassword,
 		const QString &hint,
@@ -260,15 +254,35 @@ rpl::producer<rpl::no_value, QString> CloudPassword::set(
 			tl_bool(hasRecoveryEmail),
 			tl_string(recoveryEmail)
 		)).done([=](const TLpasswordState &result) {
-			// When a new password is set with a recovery email,
-			// the server returns an error EMAIL_UNCONFIRMED_#
-			// requiring email confirmation, but TDLib returns a success with
-			// the given vrecovery_email_address_code_info optional parameter.
-			// We simulate this error to keep an external behavior the same.
 			const auto codeLength = TLToCodeLength(result.data());
 			if (codeLength) {
-				consumer.put_error(
-					QString("EMAIL_UNCONFIRMED_%1").arg(codeLength));
+				consumer.put_next(SetOk{ codeLength });
+			} else {
+				consumer.put_done();
+				apply(result);
+			}
+		}).fail([=](const Error &error) {
+			consumer.put_error_copy(error.message);
+		}).send();
+#if 0 // doLater
+		// }).handleFloodErrors().send();
+#endif
+
+		return rpl::lifetime();
+	};
+}
+
+rpl::producer<CloudPassword::SetOk, QString> CloudPassword::setEmail(
+		const QString &oldPassword,
+		const QString &recoveryEmail) {
+	return [=](auto consumer) {
+		_api.request(TLsetRecoveryEmailAddress(
+			tl_string(oldPassword),
+			tl_string(recoveryEmail)
+		)).done([=](const TLpasswordState &result) {
+			const auto codeLength = TLToCodeLength(result.data());
+			if (codeLength) {
+				consumer.put_next(SetOk{ codeLength });
 			} else {
 				consumer.put_done();
 				apply(result);
@@ -428,6 +442,7 @@ rpl::producer<rpl::no_value, QString> CloudPassword::check(
 	};
 }
 
+#if 0 // mtp
 rpl::producer<CloudPassword::SetOk, QString> CloudPassword::set(
 		const QString &oldPassword,
 		const QString &newPassword,
@@ -849,5 +864,6 @@ auto CloudPassword::checkRecoveryEmailAddressCode(const QString &code)
 		return rpl::lifetime();
 	};
 }
+#endif
 
 } // namespace Api

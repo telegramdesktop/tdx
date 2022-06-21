@@ -61,18 +61,19 @@ ChatAdminRightsInfo::ChatAdminRightsInfo(
 	const auto empty = ChatAdminRights(0);
 	status.match([&](const Tdb::TLDchatMemberStatusAdministrator &data) {
 		using Flag = ChatAdminRight;
+		const auto &rights = data.vrights().data();
 		flags = empty
-			| (data.vcan_change_info().v ? Flag::ChangeInfo : empty)
-			| (data.vcan_post_messages().v ? Flag::PostMessages : empty)
-			| (data.vcan_edit_messages().v ? Flag::EditMessages : empty)
-			| (data.vcan_delete_messages().v ? Flag::DeleteMessages : empty)
-			| (data.vcan_restrict_members().v ? Flag::BanUsers : empty)
-			| (data.vcan_invite_users().v ? Flag::InviteUsers : empty)
-			| (data.vcan_pin_messages().v ? Flag::PinMessages : empty)
-			| (data.vcan_promote_members().v ? Flag::AddAdmins : empty)
-			| (data.vis_anonymous().v ? Flag::Anonymous : empty)
-			| (data.vcan_manage_video_chats().v ? Flag::ManageCall : empty)
-			| (data.vcan_manage_chat().v ? Flag::Other : empty);
+			| (rights.vcan_change_info().v ? Flag::ChangeInfo : empty)
+			| (rights.vcan_post_messages().v ? Flag::PostMessages : empty)
+			| (rights.vcan_edit_messages().v ? Flag::EditMessages : empty)
+			| (rights.vcan_delete_messages().v ? Flag::DeleteMessages : empty)
+			| (rights.vcan_restrict_members().v ? Flag::BanUsers : empty)
+			| (rights.vcan_invite_users().v ? Flag::InviteUsers : empty)
+			| (rights.vcan_pin_messages().v ? Flag::PinMessages : empty)
+			| (rights.vcan_promote_members().v ? Flag::AddAdmins : empty)
+			| (rights.vis_anonymous().v ? Flag::Anonymous : empty)
+			| (rights.vcan_manage_video_chats().v ? Flag::ManageCall : empty)
+			| (rights.vcan_manage_chat().v ? Flag::Other : empty);
 	}, [&](const Tdb::TLDchatMemberStatusCreator &data) {
 		_creator = true;
 		flags = ChatAdminRight::ChangeInfo
@@ -96,17 +97,18 @@ Tdb::TLchatMemberStatus ChatAdminRightsInfo::ToTL(
 	return Tdb::tl_chatMemberStatusAdministrator(
 		Tdb::tl_string(rank),
 		Tdb::tl_bool(true),
-		Tdb::tl_bool(rights.flags & ChatAdminRight::Other),
-		Tdb::tl_bool(rights.flags & ChatAdminRight::ChangeInfo),
-		Tdb::tl_bool(rights.flags & ChatAdminRight::PostMessages),
-		Tdb::tl_bool(rights.flags & ChatAdminRight::EditMessages),
-		Tdb::tl_bool(rights.flags & ChatAdminRight::DeleteMessages),
-		Tdb::tl_bool(rights.flags & ChatAdminRight::InviteUsers),
-		Tdb::tl_bool(rights.flags & ChatAdminRight::BanUsers),
-		Tdb::tl_bool(rights.flags & ChatAdminRight::PinMessages),
-		Tdb::tl_bool(rights.flags & ChatAdminRight::AddAdmins),
-		Tdb::tl_bool(rights.flags & ChatAdminRight::ManageCall),
-		Tdb::tl_bool(rights.flags & ChatAdminRight::Anonymous));
+		Tdb::tl_chatAdministratorRights(
+			Tdb::tl_bool(rights.flags & ChatAdminRight::Other),
+			Tdb::tl_bool(rights.flags & ChatAdminRight::ChangeInfo),
+			Tdb::tl_bool(rights.flags & ChatAdminRight::PostMessages),
+			Tdb::tl_bool(rights.flags & ChatAdminRight::EditMessages),
+			Tdb::tl_bool(rights.flags & ChatAdminRight::DeleteMessages),
+			Tdb::tl_bool(rights.flags & ChatAdminRight::InviteUsers),
+			Tdb::tl_bool(rights.flags & ChatAdminRight::BanUsers),
+			Tdb::tl_bool(rights.flags & ChatAdminRight::PinMessages),
+			Tdb::tl_bool(rights.flags & ChatAdminRight::AddAdmins),
+			Tdb::tl_bool(rights.flags & ChatAdminRight::ManageCall),
+			Tdb::tl_bool(rights.flags & ChatAdminRight::Anonymous)));
 }
 
 ChatRestrictionsInfo::ChatRestrictionsInfo(

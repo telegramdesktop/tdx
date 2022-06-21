@@ -385,7 +385,8 @@ private:
 
 	void updateThumbnails(
 		const Tdb::TLminithumbnail *inlineThumbnail,
-		const Tdb::TLthumbnail *thumbnail);
+		const Tdb::TLthumbnail *thumbnail,
+		bool isPremiumSticker);
 	void setTdbLocation(const Tdb::TLfile &file);
 
 	const not_null<Data::Session*> _owner;

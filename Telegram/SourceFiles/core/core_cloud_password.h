@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Core {
 
+#if 0 // mtp
 constexpr auto kHandleSrpIdInvalidTimeout = 60 * crl::time(1000);
 
 struct CloudPasswordAlgoModPow {
@@ -61,14 +62,20 @@ inline bool operator!=(
 
 CloudPasswordCheckRequest ParseCloudPasswordCheckRequest(
 	const MTPDaccount_password &data);
+#endif
 
 struct CloudPasswordResult {
+#if 0 // mtp
 	MTPInputCheckPasswordSRP result;
+#endif
 	QByteArray password;
 
+#if 0 // mtp
 	explicit operator bool() const;
+#endif
 };
 
+#if 0 // mtp
 struct CloudPasswordDigest {
 	bytes::vector modpow;
 };
@@ -121,29 +128,18 @@ MTPSecurePasswordKdfAlgo PrepareSecureSecretAlgo(
 bytes::vector ComputeSecureSecretHash(
 	const SecureSecretAlgo &algo,
 	bytes::const_span password);
+#endif
 
 struct CloudPasswordState {
-	struct Mtp {
 #if 0 // goodToRemove
+	struct Mtp {
 		CloudPasswordCheckRequest request;
 		bool unknownAlgorithm = false;
-#endif
 		CloudPasswordAlgo newPassword;
 		SecureSecretAlgo newSecureSecret;
 	};
 	Mtp mtp;
-	bool hasPassword = false;
-#if 0 // goodToRemove
-	bool hasRecovery = false;
-	bool notEmptyPassport = false;
-	bool outdatedClient = false;
-	QString hint;
-	QString unconfirmedPattern;
-	TimeId pendingResetDate = 0;
 #endif
-	// CloudPasswordCheckRequest request; // replacement: has_password
-	// CloudPasswordAlgo newPassword; // always true?
-	// SecureSecretAlgo newSecureSecret; // always true?
 	bool hasPassword = false;
 	bool hasRecovery = false;
 	bool notEmptyPassport = false;
@@ -155,7 +151,9 @@ struct CloudPasswordState {
 	QString serverError;
 };
 
+#if 0 // mtp
 CloudPasswordState ParseCloudPasswordState(
 	const MTPDaccount_password &data);
+#endif
 
 } // namespace Core

@@ -856,9 +856,10 @@ auto InviteLinks::parseSlice(
 	auto result = Links();
 	result.count = slice.data().vtotal_count().v;
 	for (const auto &invite : slice.data().vinvite_links().v) {
-		const auto link = parse(peer, invite);
-		if (!permanent || link.link != permanent->link) {
-			result.links.push_back(link);
+		if (const auto link = parse(peer, invite)) {
+			if (!permanent || link->link != permanent->link) {
+				result.links.push_back(*link);
+			}
 		}
 	}
 #if 0 // goodToRemove

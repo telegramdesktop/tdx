@@ -667,7 +667,7 @@ void CheckoutProcess::panelSubmit() {
 	} else if (!invoice.termsUrl.isEmpty()
 		&& !_form->details().termsAccepted) {
 		_panel->requestTermsAcceptance(
-			_form->details().termsBotUsername,
+			QString(), // todo _form->details().termsBotUsername,
 			invoice.termsUrl,
 			invoice.isRecurring);
 	} else {
