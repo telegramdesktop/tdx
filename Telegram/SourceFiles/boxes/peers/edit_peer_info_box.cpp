@@ -2099,7 +2099,7 @@ void Controller::saveForwards() {
 		|| *_savingData.noForwards != _peer->allowsForwarding()) {
 		return continueSave();
 	}
-#if 0 // todo
+#if 0 // mtp
 	_api.request(MTPmessages_ToggleNoForwards(
 		_peer->input,
 		MTP_bool(*_savingData.noForwards)
@@ -2132,6 +2132,7 @@ void Controller::saveJoinToWrite() {
 		|| *_savingData.joinToWrite == joinToWrite) {
 		return continueSave();
 	}
+#if 0 // mtp
 	_api.request(MTPchannels_ToggleJoinToSend(
 		_peer->asChannel()->inputChannel,
 		MTP_bool(*_savingData.joinToWrite)
@@ -2145,6 +2146,19 @@ void Controller::saveJoinToWrite() {
 			cancelSave();
 		}
 	}).send();
+#endif
+	if (!_peer->isChannel()) {
+		return continueSave();
+	}
+	_api.request(Tdb::TLtoggleSupergroupJoinToSendMessages(
+		Tdb::tl_int53(peerToChannel(_peer->id).bare),
+		Tdb::tl_bool(*_savingData.joinToWrite)
+	)).done([=] {
+		// CHAT_NOT_MODIFIED is processed as TLok.
+		continueSave();
+	}).fail([=] {
+		cancelSave();
+	}).send();
 }
 
 void Controller::saveRequestToJoin() {
@@ -2154,6 +2168,7 @@ void Controller::saveRequestToJoin() {
 		|| *_savingData.requestToJoin == requestToJoin) {
 		return continueSave();
 	}
+#if 0 // mtp
 	_api.request(MTPchannels_ToggleJoinRequest(
 		_peer->asChannel()->inputChannel,
 		MTP_bool(*_savingData.requestToJoin)
@@ -2166,6 +2181,19 @@ void Controller::saveRequestToJoin() {
 		} else {
 			cancelSave();
 		}
+	}).send();
+#endif
+	if (!_peer->isChannel()) {
+		return continueSave();
+	}
+	_api.request(Tdb::TLtoggleSupergroupJoinByRequest(
+		Tdb::tl_int53(peerToChannel(_peer->id).bare),
+		Tdb::tl_bool(*_savingData.requestToJoin)
+	)).done([=] {
+		// CHAT_NOT_MODIFIED is processed as TLok.
+		continueSave();
+	}).fail([=] {
+		cancelSave();
 	}).send();
 }
 

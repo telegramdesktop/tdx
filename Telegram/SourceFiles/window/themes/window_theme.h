@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/style/style_core_palette.h"
 
 namespace Tdb {
-class TLpaymentFormTheme;
+class TLthemeParameters;
 } // namespace Tdb
 
 class QFileSystemWatcher;
@@ -317,7 +317,7 @@ bool ReadPaletteValues(
 [[nodiscard]] std::unique_ptr<Ui::ChatTheme> DefaultChatThemeOn(
 	rpl::lifetime &lifetime);
 
-[[nodiscard]] Tdb::TLpaymentFormTheme WebViewTheme();
+[[nodiscard]] Tdb::TLthemeParameters WebViewTheme();
 
 } // namespace Theme
 } // namespace Window
