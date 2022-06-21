@@ -18,6 +18,7 @@ struct FilePrepareResult;
 
 namespace Tdb {
 class TLinputMessageContent;
+class TLmessageSendOptions;
 } // namespace Tdb
 
 namespace Api {
@@ -45,6 +46,10 @@ void FillMessagePostFlags(
 void SendConfirmedFile(
 	not_null<Main::Session*> session,
 	const std::shared_ptr<FilePrepareResult> &file);
+
+[[nodiscard]] Tdb::TLmessageSendOptions MessageSendOptions(
+	not_null<PeerData*> peer,
+	const SendAction &action);
 
 void SendPreparedMessage(
 	const SendAction &action,
