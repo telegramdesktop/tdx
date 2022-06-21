@@ -503,7 +503,10 @@ protected:
 	void clearUserpic();
 	void invalidateEmptyUserpic();
 
-	void updateUserpic(FileId fileId, PhotoId photoId = 0);
+	void updateUserpic(
+		FileId fileId,
+		bool hasVideo,
+		PhotoId photoId = 0);
 	void updateUserpic(const Tdb::TLchatPhotoInfo &photo);
 	void updateUserpic(const Tdb::TLprofilePhoto &photo);
 

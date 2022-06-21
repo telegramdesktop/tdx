@@ -374,7 +374,9 @@ private:
 	void processSavedCredentials(const Tdb::TLDsavedCredentials &data);
 	void processShippingOptions(
 		const QVector<Tdb::TLshippingOption> &options);
-	void fillStripeNativeMethod(const Tdb::TLDpaymentsProviderStripe &data);
+	void fillStripeNativeMethod(const Tdb::TLDpaymentProviderStripe &data);
+	void fillSmartGlocalNativeMethod(
+		const Tdb::TLDpaymentProviderSmartGlocal &data);
 #if 0 // goodToRemove
 	void processForm(const MTPDpayments_paymentForm &data);
 	void processReceipt(const MTPDpayments_paymentReceipt &data);
@@ -398,7 +400,10 @@ private:
 	[[nodiscard]] QString defaultPhone() const;
 	[[nodiscard]] QString defaultCountry() const;
 
+#if 0 // mtp
 	[[nodiscard]] MTPInputInvoice inputInvoice() const;
+#endif
+	[[nodiscard]] Tdb::TLinputInvoice inputInvoice() const;
 
 	void validateCard(
 		const StripePaymentMethod &method,

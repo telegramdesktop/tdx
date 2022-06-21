@@ -77,6 +77,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 
 #include "tdb/tdb_tl_scheme.h"
+#include "api/api_text_entities.h"
 
 namespace Data {
 namespace {
@@ -533,7 +534,9 @@ Invoice ComputeInvoiceData(
 		.amount = uint64(data.vtotal_amount().v),
 		.currency = data.vcurrency().v,
 		.title = TextUtilities::SingleLine(data.vtitle().v),
-		.description = data.vdescription().v,
+		.description = Api::FormattedTextFromTdb(
+			&item->history()->session(),
+			data.vdescription()),
 		.photo = nullptr/*(data.vphoto()
 			? item->history()->owner().processPhoto(*data.vphoto())
 			: nullptr)*/,
