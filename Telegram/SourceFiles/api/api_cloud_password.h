@@ -65,6 +65,7 @@ public:
 private:
 	void apply(Core::CloudPasswordState state);
 
+	void apply(const Tdb::TLpasswordState &state);
 #if 0 // goodToRemove
 	MTP::Sender _api;
 #endif

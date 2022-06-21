@@ -38,14 +38,14 @@ public:
 	struct CloudFields {
 		static CloudFields From(const Core::CloudPasswordState &current);
 
-		struct Mtp {
 #if 0 // goodToRemove
+		struct Mtp {
 			Core::CloudPasswordCheckRequest curRequest;
-#endif
 			Core::CloudPasswordAlgo newAlgo;
 			Core::SecureSecretAlgo newSecureSecretAlgo;
 		};
 		Mtp mtp;
+#endif
 		bool hasPassword = false;
 		bool hasRecovery = false;
 		QString fromRecoveryCode;
