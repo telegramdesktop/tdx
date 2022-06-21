@@ -279,6 +279,8 @@ auto HistoryMessageMarkupData::buttonData(const TLkeyboardButton &button)
 		return ButtonData{ Type::RequestLocation };
 	}, [&](const TLDkeyboardButtonTypeRequestPhoneNumber &data) {
 		return ButtonData{ Type::RequestPhone };
+	}, [&](const TLDkeyboardButtonTypeWebApp &data) {
+		return ButtonData{ Type::SimpleWebView, data.vurl().v.toUtf8()};
 	});
 }
 
@@ -311,6 +313,8 @@ auto HistoryMessageMarkupData::buttonData(
 		return ButtonData{ Type::Buy };
 	}, [&](const TLDinlineKeyboardButtonTypeUser &data) {
 		return ButtonData{ Type::Default }; // todo
+	}, [&](const TLDinlineKeyboardButtonTypeWebApp &data) {
+		return ButtonData{ Type::WebView, data.vurl().v.toUtf8() };
 	});
 }
 

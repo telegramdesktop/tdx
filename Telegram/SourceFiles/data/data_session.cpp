@@ -151,8 +151,8 @@ void CheckForSwitchInlineButton(not_null<HistoryItem*> item) {
 		| bit(data.vcan_send_other_messages(), Flag::SendInline);
 }
 
-[[nodiscard]] ChatAdminRights AdminRightsFromChatMemberStatus(
-		const TLDchatMemberStatusAdministrator &data) {
+[[nodiscard]] ChatAdminRights AdminRightsFromChatAdministratorRights(
+		const TLDchatAdministratorRights &data) {
 	using Flag = ChatAdminRight;
 	const auto bit = [&](const TLbool &check, Flag value) {
 		return check.v ? value : Flag(0);
@@ -171,6 +171,10 @@ void CheckForSwitchInlineButton(not_null<HistoryItem*> item) {
 		| bit(data.vis_anonymous(), Flag::Anonymous);
 }
 
+[[nodiscard]] ChatAdminRights AdminRightsFromChatMemberStatus(
+		const TLDchatMemberStatusAdministrator &data) {
+	return AdminRightsFromChatAdministratorRights(data.vrights().data());
+}
 // We should get a full restriction in "{full}: {reason}" format and we
 // need to find an "-all" tag in {full}, otherwise ignore this restriction.
 std::vector<UnavailableReason> ExtractUnavailableReasons(

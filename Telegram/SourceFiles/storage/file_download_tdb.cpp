@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-constexpr auto kMaxReadPart = 1024 * 1024;
+constexpr auto kMaxReadPart = int64(1024 * 1024);
 
 using namespace Tdb;
 
@@ -27,8 +27,8 @@ TdbFileLoader::TdbFileLoader(
 	FileId fileId,
 	LocationType type,
 	const QString &toFile,
-	int loadSize,
-	int fullSize,
+	int64 loadSize,
+	int64 fullSize,
 	LoadToCacheSetting toCache,
 	LoadFromCloudSetting fromCloud,
 	bool autoLoading,
@@ -69,8 +69,8 @@ void TdbFileLoader::sendRequest() {
 	_requestId = session().sender().request(TLdownloadFile(
 		tl_int32(_fileId),
 		tl_int32(1),
-		tl_int32(_loadOffset),
-		tl_int32(_loadSize - _loadOffset),
+		tl_int53(_loadOffset),
+		tl_int53(_loadSize - _loadOffset),
 		tl_bool(false)
 	)).done([=](const TLfile &result) {
 		_requestId = 0;
@@ -155,7 +155,7 @@ void TdbFileLoader::apply(
 	}
 }
 
-bool TdbFileLoader::setFinalSize(int size) {
+bool TdbFileLoader::setFinalSize(int64 size) {
 	if (!_fullSize) {
 		Assert(_loadSize == 0);
 		_fullSize = _loadSize = size;
@@ -173,7 +173,7 @@ bool TdbFileLoader::setFinalSize(int size) {
 	return false;
 }
 
-bool TdbFileLoader::feedPart(int offset, const QByteArray &bytes) {
+bool TdbFileLoader::feedPart(int64 offset, const QByteArray &bytes) {
 	const auto buffer = bytes::make_span(bytes);
 	if (!writeResultPart(offset, buffer)) {
 		return false;
@@ -190,7 +190,7 @@ bool TdbFileLoader::feedPart(int offset, const QByteArray &bytes) {
 	return true;
 }
 
-int TdbFileLoader::currentOffset() const {
+int64 TdbFileLoader::currentOffset() const {
 	return _loadOffset;
 }
 

@@ -55,9 +55,9 @@ Blocked::Blocked(
 			st::settingsBlockedHeightMin);
 	}
 
-	_controller->session().api().blockedPeers().slice(
-	) | rpl::start_with_next([=](const Api::BlockedPeers::Slice &slice) {
-		checkTotal(slice.total);
+	_controller->session().api().blockedPeers().total(
+	) | rpl::start_with_next([=](int total) {
+		checkTotal(total);
 	}, lifetime());
 
 	_controller->session().changes().peerUpdates(
