@@ -368,7 +368,8 @@ DocumentId DocumentData::IdFromTdb(const TLdocument &data) {
 
 void DocumentData::updateThumbnails(
 		const TLminithumbnail *inlineThumbnail,
-		const TLthumbnail *thumbnail) {
+		const TLthumbnail *thumbnail,
+		bool isPremiumSticker) {
 	const auto inlineThumbnailBytes = inlineThumbnail
 		? inlineThumbnail->data().vdata().v
 		: QByteArray();
@@ -390,14 +391,14 @@ void DocumentData::updateThumbnails(
 	}
 	updateThumbnails(InlineImageLocation{
 		.bytes = inlineThumbnailBytes,
-	}, thumbnailLocation, videoThumbnailLocation);
+	}, thumbnailLocation, videoThumbnailLocation, isPremiumSticker);
 }
 
 void DocumentData::setFromTdb(const TLdocument &data) {
 	const auto &fields = data.data();
 	setFileName(fields.vfile_name().v);
 	setMimeString(fields.vmime_type().v);
-	updateThumbnails(fields.vminithumbnail(), fields.vthumbnail());
+	updateThumbnails(fields.vminithumbnail(), fields.vthumbnail(), false);
 	setTdbLocation(fields.vdocument());
 	recountIsImage();
 	dimensions = QSize();
@@ -415,7 +416,7 @@ void DocumentData::setFromTdb(const TLvideo &data) {
 	const auto &fields = data.data();
 	setFileName(fields.vfile_name().v);
 	setMimeString(fields.vmime_type().v);
-	updateThumbnails(fields.vminithumbnail(), fields.vthumbnail());
+	updateThumbnails(fields.vminithumbnail(), fields.vthumbnail(), false);
 	setTdbLocation(fields.vvideo());
 	recountIsImage();
 	setMaybeSupportsStreaming(fields.vsupports_streaming().v);
@@ -440,7 +441,8 @@ void DocumentData::setFromTdb(const TLaudio &data) {
 	setMimeString(fields.vmime_type().v);
 	updateThumbnails(
 		fields.valbum_cover_minithumbnail(),
-		fields.valbum_cover_thumbnail());
+		fields.valbum_cover_thumbnail(),
+		false);
 	setTdbLocation(fields.vaudio());
 	recountIsImage();
 	setMaybeSupportsStreaming(true);
@@ -468,7 +470,7 @@ void DocumentData::setFromTdb(const TLanimation &data) {
 	const auto &fields = data.data();
 	setFileName(fields.vfile_name().v);
 	setMimeString(fields.vmime_type().v);
-	updateThumbnails(fields.vminithumbnail(), fields.vthumbnail());
+	updateThumbnails(fields.vminithumbnail(), fields.vthumbnail(), false);
 	setTdbLocation(fields.vanimation());
 	recountIsImage();
 	setMaybeSupportsStreaming(true);
@@ -505,7 +507,10 @@ void DocumentData::setFromTdb(const TLsticker &data) {
 		: (stickerType == StickerType::Webm)
 		? u"video/webm"_q
 		: u"image/webp"_q);
-	updateThumbnails(nullptr, fields.vthumbnail());
+	updateThumbnails(
+		nullptr,
+		fields.vthumbnail(),
+		(fields.vpremium_animation() != nullptr));
 	setTdbLocation(fields.vsticker());
 	recountIsImage();
 	dimensions = (stickerType == StickerType::Tgs)
@@ -544,7 +549,7 @@ void DocumentData::setFromTdb(const TLvoiceNote &data) {
 	const auto &fields = data.data();
 	setFileName(QString());
 	setMimeString(fields.vmime_type().v);
-	updateThumbnails(nullptr, nullptr);
+	updateThumbnails(nullptr, nullptr, false);
 	setTdbLocation(fields.vvoice());
 	recountIsImage();
 	setMaybeSupportsStreaming(true);
@@ -569,7 +574,7 @@ void DocumentData::setFromTdb(const TLvideoNote &data) {
 	const auto &fields = data.data();
 	setFileName(QString());
 	setMimeString(u"video/mp4"_q);
-	updateThumbnails(fields.vminithumbnail(), fields.vthumbnail());
+	updateThumbnails(fields.vminithumbnail(), fields.vthumbnail(), false);
 	setTdbLocation(fields.vvideo());
 	recountIsImage();
 	setMaybeSupportsStreaming(true);
