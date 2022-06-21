@@ -393,7 +393,7 @@ ImageWithLocation FromPhotoSize(const TLphotoSize &size) {
 			DownloadLocation{ TdbFileLocation(data.vphoto()) },
 			data.vwidth().v,
 			data.vheight().v),
-		.bytesCount = data.vphoto().data().vsize().v,
+		.bytesCount = int(data.vphoto().data().vsize().v),
 	};
 }
 
@@ -417,7 +417,7 @@ ImageWithLocation FromProgressiveSize(
 			DownloadLocation{ TdbFileLocation(fields.vfile()) },
 			fields.vwidth().v,
 			fields.vheight().v),
-		.bytesCount = fields.vfile().data().vsize().v,
+		.bytesCount = int(fields.vfile().data().vsize().v),
 	};
 }
 

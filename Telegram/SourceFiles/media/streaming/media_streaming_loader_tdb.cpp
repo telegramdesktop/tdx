@@ -17,9 +17,9 @@ namespace Streaming {
 namespace {
 
 // If not-loaded part is further from loaded part than this offset.
-constexpr auto kResendRequestOffset = 2 * 128 * 1024;
+constexpr auto kResendRequestOffset = int64(2 * 128 * 1024);
 
-constexpr auto kLoadLimit = 8 * 128 * 1024;
+constexpr auto kLoadLimit = int64(8 * 128 * 1024);
 
 using namespace Tdb;
 
@@ -29,7 +29,7 @@ LoaderTdb::LoaderTdb(
 	not_null<Account*> account,
 	FileId fileId,
 	Storage::Cache::Key baseCacheKey,
-	int size)
+	int64 size)
 : _account(account)
 , _fileId(fileId)
 , _baseCacheKey(baseCacheKey)
@@ -44,11 +44,11 @@ Storage::Cache::Key LoaderTdb::baseCacheKey() const {
 	return _baseCacheKey;
 }
 
-int LoaderTdb::size() const {
+int64 LoaderTdb::size() const {
 	return _size;
 }
 
-void LoaderTdb::load(int offset) {
+void LoaderTdb::load(int64 offset) {
 	crl::on_main(this, [=] {
 		if (_downloader) {
 			auto bytes = _downloader->readLoadedPart(offset);
@@ -85,13 +85,13 @@ void LoaderTdb::tryRemoveFromQueue() {
 	});
 }
 
-void LoaderTdb::cancel(int offset) {
+void LoaderTdb::cancel(int64 offset) {
 	crl::on_main(this, [=] {
 		cancelForOffset(offset);
 	});
 }
 
-void LoaderTdb::cancelForOffset(int offset) {
+void LoaderTdb::cancelForOffset(int64 offset) {
 	if (haveSentRequestForOffset(offset)) {
 		cancelRequestForOffset(offset);
 	} else {
@@ -134,7 +134,7 @@ bool LoaderTdb::haveSentRequests() const {
 	return !_waitingOffsets.empty();
 }
 
-bool LoaderTdb::haveSentRequestForOffset(int offset) const {
+bool LoaderTdb::haveSentRequestForOffset(int64 offset) const {
 	return _waitingOffsets.contains(offset);
 }
 
@@ -145,7 +145,7 @@ void LoaderTdb::cancelRequest() {
 	_loadingLifetime.destroy();
 }
 
-void LoaderTdb::cancelRequestForOffset(int offset) {
+void LoaderTdb::cancelRequestForOffset(int64 offset) {
 	if (_waitingOffsets.remove(offset)) {
 		const auto next = _waitingOffsets.empty()
 			? _requested.front()
@@ -161,7 +161,7 @@ void LoaderTdb::cancelRequestForOffset(int offset) {
 
 void LoaderTdb::addToQueue(int priority) {
 	const auto downloading = _waitingOffsets.empty()
-		? std::optional<int>()
+		? std::optional<int64>()
 		: _waitingOffsets.front();
 	const auto requesting = _requested.front();
 	if (!requesting && !downloading) {
@@ -185,7 +185,7 @@ void LoaderTdb::addToQueue(int priority) {
 		}
 		for (const auto offset : _waitingOffsets) {
 			if (offset < _requestedOffset
-				|| (offset + std::min(kPartSize, _size - offset)
+				|| (offset + std::min(int64(kPartSize), _size - offset)
 					> _requestedOffset + _requestedLimit)) {
 				return true;
 			}
@@ -206,8 +206,8 @@ void LoaderTdb::addToQueue(int priority) {
 	_requestId = _account->sender().request(TLdownloadFile(
 		tl_int32(_fileId),
 		tl_int32(_requestedPriority),
-		tl_int32(_requestedOffset),
-		tl_int32(_requestedLimit),
+		tl_int53(_requestedOffset),
+		tl_int53(_requestedLimit),
 		tl_bool(false)
 	)).done([=](const TLfile &result) {
 		LOG(("GOT RESPONSE %1 FOR: %2").arg(_requestId).arg(_requestedOffset));
@@ -290,8 +290,8 @@ void LoaderTdb::apply(const TLfile &file) {
 	}
 }
 
-int LoaderTdb::partSize(int offset) const {
-	return std::min(kPartSize, _size - offset);
+int64 LoaderTdb::partSize(int64 offset) const {
+	return std::min(int64(kPartSize), _size - offset);
 }
 
 void LoaderTdb::removeFromQueue() {

@@ -407,7 +407,7 @@ void StickersListWidget::preloadMoreOfficial() {
 	_officialRequestId = _api.request(TLgetTrendingStickerSets(
 		tl_int32(_officialOffset),
 		tl_int32(kOfficialLoadLimit)
-	)).done([=](const TLstickerSets &result) {
+	)).done([=](const TLtrendingStickerSets &result) {
 		_officialRequestId = 0;
 		const auto &data = result.data();
 

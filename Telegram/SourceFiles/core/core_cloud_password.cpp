@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/core_cloud_password.h"
 
+#if 0 // mtp
 #include "base/openssl_help.h"
 #include "mtproto/mtproto_dh_utils.h"
 
@@ -360,3 +361,4 @@ CloudPasswordState ParseCloudPasswordState(
 }
 
 } // namespace Core
+#endif

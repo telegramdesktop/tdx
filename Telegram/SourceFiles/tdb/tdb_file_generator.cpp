@@ -47,7 +47,7 @@ void FileGenerator::start(int64 id) {
 	const auto writePart = [=](const auto &repeat) -> void {
 		_api.request(TLwriteGeneratedFilePart(
 			tl_int64(_generationId),
-			tl_int32(_generationOffset),
+			tl_int53(_generationOffset),
 			tl_bytes(_content.mid(
 				_generationOffset,
 				std::min(kChunk, int(_content.size()) - _generationOffset)))
@@ -97,7 +97,7 @@ TLinputFile FileGenerator::inputFile() const {
 	return tl_inputFileGenerated(
 		tl_string(),
 		tl_string(_conversion),
-		tl_int32(_content.size()));
+		tl_int53(_content.size()));
 }
 
 rpl::lifetime &FileGenerator::lifetime() {

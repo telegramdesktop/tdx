@@ -98,6 +98,8 @@ void SendBotCallbackData(
 	)).done([=](const MTPmessages_BotCallbackAnswer &result) {
 #endif
 	const auto withPassword = password.has_value();
+	const auto weak = base::make_weak(controller.get());
+	const auto show = controller->uiShow();
 	auto payload = [&] {
 		if (isGame) {
 			return Tdb::tl_callbackQueryPayloadGame(Tdb::tl_string());

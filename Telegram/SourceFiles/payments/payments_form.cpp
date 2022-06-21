@@ -37,6 +37,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webview/webview_interface.h"
 #include "styles/style_payments.h" // paymentsThumbnailSize.
 
+#include "api/api_text_entities.h"
+
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
 #include <QtCore/QJsonValue>
@@ -45,6 +47,8 @@ namespace Payments {
 namespace {
 
 constexpr auto kPasswordPeriod = 15 * TimeId(60);
+
+using namespace Tdb;
 
 [[nodiscard]] Ui::Address ParseAddress(const Tdb::TLaddress &address) {
 	return Ui::Address{
@@ -399,6 +403,7 @@ QImage Form::prepareEmptyThumbnail() const {
 	return result;
 }
 
+#if 0 // mtp
 MTPInputInvoice Form::inputInvoice() const {
 	if (const auto message = std::get_if<InvoiceMessage>(&_id.value)) {
 		return MTP_inputInvoiceMessage(
@@ -481,12 +486,22 @@ MTPInputInvoice Form::inputInvoice() const {
 			option);
 	}
 }
+#endif
+
+Tdb::TLinputInvoice Form::inputInvoice() const {
+	if (const auto slug = std::get_if<InvoiceSlug>(&_id.value)) {
+		return tl_inputInvoiceName(tl_string(slug->slug));
+	}
+	const auto message = v::get<InvoiceMessage>(_id.value);
+	return tl_inputInvoiceMessage(
+		peerToTdbChat(message.peer->id),
+		tl_int53(message.itemId.bare));
+}
 
 void Form::requestForm() {
 	showProgress();
 	_api.request(Tdb::TLgetPaymentForm(
-		peerToTdbChat(_peer->id),
-		Tdb::tl_int53(_msgId.bare),
+		inputInvoice(),
 		Window::Theme::WebViewTheme()
 	)).done([=](const Tdb::TLDpaymentForm &data) {
 		hideProgress();
@@ -580,8 +595,8 @@ void Form::requestReceipt() {
 	const auto message = v::get<InvoiceMessage>(_id.value);
 	showProgress();
 	_api.request(Tdb::TLgetPaymentReceipt(
-		peerToTdbChat(_peer->id),
-		Tdb::tl_int53(_msgId.bare)
+		peerToTdbChat(message.peer->id),
+		Tdb::tl_int53(message.itemId.bare)
 	)).done([=](const Tdb::TLDpaymentReceipt &data) {
 		hideProgress();
 		processReceipt(data);
@@ -838,14 +853,15 @@ void Form::processForm(const Tdb::TLDpaymentForm &data) {
 	if (const auto credentials = data.vsaved_credentials()) {
 		processSavedCredentials(credentials->data());
 	}
-	if (const auto provider = data.vpayments_provider()) {
-#if 0 // doLater - pending smartglocal provider from TDLib.
-#endif
-		fillStripeNativeMethod(provider->data());
-		refreshPaymentMethodDetails();
-	} else {
+	data.vpayment_provider().match([&](const TLDpaymentProviderOther &data) {
 		fillPaymentMethodInformation();
-	}
+	}, [&](const TLDpaymentProviderStripe &data) {
+		fillStripeNativeMethod(data);
+		refreshPaymentMethodDetails();
+	}, [&](const TLDpaymentProviderSmartGlocal &data) {
+		fillSmartGlocalNativeMethod(data);
+		refreshPaymentMethodDetails();
+	});
 	_updates.fire(FormReady{});
 }
 
@@ -897,11 +913,16 @@ void Form::processInvoice(const Tdb::TLDinvoice &data) {
 }
 
 void Form::processDetails(const Tdb::TLDpaymentForm &data) {
+	const auto url = data.vpayment_provider().match([&](
+			const TLDpaymentProviderOther &data) {
+		return data.vurl().v;
+	}, [](const auto &) { return QString(); });
+
 	_details = FormDetails{
 		.formId = static_cast<uint64>(data.vid().v),
-		.url = data.vurl().v,
+		.url = url,
 		.botId = data.vseller_bot_user_id(),
-		.providerId = data.vpayments_provider_user_id(),
+		.providerId = data.vpayment_provider_user_id(),
 		.canSaveCredentials = data.vcan_save_credentials().v,
 		.passwordMissing = data.vneed_password().v,
 	};
@@ -926,15 +947,17 @@ void Form::processDetails(const Tdb::TLDpaymentReceipt &data) {
 	};
 	_details = FormDetails{
 		.botId = data.vseller_bot_user_id(),
-		.providerId = data.vpayments_provider_user_id(),
+		.providerId = data.vpayment_provider_user_id(),
 	};
 	if (_invoice.cover.title.isEmpty()
-		&& _invoice.cover.description.isEmpty()
+		&& _invoice.cover.description.empty()
 		&& _invoice.cover.thumbnail.isNull()
 		&& !_thumbnailLoadProcess) {
 		_invoice.cover = Ui::Cover{
 			.title = data.vtitle().v,
-			.description = data.vdescription().v,
+			.description = Api::FormattedTextFromTdb(
+				_session,
+				data.vdescription()),
 		};
 		if (const auto photoPtr = data.vphoto()) {
 			const auto photo = _session->data().processPhoto(*photoPtr);
@@ -1052,7 +1075,7 @@ void Form::fillPaymentMethodInformation() {
 }
 
 void Form::fillStripeNativeMethod(
-		const Tdb::TLDpaymentsProviderStripe &data) {
+		const Tdb::TLDpaymentProviderStripe &data) {
 	_paymentMethod.native = NativePaymentMethod{
 		.data = StripePaymentMethod{
 			.publishableKey = data.vpublishable_key().v,
@@ -1063,6 +1086,21 @@ void Form::fillStripeNativeMethod(
 		.needCountry = data.vneed_country().v,
 		.needZip = data.vneed_postal_code().v,
 		.needCardholderName = data.vneed_cardholder_name().v,
+	};
+}
+
+void Form::fillSmartGlocalNativeMethod(
+		const Tdb::TLDpaymentProviderSmartGlocal &data) {
+	_paymentMethod.native = NativePaymentMethod{
+		.data = SmartGlocalPaymentMethod{
+			.publicToken = data.vpublic_token().v,
+		},
+	};
+	_paymentMethod.ui.native = Ui::NativeMethodDetails{
+		.supported = true,
+		.needCountry = false,
+		.needZip = false,
+		.needCardholderName = false,
 	};
 }
 
@@ -1141,8 +1179,7 @@ void Form::submit() {
 
 	showProgress();
 	_api.request(Tdb::TLsendPaymentForm(
-		peerToTdbChat(_peer->id),
-		Tdb::tl_int53(_msgId.bare),
+		inputInvoice(),
 		Tdb::tl_int64(_details.formId),
 		Tdb::tl_string(_requestedInformationId),
 		Tdb::tl_string(_shippingOptions.selectedId),
@@ -1276,8 +1313,7 @@ void Form::validateInformation(const Ui::RequestedInformation &information) {
 	using Flag = MTPpayments_ValidateRequestedInfo::Flag;
 #endif
 	_validateRequestId = _api.request(Tdb::TLvalidateOrderInfo(
-		peerToTdbChat(_peer->id),
-		Tdb::tl_int53(_msgId.bare),
+		inputInvoice(),
 		Serialize(information),
 		Tdb::tl_bool(information.save)
 #if 0 // goodToRemove

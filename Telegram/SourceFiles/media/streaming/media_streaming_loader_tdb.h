@@ -26,14 +26,14 @@ public:
 		not_null<Tdb::Account*> account,
 		FileId fileId,
 		Storage::Cache::Key baseCacheKey,
-		int size);
+		int64 size);
 	~LoaderTdb();
 
 	[[nodiscard]] Storage::Cache::Key baseCacheKey() const override;
-	[[nodiscard]] int size() const override;
+	[[nodiscard]] int64 size() const override;
 
-	void load(int offset) override;
-	void cancel(int offset) override;
+	void load(int64 offset) override;
+	void cancel(int64 offset) override;
 	void resetPriorities() override;
 	void setPriority(int priority) override;
 	void stop() override;
@@ -49,35 +49,35 @@ public:
 
 private:
 	[[nodiscard]] bool haveSentRequests() const;
-	[[nodiscard]] bool haveSentRequestForOffset(int offset) const;
-	void cancelRequestForOffset(int offset);
+	[[nodiscard]] bool haveSentRequestForOffset(int64 offset) const;
+	void cancelRequestForOffset(int64 offset);
 	void cancelRequest();
 
 	void addToQueue(int priority = 0);
 	void removeFromQueue();
 
-	void cancelForOffset(int offset);
+	void cancelForOffset(int64 offset);
 	void addToQueueWithPriority();
 	void cancelOnFail();
 	void apply(const Tdb::TLfile &file);
-	[[nodiscard]] int partSize(int offset) const;
+	[[nodiscard]] int64 partSize(int64 offset) const;
 
 	const not_null<Tdb::Account*> _account;
 	const FileId _fileId = 0;
 	const Storage::Cache::Key _baseCacheKey;
-	const int _size = 0;
+	const int64 _size = 0;
 	int _priority = 0;
 
 	Tdb::RequestId _requestId = 0;
-	int _requestedOffset = 0;
-	int _requestedLimit = 0;
+	int64 _requestedOffset = 0;
+	int64 _requestedLimit = 0;
 	int _requestedPriority = 0;
-	int _loadedTill = 0;
+	int64 _loadedTill = 0;
 	bool _loadingActive = false;
-	base::flat_set<int> _waitingOffsets;
+	base::flat_set<int64> _waitingOffsets;
 	rpl::lifetime _loadingLifetime;
 	std::unique_ptr<Tdb::FileProxy> _proxy;
-	int _proxyPosition = 0;
+	int64 _proxyPosition = 0;
 
 	PriorityQueue _requested;
 	rpl::event_stream<LoadedPart> _parts;

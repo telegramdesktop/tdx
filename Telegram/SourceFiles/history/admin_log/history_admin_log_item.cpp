@@ -244,6 +244,37 @@ bool MediaCanHaveCaption(const Tdb::TLmessage &message) {
 	});
 }
 
+FileId MediaId(const Tdb::TLmessage &message) {
+	if (!MediaCanHaveCaption(message)) {
+		return FileId();
+	}
+
+	using namespace Tdb;
+	const auto &content = message.data().vcontent();
+	return content.match([&](const TLDmessageAnimation &data) {
+		return data.vanimation().data().vanimation().data().vid().v;
+	}, [&](const TLDmessageAudio &data) {
+		return data.vaudio().data().vaudio().data().vid().v;
+	}, [&](const TLDmessageDocument &data) {
+		return data.vdocument().data().vdocument().data().vid().v;
+	}, [&](const TLDmessagePhoto &data) {
+		const auto &sizes = data.vphoto().data().vsizes().v;
+		return sizes.empty()
+			? FileId()
+			: sizes.front().data().vphoto().data().vid().v;
+	}, [&](const TLDmessageSticker &data) {
+		return data.vsticker().data().vsticker().data().vid().v;
+	}, [&](const TLDmessageVideo &data) {
+		return data.vvideo().data().vvideo().data().vid().v;
+	}, [&](const TLDmessageVideoNote &data) {
+		return data.vvideo_note().data().vvideo().data().vid().v;
+	}, [&](const TLDmessageVoiceNote &data) {
+		return data.vvoice_note().data().vvoice().data().vid().v;
+	}, [](const auto &data) {
+		return FileId();
+	});
+}
+
 [[nodiscard]] MsgId ExtractRealMsgId(const Tdb::TLmessage &message) {
 	return message.data().vid().v;
 }
@@ -1186,15 +1217,24 @@ void GenerateItems(
 		const auto newValue = ExtractEditedText(
 			session,
 			action.vnew_message());
+#if 0 // mtp
 		auto oldValue = ExtractEditedText(
 			session,
 			action.vprev_message());
+#endif
+		auto oldValue = ExtractEditedText(
+			session,
+			action.vold_message());
 
 		const auto canHaveCaption = MediaCanHaveCaption(
 			action.vnew_message());
 		const auto changedCaption = (newValue != oldValue);
+#if 0 // mtp
 		const auto changedMedia = MediaId(action.vnew_message())
 			!= MediaId(action.vprev_message());
+#endif
+		const auto changedMedia = MediaId(action.vnew_message())
+			!= MediaId(action.vold_message());
 		const auto removedCaption = !oldValue.text.isEmpty()
 			&& newValue.text.isEmpty();
 		const auto text = (!canHaveCaption

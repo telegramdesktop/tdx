@@ -2657,8 +2657,8 @@ void FormController::loadFile(File &file) {
 	_api.request(TLdownloadFile(
 		tl_int32(file.id),
 		tl_int32(1),
-		tl_int32(file.downloadStatus.offset()),
-		tl_int32(0),
+		tl_int64(file.downloadStatus.offset()),
+		tl_int64(0),
 		tl_bool(false))
 	).done([=](const TLDfile &data) {
 		if (const auto [value, file] = findFile(key); file != nullptr) {
