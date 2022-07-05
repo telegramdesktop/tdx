@@ -27,6 +27,8 @@ public:
 	Changed update(const std::vector<BotCommands> &list);
 };
 
+#if 0 // mtp
 [[nodiscard]] BotCommands BotCommandsFromTL(const MTPBotInfo &result);
+#endif
 
 } // namespace Data
