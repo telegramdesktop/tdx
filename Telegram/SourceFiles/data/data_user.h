@@ -123,7 +123,10 @@ public:
 	void setUsername(const QString &username);
 	void setPhone(const QString &newPhone);
 	void setBotInfoVersion(int version);
+#if 0 // mtp
 	void setBotInfo(const MTPBotInfo &info);
+#endif
+	void setBotInfo(const Tdb::TLbotInfo &info);
 
 	void setNameOrPhone(const QString &newNameOrPhone);
 

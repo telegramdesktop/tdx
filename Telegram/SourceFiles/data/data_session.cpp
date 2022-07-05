@@ -1172,9 +1172,36 @@ not_null<UserData*> Session::processUser(const TLuser &user) {
 		result->clearPhoto();
 	}
 	result->setUnavailableReasons({}); // todo
-	//result->setFlags(UserDataFlag::Inaccessible);
-	//result->setFlags(UserDataFlag::Deleted);
-	result->setBotInfoVersion(-1); // todo
+
+	data.vtype().match([&](const TLDuserTypeRegular &) {
+		result->setFlags(result->flags() & ~UserDataFlag::Deleted);
+		result->setBotInfoVersion(-1);
+	}, [&](const TLDuserTypeDeleted &) {
+		result->setFlags(result->flags() | UserDataFlag::Deleted);
+		result->setBotInfoVersion(-1);
+	}, [&](const TLDuserTypeBot &data) {
+		auto flags = result->flags() & ~UserDataFlag::Deleted;
+		if (data.vneed_location().v) {
+			flags |= UserDataFlag::BotInlineGeo;
+		} else {
+			flags &= ~UserDataFlag::BotInlineGeo;
+		}
+		result->setFlags(flags);
+		result->setBotInfoVersion(1);
+		result->botInfo->supportsBusiness
+			= data.vcan_connect_to_business().v;
+		result->botInfo->cantJoinGroups = !data.vcan_join_groups().v;
+		result->botInfo->readsAllHistory
+			= data.vcan_read_all_group_messages().v;
+		result->botInfo->inlinePlaceholder = data.vis_inline().v
+			? ('_' + data.vinline_query_placeholder().v)
+			: QString();
+		result->botInfo->supportsAttachMenu
+			= data.vcan_be_added_to_attachment_menu().v;
+	}, [&](const TLDuserTypeUnknown) {
+		result->setFlags(result->flags() | UserDataFlag::Deleted);
+		result->setBotInfoVersion(-1);
+	});
 	result->setIsContact(data.vis_contact().v);
 	if (canShareThisContact != result->canShareThisContactFast()) {
 		updateFlags |= UpdateFlag::CanShareContact;
