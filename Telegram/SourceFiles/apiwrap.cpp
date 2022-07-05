@@ -2217,7 +2217,12 @@ void ApiWrap::clearHistory(not_null<PeerData*> peer, bool revoke) {
 }
 
 void ApiWrap::deleteConversation(not_null<PeerData*> peer, bool revoke) {
-#if 0 // todo
+	sender().request(TLdeleteChatHistory(
+		peerToTdbChat(peer->id),
+		tl_bool(true),
+		tl_bool(revoke)
+	)).send();
+#if 0 // mtp
 	if (const auto chat = peer->asChat()) {
 		request(MTPmessages_DeleteChatUser(
 			MTP_flags(0),
