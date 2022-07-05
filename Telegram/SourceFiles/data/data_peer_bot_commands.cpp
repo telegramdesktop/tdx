@@ -27,6 +27,7 @@ ChatBotCommands::Changed ChatBotCommands::update(
 	return changed;
 }
 
+#if 0 // mtp
 BotCommands BotCommandsFromTL(const MTPBotInfo &result) {
 	return result.match([](const MTPDbotInfo &data) {
 		const auto userId = data.vuser_id()
@@ -44,5 +45,6 @@ BotCommands BotCommandsFromTL(const MTPBotInfo &result) {
 		};
 	});
 }
+#endif
 
 } // namespace Data

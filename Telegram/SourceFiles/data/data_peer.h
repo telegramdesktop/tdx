@@ -34,6 +34,7 @@ namespace Tdb {
 class TLprofilePhoto;
 class TLchatPhotoInfo;
 class TLchatPhoto;
+class TLbotMenuButton;
 } // namespace Tdb
 
 namespace Data {
@@ -112,9 +113,14 @@ struct UnavailableReason {
 		const MTPvector<MTPRestrictionReason> *list);
 };
 
+#if 0 // mtp
 bool ApplyBotMenuButton(
 	not_null<BotInfo*> info,
 	const MTPBotMenuButton *button);
+#endif
+bool ApplyBotMenuButton(
+	not_null<BotInfo*> info,
+	const Tdb::TLbotMenuButton *button);
 
 enum class AllowedReactionsType : uchar {
 	All,
