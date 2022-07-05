@@ -1923,12 +1923,51 @@ void ApiWrap::saveStickerSets(
 }
 
 void ApiWrap::joinChannel(not_null<ChannelData*> channel) {
-#if 0 // todo
 	if (channel->amIn()) {
 		session().changes().peerUpdated(
 			channel,
 			Data::PeerUpdate::Flag::ChannelAmIn);
 	} else if (!_channelAmInRequests.contains(channel)) {
+		const auto requestId = sender().request(TLjoinChat(
+			peerToTdbChat(channel->id)
+		)).done([=] {
+			_channelAmInRequests.remove(channel);
+		}).fail([=](const Error &error) {
+			const auto &type = error.message;
+
+			const auto show = ShowForPeer(channel);
+			if (type == u"CHANNEL_PRIVATE"_q
+				&& channel->invitePeekExpires()) {
+				channel->privateErrorReceived();
+			} else if (type == u"CHANNELS_TOO_MUCH"_q) {
+				ShowChannelsLimitBox(channel);
+			} else {
+				const auto text = [&] {
+					if (type == u"INVITE_REQUEST_SENT"_q) {
+						return channel->isMegagroup()
+							? tr::lng_group_request_sent(tr::now)
+							: tr::lng_group_request_sent_channel(tr::now);
+					} else if (type == u"CHANNEL_PRIVATE"_q
+						|| type == u"CHANNEL_PUBLIC_GROUP_NA"_q
+						|| type == u"USER_BANNED_IN_CHANNEL"_q) {
+						return channel->isMegagroup()
+							? tr::lng_group_not_accessible(tr::now)
+							: tr::lng_channel_not_accessible(tr::now);
+					} else if (type == u"USERS_TOO_MUCH"_q) {
+						return tr::lng_group_full(tr::now);
+					}
+					return QString();
+				}();
+				if (!text.isEmpty() && show->valid()) {
+					show->showToast({
+						.text = { text },
+						.duration = kJoinErrorDuration,
+					});
+				}
+			}
+			_channelAmInRequests.remove(channel);
+		}).send();
+#if 0 // mtp
 		const auto requestId = request(MTPchannels_JoinChannel(
 			channel->inputChannel
 		)).done([=](const MTPUpdates &result) {
@@ -1966,6 +2005,7 @@ void ApiWrap::joinChannel(not_null<ChannelData*> channel) {
 			}
 			_channelAmInRequests.remove(channel);
 		}).send();
+#endif
 
 		_channelAmInRequests.emplace(channel, requestId);
 
@@ -1973,7 +2013,6 @@ void ApiWrap::joinChannel(not_null<ChannelData*> channel) {
 		chatParticipants().loadSimilarChannels(channel);
 		channel->setFlags(channel->flags() | Flag::SimilarExpanded);
 	}
-#endif
 }
 
 void ApiWrap::leaveChannel(not_null<ChannelData*> channel) {

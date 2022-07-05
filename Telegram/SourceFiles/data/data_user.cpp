@@ -322,6 +322,7 @@ void UserData::setBotInfoVersion(int version) {
 	}
 }
 
+#if 0 // mtp
 void UserData::setBotInfo(const MTPBotInfo &info) {
 	switch (info.type()) {
 	case mtpc_botInfo: {
@@ -383,6 +384,35 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 			owner().botCommandsChanged(this);
 		}
 	} break;
+	}
+}
+#endif
+
+void UserData::setBotInfo(const TLbotInfo &info) {
+	const auto &data = info.data();
+	setBotInfoVersion(1);
+	const auto description = data.vdescription().v;
+	if (botInfo->description != description) {
+		botInfo->description = description;
+		botInfo->text = Ui::Text::String(st::msgMinWidth);
+	}
+	auto commands = ranges::views::all(
+		data.vcommands().v
+	) | ranges::views::transform(
+		Data::BotCommandFromTL
+	) | ranges::to_vector;
+	const auto changedCommands = !ranges::equal(
+		botInfo->commands,
+		commands);
+	botInfo->commands = std::move(commands);
+
+	const auto changedButton = Data::ApplyBotMenuButton(
+		botInfo.get(),
+		data.vmenu_button());
+	botInfo->inited = true;
+
+	if (changedCommands || changedButton) {
+		owner().botCommandsChanged(this);
 	}
 }
 
@@ -730,11 +760,11 @@ void ApplyUserUpdate(
 
 	//update.vcommands(); // todo
 	//update.vdescription();
-	//if (const auto info = update.vbot_info()) {
-	//	user->setBotInfo(*info);
-	//} else {
-	//	user->setBotInfoVersion(-1);
-	//}
+	if (const auto info = update.vbot_info()) {
+		user->setBotInfo(*info);
+	} else {
+		user->setBotInfoVersion(-1);
+	}
 
 	//if (const auto pinned = update.vpinned_msg_id()) {
 	//	SetTopPinnedMessageId(user, pinned->v);

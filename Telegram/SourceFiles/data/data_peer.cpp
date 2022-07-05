@@ -138,6 +138,7 @@ std::vector<UnavailableReason> UnavailableReason::Extract(
 	}) | ranges::to_vector;
 }
 
+#if 0 // mtp
 bool ApplyBotMenuButton(
 		not_null<BotInfo*> info,
 		const MTPBotMenuButton *button) {
@@ -156,6 +157,24 @@ bool ApplyBotMenuButton(
 	info->botMenuButtonText = text;
 	info->botMenuButtonUrl = url;
 
+	return changed;
+}
+#endif
+
+bool ApplyBotMenuButton(
+		not_null<BotInfo*> info,
+		const TLbotMenuButton *button) {
+	auto text = QString();
+	auto url = QString();
+	if (button) {
+		const auto &data = button->data();
+		const auto text = data.vtext().v;
+		const auto url = data.vurl().v;
+	}
+	const auto changed = (info->botMenuButtonText != text)
+		|| (info->botMenuButtonUrl != url);
+	info->botMenuButtonText = text;
+	info->botMenuButtonUrl = url;
 	return changed;
 }
 

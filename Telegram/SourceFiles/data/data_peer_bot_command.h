@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Tdb {
+class TLbotCommand;
+} // namespace Tdb
+
 namespace Data {
 
 struct BotCommand final {
@@ -18,6 +22,9 @@ struct BotCommand final {
 		const BotCommand &) = default;
 };
 
+#if 0 // mtp
 [[nodiscard]] BotCommand BotCommandFromTL(const MTPBotCommand &result);
+#endif
+[[nodiscard]] BotCommand BotCommandFromTL(const Tdb::TLbotCommand &result);
 
 } // namespace Data
