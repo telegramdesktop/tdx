@@ -103,6 +103,7 @@ QString StickerToast::lookupTitle() const {
 void StickerToast::requestSet() {
 	Expects(_for != nullptr);
 
+#if 0 // todo
 	if (const auto sticker = _for->sticker()) {
 		const auto api = &_controller->session().api();
 		_setRequestId = api->request(MTPmessages_GetStickerSet(
@@ -122,6 +123,7 @@ void StickerToast::requestSet() {
 			_setRequestId = 0;
 		}).send();
 	}
+#endif
 }
 
 void StickerToast::cancelRequest() {
