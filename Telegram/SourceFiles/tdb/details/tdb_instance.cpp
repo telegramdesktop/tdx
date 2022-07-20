@@ -87,6 +87,8 @@ public:
 	explicit Impl(InstanceConfig &&config);
 	~Impl();
 
+	void checkEncryptionKey(bytes::const_span key);
+
 	[[nodiscard]] RequestId allocateRequestId() const;
 	void sendPrepared(
 		RequestId requestId,
@@ -128,7 +130,6 @@ private:
 	};
 
 	void sendTdlibParameters();
-	void sendEncryptionKey();
 	void sendToManager(
 		RequestId requestId,
 		ExternalGenerator &&request,
@@ -359,6 +360,19 @@ Instance::Impl::~Impl() {
 	_manager->destroyClient(_client);
 }
 
+void Instance::Impl::checkEncryptionKey(bytes::const_span key) {
+	const auto fail = [=](Error error) {
+		LOG(("Critical Error: Invalid local key - %1").arg(error.message));
+		send(allocateRequestId(), TLdestroy(), nullptr, nullptr, true);
+	};
+	send(
+		allocateRequestId(),
+		TLcheckDatabaseEncryptionKey(tl_bytes(key)),
+		nullptr,
+		fail,
+		true);
+}
+
 RequestId Instance::Impl::allocateRequestId() const {
 	return _manager->allocateRequestId();
 }
@@ -433,7 +447,7 @@ void Instance::Impl::handleUpdate(TLupdate &&update) {
 		data.vauthorization_state().match([](
 			const TLDauthorizationStateWaitTdlibParameters &) {
 		}, [&](const TLDauthorizationStateWaitEncryptionKey &data) {
-			sendEncryptionKey(); // todo local passcode
+			_updates.fire(std::move(update));
 		}, [&](const TLDauthorizationStateLoggingOut &) {
 			_ready = false;
 		}, [&](const TLDauthorizationStateClosing &) {
@@ -493,20 +507,15 @@ void Instance::Impl::sendTdlibParameters() {
 		true);
 }
 
-void Instance::Impl::sendEncryptionKey() {
-	send(
-		allocateRequestId(),
-		TLcheckDatabaseEncryptionKey(tl_bytes()),
-		nullptr,
-		nullptr,
-		true);
-}
-
 Instance::Instance(InstanceConfig &&config)
 : _impl(std::make_unique<Impl>(std::move(config))) {
 }
 
 Instance::~Instance() = default;
+
+void Instance::checkEncryptionKey(bytes::const_span key) {
+	_impl->checkEncryptionKey(key);
+}
 
 RequestId Instance::allocateRequestId() const {
 	return _impl->allocateRequestId();
