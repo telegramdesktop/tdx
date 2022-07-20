@@ -308,6 +308,7 @@ void Widget::handleAuthorizationState(const TLauthorizationState &state) {
 	}, [&](const TLDauthorizationStateWaitRegistration &data) {
 		fillTerms(data.vterms_of_service());
 	}, [&](const TLDauthorizationStateWaitPassword &data) {
+		getData()->pwdState.hasPassword = true;
 		getData()->pwdState.hasRecovery
 			= data.vhas_recovery_email_address().v;
 		getData()->pwdState.hint = data.vpassword_hint().v;
