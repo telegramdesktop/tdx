@@ -260,6 +260,12 @@ void Domain::setPasscode(const QByteArray &passcode) {
 	_passcodeKeyChanged.fire({});
 }
 
+not_null<const MTP::AuthKey*> Domain::tdbKey() const {
+	Expects(_localKey != nullptr);
+
+	return _localKey.get();
+}
+
 int Domain::oldVersion() const {
 	return _oldVersion;
 }
