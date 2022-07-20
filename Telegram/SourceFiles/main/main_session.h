@@ -97,7 +97,7 @@ public:
 	[[nodiscard]] Storage::Domain &domainLocal() const;
 
 	[[nodiscard]] Tdb::Account &tdb() const;
-	[[nodiscard]] Tdb::Sender &sender() const;
+	[[nodiscard]] Tdb::Sender &sender();
 
 	[[nodiscard]] bool premium() const;
 	[[nodiscard]] bool premiumPossible() const;
@@ -217,6 +217,7 @@ private:
 	static constexpr auto kDefaultSaveDelay = crl::time(1000);
 
 	const not_null<Account*> _account;
+	const std::unique_ptr<Tdb::Sender> _sender;
 
 	const std::unique_ptr<SessionSettings> _settings;
 	const std::unique_ptr<Data::Changes> _changes;

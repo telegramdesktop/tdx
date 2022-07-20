@@ -83,6 +83,7 @@ Session::Session(
 	const Tdb::TLuser &user,
 	std::unique_ptr<SessionSettings> settings)
 : _account(account)
+, _sender(std::make_unique<Tdb::Sender>(&_account->sender()))
 , _settings(std::move(settings))
 , _changes(std::make_unique<Data::Changes>(this))
 , _api(std::make_unique<ApiWrap>(this))
@@ -240,8 +241,8 @@ Tdb::Account &Session::tdb() const {
 	return _account->tdb();
 }
 
-Tdb::Sender &Session::sender() const {
-	return _account->sender();
+Tdb::Sender &Session::sender() {
+	return *_sender;
 }
 
 void Session::notifyDownloaderTaskFinished() {
