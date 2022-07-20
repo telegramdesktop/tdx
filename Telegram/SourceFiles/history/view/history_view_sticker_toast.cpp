@@ -25,8 +25,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "styles/style_chat.h"
 
+#include "tdb/tdb_sender.h"
+
 namespace HistoryView {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kPremiumToastDuration = 5 * crl::time(1000);
 
@@ -103,7 +107,19 @@ QString StickerToast::lookupTitle() const {
 void StickerToast::requestSet() {
 	Expects(_for != nullptr);
 
-#if 0 // todo
+	if (const auto sticker = _for->sticker()) {
+		const auto sender = &_controller->session().sender();
+		_setRequestId = sender->request(TLgetStickerSet(
+			tl_int64(sticker->set.id)
+		)).done([=](const TLstickerSet &result) {
+			_setRequestId = 0;
+			const auto owner = &_controller->session().data();
+			showWithTitle(owner->stickers().getSetTitle(result.data()));
+		}).fail([=] {
+			_setRequestId = 0;
+		}).send();
+	}
+#if 0 // mtp
 	if (const auto sticker = _for->sticker()) {
 		const auto api = &_controller->session().api();
 		_setRequestId = api->request(MTPmessages_GetStickerSet(
@@ -127,7 +143,11 @@ void StickerToast::requestSet() {
 }
 
 void StickerToast::cancelRequest() {
+	_controller->session().sender().request(
+		base::take(_setRequestId)).cancel();
+#if 0 // mtp
 	_controller->session().api().request(base::take(_setRequestId)).cancel();
+#endif
 }
 
 void StickerToast::showWithTitle(const QString &title) {
