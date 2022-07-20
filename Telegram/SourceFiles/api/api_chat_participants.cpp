@@ -491,7 +491,7 @@ void ChatParticipants::requestBots(not_null<ChannelData*> channel) {
 	)).done([=](const Tdb::TLDchatMembers &data) {
 		_botsRequests.remove(channel);
 		const auto &[availableCount, list] = Parse(channel, data);
-		ApplyLastList(channel, availableCount, list);
+		ApplyBotsList(channel, availableCount, list);
 	}).fail([=] {
 		_botsRequests.remove(channel);
 	}).send();
