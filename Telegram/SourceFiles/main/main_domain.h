@@ -41,6 +41,8 @@ public:
 	void resetWithForgottenPasscode();
 	void finish();
 
+	[[nodiscard]] bytes::const_span tdbKey() const;
+
 	[[nodiscard]] int maxAccounts() const;
 	[[nodiscard]] rpl::producer<int> maxAccountsChanges() const;
 
