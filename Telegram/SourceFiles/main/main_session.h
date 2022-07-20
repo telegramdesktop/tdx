@@ -266,6 +266,7 @@ private:
 
 	const UserId _userId;
 	const not_null<Account*> _account;
+	const std::unique_ptr<Tdb::Sender> _sender;
 
 	const std::unique_ptr<SessionSettings> _settings;
 	const std::unique_ptr<Data::Changes> _changes;
