@@ -24,6 +24,8 @@ public:
 		return _sender;
 	}
 
+	void checkEncryptionKey(bytes::const_span key);
+
 	[[nodiscard]] rpl::producer<TLupdate> updates() const;
 	void logout();
 	void reset();

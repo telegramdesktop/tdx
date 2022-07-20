@@ -41,6 +41,8 @@ public:
 	[[nodiscard]] bool checkPasscode(const QByteArray &passcode) const;
 	void setPasscode(const QByteArray &passcode);
 
+	[[nodiscard]] not_null<const MTP::AuthKey*> tdbKey() const;
+
 	[[nodiscard]] int oldVersion() const;
 	void clearOldVersion();
 
