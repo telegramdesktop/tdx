@@ -75,6 +75,8 @@ public:
 	explicit Instance(InstanceConfig &&config);
 	~Instance();
 
+	void checkEncryptionKey(bytes::const_span key);
+
 	// Thread safe.
 	[[nodiscard]] RequestId allocateRequestId() const;
 	template <
