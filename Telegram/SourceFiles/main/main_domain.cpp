@@ -105,6 +105,10 @@ void Domain::finish() {
 	base::take(_accounts);
 }
 
+bytes::const_span Domain::tdbKey() const {
+	return local().tdbKey()->data();
+}
+
 void Domain::suggestExportIfNeeded() {
 	Expects(started());
 
