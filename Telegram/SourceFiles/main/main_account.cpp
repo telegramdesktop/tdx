@@ -126,6 +126,7 @@ std::unique_ptr<Tdb::Account> Account::createTdb() {
 			data.vauthorization_state().match([&](
 					const TLDauthorizationStateWaitTdlibParameters &) {
 			}, [&](const TLDauthorizationStateWaitEncryptionKey &) {
+				_tdb->checkEncryptionKey(domain().tdbKey());
 			}, [&](const TLDauthorizationStateReady &) {
 			}, [&](const TLDauthorizationStateLoggingOut &) {
 			}, [&](const TLDauthorizationStateClosing &) {

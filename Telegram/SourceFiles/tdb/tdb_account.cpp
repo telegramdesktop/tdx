@@ -22,6 +22,10 @@ Account::Account(AccountConfig &&config)
 	}, _lifetime);
 }
 
+void Account::checkEncryptionKey(bytes::const_span key) {
+	_instance.checkEncryptionKey(key);
+}
+
 void Account::logout() {
 	_instance.logout();
 }
