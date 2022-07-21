@@ -1995,8 +1995,8 @@ void ApiWrap::leaveChannel(not_null<ChannelData*> channel) {
 #endif
 }
 
+#if 0 // mtp
 void ApiWrap::requestNotifySettings(const MTPInputNotifyPeer &peer) {
-#if 0 // todo
 	const auto bad = peer.match([](const MTPDinputNotifyUsers &) {
 		return false;
 	}, [](const MTPDinputNotifyChats &) {
@@ -2076,7 +2076,40 @@ void ApiWrap::requestNotifySettings(const MTPInputNotifyPeer &peer) {
 		_notifySettingRequests.erase(key);
 	}).send();
 	_notifySettingRequests.emplace(key, requestId);
+}
 #endif
+
+void ApiWrap::requestDefaultNotifySettings() {
+	requestDefaultNotifySettings(Data::DefaultNotify::User);
+	requestDefaultNotifySettings(Data::DefaultNotify::Group);
+	requestDefaultNotifySettings(Data::DefaultNotify::Broadcast);
+}
+
+void ApiWrap::requestDefaultNotifySettings(Data::DefaultNotify type) {
+	const auto key = [&] {
+		switch (type) {
+		case Data::DefaultNotify::User: return peerFromUser(0);
+		case Data::DefaultNotify::Group: return peerFromChat(0);
+		case Data::DefaultNotify::Broadcast: return peerFromChannel(0);
+		}
+		Unexpected("Type in requestDefaultNotifySettings.");
+	}();
+	if (_notifySettingRequests.find(key) != end(_notifySettingRequests)) {
+		return;
+	}
+	const auto requestId = sender().request(TLgetScopeNotificationSettings(
+		DefaultNotifyScope(type)
+	)).done([=](const TLscopeNotificationSettings &result) {
+		_session->data().notifySettings().apply(type, result);
+		_notifySettingRequests.erase(key);
+	}).fail([=] {
+		_session->data().notifySettings().apply(
+			type,
+			Data::PeerNotifySettings::ScopeDefault());
+		_notifySettingRequests.erase(key);
+	}).send();
+
+	_notifySettingRequests.emplace(key, requestId);
 }
 
 void ApiWrap::updateNotifySettingsDelayed(
@@ -2109,25 +2142,39 @@ void ApiWrap::updateNotifySettingsDelayed(Data::DefaultNotify type) {
 void ApiWrap::sendNotifySettingsUpdates() {
 	_updateNotifyQueueLifetime.destroy();
 	for (const auto topic : base::take(_updateNotifyTopics)) {
+#if 0 // todo topics
 		request(MTPaccount_UpdateNotifySettings(
 			MTP_inputNotifyForumTopic(
 				topic->channel()->input,
 				MTP_int(topic->rootId())),
 			topic->notify().serialize()
 		)).afterDelay(kSmallDelayMs).send();
+#endif
 	}
 	for (const auto peer : base::take(_updateNotifyPeers)) {
+		sender().request(TLsetChatNotificationSettings(
+			peerToTdbChat(peer->id),
+			peer->notify().serialize()
+		)).send();
+#if 0 // mtp
 		request(MTPaccount_UpdateNotifySettings(
 			MTP_inputNotifyPeer(peer->input),
 			peer->notify().serialize()
 		)).afterDelay(kSmallDelayMs).send();
+#endif
 	}
 	const auto &settings = session().data().notifySettings();
 	for (const auto type : base::take(_updateNotifyDefaults)) {
+		sender().request(TLsetScopeNotificationSettings(
+			DefaultNotifyScope(type),
+			settings.defaultSettings(type).serializeDefault()
+		)).send();
+#if 0 // mtp
 		request(MTPaccount_UpdateNotifySettings(
 			Data::DefaultNotifyToMTP(type),
 			settings.defaultSettings(type).serialize()
 		)).afterDelay(kSmallDelayMs).send();
+#endif
 	}
 	session().mtp().sendAnything();
 }
