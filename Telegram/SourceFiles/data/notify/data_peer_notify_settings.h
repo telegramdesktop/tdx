@@ -7,6 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Tdb {
+class TLchatNotificationSettings;
+class TLscopeNotificationSettings;
+} // namespace Tdb
+
 namespace Data {
 
 class NotifyPeerSettingsValue;
@@ -40,7 +45,13 @@ class PeerNotifySettings {
 public:
 	PeerNotifySettings();
 
+	[[nodiscard]] static Tdb::TLchatNotificationSettings Default();
+	[[nodiscard]] static Tdb::TLscopeNotificationSettings ScopeDefault();
+
+#if 0 // mtp
 	bool change(const MTPPeerNotifySettings &settings);
+#endif
+	bool change(const Tdb::TLchatNotificationSettings &settings);
 	bool change(
 		MuteValue muteForSeconds,
 		std::optional<bool> silentPosts,
@@ -52,7 +63,11 @@ public:
 	std::optional<TimeId> muteUntil() const;
 	std::optional<bool> silentPosts() const;
 	std::optional<NotifySound> sound() const;
+#if 0 // mtp
 	MTPinputPeerNotifySettings serialize() const;
+#endif
+	[[nodiscard]] Tdb::TLchatNotificationSettings serialize() const;
+	[[nodiscard]] Tdb::TLscopeNotificationSettings serializeDefault() const;
 
 	~PeerNotifySettings();
 
