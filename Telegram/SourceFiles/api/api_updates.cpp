@@ -2910,7 +2910,22 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateReactions &data) {
 		owner.reactions().refresh(data.vreactions());
 	}, [&](const TLDupdateChatNotificationSettings &data) {
+		const auto peer = owner.peerLoaded(peerFromTdbChat(data.vchat_id()));
+		if (peer) {
+			owner.notifySettings().apply(
+				peer,
+				data.vnotification_settings());
+		}
 	}, [&](const TLDupdateScopeNotificationSettings &data) {
+		const auto type = data.vscope().match([](
+				const TLDnotificationSettingsScopePrivateChats &) {
+			return Data::DefaultNotify::User;
+		}, [](const TLDnotificationSettingsScopeGroupChats &) {
+			return Data::DefaultNotify::Group;
+		}, [](const TLDnotificationSettingsScopeChannelChats &) {
+			return Data::DefaultNotify::Broadcast;
+		});
+		owner.notifySettings().apply(type, data.vnotification_settings());
 	}, [&](const TLDupdateChatMessageTtl &data) {
 	}, [&](const TLDupdateChatActionBar &data) {
 	}, [&](const TLDupdateChatTheme &data) {
