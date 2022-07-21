@@ -27,6 +27,7 @@ namespace Tdb {
 class Account;
 class Sender;
 class TLstickerSet;
+class TLscopeNotificationSettings;
 } // namespace Tdb
 
 namespace Main {
@@ -267,7 +268,11 @@ public:
 	void joinChannel(not_null<ChannelData*> channel);
 	void leaveChannel(not_null<ChannelData*> channel);
 
+#if 0 // mtp
 	void requestNotifySettings(const MTPInputNotifyPeer &peer);
+#endif
+	void requestDefaultNotifySettings();
+	void requestDefaultNotifySettings(Data::DefaultNotify type);
 	void updateNotifySettingsDelayed(not_null<const Data::Thread*> thread);
 	void updateNotifySettingsDelayed(not_null<const PeerData*> peer);
 	void updateNotifySettingsDelayed(Data::DefaultNotify type);

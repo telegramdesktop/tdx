@@ -26,8 +26,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "window/notifications_manager.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Data {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kMaxNotifyCheckDelay = 24 * 3600 * crl::time(1000);
 
@@ -63,6 +67,7 @@ DefaultNotify DefaultNotifyType(not_null<const PeerData*> peer) {
 		: DefaultNotify::Broadcast;
 }
 
+#if 0 // mtp
 MTPInputNotifyPeer DefaultNotifyToMTP(DefaultNotify type) {
 	switch (type) {
 	case DefaultNotify::User: return MTP_inputNotifyUsers();
@@ -71,6 +76,19 @@ MTPInputNotifyPeer DefaultNotifyToMTP(DefaultNotify type) {
 	}
 	Unexpected("Default notify type in sendNotifySettingsUpdates");
 }
+#endif
+
+Tdb::TLnotificationSettingsScope DefaultNotifyScope(DefaultNotify type) {
+	switch (type) {
+	case DefaultNotify::User:
+		return tl_notificationSettingsScopePrivateChats();
+	case DefaultNotify::Group:
+		return tl_notificationSettingsScopeGroupChats();
+	case DefaultNotify::Broadcast:
+		return tl_notificationSettingsScopeChannelChats();
+	}
+	Unexpected("Type in requestDefaultNotifySettings.");
+}
 
 NotifySettings::NotifySettings(not_null<Session*> owner)
 : _owner(owner)
@@ -78,16 +96,25 @@ NotifySettings::NotifySettings(not_null<Session*> owner)
 }
 
 void NotifySettings::request(not_null<PeerData*> peer) {
+#if 0 // mtp
 	if (peer->notify().settingsUnknown()) {
 		peer->session().api().requestNotifySettings(
 			MTP_inputNotifyPeer(peer->input));
 	}
+#endif
 	if (defaultSettings(peer).settingsUnknown()) {
+#if 0 // mtp
 		peer->session().api().requestNotifySettings(peer->isUser()
 			? MTP_inputNotifyUsers()
 			: (peer->isChat() || peer->isMegagroup())
 			? MTP_inputNotifyChats()
 			: MTP_inputNotifyBroadcasts());
+#endif
+		peer->session().api().requestDefaultNotifySettings(peer->isUser()
+			? DefaultNotify::User
+			: peer->isBroadcast()
+			? DefaultNotify::Broadcast
+			: DefaultNotify::Group);
 	}
 }
 
@@ -103,6 +130,7 @@ void NotifySettings::request(not_null<Thread*> thread) {
 	request(thread->peer());
 }
 
+#if 0 // mtp
 void NotifySettings::apply(
 		const MTPNotifyPeer &notifyPeer,
 		const MTPPeerNotifySettings &settings) {
@@ -229,6 +257,7 @@ void NotifySettings::resetToDefault(not_null<Thread*> thread) {
 		Core::App().notifications().checkDelayed();
 	}
 }
+#endif
 
 void NotifySettings::update(
 		not_null<PeerData*> peer,
@@ -263,6 +292,39 @@ void NotifySettings::forumParentMuteUpdated(not_null<Forum*> forum) {
 			updateLocal(topic);
 		}
 	});
+}
+
+void NotifySettings::apply(
+		not_null<PeerData*> peer,
+		const TLchatNotificationSettings &settings) {
+	if (peer->notify().change(settings)) {
+		updateException(peer);
+		updateLocal(peer);
+	}
+}
+
+void NotifySettings::apply(
+		not_null<ForumTopic*> topic,
+		const TLchatNotificationSettings &settings) {
+	if (topic->notify().change(settings)) {
+		updateLocal(topic);
+	}
+}
+
+void NotifySettings::apply(
+		DefaultNotify type,
+		const TLscopeNotificationSettings &settings) {
+	auto &forType = defaultValue(type).settings;
+	const auto &data = settings.data();
+	const auto soundId = data.vsound_id().v;
+	const auto sound = NotifySound{
+		.id = DocumentId((soundId == -1) ? 0 : soundId),
+		.none = !soundId,
+	};
+	if (forType.change(data.vmute_for().v, std::nullopt, sound)) {
+		updateLocal(type);
+	}
+	Core::App().notifications().checkDelayed();
 }
 
 auto NotifySettings::defaultValue(DefaultNotify type)
@@ -596,6 +658,7 @@ void NotifySettings::loadExceptions() {
 			continue;
 		}
 		const auto type = static_cast<DefaultNotify>(i);
+#if 0 // mtp
 		const auto api = &_owner->session().api();
 		const auto requestId = api->request(MTPaccount_GetNotifyExceptions(
 			MTP_flags(MTPaccount_GetNotifyExceptions::Flag::f_peer),
@@ -603,6 +666,13 @@ void NotifySettings::loadExceptions() {
 		)).done([=](const MTPUpdates &result) {
 			api->applyUpdates(result);
 		}).send();
+#endif
+		const auto sender = &_owner->session().sender();
+		const auto requestId = sender->request(
+			TLgetChatNotificationSettingsExceptions(
+				DefaultNotifyScope(type),
+				tl_bool(false))
+		).send();
 		_exceptionsRequestId[i] = requestId;
 	}
 }
