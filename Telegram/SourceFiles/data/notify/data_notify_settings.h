@@ -11,6 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 
+namespace Tdb {
+class TLchatNotificationSettings;
+class TLscopeNotificationSettings;
+class TLnotificationSettingsScope;
+} // namespace Tdb
+
 class PeerData;
 
 namespace Data {
@@ -31,6 +37,9 @@ enum class DefaultNotify {
 
 [[nodiscard]] MTPInputNotifyPeer DefaultNotifyToMTP(DefaultNotify type);
 
+[[nodiscard]] Tdb::TLnotificationSettingsScope DefaultNotifyScope(
+	DefaultNotify type);
+
 class NotifySettings final {
 public:
 	NotifySettings(not_null<Session*> owner);
@@ -38,6 +47,7 @@ public:
 	void request(not_null<PeerData*> peer);
 	void request(not_null<Thread*> thread);
 
+#if 0 // mtp
 	void apply(
 		const MTPNotifyPeer &notifyPeer,
 		const MTPPeerNotifySettings &settings);
@@ -56,6 +66,13 @@ public:
 	void apply(
 		not_null<ForumTopic*> topic,
 		const MTPPeerNotifySettings &settings);
+#endif
+	void apply(
+		not_null<PeerData*> peer,
+		const Tdb::TLchatNotificationSettings &settings);
+	void apply(
+		DefaultNotify type,
+		const Tdb::TLscopeNotificationSettings &settings);
 
 	void update(
 		not_null<Thread*> thread,

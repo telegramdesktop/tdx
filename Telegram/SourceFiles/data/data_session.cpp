@@ -1271,6 +1271,9 @@ not_null<PeerData*> Session::processPeer(const TLchat &dialog) {
 	history->unreadMentions().setCount(data.vunread_mention_count().v);
 	history->unreadReactions().setCount(data.vunread_reaction_count().v);
 	history->setUnreadMark(data.vis_marked_as_unread().v);
+	history->owner().notifySettings().apply(
+		history->peer,
+		data.vnotification_settings());
 
 	const auto availableReactions = [&] {
 		auto list = base::flat_set<QString>();
