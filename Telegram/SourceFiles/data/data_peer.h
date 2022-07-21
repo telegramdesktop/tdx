@@ -35,6 +35,7 @@ class TLprofilePhoto;
 class TLchatPhotoInfo;
 class TLchatPhoto;
 class TLbotMenuButton;
+class TLchatNotificationSettings;
 } // namespace Tdb
 
 namespace Data {

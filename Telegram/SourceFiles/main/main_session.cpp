@@ -205,9 +205,12 @@ Session::Session(
 	Spellchecker::Start(this);
 #endif // TDESKTOP_DISABLE_SPELLCHECK
 
+#if 0 // mtp
 	_api->requestNotifySettings(MTP_inputNotifyUsers());
 	_api->requestNotifySettings(MTP_inputNotifyChats());
 	_api->requestNotifySettings(MTP_inputNotifyBroadcasts());
+#endif
+	_api->requestDefaultNotifySettings();
 
 	Core::App().downloadManager().trackSession(this);
 }
