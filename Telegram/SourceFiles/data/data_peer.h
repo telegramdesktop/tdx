@@ -36,6 +36,7 @@ class TLchatPhotoInfo;
 class TLchatPhoto;
 class TLbotMenuButton;
 class TLchatNotificationSettings;
+class TLchatActionBar;
 } // namespace Tdb
 
 namespace Data {
@@ -432,11 +433,14 @@ public:
 	[[nodiscard]] TranslationFlag translationFlag() const;
 	void saveTranslationDisabled(bool disabled);
 
+#if 0 // mtp
 	void setBarSettings(const MTPPeerSettings &data);
 	bool changeColorIndex(const tl::conditional<MTPint> &cloudColorIndex);
 	bool changeBackgroundEmojiId(
 		const tl::conditional<MTPlong> &cloudBackgroundEmoji);
 	bool changeColor(const tl::conditional<MTPPeerColor> &cloudColor);
+#endif
+	void setActionBar(const Tdb::TLchatActionBar *bar);
 
 	enum class BlockStatus : char {
 		Unknown,
