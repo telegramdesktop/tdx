@@ -36,6 +36,7 @@ class TLchatPhotoInfo;
 class TLchatPhoto;
 class TLbotMenuButton;
 class TLchatNotificationSettings;
+class TLchatActionBar;
 } // namespace Tdb
 
 namespace Data {
@@ -376,7 +377,10 @@ public:
 	[[nodiscard]] TranslationFlag translationFlag() const;
 	void saveTranslationDisabled(bool disabled);
 
+#if 0 // mtp
 	void setSettings(const MTPPeerSettings &data);
+#endif
+	void setActionBar(const Tdb::TLchatActionBar *bar);
 
 	enum class BlockStatus : char {
 		Unknown,
