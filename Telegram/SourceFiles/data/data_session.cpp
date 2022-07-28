@@ -1366,6 +1366,7 @@ not_null<PeerData*> Session::processPeer(const TLchat &dialog) {
 			| (data.vview_as_topics().v ? Flag() : Flag::ViewAsMessages));
 		channel->setAllowedReactions(availableReactions());
 	}
+	result->setActionBar(data.vaction_bar());
 
 	if (const auto sender = data.vmessage_sender_id()) {
 		session().sendAsPeers().setChosen(result, peerFromSender(*sender));

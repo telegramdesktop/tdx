@@ -748,9 +748,13 @@ void ApplyUserUpdate(
 	//	return data.vflags().v;
 	//});
 
-	//MTPDpeerSettings::Flag::f_need_contacts_exception; // todo
-	//update.vneed_phone_number_privacy_exception();
-	//user->setSettings(settings);
+	if (const auto settings = user->barSettings()) {
+		user->setBarSettings(update.vneed_phone_number_privacy_exception().v
+			? (*settings | PeerBarSetting::NeedContactsException)
+			: (*settings & ~PeerBarSetting::NeedContactsException));
+	} else if (update.vneed_phone_number_privacy_exception().v) {
+		user->setBarSettings(PeerBarSetting::NeedContactsException);
+	}
 
 	//user->session().api().applyNotifySettings(
 	//	MTP_inputNotifyPeer(user->input),
