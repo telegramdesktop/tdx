@@ -707,6 +707,7 @@ void PeerData::saveTranslationDisabled(bool disabled) {
 	)).send();
 }
 
+#if 0 // mtp
 void PeerData::setSettings(const MTPPeerSettings &data) {
 	data.match([&](const MTPDpeerSettings &data) {
 		_requestChatTitle = data.vrequest_chat_title().value_or_empty();
@@ -727,6 +728,49 @@ void PeerData::setSettings(const MTPPeerSettings &data) {
 			| (data.is_request_chat_broadcast()
 				? Flag::RequestChatIsBroadcast
 				: Flag()));
+	});
+}
+#endif
+
+void PeerData::setActionBar(const TLchatActionBar *bar) {
+	_requestChatTitle = QString();
+	_requestChatDate = TimeId();
+	const auto existing = settings().value_or(PeerSettings(0))
+		& PeerSetting::NeedContactsException;
+	if (!bar) {
+		setSettings(existing);
+		return;
+	}
+	using Flag = PeerSetting;
+	bar->match([&](const TLDchatActionBarReportSpam &data) {
+		setSettings(existing
+			| Flag::ReportSpam
+			| (data.vcan_unarchive().v ? Flag::AutoArchived : Flag()));
+	}, [&](const TLDchatActionBarReportUnrelatedLocation &data) {
+		// later_todo
+		// setSettings(existing | Flag::ReportGeo);
+	}, [&](const TLDchatActionBarInviteMembers &data) {
+		// later_todo
+		// setSettings(existing | Flag::InviteMembers);
+	}, [&](const TLDchatActionBarReportAddBlock &data) {
+		setSettings(existing
+			| Flag::AddContact
+			| Flag::BlockContact
+			| Flag::ReportSpam
+			| (data.vcan_unarchive().v ? Flag::AutoArchived : Flag(0)));
+
+	}, [&](const TLDchatActionBarAddContact &data) {
+		setSettings(existing | Flag::AddContact);
+	}, [&](const TLDchatActionBarSharePhoneNumber &data) {
+		setSettings(existing | Flag::ShareContact);
+	}, [&](const TLDchatActionBarJoinRequest &data) {
+		_requestChatTitle = data.vtitle().v;
+		_requestChatDate = data.vrequest_date().v;
+		setSettings(existing
+			| Flag::RequestChat
+			| (data.vis_channel().v
+				? Flag::RequestChatIsBroadcast
+				: Flag(0)));
 	});
 }
 

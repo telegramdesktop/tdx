@@ -1347,6 +1347,7 @@ not_null<PeerData*> Session::processPeer(const TLchat &dialog) {
 				: Flag()));
 		channel->setAllowedReactions(availableReactions());
 	}
+	result->setActionBar(data.vaction_bar());
 
 	if (const auto sender = data.vmessage_sender_id()) {
 		session().sendAsPeers().setChosen(result, peerFromSender(*sender));
