@@ -45,8 +45,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 #include "styles/style_menu_icons.h"
 
+#include "tdb/tdb_sender.h"
+
 namespace HistoryView {
 namespace {
+
+using namespace Tdb;
 
 [[nodiscard]] bool BarCurrentlyHidden(not_null<PeerData*> peer) {
 	const auto settings = peer->settings();
@@ -615,9 +619,11 @@ auto ContactStatus::PeerState(not_null<PeerData*> peer)
 }
 
 void ContactStatus::setupState(not_null<PeerData*> peer, bool showInForum) {
+#if 0 // mtp
 	if (!BarCurrentlyHidden(peer)) {
 		peer->session().api().requestPeerSettings(peer);
 	}
+#endif
 
 	_context = [=](Fn<void()> customEmojiRepaint) {
 		return Core::MarkedTextContext{
@@ -687,7 +693,7 @@ void ContactStatus::setupShareHandler(not_null<UserData*> user) {
 		const auto show = _controller->uiShow();
 		const auto share = [=](Fn<void()> &&close) {
 			user->setSettings(0);
-#if 0 // todo
+#if 0 // mtp
 			user->session().api().request(MTPcontacts_AcceptContact(
 				user->inputUser
 			)).done([=](const MTPUpdates &result) {
@@ -698,6 +704,9 @@ void ContactStatus::setupShareHandler(not_null<UserData*> user) {
 					user->shortName()));
 			}).send();
 #endif
+			user->session().sender().request(TLsharePhoneNumber(
+				tl_int53(peerToUser(user->id).bare)
+			)).send();
 			close();
 		};
 		show->showBox(Ui::MakeConfirmBox({
@@ -738,8 +747,16 @@ void ContactStatus::setupReportHandler(not_null<PeerData*> peer) {
 		const auto callback = crl::guard(_inner, [=](Fn<void()> &&close) {
 			close();
 
+#if 0 // mtp
 			peer->session().api().request(MTPmessages_ReportSpam(
 				peer->input
+			)).send();
+#endif
+			peer->session().sender().request(TLreportChat(
+				peerToTdbChat(peer->id),
+				tl_vector<TLint53>(),
+				tl_reportReasonSpam(),
+				tl_string()
 			)).send();
 
 			crl::on_main(&peer->session(), [=] {
@@ -775,9 +792,15 @@ void ContactStatus::setupCloseHandler(not_null<PeerData*> peer) {
 	) | rpl::filter([=] {
 		return !(*request);
 	}) | rpl::start_with_next([=] {
-		peer->setSettings(0);
+		peer->setSettings(peer->settings().value_or(PeerSettings(0))
+			& PeerSetting::NeedContactsException);
+#if 0 // mtp
 		*request = peer->session().api().request(
 			MTPmessages_HidePeerSettingsBar(peer->input)
+		).send();
+#endif
+		*request = peer->session().sender().request(
+			TLremoveChatActionBar(peerToTdbChat(peer->id))
 		).send();
 	}, _bar.lifetime());
 }
@@ -809,9 +832,15 @@ void ContactStatus::setupRequestInfoHandler(not_null<PeerData*> peer) {
 				if (*request) {
 					return;
 				}
-				peer->setSettings(0);
+				peer->setSettings(peer->settings().value_or(PeerSettings(0))
+					& PeerSetting::NeedContactsException);
+#if 0 // mtp
 				*request = peer->session().api().request(
 					MTPmessages_HidePeerSettingsBar(peer->input)
+				).send();
+#endif
+				*request = peer->session().sender().request(
+					TLremoveChatActionBar(peerToTdbChat(peer->id))
 				).send();
 				box->closeBox();
 			});
