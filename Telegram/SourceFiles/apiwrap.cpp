@@ -1343,7 +1343,6 @@ void ApiWrap::gotUserFull(
 		user,
 		Data::PeerUpdate::Flag::FullInfo);
 }
-#endif
 
 void ApiWrap::requestPeerSettings(not_null<PeerData*> peer) {
 	if (!_requestedPeerSettings.emplace(peer).second) {
@@ -1362,6 +1361,7 @@ void ApiWrap::requestPeerSettings(not_null<PeerData*> peer) {
 		_requestedPeerSettings.erase(peer);
 	}).send();
 }
+#endif
 
 void ApiWrap::migrateChat(
 		not_null<ChatData*> chat,
