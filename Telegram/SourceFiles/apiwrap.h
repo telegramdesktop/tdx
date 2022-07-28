@@ -614,7 +614,9 @@ private:
 
 	using PeerRequests = base::flat_map<PeerData*, mtpRequestId>;
 	PeerRequests _fullPeerRequests;
+#if 0 // mtp
 	base::flat_set<not_null<PeerData*>> _requestedPeerSettings;
+#endif
 
 	base::flat_map<
 		not_null<History*>,

@@ -89,6 +89,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 #include "styles/style_menu_icons.h"
 
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
+#include "data/data_user.h"
+
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
 
@@ -1343,9 +1347,31 @@ void CopyStoryLink(
 		return;
 	}
 	const auto story = *maybeStory;
+#if 0 // mtp
 	QGuiApplication::clipboard()->setText(
 		session->api().exportDirectStoryLink(story));
+#endif
+	const auto user = story->peer()->asUser();
+	const auto channel = story->peer()->asChannel();
+	const auto username = user
+		? user->username()
+		: channel
+		? channel->username()
+		: QString();
+	if (username.isEmpty()) {
+		return;
+	}
+	session->sender().request(TLgetInternalLink(
+		tl_internalLinkTypeStory(
+			tl_string(username),
+			tl_int32(story->id())),
+		tl_bool(true)
+	)).done([=](const TLDhttpUrl &result) {
+		QGuiApplication::clipboard()->setText(result.vurl().v);
+
 	show->showToast(tr::lng_channel_public_link_copied(tr::now));
+
+	}).send();
 }
 
 void AddPollActions(
