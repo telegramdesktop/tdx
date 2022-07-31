@@ -1150,14 +1150,16 @@ void Call::createAndStartController(const Tdb::TLDcallStateReady &data) {
 			const MTPDphoneCallProtocol &data) {
 		return data.vlibrary_versions().v;
 	}).value(0, MTP_bytes(kDefaultVersion)).v;
-#endif
-	const auto version = protocol.vlibrary_versions().v.front().v;
 
-#if 0 // goodToRemove
 	LOG(("Call Info: Creating instance with version '%1', allowP2P: %2").arg(
 		QString::fromUtf8(version),
 		Logs::b(call.is_p2p_allowed())));
 #endif
+	const auto version = protocol.vlibrary_versions().v.front().v;
+
+	LOG(("Call Info: Creating instance with version '%1', allowP2P: %2").arg(
+		version,
+		Logs::b(data.vallow_p2p().v)));
 
 	const auto versionString = version.toStdString();
 	const auto &settings = Core::App().settings();
