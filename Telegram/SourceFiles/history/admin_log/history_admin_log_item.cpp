@@ -239,6 +239,18 @@ bool MediaCanHaveCaption(const Tdb::TLmessage &message) {
 		return true;
 	}, [](const Tdb::TLDmessageDocument &) {
 		return true;
+	}, [](const Tdb::TLDmessageAudio &) {
+		return true;
+	}, [](const Tdb::TLDmessageAnimation &) {
+		return true;
+	}, [](const Tdb::TLDmessageExpiredPhoto &) {
+		return true;
+	}, [](const Tdb::TLDmessageVideo &) {
+		return true;
+	}, [](const Tdb::TLDmessageExpiredVideo &) {
+		return true;
+	}, [](const Tdb::TLDmessageVoiceNote &) {
+		return true;
 	}, [](const auto &) {
 		return false;
 	});

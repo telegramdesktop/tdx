@@ -303,8 +303,8 @@ void Controller::loadMore(const ReactionId &reaction) {
 		const auto &data = result.data();
 		auto &owner = _item->history()->owner();
 		(filtered ? _filteredOffset : _allOffset) = data.vnext_offset().v;
-		for (const auto &reaction : data.vreactions().v) {
-			const auto &data = reaction.data();
+		for (const auto &tlReaction : data.vreactions().v) {
+			const auto &data = tlReaction.data();
 			const auto peer = owner.peerLoaded(
 				peerFromSender(data.vsender_id()));
 			const auto reaction = data.vreaction().v;

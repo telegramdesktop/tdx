@@ -2247,8 +2247,8 @@ bool MessageReactions::change(const QVector<TLmessageReaction> &list) {
 	auto changed = false;
 	auto existing = base::flat_set<QString>();
 	auto parsed = base::flat_map<QString, std::vector<RecentReaction>>();
-	for (const auto &reaction : list) {
-		const auto &data = reaction.data();
+	for (const auto &tlReaction : list) {
+		const auto &data = tlReaction.data();
 		const auto reaction = data.vreaction().v;
 		if (data.vis_chosen().v && _chosen != reaction) {
 			_chosen = reaction;
