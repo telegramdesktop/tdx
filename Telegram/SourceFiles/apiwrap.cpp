@@ -102,6 +102,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "tdb/tdb_sender.h"
 #include "tdb/tdb_account.h"
+#include "tdb/tdb_option.h"
 
 namespace {
 
