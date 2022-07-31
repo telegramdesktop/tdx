@@ -2066,7 +2066,17 @@ void ApiWrap::joinChannel(not_null<ChannelData*> channel) {
 }
 
 void ApiWrap::leaveChannel(not_null<ChannelData*> channel) {
-#if 0 // todo
+	if (!_channelAmInRequests.contains(channel)) {
+		auto requestId = sender().request(TLleaveChat(
+			peerToTdbChat(channel->id)
+		)).done([=] {
+			_channelAmInRequests.remove(channel);
+		}).fail([=] {
+			_channelAmInRequests.remove(channel);
+		}).send();
+		_channelAmInRequests.insert(channel, requestId);
+	}
+#if 0 // mtp
 	if (!channel->amIn()) {
 		session().changes().peerUpdated(
 			channel,
@@ -2336,11 +2346,16 @@ void ApiWrap::clearHistory(not_null<PeerData*> peer, bool revoke) {
 }
 
 void ApiWrap::deleteConversation(not_null<PeerData*> peer, bool revoke) {
-	sender().request(TLdeleteChatHistory(
-		peerToTdbChat(peer->id),
-		tl_bool(true),
-		tl_bool(revoke)
-	)).send();
+	const auto finish = [=] {
+		deleteHistory(peer, false, revoke);
+	};
+	if (const auto chat = peer->asChat()) {
+		sender().request(TLleaveChat(
+			peerToTdbChat(chat->id)
+		)).done(finish).fail(finish).send();
+	} else {
+		finish();
+	}
 #if 0 // mtp
 	if (const auto chat = peer->asChat()) {
 		request(MTPmessages_DeleteChatUser(
