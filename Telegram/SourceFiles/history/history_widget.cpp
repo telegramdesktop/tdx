@@ -7614,7 +7614,8 @@ void HistoryWidget::checkPreview() {
 		} else {
 			const auto i = _previewCache.constFind(links);
 			if (i == _previewCache.cend()) {
-#if 0 // todo
+				requestPreview(true);
+#if 0 // mtp
 				_previewRequest = _api.request(MTPmessages_GetWebPagePreview(
 					MTP_flags(0),
 					MTP_string(links),
@@ -7633,6 +7634,52 @@ void HistoryWidget::checkPreview() {
 	}
 }
 
+void HistoryWidget::requestPreview(bool force) {
+	if (_previewLinks.isEmpty()
+		|| (!force && (!_previewData || _previewData->pendingTill <= 0))) {
+		return;
+	}
+	const auto links = _previewLinks;
+	_previewRequest = _api.request(TLgetWebPagePreview(
+		tl_formattedText(tl_string(links), tl_vector<TLtextEntity>())
+	)).done([=](const TLwebPage &result, mtpRequestId requestId) {
+		gotPreview(links, result, requestId);
+	}).fail([=](const Error &error) {
+		if (error.code == 404) {
+			_previewCache.insert(links, 0);
+			if (links == _previewLinks
+				&& _previewState == Data::PreviewState::Allowed) {
+				_previewData = nullptr;
+				updatePreview();
+			}
+		}
+	}).send();
+}
+
+void HistoryWidget::gotPreview(
+		QString links,
+		const TLwebPage &result,
+		mtpRequestId req) {
+	if (req == _previewRequest) {
+		_previewRequest = 0;
+	}
+	const auto page = session().data().processWebpage(result);
+	_previewCache.insert(links, page->id);
+	if (page->pendingTill > 0
+		&& page->pendingTill <= base::unixtime::now()) {
+		page->pendingTill = -1;
+	}
+	if (links == _previewLinks
+		&& _previewState == Data::PreviewState::Allowed) {
+		_previewData = (page->id && page->pendingTill >= 0)
+			? page.get()
+			: nullptr;
+		updatePreview();
+	}
+	session().data().sendWebPageGamePollNotifications();
+}
+
+#if 0 // mtp
 void HistoryWidget::requestPreview() {
 	if (!_previewData
 		|| (_previewData->pendingTill <= 0)
@@ -7640,7 +7687,6 @@ void HistoryWidget::requestPreview() {
 		return;
 	}
 	const auto links = _previewLinks;
-#if 0 // todo
 	_previewRequest = _api.request(MTPmessages_GetWebPagePreview(
 		MTP_flags(0),
 		MTP_string(links),
@@ -7648,10 +7694,8 @@ void HistoryWidget::requestPreview() {
 	)).done([=](const MTPMessageMedia &result, mtpRequestId requestId) {
 		gotPreview(links, result, requestId);
 	}).send();
-#endif
 }
 
-#if 0 // mtp
 void HistoryWidget::gotPreview(
 		QString links,
 		const MTPMessageMedia &result,
