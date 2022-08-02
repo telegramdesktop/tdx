@@ -16,7 +16,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace HistoryView::Controls {
+namespace {
+
+using namespace Tdb;
+
+} // namespace
 
 WebPageText TitleAndDescriptionFromWebPage(not_null<WebPageData*> d) {
 	QString resultTitle, resultDescription;
@@ -138,9 +145,20 @@ void WebpageResolver::request(const QString &link, bool force) {
 	if (_requestLink == link && !force) {
 		return;
 	}
-#if 0 // todo
+#if 0 // mtp
 	const auto done = [=](const MTPDmessageMediaWebPage &data) {
 		const auto page = _session->data().processWebpage(data.vwebpage());
+		if (page->pendingTill > 0
+			&& page->pendingTill < base::unixtime::now()) {
+			page->pendingTill = 0;
+			page->failed = true;
+		}
+		_cache.emplace(link, page->failed ? nullptr : page.get());
+		_resolved.fire_copy(link);
+	};
+#endif
+	const auto done = [=](const TLlinkPreview &result) {
+		const auto page = _session->data().processWebpage(result);
 		if (page->pendingTill > 0
 			&& page->pendingTill < base::unixtime::now()) {
 			page->pendingTill = 0;
@@ -154,6 +172,23 @@ void WebpageResolver::request(const QString &link, bool force) {
 		_resolved.fire_copy(link);
 	};
 	_requestLink = link;
+
+	_requestId = _api.request(TLgetLinkPreview(
+		tl_formattedText(tl_string(link), tl_vector<TLtextEntity>()),
+		std::nullopt
+	)).done([=](const TLlinkPreview &result, mtpRequestId requestId) {
+		if (_requestId == requestId) {
+			_requestId = 0;
+		}
+		done(result);
+	}).fail([=](const Error &error, mtpRequestId requestId) {
+		if (_requestId == requestId) {
+			_requestId = 0;
+		}
+		fail();
+	}).send();
+
+#if 0 // mtp
 	_requestId = _api.request(
 		MTPmessages_GetWebPagePreview(
 			MTP_flags(0),
