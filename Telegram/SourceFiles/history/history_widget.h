@@ -27,7 +27,8 @@ struct AutocompleteQuery;
 namespace Tdb {
 class TLmessages;
 class TLmessage;
-struct Error;
+class TLlinkPreview;
+class Error;
 } // namespace Tdb
 
 namespace MTP {
@@ -568,6 +569,10 @@ private:
 	void addMessagesToBack(not_null<PeerData*> peer, const QVector<MTPMessage> &messages);
 #endif
 
+	void gotPreview(
+		QString links,
+		const Tdb::TLlinkPreview &page,
+		mtpRequestId requestId);
 	void messagesReceived(
 		not_null<PeerData*> peer,
 		const Tdb::TLmessages &messages,
