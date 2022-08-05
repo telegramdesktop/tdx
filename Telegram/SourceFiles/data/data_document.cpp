@@ -856,19 +856,12 @@ void DocumentData::updateThumbnails(
 }
 
 void DocumentData::setTdbLocation(const TLfile &file) {
-	const auto &fields = file.data();
-	_tdbFileId = fields.vid().v;
-	const auto id = fields.vremote().data().vunique_id().v.isEmpty()
-		? fields.vlocal().data().vpath().v
-		: fields.vremote().data().vunique_id().v;
-	_tdbRemoteLocationHash = id.isEmpty()
-		? 0
-		: XXH64(id.data(), id.size() * sizeof(ushort), 0);
-	size = fields.vsize().v;
+	_tdbFile = TdbFileLocation(file);
+	size = file.data().vsize().v;
 }
 
 FileId DocumentData::tdbFileId() const {
-	return _tdbFileId;
+	return _tdbFile.fileId;
 }
 
 bool DocumentData::isWallPaper() const {
@@ -1065,10 +1058,8 @@ PhotoData *DocumentData::goodThumbnailPhoto() const {
 }
 
 Storage::Cache::Key DocumentData::bigFileBaseCacheKey() const {
-	if (_tdbFileId) {
-		return TdbFileLocation::BigFileBaseCacheKey(
-			id,
-			_tdbRemoteLocationHash);
+	if (_tdbFile.fileId) {
+		return TdbFileLocation::BigFileBaseCacheKey(id, _tdbFile.hash);
 	}
 	return hasRemoteLocation()
 		? StorageFileLocation(
@@ -1307,6 +1298,7 @@ void DocumentData::save(
 				fromCloud,
 				autoLoading,
 				cacheTag());
+#if 0 // mtp
 		} else if (hasWebLocation()) {
 			_loader = std::make_unique<mtpFileLoader>(
 				&session(),
@@ -1316,6 +1308,7 @@ void DocumentData::save(
 				fromCloud,
 				autoLoading,
 				cacheTag());
+#endif
 		} else if (!_access && !_url.isEmpty()) {
 			_loader = std::make_unique<webFileLoader>(
 				&session(),
@@ -1324,10 +1317,10 @@ void DocumentData::save(
 				fromCloud,
 				autoLoading,
 				cacheTag());
-		} else if (_tdbFileId) {
+		} else if (_tdbFile.fileId) {
 			_loader = std::make_unique<TdbFileLoader>(
 				&session(),
-				_tdbFileId,
+				_tdbFile.fileId,
 				locationType(),
 				toFile,
 				size,
@@ -1336,6 +1329,7 @@ void DocumentData::save(
 				fromCloud,
 				autoLoading,
 				cacheTag());
+#if 0 // mtp
 		} else {
 			_loader = std::make_unique<mtpFileLoader>(
 				&session(),
@@ -1356,6 +1350,7 @@ void DocumentData::save(
 				fromCloud,
 				autoLoading,
 				cacheTag());
+#endif
 		}
 		handleLoaderUpdates();
 	}
@@ -1660,7 +1655,7 @@ const RoundData *DocumentData::round() const {
 }
 
 bool DocumentData::hasRemoteLocation() const {
-	if (_tdbFileId) {
+	if (_tdbFile.fileId) {
 		return true;
 	}
 	return (_dc != 0 && _access != 0);
@@ -1734,13 +1729,15 @@ auto DocumentData::createStreamingLoader(
 			return result;
 		}
 	}
-	if (_tdbFileId) {
+	if (_tdbFile.fileId) {
 		return std::make_unique<Media::Streaming::LoaderTdb>(
 			&session().tdb(),
-			_tdbFileId,
-			TdbFileLocation::BigFileBaseCacheKey(id, _tdbRemoteLocationHash),
+			_tdbFile.fileId,
+			TdbFileLocation::BigFileBaseCacheKey(id, _tdbFile.hash),
 			size);
 	}
+	return nullptr;
+#if 0 // mtp
 	return hasRemoteLocation()
 		? std::make_unique<Media::Streaming::LoaderMtproto>(
 			&session().downloader(),
@@ -1755,6 +1752,7 @@ auto DocumentData::createStreamingLoader(
 			size,
 			origin)
 		: nullptr;
+#endif
 }
 
 bool DocumentData::hasWebLocation() const {
@@ -1769,6 +1767,7 @@ bool DocumentData::isNull() const {
 		&& _location.isEmpty();
 }
 
+#if 0 // mtp
 MTPInputDocument DocumentData::mtpInput() const {
 	if (_access) {
 		return MTP_inputDocument(
@@ -1788,6 +1787,7 @@ void DocumentData::refreshFileReference(const QByteArray &value) {
 	_thumbnail.location.refreshFileReference(value);
 	_videoThumbnail.location.refreshFileReference(value);
 }
+#endif
 
 QString DocumentData::filename() const {
 	return _filename;
@@ -1959,6 +1959,7 @@ void DocumentData::recountIsImage() {
 	}
 }
 
+#if 0 // mtp
 void DocumentData::setRemoteLocation(
 		int32 dc,
 		uint64 access,
@@ -1983,6 +1984,7 @@ void DocumentData::setRemoteLocation(
 		}
 	}
 }
+#endif
 
 void DocumentData::setStoryMedia(bool value) {
 	if (value) {
