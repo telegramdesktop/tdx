@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "api/api_media.h"
 
+#if 0 // mtp
 #include "api/api_common.h"
 #include "data/data_document.h"
 #include "data/stickers/data_stickers_set.h"
@@ -137,3 +138,4 @@ bool HasAttachedStickers(MTPInputMedia media) {
 }
 
 } // namespace Api
+#endif

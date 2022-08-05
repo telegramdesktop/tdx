@@ -955,9 +955,7 @@ void Form::processDetails(const Tdb::TLDpaymentReceipt &data) {
 		&& !_thumbnailLoadProcess) {
 		_invoice.cover = Ui::Cover{
 			.title = data.vtitle().v,
-			.description = Api::FormattedTextFromTdb(
-				_session,
-				data.vdescription()),
+			.description = Api::FormattedTextFromTdb(data.vdescription()),
 		};
 		if (const auto photoPtr = data.vphoto()) {
 			const auto photo = _session->data().processPhoto(*photoPtr);

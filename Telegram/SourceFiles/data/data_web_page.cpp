@@ -225,7 +225,11 @@ void WebPageData::setFromTdb(const TLwebPage &data) {
 		fields.vdisplay_url().v,
 		fields.vsite_name().v,
 		fields.vtitle().v,
-		Api::FormattedTextFromTdb(&_owner->session(), fields.vdescription()),
+		Api::FormattedTextFromTdb(fields.vdescription()),
+		FullStoryId{
+			peerFromTdbChat(fields.vstory_sender_chat_id()),
+			fields.vstory_id().v,
+		},
 		(fields.vphoto()
 			? _owner->processPhoto(*fields.vphoto()).get()
 			: nullptr),

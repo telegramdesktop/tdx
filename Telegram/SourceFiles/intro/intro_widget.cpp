@@ -273,7 +273,7 @@ void Widget::handleUpdate(const TLupdate &update) {
 	update.match([&](const TLDupdateServiceNotification &data) {
 		const auto text = data.vcontent().match([&](
 				const TLDmessageText &data) {
-			return Api::FormattedTextFromTdb(nullptr, data.vtext());
+			return Api::FormattedTextFromTdb(data.vtext());
 		}, [](const auto &) {
 			return TextWithEntities();
 		});

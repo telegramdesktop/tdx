@@ -129,7 +129,7 @@ void ApplyPeerCloudDraft(
 		if (history->skipCloudDraftUpdate(date)) {
 			return;
 		}
-		const auto text = Api::FormattedTextFromTdb(session, d.vtext());
+		const auto text = Api::FormattedTextFromTdb(d.vtext());
 		const auto textWithTags = TextWithTags{
 			text.text,
 			TextUtilities::ConvertEntitiesToTextTags(text.entities)

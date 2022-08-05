@@ -47,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_message_reactions.h"
 #include "inline_bots/bot_attach_web_view.h"
 #include "chat_helpers/emoji_interactions.h"
+#include "chat_helpers/stickers_dice_pack.h"
 #include "lang/lang_cloud_manager.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -3064,6 +3065,7 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateAttachmentMenuBots &data) {
 	}, [&](const TLDupdateWebAppMessageSent &data) {
 	}, [&](const TLDupdateDiceEmojis &data) {
+		session().diceStickersPacks().apply(data);
 	}, [&](const TLDupdateAnimatedEmojiMessageClicked &data) {
 	}, [&](const TLDupdateAnimationSearchParameters &data) {
 	}, [&](const TLDupdateSuggestedActions &data) {

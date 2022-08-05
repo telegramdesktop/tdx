@@ -300,7 +300,7 @@ TextWithEntities ExtractEditedText(
 		const Tdb::TLmessage &message) {
 	return message.data().vcontent().match([&](
 			const Tdb::TLDmessageText &data) {
-		return Api::FormattedTextFromTdb(session, data.vtext());
+		return Api::FormattedTextFromTdb(data.vtext());
 	}, [](const auto &) {
 		return TextWithEntities();
 	});
