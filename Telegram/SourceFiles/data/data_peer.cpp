@@ -494,7 +494,10 @@ void PeerData::updateUserpic(
 }
 #endif
 
-void PeerData::updateUserpic(FileId fileId, bool hasVideo, PhotoId photoId) {
+void PeerData::updateUserpic(
+		const TLfile &file,
+		bool hasVideo,
+		PhotoId photoId) {
 	if (_userpicPhotoId == photoId
 		&& photoId != kUnknownPhotoId
 		&& !_userpic.empty()) {
@@ -503,7 +506,7 @@ void PeerData::updateUserpic(FileId fileId, bool hasVideo, PhotoId photoId) {
 	setUserpicChecked(
 		photoId,
 		ImageLocation(
-			{ TdbFileLocation{ fileId } },
+			{ TdbFileLocation{ file } },
 			kUserpicSize,
 			kUserpicSize),
 		hasVideo);
@@ -512,7 +515,7 @@ void PeerData::updateUserpic(FileId fileId, bool hasVideo, PhotoId photoId) {
 void PeerData::updateUserpic(const TLchatPhotoInfo &photo) {
 	photo.match([&](const TLDchatPhotoInfo &data) {
 		updateUserpic(
-			data.vsmall().data().vid().v,
+			data.vsmall(),
 			data.vhas_animation().v); // todo set data to view.
 	});
 }
@@ -520,7 +523,7 @@ void PeerData::updateUserpic(const TLchatPhotoInfo &photo) {
 void PeerData::updateUserpic(const TLprofilePhoto &photo) {
 	photo.match([&](const TLDprofilePhoto &data) {
 		updateUserpic(
-			data.vsmall().data().vid().v,
+			data.vsmall(),
 			data.vhas_animation().v,
 			data.vid().v); // todo set data to view.
 	});
@@ -534,7 +537,7 @@ void PeerData::setPhotoFull(const TLchatPhoto &data) {
 		} else {
 			const auto &size = data.vsizes().v.front();
 			updateUserpic(
-				size.data().vphoto().data().vid().v,
+				size.data().vphoto(),
 				data.vanimation() != nullptr,
 				data.vid().v);
 			// todo set data to view.

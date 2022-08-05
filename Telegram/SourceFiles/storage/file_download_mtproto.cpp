@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "storage/file_download_mtproto.h"
 
+#if 0 // mtp
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
 #include "storage/cache/storage_cache_types.h"
@@ -219,3 +220,4 @@ std::optional<MediaKey> mtpFileLoader::fileLocationKey() const {
 	}
 	return std::nullopt;
 }
+#endif

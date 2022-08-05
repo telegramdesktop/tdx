@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "storage/download_manager_mtproto.h"
 
+#if 0 // mtp
 #include "mtproto/facade.h"
 #include "mtproto/mtproto_auth_key.h"
 #include "mtproto/mtproto_response.h"
@@ -1017,3 +1018,4 @@ void DownloadMtprotoTask::changeCDNParams(
 }
 
 } // namespace Storage
+#endif

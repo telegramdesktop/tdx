@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#if 0 // mtp
 #include "storage/file_download.h"
 #include "storage/download_manager_mtproto.h"
 
@@ -72,3 +73,4 @@ private:
 	int64 _nextRequestOffset = 0;
 
 };
+#endif
