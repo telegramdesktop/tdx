@@ -20,6 +20,24 @@ namespace Api {
 
 namespace {
 
+using namespace Tdb;
+
+[[nodiscard]] TLreportReason ReasonToTL(const Ui::ReportReason &reason) {
+	using Reason = Ui::ReportReason;
+	switch (reason) {
+	case Reason::Spam: return tl_reportReasonSpam();
+	case Reason::Fake: return tl_reportReasonFake();
+	case Reason::Violence: return tl_reportReasonViolence();
+	case Reason::ChildAbuse: return tl_reportReasonChildAbuse();
+	case Reason::Pornography: return tl_reportReasonPornography();
+	case Reason::Copyright: return tl_reportReasonCopyright();
+	case Reason::IllegalDrugs: return tl_reportReasonIllegalDrugs();
+	case Reason::PersonalDetails: return tl_reportReasonPersonalDetails();
+	case Reason::Other: return tl_reportReasonCustom();
+	}
+	Unexpected("Bad reason group value.");
+}
+#if 0 // mtp
 MTPreportReason ReasonToTL(const Ui::ReportReason &reason) {
 	using Reason = Ui::ReportReason;
 	switch (reason) {
@@ -36,6 +54,7 @@ MTPreportReason ReasonToTL(const Ui::ReportReason &reason) {
 	}
 	Unexpected("Bad reason group value.");
 }
+#endif
 
 } // namespace
 
@@ -52,7 +71,45 @@ void SendReport(
 	auto done = [=] {
 		show->showToast(tr::lng_report_thanks(tr::now));
 	};
-#if 0 // todo
+	v::match(data, [&](v::null_t) {
+		peer->session().sender().request(TLreportChat(
+			peerToTdbChat(peer->id),
+			tl_vector<TLint53>(),
+			ReasonToTL(reason),
+			tl_string(comment)
+		)).done(std::move(done)).send();
+	}, [&](const MessageIdsList &ids) {
+		auto list = QVector<TLint53>();
+		list.reserve(ids.size());
+		for (const auto &fullId : ids) {
+			list.push_back(tl_int53(fullId.msg.bare));
+		}
+		peer->session().sender().request(TLreportChat(
+			peerToTdbChat(peer->id),
+			tl_vector<TLint53>(list),
+			ReasonToTL(reason),
+			tl_string(comment)
+		)).done(std::move(done)).send();
+	}, [&](not_null<PhotoData*> photo) {
+		const auto tdb = std::get_if<TdbFileLocation>(
+			&photo->location(Data::PhotoSize::Large).file().data);
+		if (tdb) {
+			peer->session().sender().request(TLreportChatPhoto(
+				peerToTdbChat(peer->id),
+				tl_int32(tdb->fileId),
+				ReasonToTL(reason),
+				tl_string(comment)
+			)).done(std::move(done)).send();
+		}
+	}, [&](StoryId id) {
+		peer->session().sender().request(TLreportStory(
+			peerToTdbChat(peer->id),
+			tl_int32(id),
+			ReasonToTL(reason),
+			tl_string(comment)
+		)).done(std::move(done)).send();
+	});
+#if 0 // mtp
 	v::match(data, [&](v::null_t) {
 		peer->session().api().request(MTPaccount_ReportPeer(
 			peer->input,
