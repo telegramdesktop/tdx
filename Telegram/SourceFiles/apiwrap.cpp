@@ -2539,14 +2539,11 @@ void ApiWrap::saveDraftsToCloud() {
 				tl_int53(cloudDraft->msgId.bare),
 				tl_int32(0), // Date.
 				tl_inputMessageText(
-					Api::FormattedTextToTdb(
-						_session,
-						TextWithEntities{
-							textWithTags.text,
-							TextUtilities::ConvertTextTagsToEntities(
-								textWithTags.tags)
-						},
-						Api::ConvertOption::SkipLocal),
+					Api::FormattedTextToTdb(TextWithEntities{
+						textWithTags.text,
+						TextUtilities::ConvertTextTagsToEntities(
+							textWithTags.tags)
+					}),
 					tl_bool(cloudDraft->previewState != Preview::Allowed),
 					tl_bool(true)));
 		}();
@@ -4235,10 +4232,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 		});
 #endif
 		Api::SendPreparedMessage(action, tl_inputMessageText(
-			Api::FormattedTextToTdb(
-				_session,
-				sending,
-				Api::ConvertOption::SkipLocal),
+			Api::FormattedTextToTdb(sending),
 			tl_bool(message.webPageId == CancelledWebPageId),
 			tl_bool(action.clearDraft)));
 	}
