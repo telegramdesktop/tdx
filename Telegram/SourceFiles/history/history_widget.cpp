@@ -8173,7 +8173,10 @@ void HistoryWidget::cancelEdit() {
 	applyDraft();
 
 	if (_saveEditMsgRequestId) {
+		_history->session().sender().request(_saveEditMsgRequestId).cancel();
+#if 0 // mtp
 		_history->session().api().request(_saveEditMsgRequestId).cancel();
+#endif
 		_saveEditMsgRequestId = 0;
 	}
 
