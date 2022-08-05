@@ -3885,17 +3885,43 @@ void ApiWrap::forwardMessages(
 	}
 
 	auto forwardFrom = draft.items.front()->history()->peer;
+#if 0 // mtp
 	auto ids = QVector<MTPint>();
 	auto randomIds = QVector<MTPlong>();
 	auto localIds = std::shared_ptr<base::flat_map<uint64, FullMsgId>>();
+#endif
+	auto ids = QVector<TLint53>();
 
 	const auto sendAccumulated = [&] {
 		if (shared) {
 			++shared->requestsLeft;
 		}
+		return sender().request(TLforwardMessages(
+			peerToTdbChat(peer->id),
+			peerToTdbChat(forwardFrom->id),
+			tl_vector<TLint53>(ids),
+			tl_messageSendOptions(
+				tl_bool(silentPost),
+				tl_bool(false), // from_background
+				Api::ScheduledToTL(action.options.scheduled)),
+			tl_bool(draft.options != Data::ForwardOptions::PreserveInfo),
+			tl_bool(
+				draft.options == Data::ForwardOptions::NoNamesAndCaptions),
+			tl_bool(false) // only_preview
+		)).done([=](const TLmessages &result) {
+			for (const auto &message : result.data().vmessages().v) {
+				if (message) {
+					session().data().processMessage(
+						*message,
+						NewMessageType::Unread);
+				}
+			}
+		}).fail([=](const Error &error) {
+			sendMessageFail(error.message, peer);
+		}).send();
+#if 0 // mtp
 		const auto requestType = Data::Histories::RequestType::Send;
 		const auto idsCopy = localIds;
-#if 0 // todo
 		histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
 			history->sendRequestId = request(MTPmessages_ForwardMessages(
 				MTP_flags(sendFlags),
@@ -3930,11 +3956,14 @@ void ApiWrap::forwardMessages(
 #endif
 
 		ids.resize(0);
+#if 0 // mtp
 		randomIds.resize(0);
 		localIds = nullptr;
+#endif
 	};
 
 	ids.reserve(count);
+#if 0 // mtp
 	randomIds.reserve(count);
 	for (const auto item : draft.items) {
 		const auto randomId = base::RandomValue<uint64>();
@@ -3960,13 +3989,18 @@ void ApiWrap::forwardMessages(
 			}
 			localIds->emplace(randomId, newId);
 		}
+#endif
+	for (const auto item : draft.items) {
 		const auto newFrom = item->history()->peer;
 		if (forwardFrom != newFrom) {
 			sendAccumulated();
 			forwardFrom = newFrom;
 		}
+#if 0 // mtp
 		ids.push_back(MTP_int(item->id));
 		randomIds.push_back(MTP_long(randomId));
+#endif
+		ids.push_back(tl_int53(item->id.bare));
 	}
 	sendAccumulated();
 	_session->data().sendHistoryChangeNotifications();
