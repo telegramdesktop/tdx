@@ -46,6 +46,19 @@ constexpr auto kPremiumToastDuration = 5 * crl::time(1000);
 
 using namespace Tdb;
 
+[[nodiscard]] StickerType LookupFormat(const TLthumbnail *thumbnail) {
+	if (!thumbnail) {
+		return StickerType::Webp;
+	}
+	return thumbnail->data().vformat().match([](TLDthumbnailFormatTgs) {
+		return StickerType::Tgs;
+	}, [](const TLDthumbnailFormatWebm &) {
+		return StickerType::Webm;
+	}, [](const auto &) {
+		return StickerType::Webp;
+	});
+}
+
 using SetFlag = StickersSetFlag;
 
 [[nodiscard]] TextWithEntities SavedGifsToast(
@@ -809,6 +822,7 @@ void Stickers::somethingReceived(
 	notifyUpdated(type);
 }
 
+#if 0 // mtp
 void Stickers::setPackAndEmoji(
 		StickersSet &set,
 		StickersPack &&pack,
@@ -835,6 +849,147 @@ void Stickers::setPackAndEmoji(
 			set.emoji[emoji] = std::move(p);
 		}
 	}
+}
+#endif
+
+void Stickers::specialSetReceived(
+		uint64 setId,
+		const QString &setTitle,
+		const QVector<TLsticker> &stickers) {
+	auto &sets = setsRef();
+	auto it = sets.find(setId);
+
+	if (stickers.isEmpty()) {
+		if (it != sets.cend()) {
+			sets.erase(it);
+		}
+	} else {
+		if (it == sets.cend()) {
+			it = sets.emplace(setId, std::make_unique<StickersSet>(
+				&owner(),
+				setId,
+				uint64(0), // accessHash
+				uint64(0), // hash
+				setTitle,
+				QString(),
+				0, // count
+				SetFlag::Special,
+				TimeId(0))).first;
+		} else {
+			it->second->title = setTitle;
+		}
+		const auto set = it->second.get();
+
+		auto customIt = sets.find(CustomSetId);
+		auto pack = StickersPack();
+		pack.reserve(stickers.size());
+		for (const auto &sticker : stickers) {
+			const auto document = owner().processDocument(sticker);
+			if (!document->sticker()) {
+				continue;
+			}
+
+			pack.push_back(document);
+			if (customIt != sets.cend()) {
+				const auto custom = customIt->second.get();
+				auto index = custom->stickers.indexOf(document);
+				if (index >= 0) {
+					custom->stickers.removeAt(index);
+				}
+			}
+		}
+		if (customIt != sets.cend()
+			&& customIt->second->stickers.isEmpty()) {
+			sets.erase(customIt);
+			customIt = sets.end();
+		}
+
+		auto writeRecent = false;
+		auto &recent = getRecentPack();
+		for (auto i = recent.begin(); i != recent.cend();) {
+			if (set->stickers.indexOf(i->first) >= 0 && pack.indexOf(i->first) < 0) {
+				i = recent.erase(i);
+				writeRecent = true;
+			} else {
+				++i;
+			}
+		}
+
+		if (pack.isEmpty()) {
+			sets.erase(it);
+		} else {
+			set->stickers = std::move(pack);
+		}
+
+		if (writeRecent) {
+			session().saveSettings();
+		}
+	}
+
+	switch (setId) {
+	case CloudRecentSetId: {
+		session().local().writeRecentStickers();
+	} break;
+	case CloudRecentAttachedSetId: {
+		session().local().writeRecentMasks();
+	} break;
+	case FavedSetId: {
+		session().local().writeFavedStickers();
+	} break;
+	default: Unexpected("setId in SpecialSetReceived()");
+	}
+
+	notifyUpdated();
+}
+
+void Stickers::featuredSetsReceived(const TLtrendingStickerSets &data) {
+	auto &setsOrder = featuredSetsOrderRef();
+	setsOrder.clear();
+
+	auto &sets = setsRef();
+	auto setsToRequest = base::flat_map<uint64, uint64>();
+	for (auto &[id, set] : sets) {
+		// Mark for removing.
+		set->flags &= ~SetFlag::Featured;
+	}
+	for (const auto &entry : data.data().vsets().v) {
+		const auto set = feedSet(entry, StickersSetFlag::Featured);
+		setsOrder.push_back(set->id);
+		if (set->stickers.isEmpty()
+			|| (set->flags & SetFlag::NotLoaded)) {
+			setsToRequest.emplace(set->id, set->accessHash);
+		}
+	}
+
+	auto unreadCount = 0;
+	for (auto it = sets.begin(); it != sets.end();) {
+		const auto set = it->second.get();
+		bool installed = (set->flags & SetFlag::Installed);
+		bool featured = (set->flags & SetFlag::Featured);
+		bool special = (set->flags & SetFlag::Special);
+		bool archived = (set->flags & SetFlag::Archived);
+		if (installed || featured || special || archived) {
+			if (featured && (set->flags & SetFlag::Unread)) {
+				++unreadCount;
+			}
+			++it;
+		} else {
+			it = sets.erase(it);
+		}
+	}
+	setFeaturedSetsUnreadCount(unreadCount);
+
+	if (!setsToRequest.empty()) {
+		auto &api = session().api();
+		for (const auto &[setId, accessHash] : setsToRequest) {
+			api.scheduleStickerSetRequest(setId, accessHash);
+		}
+		api.requestStickerSets();
+	}
+
+	session().local().writeFeaturedStickers();
+
+	notifyUpdated();
 }
 
 #if 0 // mtp
@@ -1841,13 +1996,18 @@ QString Stickers::getSetTitle(const TLDstickerSet &data) const {
 		: title;
 }
 
-StickersSet *Stickers::feedSet(const TLstickerSetInfo &value) {
+StickersSet *Stickers::feedSet(
+		const TLstickerSetInfo &value,
+		StickersSetFlag sectionFlag) {
 	const auto &data = value.data();
 	auto &sets = setsRef();
 	const auto setId = uint64(data.vid().v);
 	auto it = sets.find(setId);
 	auto title = getSetTitle(data);
 	auto oldFlags = StickersSetFlags(0);
+	const auto installDate = data.vis_installed().v
+		? base::unixtime::now()
+		: TimeId(0);
 	const auto thumbnail = [&] {
 		if (const auto thumbnail = data.vthumbnail()) {
 			return Images::FromThumbnail(*thumbnail);
@@ -1864,11 +2024,9 @@ StickersSet *Stickers::feedSet(const TLstickerSetInfo &value) {
 			title,
 			data.vname().v,
 			data.vsize().v,
-			flags | SetFlag::NotLoaded,
-			(data.vis_installed().v
-				? base::unixtime::now()
-				: TimeId(0)))).first;
-		it->second->setThumbnail(thumbnail);
+			sectionFlag | flags | SetFlag::NotLoaded,
+			installDate)).first;
+		it->second->setThumbnail(thumbnail, LookupFormat(data.vthumbnail()));
 	} else {
 		const auto set = it->second.get();
 		set->title = title;
@@ -1879,11 +2037,9 @@ StickersSet *Stickers::feedSet(const TLstickerSetInfo &value) {
 				| SetFlag::Unread
 				| SetFlag::NotLoaded
 				| SetFlag::Special);
-		set->flags = flags | clientFlags;
-		set->installDate = data.vis_installed().v
-			? base::unixtime::now()
-			: TimeId(0);
-		it->second->setThumbnail(thumbnail);
+		set->flags = sectionFlag | flags | clientFlags;
+		set->installDate = installDate;
+		it->second->setThumbnail(thumbnail, LookupFormat(data.vthumbnail()));
 		if (set->count != data.vsize().v
 			|| set->stickers.isEmpty()
 			|| set->emoji.empty()) {
@@ -1893,6 +2049,11 @@ StickersSet *Stickers::feedSet(const TLstickerSetInfo &value) {
 		}
 	}
 	const auto set = it->second.get();
+	if ((set->flags & SetFlag::Featured) && !data.vis_viewed().v) {
+		set->flags |= SetFlag::Unread;
+	} else {
+		set->flags &= ~SetFlag::Unread;
+	}
 	auto changedFlags = (oldFlags ^ set->flags);
 	if (changedFlags & SetFlag::Archived) {
 		const auto masks = !!(set->flags & SetFlag::Masks);
@@ -1941,7 +2102,7 @@ StickersSet *Stickers::feedSetFull(const TLstickerSet &value) {
 			(data.vis_installed().v
 				? base::unixtime::now()
 				: TimeId(0)))).first;
-		it->second->setThumbnail(thumbnail);
+		it->second->setThumbnail(thumbnail, LookupFormat(data.vthumbnail()));
 	} else {
 		const auto set = it->second.get();
 		set->title = title;
@@ -1956,7 +2117,7 @@ StickersSet *Stickers::feedSetFull(const TLstickerSet &value) {
 		set->installDate = data.vis_installed().v
 			? base::unixtime::now()
 			: TimeId(0);
-		it->second->setThumbnail(thumbnail);
+		it->second->setThumbnail(thumbnail, LookupFormat(data.vthumbnail()));
 	}
 	auto set = it->second.get();
 	auto changedFlags = (oldFlags ^ set->flags);
