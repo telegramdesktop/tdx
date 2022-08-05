@@ -315,9 +315,11 @@ bool WebPageData::applyChanges(
 		&& pendingTill == newPendingTill) {
 		return false;
 	}
+#if 0 // mtp
 	if (pendingTill > 0 && newPendingTill <= 0) {
 		_owner->session().api().clearWebPageRequest(this);
 	}
+#endif
 	type = newType;
 	url = resultUrl;
 	displayUrl = resultDisplayUrl;

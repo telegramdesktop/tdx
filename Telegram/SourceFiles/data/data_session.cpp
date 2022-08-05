@@ -3493,7 +3493,9 @@ void Session::photoApplyFields(
 	if (!date) {
 		return;
 	}
+#if 0 // mtp
 	photo->setRemoteLocation(dc, access, fileReference);
+#endif
 	photo->date = date;
 	photo->setHasAttachedStickers(hasStickers);
 	photo->updateImages(
@@ -3743,9 +3745,11 @@ void Session::documentApplyFields(
 
 	// Uses 'type' that is computed from attributes.
 	document->recountIsImage();
+#if 0 // mtp
 	if (dc != 0 && access != 0) {
 		document->setRemoteLocation(dc, access, fileReference);
 	}
+#endif
 }
 
 not_null<WebPageData*> Session::webpage(WebPageId id) {
@@ -3990,9 +3994,11 @@ void Session::webpageApplyFields(
 		duration,
 		author,
 		pendingTill);
+#if 0 // mtp
 	if (requestPending) {
 		_session->api().requestWebPageDelayed(page);
 	}
+#endif
 	if (changed) {
 		notifyWebPageUpdateDelayed(page);
 	}

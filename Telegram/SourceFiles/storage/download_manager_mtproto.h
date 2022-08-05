@@ -25,6 +25,7 @@ namespace Storage {
 // fixed part size download for hash checking.
 constexpr auto kDownloadPartSize = 128 * 1024;
 
+#if 0 // mtp
 class DownloadMtprotoTask;
 
 class DownloadManagerMtproto final : public base::has_weak_ptr {
@@ -272,5 +273,6 @@ private:
 	mtpRequestId _cdnHashesRequestId = 0;
 
 };
+#endif
 
 } // namespace Storage
