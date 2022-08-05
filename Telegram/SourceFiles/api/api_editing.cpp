@@ -23,9 +23,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_response.h"
 #include "boxes/abstract_box.h" // Ui::show().
 
+#include "tdb/tdb_sender.h"
+
 namespace Api {
 namespace {
 
+using namespace Tdb;
 using namespace rpl::details;
 
 template <typename T>
@@ -241,6 +244,21 @@ mtpRequestId EditCaption(
 		SendOptions options,
 		Fn<void()> done,
 		Fn<void(const QString &)> fail) {
+	const auto session = &item->history()->session();
+	return session->sender().request(TLeditMessageCaption(
+		peerToTdbChat(item->history()->peer->id),
+		tl_int53(item->id.bare),
+		Api::FormattedTextToTdb(
+			session,
+			caption,
+			Api::ConvertOption::SkipLocal)
+	)).done([=](const TLmessage &result) {
+		session->data().processMessage(result, NewMessageType::Existing);
+		done();
+	}).fail([=](const Error &error) {
+		fail(error.message);
+	}).send();
+#if 0 // mtp
 	return EditMessage(
 		item,
 		caption,
@@ -248,6 +266,7 @@ mtpRequestId EditCaption(
 		options,
 		done,
 		fail);
+#endif
 }
 
 mtpRequestId EditTextMessage(
@@ -257,11 +276,27 @@ mtpRequestId EditTextMessage(
 		SendOptions options,
 		Fn<void(mtpRequestId requestId)> done,
 		Fn<void(const QString &, mtpRequestId requestId)> fail) {
+	const auto session = &item->history()->session();
+	return session->sender().request(TLeditMessageText(
+		peerToTdbChat(item->history()->peer->id),
+		tl_int53(item->id.bare),
+		tl_inputMessageText(
+			Api::FormattedTextToTdb(caption),
+			Data::LinkPreviewOptions(webpage),
+			tl_bool(true))
+	)).done([=](const TLmessage &result, RequestId requestId) {
+		session->data().processMessage(result, NewMessageType::Existing);
+		done(requestId);
+	}).fail([=](const Error &error, RequestId requestId) {
+		fail(error.message, requestId);
+	}).send();
+#if 0 // mtp
 	const auto callback = [=](Fn<void()> applyUpdates, mtpRequestId id) {
 		applyUpdates();
 		done(id);
 	};
 	return EditMessage(item, caption, webpage, options, callback, fail);
+#endif
 }
 
 } // namespace Api
