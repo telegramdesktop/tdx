@@ -487,7 +487,7 @@ Fn<void()> SavePreparedTheme(
 	const auto changed = (parsed.background != originalParsed.background)
 		|| (parsed.tiled != originalParsed.tiled)
 		|| PaletteChanged(parsed.palette, originalParsed.palette, fields);
-
+#if 0 // tdlib todo
 	const auto finish = [=](const MTPTheme &result) {
 		Background()->clearEditingTheme(ClearEditing::KeepChanges);
 		done();
@@ -567,7 +567,6 @@ Fn<void()> SavePreparedTheme(
 	};
 
 	const auto uploadFile = [=](const QByteArray &theme) {
-#if 0 // todo
 		const auto media = PrepareThemeMedia(
 			session->mainDcId(),
 			fields.title,
@@ -583,7 +582,6 @@ Fn<void()> SavePreparedTheme(
 		}, state->lifetime);
 
 		session->uploader().uploadMedia(state->id, media);
-#endif
 	};
 
 	const auto save = [=] {
@@ -626,6 +624,7 @@ Fn<void()> SavePreparedTheme(
 	} else {
 		save();
 	}
+#endif
 
 	return [=] {
 		state->generating = false;
