@@ -236,10 +236,7 @@ mtpRequestId EditCaption(
 	return session->sender().request(TLeditMessageCaption(
 		peerToTdbChat(item->history()->peer->id),
 		tl_int53(item->id.bare),
-		Api::FormattedTextToTdb(
-			session,
-			caption,
-			Api::ConvertOption::SkipLocal)
+		Api::FormattedTextToTdb(caption)
 	)).done([=](const TLmessage &result) {
 		session->data().processMessage(result, NewMessageType::Existing);
 		done();
@@ -262,10 +259,7 @@ mtpRequestId EditTextMessage(
 		peerToTdbChat(item->history()->peer->id),
 		tl_int53(item->id.bare),
 		tl_inputMessageText(
-			Api::FormattedTextToTdb(
-				session,
-				caption,
-				Api::ConvertOption::SkipLocal),
+			Api::FormattedTextToTdb(caption),
 			tl_bool(options.removeWebPageId),
 			tl_bool(true))
 	)).done([=](const TLmessage &result, RequestId requestId) {
