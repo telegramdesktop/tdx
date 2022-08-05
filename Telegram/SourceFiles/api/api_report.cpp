@@ -17,10 +17,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/report_box_graphics.h"
 #include "ui/layers/show.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+
 namespace Api {
 
 namespace {
 
+using namespace Tdb;
+
+[[nodiscard]] TLreportReason ReasonToTL(const Ui::ReportReason &reason) {
+	using Reason = Ui::ReportReason;
+	switch (reason) {
+	case Reason::Spam: return tl_reportReasonSpam();
+	case Reason::Fake: return tl_reportReasonFake();
+	case Reason::Violence: return tl_reportReasonViolence();
+	case Reason::ChildAbuse: return tl_reportReasonChildAbuse();
+	case Reason::Pornography: return tl_reportReasonPornography();
+	case Reason::Copyright: return tl_reportReasonCopyright();
+	case Reason::IllegalDrugs: return tl_reportReasonIllegalDrugs();
+	case Reason::PersonalDetails: return tl_reportReasonPersonalDetails();
+	case Reason::Other: return tl_reportReasonCustom();
+	}
+	Unexpected("Bad reason group value.");
+}
+#if 0 // mtp
 MTPreportReason ReasonToTL(const Ui::ReportReason &reason) {
 	using Reason = Ui::ReportReason;
 	switch (reason) {
@@ -37,6 +58,7 @@ MTPreportReason ReasonToTL(const Ui::ReportReason &reason) {
 	}
 	Unexpected("Bad reason group value.");
 }
+#endif
 
 } // namespace
 
@@ -49,7 +71,21 @@ void SendReport(
 	auto done = [=] {
 		show->showToast(tr::lng_report_thanks(tr::now));
 	};
-#if 0 // todo
+	v::match(data, [&](v::null_t) {
+		Unexpected("This won't be here.");
+	}, [&](not_null<PhotoData*> photo) {
+		const auto tdb = std::get_if<TdbFileLocation>(
+			&photo->location(Data::PhotoSize::Large).file().data);
+		if (tdb) {
+			peer->session().sender().request(TLreportChatPhoto(
+				peerToTdbChat(peer->id),
+				tl_int32(tdb->fileId),
+				ReasonToTL(reason),
+				tl_string(comment)
+			)).done(std::move(done)).send();
+		}
+	});
+#if 0 // mtp
 	v::match(data, [&](v::null_t) {
 		peer->session().api().request(MTPaccount_ReportPeer(
 			peer->input,
@@ -89,6 +125,7 @@ auto CreateReportMessagesOrStoriesCallback(
 	return [=](
 			Data::ReportInput reportInput,
 			Fn<void(Result)> done) {
+#if 0 // mtp
 		auto apiIds = QVector<MTPint>();
 		apiIds.reserve(reportInput.ids.size() + reportInput.stories.size());
 		for (const auto &id : reportInput.ids) {
@@ -149,6 +186,83 @@ auto CreateReportMessagesOrStoriesCallback(
 					MTP_bytes(reportInput.optionId),
 					MTP_string(reportInput.comment))
 			).done(received).fail(fail).send();
+		}
+#endif
+		const auto fail = [=](const Error &error) {
+			state->requestId = 0;
+			done({ .error = error.message });
+		};
+		const auto optionRequired = [=](const auto &data) {
+			const auto t = data.vtitle().v;
+			auto list = Result::Options();
+			list.reserve(data.voptions().v.size());
+			for (const auto &tl : data.voptions().v) {
+				list.emplace_back(Result::Option{
+					.id = tl.data().vid().v,
+					.text = tl.data().vtext().v,
+				});
+			}
+			return Result{ .options = std::move(list), .title = t };
+		};
+		const auto textRequired = [=](const auto &data) {
+			return Result{
+				.commentOption = ReportResult::CommentOption{
+					.optional = data.vis_optional().v,
+					.id = data.voption_id().v,
+				},
+			};
+		};
+		if (!reportInput.stories.empty()) {
+			Assert(reportInput.stories.size() == 1);
+			state->requestId = peer->session().sender().request(
+				TLreportStory(
+					peerToTdbChat(peer->id),
+					tl_int32(reportInput.stories.front()),
+					tl_bytes(reportInput.optionId),
+					tl_string(reportInput.comment))
+			).done([=](
+					const TLreportStoryResult &result,
+					mtpRequestId requestId) {
+				if (state->requestId != requestId) {
+					return;
+				}
+				state->requestId = 0;
+				done(result.match([](const TLDreportStoryResultOk &) {
+					return Result{ .successful = true };
+				}, [&](const TLDreportStoryResultOptionRequired &data) {
+					return optionRequired(data);
+				}, [&](const TLDreportStoryResultTextRequired &data) {
+					return textRequired(data);
+				}));
+			}).fail(fail).send();
+		} else {
+			state->requestId = peer->session().sender().request(
+				TLreportChat(
+					peerToTdbChat(peer->id),
+					tl_bytes(reportInput.optionId),
+					tl_vector<TLint53>(ranges::views::all(
+						reportInput.ids
+					) | ranges::views::transform([](MsgId id) {
+						return tl_int53(id.bare);
+					}) | ranges::to<QVector<TLint53>>()),
+					tl_string(reportInput.comment))
+			).done([=](
+					const TLreportChatResult &result,
+					mtpRequestId requestId) {
+				if (state->requestId != requestId) {
+					return;
+				}
+				state->requestId = 0;
+				done(result.match([](const TLDreportChatResultOk &) {
+					return Result{ .successful = true };
+				}, [&](const TLDreportChatResultOptionRequired &data) {
+					return optionRequired(data);
+				}, [&](const TLDreportChatResultTextRequired &data) {
+					return textRequired(data);
+				}, [&](const TLDreportChatResultMessagesRequired &) {
+					return Result{ .error = u"MESSAGE_ID_REQUIRED"_q };
+				}));
+			}).fail(fail).send();
 		}
 	};
 }

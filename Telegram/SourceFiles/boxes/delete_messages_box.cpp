@@ -32,6 +32,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
+#include "tdb/tdb_sender.h"
+
+using namespace Tdb;
+
 DeleteMessagesBox::DeleteMessagesBox(
 	QWidget*,
 	not_null<HistoryItem*> item,
@@ -552,12 +556,19 @@ void DeleteMessagesBox::deleteAndClear() {
 				ChatRestrictionsInfo());
 		}
 		if (_reportSpam->checked()) {
+			_moderateInChannel->session().sender().request(
+				TLreportSupergroupSpam(
+					tl_int53(peerToChannel(_moderateInChannel->id).bare),
+					tl_vector<TLint53>(1, tl_int53(_ids[0].msg.bare)))
+			).send();
+#if 0 // mtp
 			_moderateInChannel->session().api().request(
 				MTPchannels_ReportSpam(
 					_moderateInChannel->inputChannel,
 					_moderateFrom->input,
 					MTP_vector<MTPint>(1, MTP_int(_ids[0].msg)))
 			).send();
+#endif
 		}
 		if (_deleteAll && _deleteAll->checked()) {
 			_moderateInChannel->session().api().deleteAllFromParticipant(
