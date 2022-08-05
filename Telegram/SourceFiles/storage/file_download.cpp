@@ -492,6 +492,8 @@ std::unique_ptr<FileLoader> CreateFileLoader(
 		uint8 cacheTag) {
 	auto result = std::unique_ptr<FileLoader>();
 	v::match(location.data, [&](const StorageFileLocation &data) {
+		Unexpected("Trying to load a file by MTProto location.");
+#if 0 // mtp
 		result = std::make_unique<mtpFileLoader>(
 			session,
 			data,
@@ -504,7 +506,10 @@ std::unique_ptr<FileLoader> CreateFileLoader(
 			fromCloud,
 			autoLoading,
 			cacheTag);
+#endif
 	}, [&](const WebFileLocation &data) {
+		Unexpected("Trying to load a file by MTProto web location.");
+#if 0 // mtp
 		result = std::make_unique<mtpFileLoader>(
 			session,
 			data,
@@ -513,7 +518,9 @@ std::unique_ptr<FileLoader> CreateFileLoader(
 			fromCloud,
 			autoLoading,
 			cacheTag);
+#endif
 	}, [&](const GeoPointLocation &data) {
+#if 0 // todo
 		result = std::make_unique<mtpFileLoader>(
 			session,
 			data,
@@ -522,6 +529,7 @@ std::unique_ptr<FileLoader> CreateFileLoader(
 			fromCloud,
 			autoLoading,
 			cacheTag);
+#endif
 	}, [&](const PlainUrlLocation &data) {
 		result = std::make_unique<webFileLoader>(
 			session,

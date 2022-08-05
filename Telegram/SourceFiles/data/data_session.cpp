@@ -3671,7 +3671,9 @@ void Session::photoApplyFields(
 	if (!date) {
 		return;
 	}
+#if 0 // mtp
 	photo->setRemoteLocation(dc, access, fileReference);
+#endif
 	photo->setFields(date, hasStickers);
 	photo->updateImages(
 		inlineThumbnailBytes,
@@ -3920,9 +3922,11 @@ void Session::documentApplyFields(
 
 	// Uses 'type' that is computed from attributes.
 	document->recountIsImage();
+#if 0 // mtp
 	if (dc != 0 && access != 0) {
 		document->setRemoteLocation(dc, access, fileReference);
 	}
+#endif
 }
 
 not_null<DocumentData*> Session::venueIconDocument(const QString &icon) {
@@ -4272,9 +4276,11 @@ void Session::webpageApplyFields(
 		author,
 		hasLargeMedia,
 		pendingTill);
+#if 0 // mtp
 	if (requestPending) {
 		_session->api().requestWebPageDelayed(page);
 	}
+#endif
 	if (changed) {
 		notifyWebPageUpdateDelayed(page);
 	}

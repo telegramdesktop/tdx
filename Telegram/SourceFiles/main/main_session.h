@@ -169,9 +169,11 @@ public:
 	[[nodiscard]] Api::SendProgressManager &sendProgressManager() const {
 		return *_sendProgressManager;
 	}
+#if 0 // mtp
 	[[nodiscard]] Storage::DownloadManagerMtproto &downloader() const {
 		return *_downloader;
 	}
+#endif
 	[[nodiscard]] Storage::Uploader &uploader() const {
 		return *_uploader;
 	}
@@ -277,7 +279,10 @@ private:
 	const std::unique_ptr<ApiWrap> _api;
 	const std::unique_ptr<Api::Updates> _updates;
 	const std::unique_ptr<Api::SendProgressManager> _sendProgressManager;
+#if 0 // mtp
 	const std::unique_ptr<Storage::DownloadManagerMtproto> _downloader;
+#endif
+	rpl::event_stream<> _downloaderTaskFinished;
 	const std::unique_ptr<Storage::Uploader> _uploader;
 	const std::unique_ptr<Storage::Facade> _storage;
 

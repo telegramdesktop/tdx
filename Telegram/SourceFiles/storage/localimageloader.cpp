@@ -1032,7 +1032,11 @@ void FileLoadTask::process(Args &&args) {
 			if (image->modifications.paint) {
 				const auto documents = ExtractStickersFromScene(image);
 				_result->attachedStickers = documents
+#if 0 // mtp
 					| ranges::views::transform(&DocumentData::mtpInput)
+#endif
+					| ranges::views::transform(&DocumentData::tdbFileId)
+					| ranges::views::filter([](FileId id) { return !!id; })
 					| ranges::to_vector;
 			}
 		}

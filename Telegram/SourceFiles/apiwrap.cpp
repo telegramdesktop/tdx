@@ -170,8 +170,10 @@ struct ApiWrap::DialogsLoadState {
 ApiWrap::ApiWrap(not_null<Main::Session*> session)
 : MTP::Sender(&session->account().mtp())
 , _session(session)
+#if 0 // mtp
 , _messageDataResolveDelayed([=] { resolveMessageDatas(); })
 , _webPagesTimer([=] { resolveWebPages(); })
+#endif
 , _draftsSaveTimer([=] { saveDraftsToCloud(); })
 , _featuredSetsReadTimer([=] { readFeaturedSets(); })
 , _dialogsLoadState(std::make_unique<DialogsLoadState>())
@@ -664,6 +666,19 @@ void ApiWrap::requestMessageData(
 		PeerData *peer,
 		MsgId msgId,
 		Fn<void()> done) {
+	Expects(peer != nullptr);
+
+	sender().request(TLgetMessage(
+		peerToTdbChat(peer->id),
+		tl_int53(msgId.bare)
+	)).done([=](const TLmessage &result) {
+		session().data().processMessage(result, NewMessageType::Existing);
+		done();
+	}).fail([=] {
+		done();
+	}).send();
+
+#if 0 // mtp
 	auto &requests = (peer && peer->isChannel())
 		? _channelMessageDataRequests[peer->asChannel()][msgId]
 		: _messageDataRequests[msgId];
@@ -673,8 +688,10 @@ void ApiWrap::requestMessageData(
 	if (!requests.requestId) {
 		_messageDataResolveDelayed.call();
 	}
+#endif
 }
 
+#if 0 // mtp
 QVector<MTPInputMessage> ApiWrap::collectMessageIds(
 		const MessageDataRequests &requests) {
 	auto result = QVector<MTPInputMessage>();
@@ -710,7 +727,6 @@ void ApiWrap::resolveMessageDatas() {
 		return;
 	}
 
-#if 0 // todo
 	const auto ids = collectMessageIds(_messageDataRequests);
 	if (!ids.isEmpty()) {
 		const auto requestId = request(MTPmessages_GetMessages(
@@ -760,7 +776,6 @@ void ApiWrap::resolveMessageDatas() {
 		}
 		++j;
 	}
-#endif
 }
 
 void ApiWrap::finalizeMessageDataRequest(
@@ -794,6 +809,7 @@ void ApiWrap::finalizeMessageDataRequest(
 		callback();
 	}
 }
+#endif
 
 QString ApiWrap::exportDirectMessageLink(
 		not_null<HistoryItem*> item,
@@ -2699,7 +2715,6 @@ void ApiWrap::gotStickerSet(
 		LOG(("API Error: Unexpected messages.stickerSetNotModified."));
 	});
 }
-#endif
 
 void ApiWrap::requestWebPageDelayed(not_null<WebPageData*> page) {
 	if (page->failed || !page->pendingTill) {
@@ -2725,7 +2740,6 @@ void ApiWrap::clearWebPageRequests() {
 }
 
 void ApiWrap::resolveWebPages() {
-#if 0 // todo
 	auto ids = QVector<MTPInputMessage>(); // temp_req_id = -1
 	using IndexAndMessageIds = QPair<int32, QVector<MTPInputMessage>>;
 	using MessageIdsByChannel = base::flat_map<ChannelData*, IndexAndMessageIds>;
@@ -2801,7 +2815,6 @@ void ApiWrap::resolveWebPages() {
 	if (m < INT_MAX) {
 		_webPagesTimer.callOnce(std::min(m, 86400) * crl::time(1000));
 	}
-#endif
 }
 
 template <typename Request>
@@ -3016,7 +3029,6 @@ void ApiWrap::refreshFileReference(
 	});
 }
 
-#if 0 // mtp
 void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &result, mtpRequestId req) {
 	WebPageData::ApplyChanges(_session, channel, result);
 	for (auto i = _webPagesPending.begin(); i != _webPagesPending.cend();) {

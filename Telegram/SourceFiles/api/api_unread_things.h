@@ -26,9 +26,11 @@ public:
 
 	void preloadEnough(Data::Thread *thread);
 
+#if 0 // mtp
 	void mediaAndMentionsRead(
 		const base::flat_set<MsgId> &readIds,
 		ChannelData *channel = nullptr);
+#endif
 
 	void cancelRequests(not_null<Data::Thread*> thread);
 

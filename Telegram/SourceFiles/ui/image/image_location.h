@@ -82,7 +82,9 @@ public:
 
 	[[nodiscard]] int32 dcId() const;
 	[[nodiscard]] uint64 objectId() const;
+#if 0 // mtp
 	[[nodiscard]] MTPInputFileLocation tl(UserId self) const;
+#endif
 
 	[[nodiscard]] QByteArray serialize() const;
 	[[nodiscard]] int serializeSize() const;
@@ -98,9 +100,11 @@ public:
 	// We have to allow checking this because of a serialization bug.
 	[[nodiscard]] bool isDocumentThumbnail() const;
 
+#if 0 // mtp
 	[[nodiscard]] QByteArray fileReference() const;
 	bool refreshFileReference(const Data::UpdatedFileReferences &updates);
 	bool refreshFileReference(const QByteArray &data);
+#endif
 
 	[[nodiscard]] static const StorageFileLocation &Invalid();
 
@@ -196,6 +200,7 @@ public:
 	[[nodiscard]] bool isLegacy() const {
 		return _file.isLegacy();
 	}
+#if 0 // mtp
 	[[nodiscard]] QByteArray fileReference() const {
 		return _file.fileReference();
 	}
@@ -205,6 +210,7 @@ public:
 	bool refreshFileReference(const Data::UpdatedFileReferences &updates) {
 		return _file.refreshFileReference(updates);
 	}
+#endif
 
 	[[nodiscard]] static const StorageImageLocation &Invalid() {
 		static auto result = StorageImageLocation();
@@ -462,11 +468,10 @@ inline bool operator>=(
 
 struct TdbFileLocation {
 	TdbFileLocation() = default;
-	explicit TdbFileLocation(FileId id) : fileId(id) {
-	}
 	explicit TdbFileLocation(const Tdb::TLfile &data);
 
 	FileId fileId = 0;
+	uint64 hash = 0;
 
 	[[nodiscard]] static Storage::Cache::Key BigFileBaseCacheKey(
 		uint64 documentId,
@@ -533,9 +538,11 @@ public:
 	[[nodiscard]] Storage::Cache::Key cacheKey() const;
 	[[nodiscard]] bool valid() const;
 	[[nodiscard]] bool isLegacy() const;
+#if 0 // mtp
 	[[nodiscard]] QByteArray fileReference() const;
 	bool refreshFileReference(const QByteArray &data);
 	bool refreshFileReference(const Data::UpdatedFileReferences &updates);
+#endif
 
 	friend inline bool operator==(
 			const DownloadLocation &a,
@@ -618,6 +625,7 @@ public:
 	[[nodiscard]] bool isLegacy() const {
 		return _file.isLegacy();
 	}
+#if 0 // mtp
 	[[nodiscard]] QByteArray fileReference() const {
 		return _file.fileReference();
 	}
@@ -627,6 +635,7 @@ public:
 	bool refreshFileReference(const Data::UpdatedFileReferences &updates) {
 		return _file.refreshFileReference(updates);
 	}
+#endif
 
 	[[nodiscard]] static const ImageLocation &Invalid() {
 		static auto result = ImageLocation();

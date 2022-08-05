@@ -2960,7 +2960,7 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateActiveNotifications &data) {
 	}, [&](const TLDupdateHavePendingNotifications &data) {
 	}, [&](const TLDupdateDeleteMessages &data) {
-		if (data.vfrom_cache().v || !data.vis_permanent().v) {
+		if (data.vfrom_cache().v) {
 			return;
 		}
 		const auto peerId = peerFromTdbChat(data.vchat_id());
