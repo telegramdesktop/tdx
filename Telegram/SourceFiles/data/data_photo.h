@@ -79,6 +79,7 @@ public:
 	[[nodiscard]] Image *getReplyPreview(not_null<HistoryItem*> item);
 	[[nodiscard]] bool replyPreviewLoaded(bool spoiler) const;
 
+#if 0 // mtp
 	void setRemoteLocation(
 		int32 dc,
 		uint64 access,
@@ -86,6 +87,7 @@ public:
 	[[nodiscard]] MTPInputPhoto mtpInput() const;
 	[[nodiscard]] QByteArray fileReference() const;
 	void refreshFileReference(const QByteArray &value);
+#endif
 
 	// When we have some client-side generated photo
 	// (for example for displaying an external inline bot result)

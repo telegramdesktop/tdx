@@ -32,6 +32,7 @@ void RescheduleMessage(
 	not_null<HistoryItem*> item,
 	SendOptions options);
 
+#if 0 // mtp
 void EditMessageWithUploadedDocument(
 	HistoryItem *item,
 	RemoteFileInfo info,
@@ -41,6 +42,7 @@ void EditMessageWithUploadedPhoto(
 	HistoryItem *item,
 	RemoteFileInfo info,
 	SendOptions options);
+#endif
 
 mtpRequestId EditCaption(
 	not_null<HistoryItem*> item,
