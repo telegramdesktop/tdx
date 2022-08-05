@@ -195,6 +195,7 @@ public:
 	void requestFullPeer(not_null<PeerData*> peer);
 	void requestPeerSettings(not_null<PeerData*> peer);
 
+#if 0 // mtp
 	using UpdatedFileReferences = Data::UpdatedFileReferences;
 	using FileReferencesHandler = FnMut<void(const UpdatedFileReferences&)>;
 	void refreshFileReference(
@@ -205,6 +206,7 @@ public:
 		not_null<Storage::DownloadMtprotoTask*> task,
 		int requestId,
 		const QByteArray &current);
+#endif
 
 	void requestChangelog(
 		const QString &sinceVersion,
@@ -244,9 +246,11 @@ public:
 		not_null<ChannelData*> channel,
 		not_null<PeerData*> from);
 
+#if 0 // mtp
 	void requestWebPageDelayed(not_null<WebPageData*> page);
 	void clearWebPageRequest(not_null<WebPageData*> page);
 	void clearWebPageRequests();
+#endif
 
 	void scheduleStickerSetRequest(uint64 setId, uint64 access);
 	void requestStickerSets();
@@ -459,6 +463,7 @@ private:
 
 	void saveDraftsToCloud();
 
+#if 0 // mtp
 	void resolveMessageDatas();
 	void finalizeMessageDataRequest(
 		ChannelData *channel,
@@ -470,7 +475,6 @@ private:
 		ChannelData *channel,
 		bool onlyExisting = false);
 
-#if 0 // mtp
 	void gotChatFull(
 		not_null<PeerData*> peer,
 		const MTPmessages_ChatFull &result);
@@ -484,7 +488,6 @@ private:
 		mtpRequestId req);
 	void gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result);
 #endif
-	void resolveWebPages();
 
 	void requestStickers(TimeId now);
 	void requestMasks(TimeId now);
@@ -571,11 +574,13 @@ private:
 
 	void sendNotifySettingsUpdates();
 
+#if 0 // mtp
 	template <typename Request>
 	void requestFileReference(
 		Data::FileOrigin origin,
 		FileReferencesHandler &&handler,
 		Request &&data);
+#endif
 
 	void migrateDone(
 		not_null<PeerData*> peer,
@@ -590,11 +595,13 @@ private:
 
 	base::flat_map<QString, int> _modifyRequests;
 
+#if 0 // mtp
 	MessageDataRequests _messageDataRequests;
 	base::flat_map<
 		not_null<ChannelData*>,
 		MessageDataRequests> _channelMessageDataRequests;
 	SingleQueuedInvokation _messageDataResolveDelayed;
+#endif
 
 	using PeerRequests = base::flat_map<PeerData*, mtpRequestId>;
 	PeerRequests _fullPeerRequests;
@@ -606,8 +613,10 @@ private:
 		not_null<History*>,
 		std::pair<mtpRequestId,Fn<void()>>> _historyArchivedRequests;
 
+#if 0 // mtp
 	base::flat_map<not_null<WebPageData*>, mtpRequestId> _webPagesPending;
 	base::Timer _webPagesTimer;
+#endif
 
 	struct StickerSetRequest {
 		uint64 accessHash = 0;
@@ -704,9 +713,11 @@ private:
 	base::Timer _updateNotifyTimer;
 	rpl::lifetime _updateNotifyQueueLifetime;
 
+#if 0 // mtp
 	std::map<
 		Data::FileOrigin,
 		std::vector<FileReferencesHandler>> _fileReferenceHandlers;
+#endif
 
 	mtpRequestId _deepLinkInfoRequestId = 0;
 

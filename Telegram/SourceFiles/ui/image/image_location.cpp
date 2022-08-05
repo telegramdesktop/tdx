@@ -14,11 +14,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "base/overload.h"
 #include "main/main_session.h"
+
 #include "tdb/tdb_tl_scheme.h"
+#include <xxhash.h>
 
 #include <QtCore/QBuffer>
 
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kDocumentBaseCacheTag = 0x0000000000010000ULL;
 constexpr auto kDocumentBaseCacheMask = 0x000000000000FF00ULL;
@@ -39,6 +43,7 @@ enum class NonStorageLocationType : quint8 {
 	Tdb,
 };
 
+#if 0 // mtp
 MTPInputPeer GenerateInputPeer(
 		PeerId id,
 		uint64 accessHash,
@@ -72,6 +77,16 @@ MTPInputPeer GenerateInputPeer(
 		return MTP_inputPeerEmpty();
 	}
 }
+#endif
+
+[[nodiscard]] uint64 ExtractTdbFileLocationHash(const TLfile &data) {
+	const auto &fields = data.data();
+	const auto id = fields.vremote().data().vunique_id().v.isEmpty()
+		? fields.vlocal().data().vpath().v
+		: fields.vremote().data().vunique_id().v;
+	return id.isEmpty() ? 0 : XXH64(id.data(), id.size() * sizeof(QChar), 0);
+}
+
 
 } // namespace
 
@@ -212,6 +227,7 @@ uint64 StorageFileLocation::objectId() const {
 	return _id;
 }
 
+#if 0 // mtp
 MTPInputFileLocation StorageFileLocation::tl(UserId self) const {
 	switch (_type) {
 	case Type::Legacy:
@@ -283,6 +299,7 @@ MTPInputFileLocation StorageFileLocation::tl(UserId self) const {
 	}
 	Unexpected("Type in StorageFileLocation::tl.");
 }
+#endif
 
 QByteArray StorageFileLocation::serialize() const {
 	auto result = QByteArray();
@@ -542,6 +559,7 @@ Storage::Cache::Key StorageFileLocation::bigFileBaseCacheKey() const {
 	Unexpected("Invalid file location type.");
 }
 
+#if 0 // mtp
 QByteArray StorageFileLocation::fileReference() const {
 	return _fileReference;
 }
@@ -565,6 +583,7 @@ bool StorageFileLocation::refreshFileReference(const QByteArray &data) {
 	_fileReference = data;
 	return true;
 }
+#endif
 
 const StorageFileLocation &StorageFileLocation::Invalid() {
 	static auto result = StorageFileLocation();
@@ -680,8 +699,9 @@ bool operator<(const StorageFileLocation &a, const StorageFileLocation &b) {
 	Unexpected("Type in StorageFileLocation::operator==.");
 }
 
-TdbFileLocation::TdbFileLocation(const Tdb::TLfile &data)
-: fileId(data.data().vid().v) {
+TdbFileLocation::TdbFileLocation(const TLfile &data)
+: fileId(data.data().vid().v)
+, hash(ExtractTdbFileLocationHash(data)) {
 }
 
 Storage::Cache::Key TdbFileLocation::BigFileBaseCacheKey(
@@ -1017,6 +1037,7 @@ bool DownloadLocation::isLegacy() const {
 		: false;
 }
 
+#if 0 // mtp
 QByteArray DownloadLocation::fileReference() const {
 	if (!v::is<StorageFileLocation>(data)) {
 		return QByteArray();
@@ -1040,6 +1061,7 @@ bool DownloadLocation::refreshFileReference(
 	auto &file = v::get<StorageFileLocation>(data);
 	return file.refreshFileReference(updates);
 }
+#endif
 
 ImageLocation::ImageLocation(
 	const DownloadLocation &file,

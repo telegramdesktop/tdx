@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h" // Ui::show().
 
 #include "tdb/tdb_sender.h"
+#include "api/api_sending.h"
 
 namespace Api {
 namespace {
@@ -30,6 +31,7 @@ namespace {
 using namespace Tdb;
 using namespace rpl::details;
 
+#if 0 // mtp
 template <typename T>
 constexpr auto WithId =
 	is_callable_plain_v<T, Fn<void()>, mtpRequestId>;
@@ -93,7 +95,6 @@ mtpRequestId EditMessage(
 		? MTPmessages_EditMessage::Flag::f_schedule_date
 		: emptyFlag);
 
-#if 0 // todo
 	const auto id = item->isScheduled()
 		? session->data().scheduledMessages().lookupId(item)
 		: item->id;
@@ -136,7 +137,6 @@ mtpRequestId EditMessage(
 			t_bad_callback(fail);
 		}
 	}).send();
-#endif
 	return 0;
 }
 
@@ -195,16 +195,25 @@ void EditMessageWithUploadedMedia(
 
 	EditMessage(item, options, done, fail, media);
 }
+#endif
 
 } // namespace
 
 void RescheduleMessage(
 		not_null<HistoryItem*> item,
 		SendOptions options) {
+	item->history()->session().sender().request(TLeditMessageSchedulingState(
+		peerToTdbChat(item->history()->peer->id),
+		tl_int53(item->id.bare),
+		ScheduledToTL(options.scheduled)
+	)).send();
+#if 0 // mtp
 	const auto empty = [] {};
 	EditMessage(item, options, empty, empty);
+#endif
 }
 
+#if 0 // mtp
 void EditMessageWithUploadedDocument(
 		HistoryItem *item,
 		RemoteFileInfo info,
@@ -230,6 +239,7 @@ void EditMessageWithUploadedPhoto(
 		options,
 		PrepareUploadedPhoto(item, std::move(info)));
 }
+#endif
 
 mtpRequestId EditCaption(
 		not_null<HistoryItem*> item,

@@ -52,6 +52,7 @@ void UnreadThings::preloadEnough(Data::Thread *thread) {
 	}
 }
 
+#if 0 // mtp
 void UnreadThings::mediaAndMentionsRead(
 		const base::flat_set<MsgId> &readIds,
 		ChannelData *channel) {
@@ -66,6 +67,7 @@ void UnreadThings::mediaAndMentionsRead(
 		});
 	}
 }
+#endif
 
 void UnreadThings::preloadEnoughMentions(not_null<Data::Thread*> thread) {
 	const auto fullCount = thread->unreadMentions().count();

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#if 0 // mtp
 #include "media/streaming/media_streaming_loader.h"
 #include "mtproto/sender.h"
 #include "data/data_file_origin.h"
@@ -64,3 +65,4 @@ private:
 
 } // namespace Streaming
 } // namespace Media
+#endif

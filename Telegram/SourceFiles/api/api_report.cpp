@@ -52,6 +52,7 @@ void SendReport(
 	auto done = [=] {
 		show->showToast(tr::lng_report_thanks(tr::now));
 	};
+#if 0 // todo
 	v::match(data, [&](v::null_t) {
 		peer->session().api().request(MTPaccount_ReportPeer(
 			peer->input,
@@ -85,6 +86,7 @@ void SendReport(
 			MTP_string(comment)
 		)).done(std::move(done)).send();
 	});
+#endif
 }
 
 } // namespace Api

@@ -254,7 +254,10 @@ struct FileLoadResult {
 	TextWithTags caption;
 	bool spoiler = false;
 
+#if 0 // mtp
 	std::vector<MTPInputDocument> attachedStickers;
+#endif
+	std::vector<FileId> attachedStickers;
 
 	QByteArray filebytes;
 	QByteArray thumbbytes;
