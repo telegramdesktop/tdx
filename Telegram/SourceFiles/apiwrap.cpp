@@ -4265,11 +4265,13 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_reply_to;
 			mediaFlags |= MTPmessages_SendMedia::Flag::f_reply_to;
 		}
+#endif
 		const auto ignoreWebPage = message.webPage.removed
 			|| (exactWebPage && !isLast);
 		const auto manualWebPage = exactWebPage
 			&& !ignoreWebPage
 			&& (message.webPage.manual || (isLast && !isFirst));
+#if 0 // mtp
 		MTPMessageMedia media = MTP_messageMediaEmpty();
 		if (ignoreWebPage) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_no_webpage;
@@ -4415,12 +4417,16 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 				), done, fail);
 		}
 #endif
+		const auto sendWebPage = exactWebPage
+			&& !ignoreWebPage
+			&& (manualWebPage || sending.empty());
 		Api::SendPreparedMessage(action, tl_inputMessageText(
-			Api::FormattedTextToTdb(
-				_session,
-				sending,
-				Api::ConvertOption::SkipLocal),
-			tl_bool(message.webPageId == CancelledWebPageId),
+			Api::FormattedTextToTdb(sending),
+			(ignoreWebPage
+				? Data::LinkPreviewOptions({ .removed = true })
+				: sendWebPage
+				? Data::LinkPreviewOptions(message.webPage)
+				: std::nullopt),
 			tl_bool(action.clearDraft)));
 		isFirst = false;
 	}

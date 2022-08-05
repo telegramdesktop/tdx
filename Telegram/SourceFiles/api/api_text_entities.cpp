@@ -345,9 +345,7 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(
 	return MTP_vector<MTPMessageEntity>(std::move(v));
 }
 
-EntitiesInText EntitiesFromTdb(
-		Main::Session *session,
-		const QVector<TLtextEntity> &entities) {
+EntitiesInText EntitiesFromTdb(const QVector<TLtextEntity> &entities) {
 	auto result = EntitiesInText();
 	if (!entities.isEmpty()) {
 		result.reserve(entities.size());
@@ -412,19 +410,17 @@ EntitiesInText EntitiesFromTdb(
 }
 
 TextWithEntities FormattedTextFromTdb(
-		Main::Session *session,
 		const TLformattedText &text) {
 	const auto &formatted = text.data();
 	return TextWithEntities{
 		formatted.vtext().v,
-		Api::EntitiesFromTdb(session, formatted.ventities().v)
+		Api::EntitiesFromTdb(formatted.ventities().v)
 	};
 }
 
-TLvector<TLtextEntity> EntitiesToTdb(
-		not_null<Main::Session*> session,
-		const EntitiesInText &entities,
-		ConvertOption option) {
+TLvector<TLtextEntity> EntitiesToTdb(const EntitiesInText &entities) {
+	constexpr auto option = ConvertOption::SkipLocal;
+
 	auto v = QVector<TLtextEntity>();
 	v.reserve(entities.size());
 	for (const auto &entity : entities) {
@@ -483,13 +479,10 @@ TLvector<TLtextEntity> EntitiesToTdb(
 	return tl_vector<TLtextEntity>(std::move(v));
 }
 
-TLformattedText FormattedTextToTdb(
-		not_null<Main::Session*> session,
-		const TextWithEntities &text,
-		ConvertOption option) {
+TLformattedText FormattedTextToTdb(const TextWithEntities &text) {
 	return tl_formattedText(
 		tl_string(text.text),
-		EntitiesToTdb(session, text.entities, option));
+		EntitiesToTdb(text.entities));
 }
 
 } // namespace Api

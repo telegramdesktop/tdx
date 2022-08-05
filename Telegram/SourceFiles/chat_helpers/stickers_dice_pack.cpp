@@ -14,10 +14,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "apiwrap.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 #include <QtCore/QFile>
 #include <QtCore/QFileInfo>
 
 namespace Stickers {
+
+using namespace Tdb;
 
 const QString DicePacks::kDiceString = QString::fromUtf8("\xF0\x9F\x8E\xB2");
 const QString DicePacks::kDartString = QString::fromUtf8("\xF0\x9F\x8E\xAF");
@@ -142,6 +146,17 @@ DocumentData *DicePacks::lookup(const QString &emoji, int value) {
 		key,
 		std::make_unique<DicePack>(_session, key)
 	).first->second->lookup(value);
+}
+
+void DicePacks::apply(const TLDupdateDiceEmojis &update) {
+	const auto &list = update.vemojis().v;
+	_cloudDiceEmoticons = list
+		| ranges::views::transform(&TLstring::v)
+		| ranges::to_vector;
+}
+
+const std::vector<QString> &DicePacks::cloudDiceEmoticons() const {
+	return _cloudDiceEmoticons;
 }
 
 } // namespace Stickers
