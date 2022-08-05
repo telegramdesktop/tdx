@@ -535,7 +535,6 @@ Invoice ComputeInvoiceData(
 		.currency = data.vcurrency().v,
 		.title = TextUtilities::SingleLine(data.vtitle().v),
 		.description = Api::FormattedTextFromTdb(
-			&item->history()->session(),
 			data.vdescription()),
 		.photo = nullptr/*(data.vphoto()
 			? item->history()->owner().processPhoto(*data.vphoto())

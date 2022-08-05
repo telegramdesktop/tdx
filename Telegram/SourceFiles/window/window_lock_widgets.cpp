@@ -330,7 +330,7 @@ TermsLock TermsLock::FromTL(
 	const auto minAge = data.vmin_user_age().v;
 	return {
 		{}, // mtp
-		Api::FormattedTextFromTdb(session, data.vtext()),
+		Api::FormattedTextFromTdb(data.vtext()),
 		(minAge ? std::make_optional(minAge) : std::nullopt),
 		data.vshow_popup().v
 	};

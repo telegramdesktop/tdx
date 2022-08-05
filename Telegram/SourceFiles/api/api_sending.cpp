@@ -278,24 +278,15 @@ void SendExistingMedia(
 		const Storage::ReadyFileWithThumbnail &ready) {
 	Expects(ready.file != nullptr);
 
-	const auto history = session->data().history(file->to.peer);
-	const auto peer = history->peer;
-
 	auto caption = TextWithEntities{
 		file->caption.text,
 		TextUtilities::ConvertTextTagsToEntities(file->caption.tags)
 	};
-	const auto prepareFlags = Ui::ItemTextOptions(
-		history,
-		session->user()).flags;
-	TextUtilities::PrepareForSending(caption, prepareFlags);
+	TextUtilities::PrepareForSending(caption, 0);
 	TextUtilities::Trim(caption);
 	const auto formatted = caption.text.isEmpty()
 		? std::optional<TLformattedText>()
-		: Api::FormattedTextToTdb(
-			session,
-			caption,
-			Api::ConvertOption::SkipLocal);
+		: Api::FormattedTextToTdb(caption);
 
 	const auto &fields = ready.file->data();
 	const auto thumbnail = (ready.thumbnailGenerator
@@ -377,6 +368,117 @@ void SendExistingMedia(
 	Unexpected("FilePrepareResult::filetype.");
 }
 
+[[nodiscard]] TLinputMessageContent MessageContentFromExisting(
+		not_null<DocumentData*> document,
+		TextWithTags &&text) {
+	Expects(document->tdbFileId() != 0);
+
+	auto caption = TextWithEntities{
+		text.text,
+		TextUtilities::ConvertTextTagsToEntities(text.tags)
+	};
+	TextUtilities::PrepareForSending(caption, 0);
+	TextUtilities::Trim(caption);
+	const auto formatted = caption.text.isEmpty()
+		? std::optional<TLformattedText>()
+		: Api::FormattedTextToTdb(caption);
+
+	const auto thumbnail = std::optional<TLinputThumbnail>();
+	const auto fileById = tl_inputFileId(tl_int32(document->tdbFileId()));
+	if (document->isVideoMessage()) {
+		return tl_inputMessageVideoNote(
+			fileById,
+			thumbnail,
+			tl_int32(document->duration() / 1000),
+			tl_int32(document->dimensions.width()),
+			null); // self_destruct_type
+	} else if (document->isVoiceMessage()) {
+		return tl_inputMessageVoiceNote(
+			fileById,
+			tl_int32(document->duration() / 1000),
+			tl_bytes(documentWaveformEncode5bit(document->voice()->waveform)),
+			formatted,
+			null); // self_destruct_type
+	} else if (document->isAnimation()) {
+		return tl_inputMessageAnimation(
+			fileById,
+			thumbnail,
+			tl_vector<TLint32>(),
+			tl_int32(document->duration() / 1000),
+			tl_int32(document->dimensions.width()),
+			tl_int32(document->dimensions.height()),
+			formatted,
+			tl_bool(false), // show_caption_above_media
+			tl_bool(false)); // has_spoiler
+	} else if (document->sticker()) {
+		return tl_inputMessageSticker(
+			fileById,
+			thumbnail,
+			tl_int32(document->dimensions.width()),
+			tl_int32(document->dimensions.height()),
+			tl_string()); // Emoji used for search.
+	} else if (document->isVideoFile()) {
+		return tl_inputMessageVideo(
+			fileById,
+			thumbnail,
+			tl_vector<TLint32>(),
+			tl_int32(document->duration() / 1000),
+			tl_int32(document->dimensions.width()),
+			tl_int32(document->dimensions.height()),
+			tl_bool(document->supportsStreaming()),
+			formatted,
+			tl_bool(false), // show_caption_above_media
+			null, // self_destruct_type
+			tl_bool(false)); // has_spoiler
+	} else if (const auto song = document->song()) {
+		return tl_inputMessageAudio(
+			fileById,
+			thumbnail,
+			tl_int32(document->duration() / 1000),
+			tl_string(song->title),
+			tl_string(song->performer),
+			formatted);
+	} else {
+		return tl_inputMessageDocument(
+			fileById,
+			thumbnail,
+			tl_bool(false),
+			formatted);
+	}
+}
+
+[[nodiscard]] TLinputMessageContent MessageContentFromExisting(
+		not_null<PhotoData*> photo,
+		TextWithTags &&text) {
+	Expects(v::is<TdbFileLocation>(
+		photo->location(Data::PhotoSize::Large).file().data));
+
+	auto caption = TextWithEntities{
+		text.text,
+		TextUtilities::ConvertTextTagsToEntities(text.tags)
+	};
+	TextUtilities::PrepareForSending(caption, 0);
+	TextUtilities::Trim(caption);
+
+	const auto formatted = caption.text.isEmpty()
+		? std::optional<TLformattedText>()
+		: Api::FormattedTextToTdb(caption);
+
+	const auto thumbnail = std::optional<TLinputThumbnail>();
+	const auto fileById = tl_inputFileId(tl_int32(v::get<TdbFileLocation>(
+		photo->location(Data::PhotoSize::Large).file().data).fileId));
+	return tl_inputMessagePhoto(
+		fileById,
+		thumbnail,
+		tl_vector<TLint32>(),
+		tl_int32(photo->width()),
+		tl_int32(photo->height()),
+		formatted,
+		tl_bool(false), // show_caption_above_media
+		null, // self_destruct_type
+		tl_bool(false)); // spoiler
+}
+
 void SendPreparedAlbumIfReady(
 		const SendAction &action,
 		not_null<SendingAlbum*> album) {
@@ -413,9 +515,12 @@ void SendPreparedAlbumIfReady(
 		tl_messageSendOptions(
 			tl_bool(silentPost),
 			tl_bool(false), // from_background
-			ScheduledToTL(action.options.scheduled)),
-		tl_vector(std::move(contents)),
-		tl_bool(false) // only_preview
+			tl_bool(false), // update_order_of_installed_stickers_sets
+			ScheduledToTL(action.options.scheduled),
+			tl_int64(action.options.effectId),
+			tl_int32(0), // sending_id
+			tl_bool(false)), // only_preview
+		tl_vector(std::move(contents))
 	)).done([=](const TLmessages &result) {
 		//if (clearCloudDraft) {
 		//	// todo drafts - unnecessary?..
@@ -449,7 +554,10 @@ void SendExistingDocument(
 		MessageToSend &&message,
 		not_null<DocumentData*> document,
 		std::optional<MsgId> localMessageId) {
-#if 0 // todo
+	SendPreparedMessage(message.action, MessageContentFromExisting(
+		document,
+		std::move(message.textWithTags)));
+#if 0 // mtp
 	const auto inputMedia = [=] {
 		return MTP_inputMediaDocument(
 			MTP_flags(0),
@@ -474,7 +582,10 @@ void SendExistingPhoto(
 		MessageToSend &&message,
 		not_null<PhotoData*> photo,
 		std::optional<MsgId> localMessageId) {
-#if 0 // todo
+	SendPreparedMessage(message.action, MessageContentFromExisting(
+		photo,
+		std::move(message.textWithTags)));
+#if 0 // mtp
 	const auto inputMedia = [=] {
 		return MTP_inputMediaPhoto(
 			MTP_flags(0),
@@ -507,11 +618,15 @@ bool SendDice(MessageToSend &message) {
 		Stickers::DicePacks::kFballString + QChar(0xFE0F),
 		Stickers::DicePacks::kBballString,
 	};
+#if 0 // mtp
 	const auto list = config.get<std::vector<QString>>(
 		"emojies_send_dice",
 		hardcoded);
+#endif
+	const auto &pack = message.action.history->session().diceStickersPacks();
+	const auto &list = pack.cloudDiceEmoticons();
 	const auto emoji = full.toString();
-	if (!ranges::contains(list, emoji)) {
+	if (!ranges::contains(list.empty() ? hardcoded : list, emoji)) {
 		return false;
 	}
 	const auto history = message.action.history;
@@ -527,6 +642,34 @@ bool SendDice(MessageToSend &message) {
 	const auto &action = message.action;
 	api->sendAction(action);
 
+	session->sender().request(TLsendMessage(
+		peerToTdbChat(peer->id),
+		tl_int53(0), // message_thread_id
+		tl_int53(action.replyTo.bare),
+		MessageSendOptions(peer, action),
+		tl_inputMessageDice(tl_string(emoji), tl_bool(action.clearDraft))
+	)).done([=](const TLmessage &result) {
+		//if (clearCloudDraft) {
+		//	// todo drafts - unnecessary?..
+		//	history->finishSavingCloudDraft(
+		//		UnixtimeFromMsgId(response.outerMsgId));
+		//}
+		session->data().processMessage(result, NewMessageType::Unread);
+	}).fail([=](const Error &error) {
+		const auto code = error.code;
+		//if (error.type() == qstr("MESSAGE_EMPTY")) {
+		//	lastMessage->destroy();
+		//} else {
+		//	sendMessageFail(error, peer, randomId, newId);
+		//}
+		//if (clearCloudDraft) {
+		//	// todo drafts - unnecessary?..
+		//	history->finishSavingCloudDraft(
+		//		UnixtimeFromMsgId(response.outerMsgId));
+		//}
+	}).send();
+
+#if 0 // mtp
 	const auto newId = FullMsgId(
 		peer->id,
 		session->data().nextLocalMessageId());
@@ -578,7 +721,6 @@ bool SendDice(MessageToSend &message) {
 	}, TextWithEntities(), MTP_messageMediaDice(
 		MTP_int(0),
 		MTP_string(emoji)));
-#if 0 // todo
 	histories.sendPreparedMessage(
 		history,
 		action.replyTo,
@@ -853,7 +995,67 @@ TLmessageSendOptions MessageSendOptions(
 	return tl_messageSendOptions(
 		tl_bool(ShouldSendSilent(peer, action.options)),
 		tl_bool(false), // from_background
-		ScheduledToTL(action.options.scheduled));
+		tl_bool(false), // update_order_of_installed_stickers_sets
+		ScheduledToTL(action.options.scheduled),
+		tl_int64(action.options.effectId),
+		tl_int32(sendingId),
+		tl_bool(false)); // only_preview
+}
+
+std::optional<TLinputMessageReplyTo> MessageReplyTo(
+		not_null<History*> history,
+		const FullReplyTo &replyTo) {
+	if (const auto &storyId = replyTo.storyId) {
+		return tl_inputMessageReplyToStory(
+			peerToTdbChat(storyId.peer),
+			tl_int32(storyId.story));
+	} else if (const auto messageId = replyTo.messageId) {
+		// Complex logic for external replies.
+		// Reply should be external if done to another thread.
+		const auto to = LookupReplyTo(history, messageId);
+		const auto replyingToTopic = replyTo.topicRootId
+			? history->peer->forumTopicFor(replyTo.topicRootId)
+			: nullptr;
+		const auto replyingToTopicId = replyTo.topicRootId
+			? (replyingToTopic
+				? replyingToTopic->rootId()
+				: Data::ForumTopic::kGeneralId)
+			: (to ? to->topicRootId() : Data::ForumTopic::kGeneralId);
+		const auto replyToTopicId = to
+			? to->topicRootId()
+			: replyingToTopicId;
+		const auto external = (replyTo.messageId.peer != history->peer->id)
+			|| (replyingToTopicId != replyToTopicId);
+		if (external) {
+			return tl_inputMessageReplyToExternalMessage(
+				peerToTdbChat(messageId.peer),
+				tl_int53(messageId.msg.bare),
+				(replyTo.quote.empty()
+					? std::optional<TLinputTextQuote>()
+					: tl_inputTextQuote(
+						Api::FormattedTextToTdb(replyTo.quote),
+						tl_int32(replyTo.quoteOffset))));
+		}
+		return tl_inputMessageReplyToMessage(
+			tl_int53(messageId.msg.bare),
+			(replyTo.quote.empty()
+				? std::optional<TLinputTextQuote>()
+				: tl_inputTextQuote(
+					Api::FormattedTextToTdb(replyTo.quote),
+					tl_int32(replyTo.quoteOffset))));
+	}
+	return std::nullopt;
+}
+
+std::optional<TLinputMessageReplyTo> MessageReplyTo(
+		const SendAction &action) {
+	return MessageReplyTo(action.history, action.replyTo);
+}
+
+TLint53 MessageThreadId(
+		not_null<PeerData*> peer,
+		const SendAction &action) {
+	return tl_int53(action.replyTo.topicRootId.bare);
 }
 
 void SendPreparedMessage(

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#if 0 // mtp
 class HistoryItem;
 
 namespace Api {
@@ -24,3 +25,4 @@ MTPInputMedia PrepareUploadedDocument(
 bool HasAttachedStickers(MTPInputMedia media);
 
 } // namespace Api
+#endif

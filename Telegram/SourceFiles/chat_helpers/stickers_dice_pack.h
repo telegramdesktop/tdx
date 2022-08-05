@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Tdb {
+class TLDupdateDiceEmojis;
+} // namespace Tdb
+
 class DocumentData;
 
 namespace Main {
@@ -51,10 +55,15 @@ public:
 
 	[[nodiscard]] DocumentData *lookup(const QString &emoji, int value);
 
+	void apply(const Tdb::TLDupdateDiceEmojis &update);
+	[[nodiscard]] const std::vector<QString> &cloudDiceEmoticons() const;
+
 private:
 	const not_null<Main::Session*> _session;
 
 	base::flat_map<QString, std::unique_ptr<DicePack>> _packs;
+
+	std::vector<QString> _cloudDiceEmoticons;
 
 };
 
