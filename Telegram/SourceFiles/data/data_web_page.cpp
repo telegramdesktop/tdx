@@ -331,9 +331,11 @@ bool WebPageData::applyChanges(
 		&& pendingTill == newPendingTill) {
 		return false;
 	}
+#if 0 // mtp
 	if (pendingTill > 0 && newPendingTill <= 0) {
 		_owner->session().api().clearWebPageRequest(this);
 	}
+#endif
 	type = newType;
 	hasLargeMedia = newHasLargeMedia ? 1 : 0;
 	url = resultUrl;

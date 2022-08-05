@@ -73,6 +73,7 @@ void InnerFillMessagePostFlags(
 	}
 }
 
+#if 0 // mtp
 void SendSimpleMedia(SendAction action, MTPInputMedia inputMedia) {
 	const auto history = action.history;
 	const auto peer = history->peer;
@@ -228,7 +229,6 @@ void SendExistingMedia(
 		.effectId = action.options.effectId,
 	}, media, caption);
 
-#if 0 // todo
 	const auto performRequest = [=](const auto &repeatRequest) -> void {
 		auto &histories = history->owner().histories();
 		const auto session = &history->session();
@@ -267,10 +267,10 @@ void SendExistingMedia(
 		});
 	};
 	performRequest(performRequest);
-#endif
 
 	api->finishForwarding(action);
 }
+#endif
 
 [[nodiscard]] TLinputMessageContent MessageContentFromFile(
 		not_null<Main::Session*> session,
@@ -306,12 +306,15 @@ void SendExistingMedia(
 		: std::optional<TLinputThumbnail>());
 	const auto fileById = tl_inputFileId(tl_int32(fields.vid().v));
 	const auto seconds = file->duration / 1000;
+	const auto attached = tl_vector<TLint32>(file->attachedStickers
+		| ranges::views::transform(tl_int32)
+		| ranges::to<QVector>());
 	switch (file->filetype) {
 	case PreparedFileType::Photo:
 		return tl_inputMessagePhoto(
 			fileById,
 			thumbnail,
-			tl_vector<TLint32>(), // todo attached_stickers
+			attached,
 			tl_int32(file->dimensions.width()),
 			tl_int32(file->dimensions.height()),
 			formatted,
@@ -322,7 +325,7 @@ void SendExistingMedia(
 		return tl_inputMessageAnimation(
 			fileById,
 			thumbnail,
-			tl_vector<TLint32>(), // todo attached_stickers
+			attached,
 			tl_int32(seconds),
 			tl_int32(file->dimensions.width()),
 			tl_int32(file->dimensions.height()),
@@ -410,12 +413,7 @@ void SendPreparedAlbumIfReady(
 		tl_messageSendOptions(
 			tl_bool(silentPost),
 			tl_bool(false), // from_background
-			((action.options.scheduled == kScheduledTillOnline)
-				? tl_messageSchedulingStateSendWhenOnline()
-				: (action.options.scheduled > 0)
-				? tl_messageSchedulingStateSendAtDate(
-					tl_int32(action.options.scheduled))
-				: std::optional<TLmessageSchedulingState>())),
+			ScheduledToTL(action.options.scheduled)),
 		tl_vector(std::move(contents)),
 		tl_bool(false) // only_preview
 	)).done([=](const TLmessages &result) {
@@ -451,6 +449,7 @@ void SendExistingDocument(
 		MessageToSend &&message,
 		not_null<DocumentData*> document,
 		std::optional<MsgId> localMessageId) {
+#if 0 // todo
 	const auto inputMedia = [=] {
 		return MTP_inputMediaDocument(
 			MTP_flags(0),
@@ -464,6 +463,7 @@ void SendExistingDocument(
 		inputMedia,
 		document->stickerOrGifOrigin(),
 		std::move(localMessageId));
+#endif
 
 	if (document->sticker()) {
 		document->owner().stickers().incrementSticker(document);
@@ -474,6 +474,7 @@ void SendExistingPhoto(
 		MessageToSend &&message,
 		not_null<PhotoData*> photo,
 		std::optional<MsgId> localMessageId) {
+#if 0 // todo
 	const auto inputMedia = [=] {
 		return MTP_inputMediaPhoto(
 			MTP_flags(0),
@@ -486,6 +487,7 @@ void SendExistingPhoto(
 		inputMedia,
 		Data::FileOrigin(),
 		std::move(localMessageId));
+#endif
 }
 
 bool SendDice(MessageToSend &message) {
@@ -851,12 +853,7 @@ TLmessageSendOptions MessageSendOptions(
 	return tl_messageSendOptions(
 		tl_bool(ShouldSendSilent(peer, action.options)),
 		tl_bool(false), // from_background
-		((action.options.scheduled == kScheduledTillOnline)
-			? tl_messageSchedulingStateSendWhenOnline()
-			: (action.options.scheduled > 0)
-			? tl_messageSchedulingStateSendAtDate(
-				tl_int32(action.options.scheduled))
-			: std::optional<TLmessageSchedulingState>()));
+		ScheduledToTL(action.options.scheduled));
 }
 
 void SendPreparedMessage(

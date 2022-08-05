@@ -38,6 +38,7 @@ class TLchatPhoto;
 class TLbotMenuButton;
 class TLchatNotificationSettings;
 class TLchatActionBar;
+class TLfile;
 } // namespace Tdb
 
 namespace Data {
@@ -516,7 +517,7 @@ protected:
 	void invalidateEmptyUserpic();
 
 	void updateUserpic(
-		FileId fileId,
+		const Tdb::TLfile &file,
 		bool hasVideo,
 		PhotoId photoId = 0);
 	void updateUserpic(const Tdb::TLchatPhotoInfo &photo);

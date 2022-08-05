@@ -275,18 +275,22 @@ public:
 	void setStoryMedia(bool value);
 	[[nodiscard]] bool storyMedia() const;
 
+#if 0 // mtp
 	void setRemoteLocation(
 		int32 dc,
 		uint64 access,
 		const QByteArray &fileReference);
+#endif
 	void setContentUrl(const QString &url);
 	void setWebLocation(const WebFileLocation &location);
 	[[nodiscard]] bool hasRemoteLocation() const;
 	[[nodiscard]] bool hasWebLocation() const;
 	[[nodiscard]] bool isNull() const;
+#if 0 // mtp
 	[[nodiscard]] MTPInputDocument mtpInput() const;
 	[[nodiscard]] QByteArray fileReference() const;
 	void refreshFileReference(const QByteArray &value);
+#endif
 
 	// When we have some client-side generated document
 	// (for example for displaying an external inline bot result)
@@ -406,8 +410,7 @@ private:
 	WebFileLocation _urlLocation;
 
 	// TDLib location type.
-	FileId _tdbFileId = 0;
-	uint64 _tdbRemoteLocationHash = 0;
+	TdbFileLocation _tdbFile;
 
 	QByteArray _inlineThumbnailBytes;
 	Data::CloudFile _thumbnail;
