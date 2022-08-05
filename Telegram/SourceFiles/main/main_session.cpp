@@ -101,7 +101,9 @@ Session::Session(
 , _api(std::make_unique<ApiWrap>(this))
 , _updates(std::make_unique<Api::Updates>(this))
 , _sendProgressManager(std::make_unique<Api::SendProgressManager>(this))
+#if 0 // mtp
 , _downloader(std::make_unique<Storage::DownloadManagerMtproto>(_api.get()))
+#endif
 , _uploader(std::make_unique<Storage::Uploader>(_api.get()))
 , _storage(std::make_unique<Storage::Facade>())
 , _data(std::make_unique<Data::Session>(this))
@@ -286,11 +288,17 @@ bool Session::apply(const TLDupdateOption &update) {
 }
 
 void Session::notifyDownloaderTaskFinished() {
+#if 0 // mtp
 	downloader().notifyTaskFinished();
+#endif
+	_downloaderTaskFinished.fire({});
 }
 
 rpl::producer<> Session::downloaderTaskFinished() const {
+#if 0 // mtp
 	return downloader().taskFinished();
+#endif
+	return _downloaderTaskFinished.events();
 }
 
 bool Session::premium() const {

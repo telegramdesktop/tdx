@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/streaming/media_streaming_loader_mtproto.h"
 
+#if 0 // mtp
 #include "apiwrap.h"
 #include "main/main_session.h"
 #include "storage/streamed_file_downloader.h"
@@ -141,3 +142,4 @@ rpl::producer<LoadedPart> LoaderMtproto::parts() const {
 
 } // namespace Streaming
 } // namespace Media
+#endif

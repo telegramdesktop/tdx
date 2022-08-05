@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "tdb/tdb_tl_scheme.h"
 #include "ui/image/image_location_factory.h"
+#include "media/streaming/media_streaming_loader_tdb.h"
 
 namespace {
 
@@ -327,6 +328,7 @@ bool PhotoData::replyPreviewLoaded(bool spoiler) const {
 	return _replyPreview->loaded(spoiler);
 }
 
+#if 0 // mtp
 void PhotoData::setRemoteLocation(
 		int32 dc,
 		uint64 access,
@@ -355,6 +357,7 @@ void PhotoData::refreshFileReference(const QByteArray &value) {
 		image.location.refreshFileReference(value);
 	}
 }
+#endif
 
 void PhotoData::collectLocalData(not_null<PhotoData*> local) {
 	if (local == this) {
@@ -642,6 +645,17 @@ auto PhotoData::createStreamingLoader(
 			return Media::Streaming::MakeBytesLoader(bytes);
 		}
 	}
+	const auto tdb = std::get_if<TdbFileLocation>(
+		&videoLocation(large).file().data);
+	if (tdb) {
+		return std::make_unique<Media::Streaming::LoaderTdb>(
+			&session().tdb(),
+			tdb->fileId,
+			TdbFileLocation::BigFileBaseCacheKey(id, tdb->hash),
+			videoByteSize(large));
+	}
+	return nullptr;
+#if 0 // mtp
 	return v::is<StorageFileLocation>(videoLocation(large).file().data)
 		? std::make_unique<Media::Streaming::LoaderMtproto>(
 			&session().downloader(),
@@ -649,4 +663,5 @@ auto PhotoData::createStreamingLoader(
 			videoByteSize(large),
 			origin)
 		: nullptr;
+#endif
 }
