@@ -3038,7 +3038,13 @@ void ApiWrap::updateCustomEmoji() {
 }
 
 void ApiWrap::requestRecentStickersForce(bool attached) {
-#if 0 // todo
+	if (attached) {
+		_session->data().stickers().setLastRecentAttachedUpdate(0);
+	} else {
+		_session->data().stickers().setLastRecentUpdate(0);
+	}
+	requestRecentStickers(crl::now(), attached);
+#if 0 // mtp
 	requestRecentStickersWithHash(0, attached);
 #endif
 }
@@ -3202,7 +3208,41 @@ void ApiWrap::requestRecentStickers(TimeId now, bool attached) {
 	if (!needed) {
 		return;
 	}
-#if 0 // todo
+	const auto requestId = [=]() -> mtpRequestId & {
+		return attached
+			? _recentAttachedStickersUpdateRequest
+			: _recentStickersUpdateRequest;
+	};
+	if (requestId()) {
+		return;
+	}
+	const auto finish = [=] {
+		auto &stickers = _session->data().stickers();
+		if (attached) {
+			stickers.setLastRecentAttachedUpdate(crl::now());
+		} else {
+			stickers.setLastRecentUpdate(crl::now());
+		}
+		requestId() = 0;
+	};
+	const auto flags = attached
+		? MTPmessages_getRecentStickers::Flag::f_attached
+		: MTPmessages_getRecentStickers::Flags(0);
+	requestId() = sender().request(TLgetRecentStickers(
+		tl_bool(attached)
+	)).done([=](const TLDstickers &result) {
+		finish();
+		_session->data().stickers().specialSetReceived(
+			(attached
+				? Data::Stickers::CloudRecentAttachedSetId
+				: Data::Stickers::CloudRecentSetId),
+			tr::lng_recent_stickers(tr::now),
+			result.vstickers().v);
+	}).fail([=] {
+		finish();
+		LOG(("App Fail: Failed to get recent stickers!"));
+	}).send();
+#if 0 // mtp
 	requestRecentStickersWithHash(
 		Api::CountRecentStickersHash(_session, attached), attached);
 #endif
@@ -3265,7 +3305,23 @@ void ApiWrap::requestFavedStickers(TimeId now) {
 		|| _favedStickersUpdateRequest) {
 		return;
 	}
-#if 0 // todo
+
+	const auto finish = [=] {
+		_session->data().stickers().setLastFavedUpdate(crl::now());
+		_favedStickersUpdateRequest = 0;
+	};
+	_favedStickersUpdateRequest = sender().request(TLgetFavoriteStickers(
+	)).done([=](const TLDstickers &result) {
+		finish();
+		_session->data().stickers().specialSetReceived(
+			Data::Stickers::FavedSetId,
+			Lang::Hard::FavedSetTitle(),
+			result.vstickers().v);
+	}).fail([=] {
+		finish();
+		LOG(("App Fail: Failed to get faved stickers!"));
+	}).send();
+#if 0 // mtp
 	_favedStickersUpdateRequest = request(MTPmessages_GetFavedStickers(
 		MTP_long(Api::CountFavedStickersHash(_session))
 	)).done([=](const MTPmessages_FavedStickers &result) {
@@ -3299,7 +3355,20 @@ void ApiWrap::requestFeaturedStickers(TimeId now) {
 		|| _featuredStickersUpdateRequest) {
 		return;
 	}
-#if 0 // todo
+	const auto finish = [=] {
+		_session->data().stickers().setLastFeaturedUpdate(crl::now());
+		_featuredStickersUpdateRequest = 0;
+	};
+	_featuredStickersUpdateRequest = sender().request(
+		TLgetTrendingStickerSets(tl_int32(0), tl_int32(100))
+	).done([=](const TLtrendingStickerSets &result) {
+		finish();
+		_session->data().stickers().featuredSetsReceived(result);
+	}).fail([=] {
+		finish();
+		LOG(("App Fail: Failed to get featured stickers!"));
+	}).send();
+#if 0 // mtp
 	_featuredStickersUpdateRequest = request(MTPmessages_GetFeaturedStickers(
 		MTP_long(Api::CountFeaturedStickersHash(_session))
 	)).done([=](const MTPmessages_FeaturedStickers &result) {
@@ -3384,13 +3453,19 @@ void ApiWrap::readFeaturedSetDelayed(uint64 setId) {
 void ApiWrap::readFeaturedSets() {
 	const auto &sets = _session->data().stickers().sets();
 	auto count = _session->data().stickers().featuredSetsUnreadCount();
+#if 0 // mtp
 	QVector<MTPlong> wrappedIds;
+#endif
+	auto wrappedIds = QVector<TLint64>();
 	wrappedIds.reserve(_featuredSetsRead.size());
 	for (const auto setId : _featuredSetsRead) {
 		const auto it = sets.find(setId);
 		if (it != sets.cend()) {
 			it->second->flags &= ~Data::StickersSetFlag::Unread;
+#if 0 // mtp
 			wrappedIds.append(MTP_long(setId));
+#endif
+			wrappedIds.append(tl_int64(setId));
 			if (count) {
 				--count;
 			}
@@ -3398,8 +3473,14 @@ void ApiWrap::readFeaturedSets() {
 	}
 	_featuredSetsRead.clear();
 
-#if 0 // todo
 	if (!wrappedIds.empty()) {
+		sender().request(TLviewTrendingStickerSets(
+			tl_vector<TLint64>(wrappedIds)
+		)).done([=] {
+			local().writeFeaturedStickers();
+			_session->data().stickers().notifyUpdated();
+		}).send();
+#if 0 // mtp
 		auto requestData = MTPmessages_ReadFeaturedStickers(
 			MTP_vector<MTPlong>(wrappedIds));
 		request(std::move(requestData)).done([=] {
@@ -3407,10 +3488,10 @@ void ApiWrap::readFeaturedSets() {
 			_session->data().stickers().notifyUpdated(
 				Data::StickersType::Stickers);
 		}).send();
+#endif
 
 		_session->data().stickers().setFeaturedSetsUnreadCount(count);
 	}
-#endif
 }
 
 void ApiWrap::resolveJumpToDate(
