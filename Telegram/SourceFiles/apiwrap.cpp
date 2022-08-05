@@ -4513,7 +4513,21 @@ void ApiWrap::sendBotStart(
 		sendMessage(std::move(message));
 		return;
 	}
-#if 0 // todo
+	if (!chat) {
+		info->startToken = QString();
+	}
+	sender().request(TLsendBotStartMessage(
+		tl_int53(peerToUser(bot->id).bare),
+		peerToTdbChat(chat ? chat->id : bot->id),
+		tl_string(token)
+	)).done([=](const TLmessage &result) {
+		session().data().processMessage(result, NewMessageType::Unread);
+	}).fail([=](const Error &error) {
+		if (chat) {
+			ShowAddParticipantsError(error.message, chat, { 1, bot });
+		}
+	}).send();
+#if 0 // mtp
 	const auto randomId = base::RandomValue<uint64>();
 	if (!chat) {
 		info->startToken = QString();
