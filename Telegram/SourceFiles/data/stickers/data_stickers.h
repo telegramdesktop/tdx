@@ -17,6 +17,8 @@ class TLstickerSet;
 class TLstickerSetInfo;
 class TLDstickerSet;
 class TLDstickerSetInfo;
+class TLsticker;
+class TLtrendingStickerSets;
 } // namespace Tdb
 
 class HistoryItem;
@@ -245,6 +247,11 @@ public:
 		const MTPmessages_FeaturedStickers &result);
 	void gifsReceived(const QVector<MTPDocument> &items, uint64 hash);
 #endif
+	void specialSetReceived(
+		uint64 setId,
+		const QString &setTitle,
+		const QVector<Tdb::TLsticker> &stickers);
+	void featuredSetsReceived(const Tdb::TLtrendingStickerSets &data);
 	void gifsReceived(const QVector<Tdb::TLanimation> &items, uint64 hash);
 
 	std::vector<not_null<DocumentData*>> getListByEmoji(
@@ -270,7 +277,9 @@ public:
 	QString getSetTitle(const MTPDstickerSet &s);
 #endif
 
-	StickersSet *feedSet(const Tdb::TLstickerSetInfo &value);
+	StickersSet *feedSet(
+		const Tdb::TLstickerSetInfo &value,
+		StickersSetFlag sectionFlag = StickersSetFlag());
 	StickersSet *feedSetFull(const Tdb::TLstickerSet &value);
 	[[nodiscard]] QString getSetTitle(
 		const Tdb::TLDstickerSetInfo &data) const;
@@ -302,12 +311,12 @@ private:
 	void requestSetToPushFaved(
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<DocumentData*> document);
+#if 0 // mtp
 	void setPackAndEmoji(
 		StickersSet &set,
 		StickersPack &&pack,
 		const std::vector<TimeId> &&dates,
 		const QVector<MTPStickerPack> &packs);
-#if 0 // mtp
 	void somethingReceived(
 		const QVector<MTPStickerSet> &list,
 		uint64 hash,
