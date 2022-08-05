@@ -203,24 +203,15 @@ void SendExistingMedia(
 		const Storage::ReadyFileWithThumbnail &ready) {
 	Expects(ready.file != nullptr);
 
-	const auto history = session->data().history(file->to.peer);
-	const auto peer = history->peer;
-
 	auto caption = TextWithEntities{
 		file->caption.text,
 		TextUtilities::ConvertTextTagsToEntities(file->caption.tags)
 	};
-	const auto prepareFlags = Ui::ItemTextOptions(
-		history,
-		session->user()).flags;
-	TextUtilities::PrepareForSending(caption, prepareFlags);
+	TextUtilities::PrepareForSending(caption, 0);
 	TextUtilities::Trim(caption);
 	const auto formatted = caption.text.isEmpty()
 		? std::optional<TLformattedText>()
-		: Api::FormattedTextToTdb(
-			session,
-			caption,
-			Api::ConvertOption::SkipLocal);
+		: Api::FormattedTextToTdb(caption);
 
 	const auto &fields = ready.file->data();
 	const auto thumbnail = (ready.thumbnailGenerator
@@ -295,6 +286,109 @@ void SendExistingMedia(
 	Unexpected("FileLoadResult::filetype.");
 }
 
+[[nodiscard]] TLinputMessageContent MessageContentFromExisting(
+		not_null<DocumentData*> document,
+		TextWithTags &&text) {
+	Expects(document->tdbFileId() != 0);
+
+	auto caption = TextWithEntities{
+		text.text,
+		TextUtilities::ConvertTextTagsToEntities(text.tags)
+	};
+	TextUtilities::PrepareForSending(caption, 0);
+	TextUtilities::Trim(caption);
+	const auto formatted = caption.text.isEmpty()
+		? std::optional<TLformattedText>()
+		: Api::FormattedTextToTdb(caption);
+
+	const auto thumbnail = std::optional<TLinputThumbnail>();
+	const auto fileById = tl_inputFileId(tl_int32(document->tdbFileId()));
+	if (document->isVideoMessage()) {
+		return tl_inputMessageVideoNote(
+			fileById,
+			thumbnail,
+			tl_int32(document->duration() / 1000),
+			tl_int32(document->dimensions.width()));
+	} else if (document->isVoiceMessage()) {
+		return tl_inputMessageVoiceNote(
+			fileById,
+			tl_int32(document->duration() / 1000),
+			tl_bytes(documentWaveformEncode5bit(document->voice()->waveform)),
+			formatted);
+	} else if (document->isAnimation()) {
+		return tl_inputMessageAnimation(
+			fileById,
+			thumbnail,
+			tl_vector<TLint32>(),
+			tl_int32(document->duration() / 1000),
+			tl_int32(document->dimensions.width()),
+			tl_int32(document->dimensions.height()),
+			formatted);
+	} else if (document->sticker()) {
+		return tl_inputMessageSticker(
+			fileById,
+			thumbnail,
+			tl_int32(document->dimensions.width()),
+			tl_int32(document->dimensions.height()),
+			tl_string()); // Emoji used for search.
+	} else if (document->isVideoFile()) {
+		return tl_inputMessageVideo(
+			fileById,
+			thumbnail,
+			tl_vector<TLint32>(),
+			tl_int32(document->duration() / 1000),
+			tl_int32(document->dimensions.width()),
+			tl_int32(document->dimensions.height()),
+			tl_bool(document->supportsStreaming()),
+			formatted,
+			tl_int32(0)); // ttl
+	} else if (const auto song = document->song()) {
+		return tl_inputMessageAudio(
+			fileById,
+			thumbnail,
+			tl_int32(document->duration() / 1000),
+			tl_string(song->title),
+			tl_string(song->performer),
+			formatted);
+	} else {
+		return tl_inputMessageDocument(
+			fileById,
+			thumbnail,
+			tl_bool(false),
+			formatted);
+	}
+}
+
+[[nodiscard]] TLinputMessageContent MessageContentFromExisting(
+		not_null<PhotoData*> photo,
+		TextWithTags &&text) {
+	Expects(v::is<TdbFileLocation>(
+		photo->location(Data::PhotoSize::Large).file().data));
+
+	auto caption = TextWithEntities{
+		text.text,
+		TextUtilities::ConvertTextTagsToEntities(text.tags)
+	};
+	TextUtilities::PrepareForSending(caption, 0);
+	TextUtilities::Trim(caption);
+
+	const auto formatted = caption.text.isEmpty()
+		? std::optional<TLformattedText>()
+		: Api::FormattedTextToTdb(caption);
+
+	const auto thumbnail = std::optional<TLinputThumbnail>();
+	const auto fileById = tl_inputFileId(tl_int32(v::get<TdbFileLocation>(
+		photo->location(Data::PhotoSize::Large).file().data).fileId));
+	return tl_inputMessagePhoto(
+		fileById,
+		thumbnail,
+		tl_vector<TLint32>(),
+		tl_int32(photo->width()),
+		tl_int32(photo->height()),
+		formatted,
+		tl_int32(0)); // ttl
+}
+
 void SendPreparedAlbumIfReady(
 		const SendAction &action,
 		not_null<SendingAlbum*> album) {
@@ -367,7 +461,10 @@ void SendExistingDocument(
 		MessageToSend &&message,
 		not_null<DocumentData*> document,
 		std::optional<MsgId> localMessageId) {
-#if 0 // todo
+	SendPreparedMessage(message.action, MessageContentFromExisting(
+		document,
+		std::move(message.textWithTags)));
+#if 0 // mtp
 	const auto inputMedia = [=] {
 		return MTP_inputMediaDocument(
 			MTP_flags(0),
@@ -392,7 +489,10 @@ void SendExistingPhoto(
 		MessageToSend &&message,
 		not_null<PhotoData*> photo,
 		std::optional<MsgId> localMessageId) {
-#if 0 // todo
+	SendPreparedMessage(message.action, MessageContentFromExisting(
+		photo,
+		std::move(message.textWithTags)));
+#if 0 // mtp
 	const auto inputMedia = [=] {
 		return MTP_inputMediaPhoto(
 			MTP_flags(0),
@@ -425,11 +525,15 @@ bool SendDice(MessageToSend &message) {
 		Stickers::DicePacks::kFballString + QChar(0xFE0F),
 		Stickers::DicePacks::kBballString,
 	};
+#if 0 // mtp
 	const auto list = config.get<std::vector<QString>>(
 		"emojies_send_dice",
 		hardcoded);
+#endif
+	const auto &pack = account.session().diceStickersPacks();
+	const auto &list = pack.cloudDiceEmoticons();
 	const auto emoji = full.toString();
-	if (!ranges::contains(list, emoji)) {
+	if (!ranges::contains(list.empty() ? hardcoded : list, emoji)) {
 		return false;
 	}
 	const auto history = message.action.history;
@@ -445,6 +549,35 @@ bool SendDice(MessageToSend &message) {
 	const auto &action = message.action;
 	api->sendAction(action);
 
+	const auto &action = message.action;
+	session->sender().request(TLsendMessage(
+		peerToTdbChat(peer->id),
+		tl_int53(0), // message_thread_id
+		tl_int53(action.replyTo.bare),
+		MessageSendOptions(peer, action),
+		tl_inputMessageDice(tl_string(emoji), tl_bool(action.clearDraft))
+	)).done([=](const TLmessage &result) {
+		//if (clearCloudDraft) {
+		//	// todo drafts - unnecessary?..
+		//	history->finishSavingCloudDraft(
+		//		UnixtimeFromMsgId(response.outerMsgId));
+		//}
+		session->data().processMessage(result, NewMessageType::Unread);
+	}).fail([=](const Error &error) {
+		const auto code = error.code;
+		//if (error.type() == qstr("MESSAGE_EMPTY")) {
+		//	lastMessage->destroy();
+		//} else {
+		//	sendMessageFail(error, peer, randomId, newId);
+		//}
+		//if (clearCloudDraft) {
+		//	// todo drafts - unnecessary?..
+		//	history->finishSavingCloudDraft(
+		//		UnixtimeFromMsgId(response.outerMsgId));
+		//}
+	}).send();
+
+#if 0 // mtp
 	const auto newId = FullMsgId(
 		peer->id,
 		session->data().nextLocalMessageId());
@@ -498,7 +631,6 @@ bool SendDice(MessageToSend &message) {
 	}, TextWithEntities(), MTP_messageMediaDice(
 		MTP_int(0),
 		MTP_string(emoji)));
-#if 0 // todo
 	histories.sendPreparedMessage(
 		history,
 		action.replyTo,
