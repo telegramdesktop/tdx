@@ -3048,6 +3048,7 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateStickerSet &data) {
 	}, [&](const TLDupdateInstalledStickerSets &data) {
 	}, [&](const TLDupdateTrendingStickerSets &data) {
+		session().data().stickers().featuredSetsReceived(data.vsticker_sets());
 	}, [&](const TLDupdateRecentStickers &data) {
 	}, [&](const TLDupdateFavoriteStickers &data) {
 	}, [&](const TLDupdateSavedAnimations &data) {
