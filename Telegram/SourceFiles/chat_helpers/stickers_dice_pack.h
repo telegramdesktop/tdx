@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Tdb {
 class TLDupdateDiceEmojis;
+class TLDmessageDice;
 } // namespace Tdb
 
 class DocumentData;
@@ -25,6 +26,8 @@ public:
 	~DicePack();
 
 	[[nodiscard]] DocumentData *lookup(int value);
+
+	void apply(const Tdb::TLDmessageDice &data);
 
 private:
 	void load();
@@ -57,6 +60,8 @@ public:
 
 	void apply(const Tdb::TLDupdateDiceEmojis &update);
 	[[nodiscard]] const std::vector<QString> &cloudDiceEmoticons() const;
+
+	void apply(const Tdb::TLDmessageDice &data);
 
 private:
 	const not_null<Main::Session*> _session;
