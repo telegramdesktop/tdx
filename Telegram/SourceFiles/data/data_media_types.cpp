@@ -744,6 +744,10 @@ std::unique_ptr<HistoryView::Media> Media::createView(
 	return createView(message, message->data(), replacing);
 }
 
+bool Media::updateContent(const TLmessageContent &content) {
+	return false;
+}
+
 ItemPreview Media::toGroupPreview(
 		const HistoryItemsList &items,
 		ToPreviewOptions options) const {
@@ -2238,6 +2242,13 @@ MediaDice::MediaDice(not_null<HistoryItem*> parent, QString emoji, int value)
 , _value(value) {
 }
 
+MediaDice::MediaDice(
+	not_null<HistoryItem*> parent,
+	const Tdb::TLDmessageDice &data)
+: MediaDice(parent, data.vemoji().v, data.vvalue().v) {
+	parent->history()->session().diceStickersPacks().apply(data);
+}
+
 std::unique_ptr<Media> MediaDice::clone(not_null<HistoryItem*> parent) {
 	return std::make_unique<MediaDice>(parent, _emoji, _value);
 }
@@ -2298,6 +2309,17 @@ std::unique_ptr<HistoryView::Media> MediaDice::createView(
 		: std::make_unique<HistoryView::UnwrappedMedia>(
 			message,
 			std::make_unique<HistoryView::Dice>(message, this));
+}
+
+bool MediaDice::updateContent(const TLmessageContent &content) {
+	if (content.type() != id_messageDice) {
+		return false;
+	}
+	const auto &data = content.c_messageDice();
+	parent()->history()->session().diceStickersPacks().apply(data);
+	_value = data.vvalue().v;
+	parent()->history()->owner().requestItemRepaint(parent());
+	return true;
 }
 
 ClickHandlerPtr MediaDice::makeHandler() const {

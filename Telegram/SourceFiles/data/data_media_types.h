@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Tdb {
 class TLDmessageInvoice;
 class TLDmessageCall;
+class TLDmessageDice;
+class TLmessageContent;
 } // namespace Tdb
 
 class Image;
@@ -231,6 +233,8 @@ public:
 	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
 		HistoryView::Element *replacing = nullptr);
+
+	virtual bool updateContent(const Tdb::TLmessageContent &content);
 
 protected:
 	[[nodiscard]] ItemPreview toGroupPreview(
@@ -582,6 +586,9 @@ private:
 class MediaDice final : public Media {
 public:
 	MediaDice(not_null<HistoryItem*> parent, QString emoji, int value);
+	MediaDice(
+		not_null<HistoryItem*> parent,
+		const Tdb::TLDmessageDice &data);
 
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
 
@@ -600,6 +607,8 @@ public:
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent,
 		HistoryView::Element *replacing = nullptr) override;
+
+	bool updateContent(const Tdb::TLmessageContent &content) override;
 
 	[[nodiscard]] ClickHandlerPtr makeHandler() const;
 	[[nodiscard]] static ClickHandlerPtr MakeHandler(

@@ -10,6 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media_unwrapped.h"
 #include "history/view/media/history_view_sticker.h"
 
+namespace Tdb {
+class TLDdiceStickersSlotMachine;
+class TLsticker;
+} // namespace Tdb
+
 namespace Data {
 class MediaDice;
 } // namespace Data
@@ -75,5 +80,10 @@ private:
 	mutable std::array<bool, 4> _drawingEnd = { { false } };
 
 };
+
+void EnumerateSlotMachineParts(
+	int value,
+	const Tdb::TLDdiceStickersSlotMachine &data,
+	Fn<void(int, const Tdb::TLsticker &)> callback);
 
 } // namespace HistoryView
