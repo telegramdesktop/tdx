@@ -415,7 +415,7 @@ void UserpicButton::openPeerPhoto() {
 		return;
 	}
 	const auto photo = _peer->owner().photo(id);
-	if (photo->date && _controller) {
+	if (!photo->isNull() && _controller) {
 		_controller->openPhoto(photo, _peer);
 	}
 }
@@ -743,7 +743,7 @@ void UserpicButton::updateVideo() {
 		return;
 	}
 	const auto photo = _peer->owner().photo(id);
-	if (!photo->date || !photo->videoCanBePlayed()) {
+	if (photo->isNull() || !photo->videoCanBePlayed()) {
 		clearStreaming();
 		return;
 	} else if (_streamed && _streamedPhoto == photo) {
