@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 
 #include "tdb/tdb_tl_scheme.h"
+#include "history/view/media/history_view_slot_machine.h"
 
 #include <QtCore/QFile>
 #include <QtCore/QFileInfo>
@@ -46,7 +47,32 @@ DocumentData *DicePack::lookup(int value) {
 	return (i != end(_map)) ? i->second.get() : nullptr;
 }
 
+void DicePack::apply(const Tdb::TLDmessageDice &data) {
+	const auto emplace = [&](int index, const TLsticker &sticker) {
+		const auto document = _session->data().processDocument(sticker);
+		if (document->sticker()) {
+			_map.emplace(index, document);
+		}
+	};
+	if (const auto &state = data.vinitial_state()) {
+		state->match([&](const TLDdiceStickersRegular &data) {
+			emplace(0, data.vsticker());
+		}, [&](const TLDdiceStickersSlotMachine &data) {
+			HistoryView::EnumerateSlotMachineParts(0, data, emplace);
+		});
+	}
+	if (const auto &state = data.vfinal_state()) {
+		const auto value = data.vvalue().v;
+		state->match([&](const TLDdiceStickersRegular &data) {
+			emplace(value, data.vsticker());
+		}, [&](const TLDdiceStickersSlotMachine &data) {
+			HistoryView::EnumerateSlotMachineParts(value, data, emplace);
+		});
+	}
+}
+
 void DicePack::load() {
+#if 0 // mtp
 	if (_requestId) {
 		return;
 	}
@@ -62,6 +88,7 @@ void DicePack::load() {
 	}).fail([=] {
 		_requestId = 0;
 	}).send();
+#endif
 }
 
 void DicePack::applySet(const MTPDmessages_stickerSet &data) {
@@ -153,6 +180,21 @@ void DicePacks::apply(const TLDupdateDiceEmojis &update) {
 	_cloudDiceEmoticons = list
 		| ranges::views::transform(&TLstring::v)
 		| ranges::to_vector;
+}
+
+void DicePacks::apply(const TLDmessageDice &data) {
+	const auto emoji = data.vemoji().v;
+	const auto key = emoji.endsWith(QChar(0xFE0F))
+		? emoji.mid(0, emoji.size() - 1)
+		: emoji;
+	const auto i = _packs.find(key);
+	if (i != end(_packs)) {
+		return i->second->apply(data);
+	}
+	return _packs.emplace(
+		key,
+		std::make_unique<DicePack>(_session, key)
+	).first->second->apply(data);
 }
 
 const std::vector<QString> &DicePacks::cloudDiceEmoticons() const {
