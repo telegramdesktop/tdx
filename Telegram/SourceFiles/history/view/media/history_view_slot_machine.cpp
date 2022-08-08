@@ -16,8 +16,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "styles/style_chat.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace HistoryView {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kStartBackIndex = 0;
 constexpr auto kWinBackIndex = 1;
@@ -209,6 +213,30 @@ void SlotMachine::draw(
 		}
 	}
 	_pull->draw(p, context, r);
+}
+
+void EnumerateSlotMachineParts(
+		int value,
+		const Tdb::TLDdiceStickersSlotMachine &data,
+		Fn<void(int, const TLsticker &)> callback) {
+	if (!value) {
+		callback(kStartBackIndex, data.vbackground());
+		callback(ComplexIndex(0, kStartIndex), data.vleft_reel());
+		callback(ComplexIndex(1, kStartIndex), data.vcenter_reel());
+		callback(ComplexIndex(2, kStartIndex), data.vright_reel());
+	} else {
+		const auto firstPartValue = ComputePartValue(value, 0);
+		if (ComputePartValue(value, 1) == firstPartValue
+			&& ComputePartValue(value, 2) == firstPartValue) { // Three in a row.
+			callback(kWinBackIndex, data.vbackground());
+		} else {
+			callback(kStartBackIndex, data.vbackground());
+		}
+		callback(ComputeComplexIndex(value, 0), data.vleft_reel());
+		callback(ComputeComplexIndex(value, 1), data.vcenter_reel());
+		callback(ComputeComplexIndex(value, 2), data.vright_reel());
+	}
+	callback(kPullIndex, data.vlever());
 }
 
 } // namespace HistoryView
