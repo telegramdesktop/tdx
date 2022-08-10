@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "api/api_single_message_search.h"
 
+#include "tdb/tdb_sender.h"
+
 namespace MTP {
 class Error;
 } // namespace MTP
@@ -247,7 +249,10 @@ private:
 	void updateScrollUpPosition();
 	void updateLockUnlockPosition();
 
+#if 0 // mtp
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 
 	bool _dragInScroll = false;
 	bool _dragForward = false;

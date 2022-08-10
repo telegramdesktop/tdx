@@ -119,7 +119,10 @@ WebPageText ProcessWebPageData(WebPageData *page) {
 
 WebpageResolver::WebpageResolver(not_null<Main::Session*> session)
 : _session(session)
+#if 0 // mtp
 , _api(&session->mtp()) {
+#endif
+, _api(&session->sender()) {
 }
 
 std::optional<WebPageData*> WebpageResolver::lookup(
