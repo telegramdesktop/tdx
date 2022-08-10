@@ -558,55 +558,38 @@ void PeerData::updateUserpic(
 }
 #endif
 
-void PeerData::updateUserpic(
-		const TLfile &file,
-		bool hasVideo,
-		PhotoId photoId) {
-	if (_userpicPhotoId == photoId
-		&& photoId != kUnknownPhotoId
-		&& !_userpic.empty()) {
-		return; // todo is it ok?..
-	}
-	setUserpicChecked(
-		photoId,
-		ImageLocation(
-			{ TdbFileLocation{ file } },
-			kUserpicSize,
-			kUserpicSize),
-		hasVideo);
-}
-
 void PeerData::updateUserpic(const TLchatPhotoInfo &photo) {
-	photo.match([&](const TLDchatPhotoInfo &data) {
-		updateUserpic(
-			data.vsmall(),
-			data.vhas_animation().v); // todo set data to view.
-	});
+	updateUserpic(photo.data().vsmall(), photo.data().vhas_animation().v);
 }
 
 void PeerData::updateUserpic(const TLprofilePhoto &photo) {
-	photo.match([&](const TLDprofilePhoto &data) {
-		updateUserpic(
-			data.vsmall(),
-			data.vhas_animation().v,
-			data.vid().v); // todo set data to view.
-	});
+	updateUserpic(photo.data().vsmall(), photo.data().vhas_animation().v);
 }
 
-void PeerData::setPhotoFull(const TLchatPhoto &data) {
-	data.match([&](const TLDchatPhoto &data) {
-		// todo animated avatars.
-		if (data.vsizes().v.isEmpty()) {
-			clearPhoto();
-		} else {
-			const auto &size = data.vsizes().v.front();
-			updateUserpic(
-				size.data().vphoto(),
-				data.vanimation() != nullptr,
-				data.vid().v);
-			// todo set data to view.
+void PeerData::updateUserpic(const TLfile &small, bool hasVideo) {
+	const auto location = ImageLocation(
+		{ TdbFileLocation{ small } },
+		kUserpicSize,
+		kUserpicSize);
+	if (_userpic.location() != location || _userpicHasVideo != hasVideo) {
+		const auto wasKnown = !userpicPhotoUnknown();
+		setUserpic(kUnknownPhotoId, location, hasVideo);
+		if (wasKnown && isPremium() && hasVideo && userpicPhotoUnknown()) {
+			updateFull();
 		}
-	});
+		session().changes().peerUpdated(this, UpdateFlag::Photo);
+	}
+}
+
+void PeerData::setPhotoFull(const TLchatPhoto &photo) {
+	const auto &data = photo.data();
+	if (data.vsizes().v.isEmpty()) {
+		clearPhoto();
+	} else if (_userpicPhotoId != data.vid().v) {
+		owner().processPhoto(photo);
+		_userpicPhotoId = data.vid().v;
+		session().changes().peerUpdated(this, UpdateFlag::Photo);
+	}
 }
 
 void PeerData::clearPhoto() {
@@ -614,9 +597,16 @@ void PeerData::clearPhoto() {
 }
 
 void PeerData::clearUserpic() {
+#if 0 // mtp
 	setUserpicChecked(PhotoId(), ImageLocation(), false);
+#endif
+	if (hasUserpic()) {
+		setUserpic(PhotoId(), ImageLocation(), false);
+		session().changes().peerUpdated(this, UpdateFlag::Photo);
+	}
 }
 
+#if 0 // mtp
 void PeerData::setUserpicChecked(
 		PhotoId photoId,
 		const ImageLocation &location,
@@ -632,6 +622,7 @@ void PeerData::setUserpicChecked(
 		}
 	}
 }
+#endif
 
 auto PeerData::unavailableReasons() const
 -> const std::vector<Data::UnavailableReason> & {

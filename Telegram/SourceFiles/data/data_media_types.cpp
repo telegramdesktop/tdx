@@ -536,9 +536,9 @@ Invoice ComputeInvoiceData(
 		.title = TextUtilities::SingleLine(data.vtitle().v),
 		.description = Api::FormattedTextFromTdb(
 			data.vdescription()),
-		.photo = nullptr/*(data.vphoto()
-			? item->history()->owner().processPhoto(*data.vphoto())
-			: nullptr)*/,
+		.photo = (data.vphoto()
+			? item->history()->owner().processPhoto(*data.vphoto()).get()
+			: nullptr),
 		.isTest = data.vis_test().v,
 	};
 }
