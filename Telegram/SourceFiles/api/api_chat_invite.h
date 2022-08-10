@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/layers/box_content.h"
 
+namespace Tdb {
+class TLDchatInviteLinkInfo;
+} // namespace Tdb
+
 class UserData;
 class ChannelData;
 
@@ -44,10 +48,18 @@ void CheckChatInvite(
 
 class ConfirmInviteBox final : public Ui::BoxContent {
 public:
+#if 0 // mtp
 	ConfirmInviteBox(
 		QWidget*,
 		not_null<Main::Session*> session,
 		const MTPDchatInvite &data,
+		ChannelData *invitePeekChannel,
+		Fn<void()> submit);
+#endif
+	ConfirmInviteBox(
+		QWidget*,
+		not_null<Main::Session*> session,
+		const Tdb::TLDchatInviteLinkInfo &data,
 		ChannelData *invitePeekChannel,
 		Fn<void()> submit);
 	~ConfirmInviteBox();
@@ -75,9 +87,15 @@ private:
 		bool isScam = false;
 		bool isVerified = false;
 	};
+#if 0 // mtp
 	[[nodiscard]] static ChatInvite Parse(
 		not_null<Main::Session*> session,
 		const MTPDchatInvite &data);
+#endif
+	[[nodiscard]] static ChatInvite Parse(
+		not_null<Main::Session*> session,
+		const Tdb::TLDchatInviteLinkInfo &data);
+
 	[[nodiscard]] Info::Profile::BadgeType BadgeForInvite(
 		const ChatInvite &invite);
 
