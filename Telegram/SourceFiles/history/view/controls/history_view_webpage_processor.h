@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h"
 #include "mtproto/sender.h"
 
+#include "tdb/tdb_sender.h"
+
 class History;
 
 namespace Main {
@@ -67,7 +69,10 @@ public:
 
 private:
 	const not_null<Main::Session*> _session;
+#if 0 // mtp
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 	base::flat_map<QString, WebPageData*> _cache;
 	rpl::event_stream<QString> _resolved;
 
