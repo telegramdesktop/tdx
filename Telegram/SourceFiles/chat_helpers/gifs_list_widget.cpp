@@ -106,7 +106,10 @@ GifsListWidget::GifsListWidget(
 	descriptor.show,
 	descriptor.paused)
 , _show(std::move(descriptor.show))
+#if 0 // mtp
 , _api(&session().mtp())
+#endif
+, _api(&session().sender())
 , _section(Section::Gifs)
 , _updateInlineItems([=] { updateInlineItems(); })
 , _mosaic(st::emojiPanWidth - st::inlineResultsLeft)

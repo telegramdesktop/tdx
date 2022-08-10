@@ -132,7 +132,9 @@ private:
 	const not_null<Main::Session*> _session;
 	PeerData * const _forPeer = nullptr;
 
+#if 0 // mtp
 	MTP::Sender _api;
+#endif
 
 	std::vector<Paper> _papers;
 	uint64 _currentId = 0;
@@ -346,7 +348,9 @@ BackgroundBox::Inner::Inner(
 : RpWidget(parent)
 , _session(session)
 , _forPeer(forPeer)
+#if 0 // mtp
 , _api(&_session->mtp())
+#endif
 , _check(std::make_unique<Ui::RoundCheckbox>(st::overviewCheck, [=] { update(); })) {
 	_check->setChecked(true, anim::type::instant);
 	resize(st::boxWideWidth, 2 * (st::backgroundSize.height() + st::backgroundPadding) + st::backgroundPadding);
