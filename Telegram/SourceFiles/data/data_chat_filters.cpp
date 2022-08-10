@@ -57,6 +57,7 @@ ChatFilter::ChatFilter(
 , _flags(flags) {
 }
 
+#if 0 // mtp
 ChatFilter ChatFilter::FromTL(
 		const MTPDialogFilter &data,
 		not_null<Session*> owner) {
@@ -226,6 +227,7 @@ MTPDialogFilter ChatFilter::tl(FilterId replaceId) const {
 		MTP_vector<MTPInputPeer>(include),
 		MTP_vector<MTPInputPeer>(never));
 }
+#endif
 
 FilterId ChatFilter::id() const {
 	return _id;
@@ -336,6 +338,7 @@ void ChatFilters::clear() {
 	_list.clear();
 }
 
+#if 0 // mtp
 void ChatFilters::setPreloaded(const QVector<MTPDialogFilter> &result) {
 	_loadRequestId = -1;
 	received(result);
@@ -345,6 +348,7 @@ void ChatFilters::setPreloaded(const QVector<MTPDialogFilter> &result) {
 		}
 	});
 }
+#endif
 
 void ChatFilters::load() {
 	load(false);
@@ -359,6 +363,7 @@ void ChatFilters::load(bool force) {
 	if (_loadRequestId && !force) {
 		return;
 	}
+#if 0 // todo
 	auto &api = _owner->session().api();
 	api.request(_loadRequestId).cancel();
 	_loadRequestId = api.request(MTPmessages_GetDialogFilters(
@@ -372,8 +377,10 @@ void ChatFilters::load(bool force) {
 			_listChanged.fire({});
 		}
 	}).send();
+#endif
 }
 
+#if 0 // mtp
 void ChatFilters::received(const QVector<MTPDialogFilter> &list) {
 	auto position = 0;
 	auto changed = false;
@@ -428,6 +435,7 @@ void ChatFilters::apply(const MTPUpdate &update) {
 		Unexpected("Update in ChatFilters::apply.");
 	});
 }
+#endif
 
 ChatFilterLink ChatFilters::add(
 		FilterId id,
@@ -649,6 +657,7 @@ bool ChatFilters::applyChange(ChatFilter &filter, ChatFilter &&updated) {
 	return listUpdated;
 }
 
+#if 0 // mtp
 bool ChatFilters::applyOrder(const QVector<MTPint> &order) {
 	if (order.size() != _list.size()) {
 		return false;
@@ -686,6 +695,7 @@ bool ChatFilters::applyOrder(const QVector<MTPint> &order) {
 	}
 	return true;
 }
+#endif
 
 const ChatFilter &ChatFilters::applyUpdatedPinned(
 		FilterId id,
@@ -724,6 +734,7 @@ void ChatFilters::saveOrder(
 	if (after) {
 		_saveOrderAfterId = after;
 	}
+#if 0 // todo
 	const auto api = &_owner->session().api();
 	api->request(_saveOrderRequestId).cancel();
 
@@ -738,6 +749,7 @@ void ChatFilters::saveOrder(
 	_saveOrderRequestId = api->request(MTPmessages_UpdateDialogFiltersOrder(
 		wrapped
 	)).afterRequest(_saveOrderAfterId).send();
+#endif
 }
 
 bool ChatFilters::archiveNeeded() const {
@@ -853,6 +865,7 @@ void ChatFilters::requestSuggested() {
 		&& crl::now() - _suggestedLastReceived < kRefreshSuggestedTimeout) {
 		return;
 	}
+#if 0 // todo
 	const auto api = &_owner->session().api();
 	_suggestedRequestId = api->request(MTPmessages_GetSuggestedDialogFilters(
 	)).done([=](const MTPVector<MTPDialogFilterSuggested> &data) {
@@ -877,6 +890,7 @@ void ChatFilters::requestSuggested() {
 
 		_suggestedUpdated.fire({});
 	}).send();
+#endif
 }
 
 bool ChatFilters::suggestedLoaded() const {

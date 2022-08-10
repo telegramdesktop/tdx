@@ -209,17 +209,21 @@ public:
 	[[nodiscard]] ChatData *chatLoaded(PeerId id) const = delete;
 	[[nodiscard]] ChannelData *channelLoaded(PeerId id) const = delete;
 
+#if 0 // mtp
 	not_null<UserData*> processUser(const MTPUser &data);
 	not_null<PeerData*> processChat(const MTPChat &data);
+#endif
 
 	not_null<PeerData*> processPeer(const Tdb::TLchat &dialog);
 	not_null<UserData*> processUser(const Tdb::TLuser &user);
 	not_null<ChatData*> processChat(const Tdb::TLbasicGroup &chat);
 	not_null<ChannelData*> processChannel(const Tdb::TLsupergroup &channel);
 
+#if 0 // mtp
 	// Returns last user, if there were any.
 	UserData *processUsers(const MTPVector<MTPUser> &data);
 	PeerData *processChats(const MTPVector<MTPChat> &data);
+#endif
 
 	// Returns last user, if there were any.
 	PeerData *processPeers(const std::vector<Tdb::TLchat> &data);
@@ -227,7 +231,9 @@ public:
 	ChatData *processChats(const std::vector<Tdb::TLbasicGroup> &data);
 	ChannelData *processChannels(const std::vector<Tdb::TLsupergroup> &data);
 
+#if 0 // mtp
 	void applyMaximumChatVersions(const MTPVector<MTPChat> &data);
+#endif
 
 	void registerGroupCall(not_null<GroupCall*> call);
 	void unregisterGroupCall(not_null<GroupCall*> call);
@@ -412,12 +418,14 @@ public:
 	void setPinnedFromEntryList(Dialogs::Key key, bool pinned);
 #endif
 	void clearPinnedChats(Folder *folder);
+#if 0 // mtp
 	void applyPinnedChats(
 		Folder *folder,
 		const QVector<MTPDialogPeer> &list);
 	void applyPinnedTopics(
 		not_null<Data::Forum*> forum,
 		const QVector<MTPint> &list);
+#endif
 	void reorderTwoPinnedChats(
 		FilterId filterId,
 		Dialogs::Key key1,
@@ -541,11 +549,13 @@ public:
 	void selfDestructIn(not_null<HistoryItem*> item, crl::time delay);
 
 	[[nodiscard]] not_null<PhotoData*> photo(PhotoId id);
+#if 0 // mtp
 	not_null<PhotoData*> processPhoto(const MTPPhoto &data);
 	not_null<PhotoData*> processPhoto(const MTPDphoto &data);
 	not_null<PhotoData*> processPhoto(
 		const MTPPhoto &data,
 		const PreparedPhotoThumbs &thumbs);
+#endif
 	[[nodiscard]] not_null<PhotoData*> photo(
 		PhotoId id,
 		const uint64 &access,
@@ -560,19 +570,23 @@ public:
 		const ImageWithLocation &videoSmall,
 		const ImageWithLocation &videoLarge,
 		crl::time videoStartTime);
+#if 0 // mtp
 	void photoConvert(
 		not_null<PhotoData*> original,
 		const MTPPhoto &data);
 	[[nodiscard]] PhotoData *photoFromWeb(
 		const MTPWebDocument &data,
 		const ImageLocation &thumbnailLocation);
+#endif
 
 	[[nodiscard]] not_null<DocumentData*> document(DocumentId id);
+#if 0 // mtp
 	not_null<DocumentData*> processDocument(const MTPDocument &data);
 	not_null<DocumentData*> processDocument(const MTPDdocument &data);
 	not_null<DocumentData*> processDocument(
 		const MTPdocument &data,
 		const ImageWithLocation &thumbnail);
+#endif
 	[[nodiscard]] not_null<DocumentData*> document(
 		DocumentId id,
 		const uint64 &access,
@@ -586,10 +600,10 @@ public:
 		bool isPremiumSticker,
 		int32 dc,
 		int64 size);
+#if 0 // mtp
 	void documentConvert(
 		not_null<DocumentData*> original,
 		const MTPDocument &data);
-#if 0 // mtp
 	[[nodiscard]] DocumentData *documentFromWeb(
 		const MTPWebDocument &data,
 		const ImageLocation &thumbnailLocation,
@@ -597,9 +611,11 @@ public:
 #endif
 
 	[[nodiscard]] not_null<WebPageData*> webpage(WebPageId id);
+#if 0 // mtp
 	not_null<WebPageData*> processWebpage(const MTPWebPage &data);
 	not_null<WebPageData*> processWebpage(const MTPDwebPage &data);
 	not_null<WebPageData*> processWebpage(const MTPDwebPagePending &data);
+#endif
 	[[nodiscard]] not_null<WebPageData*> webpage(
 		WebPageId id,
 		const QString &siteName,
@@ -621,7 +637,9 @@ public:
 		TimeId pendingTill);
 
 	[[nodiscard]] not_null<GameData*> game(GameId id);
+#if 0 // mtp
 	not_null<GameData*> processGame(const MTPDgame &data);
+#endif
 	[[nodiscard]] not_null<GameData*> game(
 		GameId id,
 		const uint64 &accessHash,
@@ -630,9 +648,11 @@ public:
 		const QString &description,
 		PhotoData *photo,
 		DocumentData *document);
+#if 0 // mtp
 	void gameConvert(
 		not_null<GameData*> original,
 		const MTPGame &data);
+#endif
 
 	[[nodiscard]] not_null<BotAppData*> botApp(BotAppId id);
 	BotAppData *findBotApp(PeerId botId, const QString &appName) const;
@@ -641,14 +661,17 @@ public:
 		const MTPBotApp &data);
 
 	[[nodiscard]] not_null<PollData*> poll(PollId id);
+#if 0 // mtp
 	not_null<PollData*> processPoll(const MTPPoll &data);
 	not_null<PollData*> processPoll(const MTPDmessageMediaPoll &data);
+#endif
 
 	[[nodiscard]] not_null<CloudImage*> location(
 		const LocationPoint &point);
 
 	not_null<PhotoData*> processPhoto(const Tdb::TLphoto &data);
-	not_null<PhotoData*> processPhoto(const Tdb::TLchatPhoto &photo);
+	not_null<PhotoData*> processPhoto(const Tdb::TLchatPhoto &data);
+	not_null<PhotoData*> processSmallPhoto(const Tdb::TLchatPhotoInfo &data);
 
 	template <
 		typename T,
@@ -739,8 +762,10 @@ public:
 
 	[[nodiscard]] not_null<Folder*> folder(FolderId id);
 	[[nodiscard]] Folder *folderLoaded(FolderId id) const;
+#if 0 // mtp
 	not_null<Folder*> processFolder(const MTPFolder &data);
 	not_null<Folder*> processFolder(const MTPDfolder &data);
+#endif
 
 	[[nodiscard]] not_null<Dialogs::MainList*> chatsListFor(
 		not_null<Dialogs::Entry*> entry);
@@ -790,7 +815,9 @@ public:
 
 	void setNotTopPromoted(not_null<History*> history);
 
+#if 0 // mtp
 	bool updateWallpapers(const MTPaccount_WallPapers &data);
+#endif
 	void removeWallpaper(const WallPaper &paper);
 	const std::vector<WallPaper> &wallpapers() const;
 	uint64 wallpapersHash() const;
@@ -845,12 +872,14 @@ private:
 	HistoryItem *changeMessageId(PeerId peerId, MsgId wasId, MsgId nowId);
 	void removeDependencyMessage(not_null<HistoryItem*> item);
 
+#if 0 // mtp
 	void photoApplyFields(
 		not_null<PhotoData*> photo,
 		const MTPPhoto &data);
 	void photoApplyFields(
 		not_null<PhotoData*> photo,
 		const MTPDphoto &data);
+#endif
 	void photoApplyFields(
 		not_null<PhotoData*> photo,
 		const uint64 &access,
@@ -866,12 +895,14 @@ private:
 		const ImageWithLocation &videoLarge,
 		crl::time videoStartTime);
 
+#if 0 // mtp
 	void documentApplyFields(
 		not_null<DocumentData*> document,
 		const MTPDocument &data);
 	void documentApplyFields(
 		not_null<DocumentData*> document,
 		const MTPDdocument &data);
+#endif
 	void documentApplyFields(
 		not_null<DocumentData*> document,
 		const uint64 &access,
@@ -885,6 +916,7 @@ private:
 		bool isPremiumSticker,
 		int32 dc,
 		int64 size);
+#if 0 // mtp
 	DocumentData *documentFromWeb(
 		const MTPDwebDocument &data,
 		const ImageLocation &thumbnailLocation,
@@ -897,6 +929,7 @@ private:
 	void webpageApplyFields(
 		not_null<WebPageData*> page,
 		const MTPDwebPage &data);
+#endif
 	void webpageApplyFields(
 		not_null<WebPageData*> page,
 		WebPageType type,
@@ -914,9 +947,11 @@ private:
 		bool hasLargeMedia,
 		TimeId pendingTill);
 
+#if 0 // mtp
 	void gameApplyFields(
 		not_null<GameData*> game,
 		const MTPDgame &data);
+#endif
 	void gameApplyFields(
 		not_null<GameData*> game,
 		const uint64 &accessHash,
@@ -937,9 +972,9 @@ private:
 		const MTPMessageMedia &media,
 		TimeId date,
 		bool invertMedia);
-#endif
 
 	void setWallpapers(const QVector<MTPWallPaper> &data, uint64 hash);
+#endif
 	void highlightProcessDone(uint64 processId);
 
 	void checkPollsClosings();

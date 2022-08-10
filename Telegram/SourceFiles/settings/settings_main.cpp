@@ -621,6 +621,7 @@ void SetupHelp(
 			if (*requestId) {
 				return;
 			}
+#if 0 // todo
 			*requestId = controller->session().api().request(
 				MTPhelp_GetSupport()
 			).done([=](const MTPhelp_Support &result) {
@@ -634,6 +635,7 @@ void SetupHelp(
 			}).fail([=] {
 				*requestId = 0;
 			}).send();
+#endif
 		});
 		auto box = Ui::MakeConfirmBox({
 			.text = tr::lng_settings_ask_sure(),

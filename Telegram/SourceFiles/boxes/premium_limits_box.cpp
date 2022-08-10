@@ -206,6 +206,7 @@ Main::Session &InactiveController::session() const {
 }
 
 void InactiveController::prepare() {
+#if 0 // todo
 	_requestId = _session->api().request(MTPchannels_GetInactiveChannels(
 	)).done([=](const MTPmessages_InactiveChats &result) {
 		_requestId = 0;
@@ -221,6 +222,7 @@ void InactiveController::prepare() {
 			delegate()->peerListRefreshRows();
 		});
 	}).send();
+#endif
 }
 
 void InactiveController::rowClicked(not_null<PeerListRow*> row) {
@@ -296,6 +298,7 @@ Main::Session &PublicsController::session() const {
 }
 
 void PublicsController::prepare() {
+#if 0 // todo
 	_requestId = _navigation->session().api().request(
 		MTPchannels_GetAdminedPublicChannels(MTP_flags(0))
 	).done([=](const MTPmessages_Chats &result) {
@@ -315,6 +318,7 @@ void PublicsController::prepare() {
 			delegate()->peerListRefreshRows();
 		}
 	}).send();
+#endif
 }
 
 void PublicsController::rowClicked(not_null<PeerListRow*> row) {
@@ -342,6 +346,7 @@ void PublicsController::rowRightActionClicked(not_null<PeerListRow*> row) {
 			return;
 		}
 		*once = true;
+#if 0 // todo
 		peer->session().api().request(MTPchannels_UpdateUsername(
 			peer->asChannel()->inputChannel,
 			MTP_string()
@@ -353,6 +358,7 @@ void PublicsController::rowRightActionClicked(not_null<PeerListRow*> row) {
 				close();
 			}).send();
 		}).send();
+#endif
 	});
 	_navigation->parentController()->show(
 		Ui::MakeConfirmBox({
