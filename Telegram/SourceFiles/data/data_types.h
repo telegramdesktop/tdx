@@ -236,8 +236,12 @@ struct StickerSetIdentifier {
 };
 
 enum class MessageFlag : uint64 {
-	HideEdited            = (1ULL << 0), // mtp
-	Legacy                = (1ULL << 1), // mtp
+#if 0 // mtp
+	HideEdited            = (1ULL << 0),
+	Legacy                = (1ULL << 1),
+#endif
+	CanDeleteForAll       = (1ULL << 0),
+	CanEdit               = (1ULL << 1),
 	HasReplyMarkup        = (1ULL << 2),
 	HasFromId             = (1ULL << 3),
 	HasPostAuthor         = (1ULL << 4),
