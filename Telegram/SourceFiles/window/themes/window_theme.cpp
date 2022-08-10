@@ -1595,11 +1595,9 @@ SendMediaReady PrepareWallPaper(MTP::DcId dcId, const QImage &image) {
 
 TLthemeParameters WebViewTheme() {
 	const auto colorToInt = [=](const style::color &color) {
-		const auto value = uint32(0xFF000000U)
-			| (uint32(color->c.red()) << 16)
-			| (uint32(color->c.green()) << 8)
-			| (uint32(color->c.blue()));
-		return tl_int32(*reinterpret_cast<const int32*>(&value));
+		return tl_int32((color->c.blue())
+			| (color->c.green() << 8)
+			| (color->c.red() << 16));
 	};
 	return tl_themeParameters(
 		colorToInt(st::windowBg), // background_color
