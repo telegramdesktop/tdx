@@ -81,8 +81,10 @@ RepliesList::RepliesList(
 }
 
 RepliesList::~RepliesList() {
+#if 0 // todo
 	histories().cancelRequest(base::take(_beforeId));
 	histories().cancelRequest(base::take(_afterId));
+#endif
 	if (_readRequestTimer.isActive()) {
 		sendReadTillRequest();
 	}
@@ -1010,9 +1012,9 @@ void RepliesList::sendReadTillRequest() {
 		_readRequestTimer.cancel();
 	}
 	const auto api = &_history->session().api();
+#if 0 // todo
 	api->request(base::take(_readRequestId)).cancel();
 
-#if 0 // todo
 	_readRequestId = api->request(MTPmessages_ReadDiscussion(
 		_history->peer->input,
 		MTP_int(_rootId),

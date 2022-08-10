@@ -48,10 +48,14 @@ SponsoredMessages::~SponsoredMessages() {
 void SponsoredMessages::clear() {
 	_lifetime.destroy();
 	for (const auto &request : base::take(_requests)) {
+#if 0 // todo
 		_session->api().request(request.second.requestId).cancel();
+#endif
 	}
 	for (const auto &request : base::take(_viewRequests)) {
+#if 0 // todo
 		_session->api().request(request.second.requestId).cancel();
+#endif
 	}
 	base::take(_data);
 }

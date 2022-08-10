@@ -114,7 +114,7 @@ void SignupWidget::activate() {
 void SignupWidget::cancelled() {
 	_sentRequest = false;
 
-#if 0
+#if 0 // mtp
 	api().request(base::take(_sentRequest)).cancel();
 #endif
 }

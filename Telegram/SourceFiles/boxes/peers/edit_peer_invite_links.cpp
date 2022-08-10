@@ -786,7 +786,10 @@ AdminsController::AdminsController(
 }
 
 AdminsController::~AdminsController() {
+#if 0 // mtp
 	session().api().request(base::take(_requestId)).cancel();
+#endif
+	session().sender().request(base::take(_requestId)).cancel();
 }
 
 void AdminsController::prepare() {

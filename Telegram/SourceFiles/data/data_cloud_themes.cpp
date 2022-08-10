@@ -171,6 +171,7 @@ void CloudThemes::install() {
 		return;
 	}
 	themeId = cloudId;
+#if 0 // tdlib todo
 	using Flag = MTPaccount_InstallTheme::Flag;
 	const auto flags = (IsNightMode() ? Flag::f_dark : Flag(0))
 		| Flag::f_format
@@ -181,6 +182,7 @@ void CloudThemes::install() {
 		MTP_string(Format()),
 		MTPBaseTheme()
 	)).send();
+#endif
 }
 
 void CloudThemes::reloadCurrent() {
@@ -627,12 +629,14 @@ void CloudThemes::remove(uint64 cloudThemeId) {
 	if (i == end(_list)) {
 		return;
 	}
+#if 0 // tdlib todo
 	_session->api().request(MTPaccount_SaveTheme(
 		MTP_inputTheme(
 			MTP_long(i->id),
 			MTP_long(i->accessHash)),
 		MTP_bool(true)
 	)).send();
+#endif
 	_list.erase(i);
 	_updates.fire({});
 }

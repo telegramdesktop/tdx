@@ -22,7 +22,10 @@ namespace Api {
 
 Transcribes::Transcribes(not_null<ApiWrap*> api)
 : _session(&api->session())
+#if 0 // todo
 , _api(&api->instance()) {
+#endif
+{
 }
 
 bool Transcribes::freeFor(not_null<HistoryItem*> item) const {
@@ -94,6 +97,7 @@ const Transcribes::Entry &Transcribes::entry(
 	return (i != _map.end()) ? i->second : empty;
 }
 
+#if 0 // todo
 void Transcribes::apply(const MTPDupdateTranscribedAudio &update) {
 	const auto id = update.vtranscription_id().v;
 	const auto i = _ids.find(id);
@@ -114,6 +118,7 @@ void Transcribes::apply(const MTPDupdateTranscribedAudio &update) {
 		_session->data().requestItemResize(item);
 	}
 }
+#endif
 
 void Transcribes::load(not_null<HistoryItem*> item) {
 	if (!item->isHistoryEntry() || item->isLocal()) {

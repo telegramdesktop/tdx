@@ -584,7 +584,9 @@ void ChatBackground::checkUploadWallPaper() {
 		_session->uploader().cancel(id);
 	}
 	if (const auto id = base::take(_wallPaperRequestId)) {
+#if 0 // todo
 		_session->api().request(id).cancel();
+#endif
 	}
 	if (!Data::IsCustomWallPaper(_paper)
 		|| _original.isNull()

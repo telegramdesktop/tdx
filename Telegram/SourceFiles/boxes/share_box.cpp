@@ -1568,10 +1568,10 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 				: topicRootId;
 			const auto peer = thread->peer();
 			const auto threadHistory = thread->owningHistory();
+#if 0 // mtp
 			histories.sendRequest(threadHistory, requestType, [=](
 					Fn<void()> finish) {
 				const auto session = &threadHistory->session();
-#if 0 // goodToRemove
 				auto &api = session->api();
 				const auto sendFlags = commonSendFlags
 					| (topMsgId ? Flag::f_top_msg_id : Flag(0))
@@ -1595,8 +1595,6 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 				)).done([=](const MTPUpdates &updates, mtpRequestId reqId) {
 					threadHistory->session().api().applyUpdates(updates);
 					state->requests.remove(reqId);
-#endif
-				const auto requestDone = [=] {
 					if (state->requests.empty()) {
 						if (show->valid()) {
 							auto phrase = rpl::variable<TextWithEntities>(
@@ -1606,8 +1604,6 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 							show->hideLayer();
 						}
 					}
-				};
-#if 0 // goodToRemove
 					finish();
 				}).fail([=](const MTP::Error &error) {
 					if (error.type() == u"VOICE_MESSAGES_FORBIDDEN"_q) {
@@ -1619,76 +1615,77 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 					}
 					finish();
 				}).afterRequest(threadHistory->sendRequestId).send();
-#endif
-
-				auto &api = threadHistory->session().sender();
-				auto tlOptions = Tdb::tl_messageSendOptions(
-					Tdb::tl_bool(ShouldSendSilent(peer, options)),
-					Tdb::tl_bool(true), // From background.
-					Api::ScheduledToTL(options.scheduled));
-
-				// If we have only one message to send
-				// Then there is a chance we should send a game score.
-				if (msgIds.size() == 1) {
-					auto tlCopyOptions = [&](
-							) -> std::optional<Tdb::TLmessageCopyOptions> {
-						if (!dropNames && !dropCaptions) {
-							return std::nullopt;
-						}
-						return Tdb::tl_messageCopyOptions(
-							Tdb::tl_bool(dropNames),
-							Tdb::tl_bool(dropCaptions),
-							Tdb::tl_formattedText(
-								Tdb::tl_string(),
-								Tdb::tl_vector<Tdb::TLtextEntity>()));
-					}();
-
-					threadHistory->sendRequestId = api.request(
-						Tdb::TLsendMessage(
-							peerToTdbChat(peer->id),
-							Tdb::tl_int53(0), // Message thread id.
-							Tdb::tl_int53(0), // Reply to message id.
-							std::move(tlOptions),
-							Tdb::tl_inputMessageForwarded(
-								peerToTdbChat(data->peer->id),
-								msgIds.front(),
-								Tdb::tl_bool(true), // In game share.
-								std::move(tlCopyOptions))
-					)).done([=](
-							const Tdb::TLmessage &message,
-							Tdb::RequestId reqId) {
-						peer->owner().processMessage(
-							message,
-							NewMessageType::Unread);
-						data->requests.remove(reqId);
-						requestDone();
-						finish();
-					}).fail([=] {
-						finish();
-					}).send();
-				} else {
-					threadHistory->sendRequestId = api.request(
-						Tdb::TLforwardMessages(
-							peerToTdbChat(peer->id),
-							peerToTdbChat(data->peer->id),
-							Tdb::tl_vector<Tdb::TLint53>(msgIds),
-							std::move(tlOptions),
-							Tdb::tl_bool(dropNames),
-							Tdb::tl_bool(dropCaptions),
-							Tdb::tl_bool(false) // Only preview.
-					)).done([=](
-							const Tdb::TLmessages &messages,
-							Tdb::RequestId reqId) {
-						data->requests.remove(reqId);
-						requestDone();
-						finish();
-					}).fail([=] {
-						finish();
-					}).send();
-				}
 				return threadHistory->sendRequestId;
 			});
 			state->requests.insert(threadHistory->sendRequestId);
+#endif
+			const auto requestDone = [=] {
+				if (data->requests.empty()) {
+					if (show->valid()) {
+						show->showToast(tr::lng_share_done(tr::now));
+						show->hideLayer();
+					}
+				}
+			};
+			auto &api = threadHistory->session().sender();
+			auto tlOptions = Tdb::tl_messageSendOptions(
+				Tdb::tl_bool(ShouldSendSilent(peer, options)),
+				Tdb::tl_bool(true), // From background.
+				Api::ScheduledToTL(options.scheduled));
+
+			// If we have only one message to send
+			// Then there is a chance we should send a game score.
+			if (msgIds.size() == 1) {
+				auto tlCopyOptions = [&](
+					) -> std::optional<Tdb::TLmessageCopyOptions> {
+					if (!dropNames && !dropCaptions) {
+						return std::nullopt;
+					}
+					return Tdb::tl_messageCopyOptions(
+						Tdb::tl_bool(dropNames),
+						Tdb::tl_bool(dropCaptions),
+						Tdb::tl_formattedText(
+							Tdb::tl_string(),
+							Tdb::tl_vector<Tdb::TLtextEntity>()),
+						Tdb::tl_bool(false)); // new_show_caption_above_media
+				}();
+
+				data->requests.insert(api.request(
+					Tdb::TLsendMessage(
+						peerToTdbChat(peer->id),
+						Tdb::tl_int53(0), // Message thread id.
+						Tdb::tl_int53(0), // Reply to message id.
+						std::move(tlOptions),
+						Tdb::tl_inputMessageForwarded(
+							peerToTdbChat(data->peer->id),
+							msgIds.front(),
+							Tdb::tl_bool(true), // In game share.
+							std::move(tlCopyOptions))
+					)).done([=](
+						const Tdb::TLmessage &message,
+						Tdb::RequestId reqId) {
+					peer->owner().processMessage(
+						message,
+						NewMessageType::Unread);
+					data->requests.remove(reqId);
+					requestDone();
+				}).send());
+			} else {
+				data->requests.insert(api.request(
+					Tdb::TLforwardMessages(
+						peerToTdbChat(peer->id),
+						peerToTdbChat(data->peer->id),
+						Tdb::tl_vector<Tdb::TLint53>(msgIds),
+						std::move(tlOptions),
+						Tdb::tl_bool(dropNames),
+						Tdb::tl_bool(dropCaptions)
+					)).done([=](
+						const Tdb::TLmessages &messages,
+						Tdb::RequestId reqId) {
+					data->requests.remove(reqId);
+					requestDone();
+				}).send());
+			}
 		}
 	};
 }
