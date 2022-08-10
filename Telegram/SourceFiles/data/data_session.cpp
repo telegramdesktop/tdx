@@ -4382,6 +4382,12 @@ not_null<PhotoData*> Session::processSmallPhoto(
 	return result;
 }
 
+not_null<DocumentData*> Session::processPlainDocument(const TLfile &data) {
+	const auto result = document(data.data().vid().v);
+	result->setSimpleFromTdb(data);
+	return result;
+}
+
 not_null<WebPageData*> Session::processWebpage(const TLwebPage &data) {
 	const auto result = webpage(WebPageData::IdFromTdb(data));
 	result->setFromTdb(data);

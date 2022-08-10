@@ -53,8 +53,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QSvgRenderer>
 
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
+#include "api/api_sending.h"
+
 namespace InlineBots {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kProlongTimeout = 60 * crl::time(1000);
 constexpr auto kRefreshBotsTimeout = 60 * 60 * crl::time(1000);
@@ -148,6 +154,47 @@ constexpr auto kRefreshBotsTimeout = 60 * 60 * crl::time(1000);
 			: PeerType(0);
 	}
 	return result;
+}
+
+[[nodiscard]] DocumentData *ResolveIcon(
+		not_null<Main::Session*> session,
+		const TLDattachmentMenuBot &data) {
+	if (const auto &icon = data.vdefault_icon()) {
+		const auto result = session->data().processPlainDocument(*icon);
+		result->forceToCache(true);
+		return result;
+	}
+	return nullptr;
+}
+
+
+[[nodiscard]] PeerTypes ResolvePeerTypes(const TLDattachmentMenuBot &data) {
+	using Type = PeerType;
+	return (data.vsupports_bot_chats().v ? Type::Bot : Type())
+		| (data.vsupports_self_chat().v ? Type::SameBot : Type())
+		| (data.vsupports_channel_chats().v ? Type::Broadcast : Type())
+		| (data.vsupports_group_chats().v ? Type::Group : Type())
+		| (data.vsupports_user_chats().v ? Type::User : Type());
+}
+
+[[nodiscard]] std::optional<AttachWebViewBot> ParseAttachBot(
+		not_null<Main::Session*> session,
+		const TLattachmentMenuBot &bot) {
+	const auto &data = bot.data();
+	const auto user = session->data().userLoaded(
+		UserId(data.vbot_user_id().v));
+	const auto good = user
+		&& user->isBot()
+		&& user->botInfo->supportsAttachMenu;
+	return good
+		? AttachWebViewBot{
+			.user = user,
+			.icon = ResolveIcon(session, data),
+			.name = data.vname().v,
+			.types = ResolvePeerTypes(data),
+			.inactive = false,
+			.hasSettings = data.vsupports_settings().v,
+		} : std::optional<AttachWebViewBot>();
 }
 
 void ShowChooseBox(
@@ -656,8 +703,13 @@ void AttachWebView::botSendData(QByteArray data) {
 		|| _lastShownQueryId) {
 		return;
 	}
+	_session->sender().request(TLsendWebAppData(
+		tl_int53(peerToUser(_bot->id).bare),
+		tl_string(_lastShownButtonText),
+		tl_string(data)
+	)).send();
+#if 0 // mtp
 	const auto randomId = base::RandomValue<uint64>();
-#if 0 // todo
 	_session->api().request(MTPmessages_SendWebViewData(
 		_bot->inputUser,
 		MTP_long(randomId),
@@ -704,20 +756,31 @@ void AttachWebView::botSwitchInlineQuery(
 }
 
 void AttachWebView::botCheckWriteAccess(Fn<void(bool allowed)> callback) {
+	_session->sender().request(TLcanBotSendMessages(
+		tl_int53(peerToUser(_bot->id).bare)
+	)).done([=] {
+		callback(true);
+#if 0 // mtp
 	_session->api().request(MTPbots_CanSendMessage(
 		_bot->inputUser
 	)).done([=](const MTPBool &result) {
 		callback(mtpIsTrue(result));
+#endif
 	}).fail([=] {
 		callback(false);
 	}).send();
 }
 
 void AttachWebView::botAllowWriteAccess(Fn<void(bool allowed)> callback) {
+	_session->sender().request(TLallowBotToSendMessages(
+		tl_int53(peerToUser(_bot->id).bare)
+	)).done([=] {
+#if 0 // mtp
 	_session->api().request(MTPbots_AllowSendMessage(
 		_bot->inputUser
 	)).done([=](const MTPUpdates &result) {
 		_session->api().applyUpdates(result);
+#endif
 		callback(true);
 	}).fail([=] {
 		callback(false);
@@ -752,6 +815,16 @@ void AttachWebView::botSharePhone(Fn<void(bool shared)> callback) {
 void AttachWebView::botInvokeCustomMethod(
 		Ui::BotWebView::CustomMethodRequest request) {
 	const auto callback = request.callback;
+	_bot->session().sender().request(TLsendWebAppCustomRequest(
+		tl_int53(peerToUser(_bot->id).bare),
+		tl_string(request.method),
+		tl_string(QString::fromUtf8(request.params))
+	)).done([=](const TLDcustomRequestResult &data) {
+		callback(data.vresult().v.toUtf8());
+	}).fail([=](const Error &error) {
+		callback(base::make_unexpected(error.message));
+	}).send();
+#if 0 // mtp
 	_bot->session().api().request(MTPbots_InvokeWebViewCustomMethod(
 		_bot->inputUser,
 		MTP_string(request.method),
@@ -761,6 +834,7 @@ void AttachWebView::botInvokeCustomMethod(
 	}).fail([=](const MTP::Error &error) {
 		callback(base::make_unexpected(error.type()));
 	}).send();
+#endif
 }
 
 void AttachWebView::botClose() {
@@ -848,7 +922,22 @@ void AttachWebView::request(const WebViewButton &button) {
 	_startCommand = button.startCommand;
 	const auto &action = _context->action;
 
-#if 0 // todo
+	_requestId = _session->sender().request(TLopenWebApp(
+		peerToTdbChat(action.history->peer->id),
+		tl_int53(peerToUser(_bot->id).bare),
+		tl_string(_startCommand.isEmpty() ? button.url : _startCommand),
+		Window::Theme::WebViewTheme(),
+		tl_string("tdesktop"),
+		tl_int53(action.replyTo.topicRootId.bare),
+		MessageReplyTo(action)
+	)).done([=](const TLwebAppInfo &result) {
+		_requestId = 0;
+		const auto &data = result.data();
+		show(data.vlaunch_id().v, data.vurl().v, button.text);
+	}).fail([=](const Error &error) {
+		_requestId = 0;
+	}).send();
+#if 0 // mtp
 	using Flag = MTPmessages_RequestWebView::Flag;
 	const auto flags = Flag::f_theme_params
 		| (button.url.isEmpty() ? Flag(0) : Flag::f_url)
@@ -887,10 +976,11 @@ void AttachWebView::request(const WebViewButton &button) {
 
 void AttachWebView::cancel() {
 	ActiveWebViews().remove(this);
-#if 0 // todo
+#if 0 // mtp
 	_session->api().request(base::take(_requestId)).cancel();
 	_session->api().request(base::take(_prolongId)).cancel();
 #endif
+	_session->sender().request(base::take(_requestId)).cancel();
 	base::take(_panel);
 	_lastShownContext = base::take(_context);
 	_bot = nullptr;
@@ -907,7 +997,7 @@ void AttachWebView::requestBots(Fn<void()> callback) {
 	if (_botsRequestId) {
 		return;
 	}
-#if 0 // todo
+#if 0 // mtp
 	_botsRequestId = _session->api().request(MTPmessages_GetAttachMenuBots(
 		MTP_long(_botsHash)
 	)).done([=](const MTPAttachMenuBots &result) {
@@ -948,6 +1038,23 @@ bool AttachWebView::showMainMenuNewBadge(
 		&& !disclaimerAccepted(bot);
 }
 
+void AttachWebView::apply(const Tdb::TLDupdateAttachmentMenuBots &update) {
+	_attachBots.clear();
+	_attachBots.reserve(update.vbots().v.size());
+	for (const auto &bot : update.vbots().v) {
+		if (auto parsed = ParseAttachBot(_session, bot)) {
+			if (!parsed->inactive) {
+				if (const auto icon = parsed->icon) {
+					parsed->media = icon->createMediaView();
+					icon->save(Data::FileOrigin(), {});
+				}
+				_attachBots.push_back(std::move(*parsed));
+			}
+		}
+	}
+	_attachBotsUpdates.fire({});
+}
+
 void AttachWebView::requestAddToMenu(
 		not_null<UserData*> bot,
 		AddToMenuOpen open) {
@@ -975,7 +1082,13 @@ void AttachWebView::requestAddToMenu(
 		auto context = base::take(_addToMenuContext);
 		const auto open = base::take(_addToMenuOpen);
 		if (const auto openApp = std::get_if<AddToMenuOpenApp>(&open)) {
+#if 0 // mtp
 			_app = openApp->app;
+#endif
+			_app = std::make_unique<BotAppData>(
+				&_session->data(),
+				BotAppId());
+			_app->apply(_bot->id, *openApp->data);
 			_startCommand = openApp->startCommand;
 			_context = std::move(context);
 			if (_appConfirmationRequired) {
@@ -998,15 +1111,20 @@ void AttachWebView::requestAddToMenu(
 		if (_addToMenuBot == bot) {
 			return;
 		}
-#if 0 // todo
+#if 0 // mtp
 		_session->api().request(base::take(_addToMenuId)).cancel();
 #endif
+		_session->sender().request(base::take(_addToMenuId)).cancel();
 	}
 	_addToMenuBot = bot;
-#if 0 // todo
+#if 0 // mtp
 	_addToMenuId = _session->api().request(MTPmessages_GetAttachMenuBot(
 		bot->inputUser
 	)).done([=](const MTPAttachMenuBotsBot &result) {
+#endif
+	_addToMenuId = _session->sender().request(TLgetAttachmentMenuBot(
+		tl_int53(peerToUser(bot->id).bare)
+	)).done([=](const TLattachmentMenuBot &result) {
 		_addToMenuId = 0;
 		const auto bot = base::take(_addToMenuBot);
 		const auto context = std::shared_ptr(base::take(_addToMenuContext));
@@ -1023,7 +1141,13 @@ void AttachWebView::requestAddToMenu(
 					return false;
 				}
 				const auto &openApp = v::get<AddToMenuOpenApp>(open);
+#if 0 // mtp
 				_app = openApp.app;
+#endif
+				_app = std::make_unique<BotAppData>(
+					&_session->data(),
+					BotAppId());
+				_app->apply(_bot->id, *openApp.data);
 				_startCommand = openApp.startCommand;
 				_context = std::make_unique<Context>(*context);
 				requestAppView(true);
@@ -1061,9 +1185,12 @@ void AttachWebView::requestAddToMenu(
 				*context);
 			return true;
 		};
+		if (const auto parsed = ParseAttachBot(_session, result)) {
+#if 0 // mtp
 		result.match([&](const MTPDattachMenuBotsBot &data) {
 			_session->data().processUsers(data.vusers());
 			if (const auto parsed = ParseAttachBot(_session, data.vbot())) {
+#endif
 				if (bot == parsed->user) {
 					const auto i = ranges::find(
 						_attachBots,
@@ -1087,13 +1214,14 @@ void AttachWebView::requestAddToMenu(
 					}
 				}
 			}
+#if 0 // mtp
 		});
+#endif
 	}).fail([=] {
 		_addToMenuId = 0;
 		_addToMenuBot = nullptr;
 		unsupported();
 	}).send();
-#endif
 }
 
 void AttachWebView::removeFromMenu(not_null<UserData*> bot) {
@@ -1135,7 +1263,7 @@ void AttachWebView::resolveUsername(
 		done(peer);
 		return;
 	}
-#if 0 // todo
+#if 0 // mtp
 	_session->api().request(base::take(_requestId)).cancel();
 	_requestId = _session->api().request(MTPcontacts_ResolveUsername(
 		MTP_string(username)
@@ -1156,6 +1284,19 @@ void AttachWebView::resolveUsername(
 		}
 	}).send();
 #endif
+	_session->sender().request(base::take(_requestId)).cancel();
+	_requestId = _session->sender().request(TLsearchPublicChat(
+		tl_string(username)
+	)).done([=](const TLchat &result) {
+		_requestId = 0;
+		done(_peer->owner().processPeer(result));
+	}).fail([=](const Error &error) {
+		_requestId = 0;
+		if (error.code == 400) {
+			showToast(
+				tr::lng_username_not_found(tr::now, lt_user, username));
+		}
+	}).send();
 }
 
 void AttachWebView::requestSimple(
@@ -1179,7 +1320,24 @@ void AttachWebView::requestSimple(
 }
 
 void AttachWebView::requestSimple(const WebViewButton &button) {
-#if 0 // todo
+	_requestId = _session->sender().request(TLgetWebAppUrl(
+		tl_int53(peerToUser(_bot->id).bare),
+		tl_string(button.url.isEmpty() ? button.startCommand : button.url),
+		Window::Theme::WebViewTheme(),
+		tl_string("tdesktop")
+	)).done([=](const TLDhttpUrl &data) {
+		_requestId = 0;
+		show(
+			uint64(),
+			data.vurl().v,
+			button.text,
+			false,
+			nullptr,
+			button.fromMainMenu);
+	}).fail([=](const Error &error) {
+		_requestId = 0;
+	}).send();
+#if 0 // mtp
 	using Flag = MTPmessages_RequestSimpleWebView::Flag;
 	_requestId = _session->api().request(MTPmessages_RequestSimpleWebView(
 		MTP_flags(Flag::f_theme_params
@@ -1223,8 +1381,23 @@ void AttachWebView::requestMenu(
 	const auto url = bot->botInfo->botMenuButtonUrl;
 	const auto text = bot->botInfo->botMenuButtonText;
 	confirmOpen(controller, [=] {
-#if 0 // todo
 		const auto &action = _context->action;
+		_requestId = _session->sender().request(TLopenWebApp(
+			peerToTdbChat(action.history->peer->id),
+			tl_int53(peerToUser(_bot->id).bare),
+			tl_string(url),
+			Window::Theme::WebViewTheme(),
+			tl_string("tdesktop"),
+			tl_int53(action.replyTo.topicRootId.bare),
+			MessageReplyTo(action)
+		)).done([=](const TLwebAppInfo &result) {
+			_requestId = 0;
+			const auto &data = result.data();
+			show(data.vlaunch_id().v, data.vurl().v, text);
+		}).fail([=](const Error &error) {
+			_requestId = 0;
+		}).send();
+#if 0 // mtp
 		using Flag = MTPmessages_RequestWebView::Flag;
 		_requestId = _session->api().request(MTPmessages_RequestWebView(
 			MTP_flags(Flag::f_theme_params
@@ -1278,6 +1451,7 @@ void AttachWebView::requestApp(
 	_botAppName = appName;
 	_context = std::make_unique<Context>(context);
 	_context->fromBotApp = true;
+#if 0 // mtp
 	const auto already = _session->data().findBotApp(_bot->id, appName);
 	_requestId = _session->api().request(MTPmessages_GetBotApp(
 		MTP_inputBotAppShortName(
@@ -1300,12 +1474,27 @@ void AttachWebView::requestApp(
 			showToast(tr::lng_username_app_not_found(tr::now));
 			return;
 		}
+#endif
+	_requestId = _session->sender().request(TLsearchWebApp(
+		tl_int53(peerToUser(_bot->id).bare),
+		tl_string(appName)
+	)).done([=](const TLDfoundWebApp &data) {
+		_app = std::make_unique<BotAppData>(&_session->data(), BotAppId());
+		_app->apply(_bot->id, data.vweb_app());
+		const auto firstTime = !data.vskip_confirmation().v;
+
 		// Check if this app can be added to main menu.
 		// On fail it'll still be opened.
 		_appConfirmationRequired = firstTime || forceConfirmation;
+#if 0 // mtp
 		_appRequestWriteAccess = result.data().is_request_write_access();
 		requestAddToMenu(_bot, AddToMenuOpenApp{
 			.app = _app,
+#endif
+		_app->hasSettings = data.vsupports_settings().v;
+		_appRequestWriteAccess = data.vrequest_write_access().v;
+		requestAddToMenu(_bot, AddToMenuOpenApp{
+			.data = std::make_shared<TLwebApp>(data.vweb_app()),
 			.startCommand = _startCommand,
 		});
 	}).fail([=] {
@@ -1358,6 +1547,7 @@ void AttachWebView::requestAppView(bool allowWrite) {
 	if (!_context || !_app) {
 		return;
 	}
+#if 0 // mtp
 	using Flag = MTPmessages_RequestAppWebView::Flag;
 	const auto app = _app;
 	const auto flags = Flag::f_theme_params
@@ -1378,6 +1568,24 @@ void AttachWebView::requestAppView(bool allowWrite) {
 	}).fail([=](const MTP::Error &error) {
 		_requestId = 0;
 		if (error.type() == u"BOT_INVALID"_q) {
+			requestBots();
+		}
+#endif
+	_requestId = _session->sender().request(TLgetWebAppLinkUrl(
+		peerToTdbChat(_context->action.history->peer->id),
+		tl_int53(peerToUser(_app->botId).bare),
+		tl_string(_app->shortName),
+		tl_string(_startCommand),
+		Window::Theme::WebViewTheme(),
+		tl_string("tdesktop"),
+		tl_bool(allowWrite)
+	)).done([=](const TLDhttpUrl &data) {
+		_requestId = 0;
+		const auto queryId = uint64();
+		show(queryId, data.vurl().v);
+	}).fail([=](const Error &error) {
+		_requestId = 0;
+		if (error.message == u"BOT_INVALID"_q) {
 			requestBots();
 		}
 	}).send();
@@ -1509,11 +1717,11 @@ void AttachWebView::started(uint64 queryId) {
 		cancel();
 	}, _panel->lifetime());
 
+#if 0 // mtp
 	const auto action = _context->action;
 	base::timer_each(
 		kProlongTimeout
 	) | rpl::start_with_next([=] {
-#if 0 // todo
 		using Flag = MTPmessages_ProlongWebView::Flag;
 		_session->api().request(base::take(_prolongId)).cancel();
 		_prolongId = _session->api().request(MTPmessages_ProlongWebView(
@@ -1531,8 +1739,13 @@ void AttachWebView::started(uint64 queryId) {
 		)).done([=] {
 			_prolongId = 0;
 		}).send();
-#endif
 	}, _panel->lifetime());
+#endif
+	_panel->lifetime().add([=] {
+		_session->sender().request(TLcloseWebApp(
+			tl_int64(queryId)
+		)).send();
+	});
 }
 
 void AttachWebView::showToast(
@@ -1630,7 +1843,17 @@ void AttachWebView::toggleInMenu(
 		not_null<UserData*> bot,
 		ToggledState state,
 		Fn<void()> callback) {
-#if 0 // todo
+	_session->sender().request(TLtoggleBotIsAddedToAttachmentMenu(
+		tl_int53(peerToUser(bot->id).bare),
+		tl_bool(state != ToggledState::Removed) // todo write_allowed
+	)).done([=] {
+		if (callback) {
+			callback();
+		}
+	}).fail([=] {
+		cancel();
+	}).send();
+#if 0 // mtp
 	using Flag = MTPmessages_ToggleBotInAttachMenu::Flag;
 	_session->api().request(MTPmessages_ToggleBotInAttachMenu(
 		MTP_flags((state == ToggledState::AllowedToWrite)
