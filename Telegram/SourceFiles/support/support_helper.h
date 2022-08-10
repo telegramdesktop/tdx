@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "support/support_templates.h"
 #include "mtproto/sender.h"
 
+#include "tdb/tdb_sender.h"
+
 class History;
 
 namespace Main {
@@ -91,7 +93,10 @@ private:
 		Fn<void(bool success)> done);
 
 	not_null<Main::Session*> _session;
+#if 0 // mtp
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 	Templates _templates;
 	QString _supportName;
 	QString _supportNameNormalized;

@@ -17,6 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "inline_bots/inline_bot_layout_item.h"
 
+#include "tdb/tdb_sender.h"
+
 namespace Api {
 struct SendOptions;
 } // namespace Api
@@ -126,7 +128,10 @@ private:
 #endif
 
 	const not_null<Window::SessionController*> _controller;
+#if 0 // mtp
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 
 	int _contentMaxHeight = 0;
 	int _contentHeight = 0;

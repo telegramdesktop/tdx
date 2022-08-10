@@ -258,7 +258,10 @@ void EmailConfirm::setupContent() {
 				newInput->showError();
 				error->show();
 
+#if 0 // mtp
 				if (MTP::IsFloodError(type)) {
+#endif
+				if (Tdb::IsFloodError(type)) {
 					error->setText(tr::lng_flood_error(tr::now));
 				} else if (type == u"CODE_INVALID"_q) {
 					error->setText(tr::lng_signin_wrong_code(tr::now));
@@ -295,7 +298,10 @@ void EmailConfirm::setupContent() {
 				newInput->showError();
 				error->show();
 
+#if 0 // mtp
 				if (MTP::IsFloodError(type)) {
+#endif
+				if (Tdb::IsFloodError(type)) {
 					error->setText(tr::lng_flood_error(tr::now));
 					return;
 				}

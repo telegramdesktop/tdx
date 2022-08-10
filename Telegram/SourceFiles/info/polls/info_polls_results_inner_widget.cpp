@@ -146,7 +146,10 @@ private:
 	const FullMsgId _context;
 	const QByteArray _option;
 
+#if 0 // mtp
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 
 	QString _offset;
 	mtpRequestId _loadRequestId = 0;
@@ -170,7 +173,10 @@ ListController::ListController(
 , _poll(poll)
 , _context(context)
 , _option(option)
+#if 0 // mtp
 , _api(&_session->mtp()) {
+#endif
+, _api(&_session->sender()) {
 	const auto i = ranges::find(poll->answers, option, &PollAnswer::option);
 	Assert(i != poll->answers.end());
 	_fullCount = i->votes;

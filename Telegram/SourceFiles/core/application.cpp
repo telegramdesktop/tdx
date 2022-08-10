@@ -294,6 +294,7 @@ void Application::run() {
 		PowerSaving::SetForceAll(saving && !ignore);
 	}, _lifetime);
 
+#if 0 // todo pause handling responses / updates
 	style::ShortAnimationPlaying(
 	) | rpl::start_with_next([=](bool playing) {
 		if (playing) {
@@ -302,6 +303,7 @@ void Application::run() {
 			MTP::details::unpause();
 		}
 	}, _lifetime);
+#endif
 
 	DEBUG_LOG(("Application Info: inited..."));
 
