@@ -85,6 +85,7 @@ void MessagesSearch::searchRequest() {
 		const auto flags = _from
 			? MTP_flags(MTPmessages_Search::Flag::f_from_id)
 			: MTP_flags(0);
+#if 0 // todo
 		_requestId = _history->session().api().request(MTPmessages_Search(
 			flags,
 			_history->peer->input,
@@ -118,6 +119,7 @@ void MessagesSearch::searchRequest() {
 
 			finish();
 		}).send();
+#endif
 		return _requestId;
 	};
 	_searchInHistoryRequest = _history->owner().histories().sendRequest(

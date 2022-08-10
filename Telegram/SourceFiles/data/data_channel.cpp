@@ -90,9 +90,10 @@ std::unique_ptr<Data::Forum> MegagroupInfo::takeForumData() {
 
 ChannelData::ChannelData(not_null<Data::Session*> owner, PeerId id)
 : PeerData(owner, id)
-, inputChannel(
-	MTP_inputChannel(MTP_long(peerToChannel(id).bare), MTP_long(0))) {
+{
 #if 0 // mtp
+, inputChannel(
+	MTP_inputChannel(MTP_long(peerToChannel(id).bare), MTP_long(0)))
 , _ptsWaiter(&owner->session().updates()) {
 #endif
 }
@@ -153,6 +154,7 @@ const std::vector<QString> &ChannelData::usernames() const {
 	return _username.usernames();
 }
 
+#if 0 // mtp
 void ChannelData::setAccessHash(uint64 accessHash) {
 	access = accessHash;
 	input = MTP_inputPeerChannel(
@@ -162,6 +164,7 @@ void ChannelData::setAccessHash(uint64 accessHash) {
 		MTP_long(peerToChannel(id).bare),
 		MTP_long(accessHash));
 }
+#endif
 
 void ChannelData::setFlags(ChannelDataFlags which) {
 	const auto diff = flags() ^ which;
@@ -223,6 +226,7 @@ bool ChannelData::canHaveInviteLink() const {
 		|| (adminRights() & AdminRight::InviteByLinkOrAdd);
 }
 
+#if 0 // mtp
 void ChannelData::setLocation(const MTPChannelLocation &data) {
 	if (!mgInfo) {
 		return;
@@ -249,6 +253,7 @@ void ChannelData::setLocation(const MTPChannelLocation &data) {
 			UpdateFlag::ChannelLocation);
 	}
 }
+#endif
 
 const ChannelLocation *ChannelData::getLocation() const {
 	return mgInfo ? mgInfo->getLocation() : nullptr;
@@ -307,6 +312,7 @@ void ChannelData::setKickedCount(int newKickedCount) {
 	}
 }
 
+#if 0 // mtp
 void ChannelData::setPendingRequestsCount(
 		int count,
 		const QVector<MTPlong> &recentRequesters) {
@@ -316,6 +322,7 @@ void ChannelData::setPendingRequestsCount(
 		return UserId(value);
 	}) | ranges::to_vector);
 }
+#endif
 
 void ChannelData::setPendingRequestsCount(
 		int count,
@@ -486,6 +493,7 @@ void ChannelData::applyEditBanned(
 }
 
 void ChannelData::markForbidden() {
+#if 0 // todo
 	owner().processChat(MTP_channelForbidden(
 		MTP_flags(isMegagroup()
 			? MTPDchannelForbidden::Flag::f_megagroup
@@ -494,6 +502,7 @@ void ChannelData::markForbidden() {
 		MTP_long(access),
 		MTP_string(name()),
 		MTPint()));
+#endif
 }
 
 bool ChannelData::isGroupAdmin(not_null<UserData*> user) const {

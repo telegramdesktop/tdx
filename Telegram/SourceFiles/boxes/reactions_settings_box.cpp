@@ -47,6 +47,7 @@ PeerId GenerateUser(not_null<History*> history, const QString &name) {
 	Expects(history->peer->isUser());
 
 	const auto peerId = Data::FakePeerIdForJustName(name);
+#if 0 // todo
 	history->owner().processUser(MTP_user(
 		MTP_flags(MTPDuser::Flag::f_first_name | MTPDuser::Flag::f_min),
 		peerToBareMTPInt(peerId),
@@ -64,6 +65,7 @@ PeerId GenerateUser(not_null<History*> history, const QString &name) {
 		MTPEmojiStatus(),
 		MTPVector<MTPUsername>(),
 		MTPint())); // stories_max_id
+#endif
 	return peerId;
 }
 

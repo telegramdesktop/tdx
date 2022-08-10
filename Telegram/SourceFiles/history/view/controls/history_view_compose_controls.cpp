@@ -264,6 +264,7 @@ void WebpageProcessor::updatePreview() {
 
 void WebpageProcessor::getWebPagePreview() {
 	const auto links = _previewLinks;
+#if 0 // todo
 	_previewRequest = _api.request(
 		MTPmessages_GetWebPagePreview(
 			MTP_flags(0),
@@ -297,6 +298,7 @@ void WebpageProcessor::getWebPagePreview() {
 	}).fail([=] {
 		_previewRequest = 0;
 	}).send();
+#endif
 }
 
 void WebpageProcessor::checkPreview() {
@@ -3232,6 +3234,7 @@ void ComposeControls::updateInlineBotQuery() {
 			_inlineBot = nullptr;
 			_inlineLookingUpBot = true;
 			const auto username = _inlineBotUsername;
+#if 0 // todo
 			_inlineBotResolveRequestId = api.request(
 				MTPcontacts_ResolveUsername(MTP_string(username))
 			).done([=](const MTPcontacts_ResolvedPeer &result) {
@@ -3266,6 +3269,7 @@ void ComposeControls::updateInlineBotQuery() {
 					clearInlineBot();
 				}
 			}).send();
+#endif
 		} else {
 			applyInlineBotQuery(query.bot, query.query);
 		}

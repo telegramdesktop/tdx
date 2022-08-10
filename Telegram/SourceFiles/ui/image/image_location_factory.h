@@ -52,6 +52,10 @@ namespace Images {
 [[nodiscard]] ImageLocation FromWebDocument(const MTPWebDocument &document);
 
 [[nodiscard]] ImageWithLocation FromPhotoSize(const Tdb::TLphotoSize &size);
+[[nodiscard]] ImageWithLocation FromTdbFile(
+	const Tdb::TLfile &file,
+	int width,
+	int height);
 [[nodiscard]] ImageWithLocation FromProgressiveSize(
 	const Tdb::TLphotoSize &size,
 	int index);

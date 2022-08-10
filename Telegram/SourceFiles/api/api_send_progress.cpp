@@ -113,6 +113,7 @@ void SendProgressManager::send(const Key &key, int progress) {
 		return;
 	}
 	using Type = SendProgressType;
+#if 0 // todo
 	const auto action = [&]() -> MTPsendMessageAction {
 		const auto p = MTP_int(progress);
 		switch (key.type) {
@@ -144,6 +145,7 @@ void SendProgressManager::send(const Key &key, int progress) {
 		done(requestId);
 	}).send();
 	_requests.emplace(key, requestId);
+#endif
 
 	if (key.type == Type::Typing) {
 		_stopTypingHistory = key.history;

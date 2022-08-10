@@ -396,6 +396,7 @@ bool Helper::isOccupiedBySomeone(History *history) const {
 }
 
 void Helper::refreshInfo(not_null<UserData*> user) {
+#if 0 // tdlib todo
 	_api.request(MTPhelp_GetUserInfo(
 		user->inputUser
 	)).done([=](const MTPhelp_UserInfo &result) {
@@ -406,6 +407,7 @@ void Helper::refreshInfo(not_null<UserData*> user) {
 			}
 		}
 	}).send();
+#endif
 }
 
 void Helper::applyInfo(
@@ -521,6 +523,7 @@ void Helper::saveInfo(
 		Ui::ItemTextDefaultOptions().flags);
 	TextUtilities::Trim(text);
 
+#if 0 // tdlib todo
 	const auto entities = Api::EntitiesToMTP(
 		&user->session(),
 		text.entities,
@@ -535,6 +538,7 @@ void Helper::saveInfo(
 	}).fail([=] {
 		done(false);
 	}).send();
+#endif
 }
 
 Templates &Helper::templates() {

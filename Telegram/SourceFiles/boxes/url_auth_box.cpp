@@ -37,6 +37,7 @@ void UrlAuthBox::Activate(
 		return;
 	}
 	const auto session = &message->history()->session();
+#if 0 // todo
 	const auto inputPeer = message->history()->peer->input;
 	const auto buttonId = button->buttonId;
 	const auto url = QString::fromUtf8(button->data);
@@ -79,6 +80,7 @@ void UrlAuthBox::Activate(
 		button->requestId = 0;
 		HiddenUrlClickHandler::Open(url);
 	}).send();
+#endif
 }
 
 void UrlAuthBox::Activate(
@@ -91,6 +93,7 @@ void UrlAuthBox::Activate(
 		return result;
 	}());
 
+#if 0 // todo
 	using Flag = MTPmessages_RequestUrlAuth::Flag;
 	session->api().request(MTPmessages_RequestUrlAuth(
 		MTP_flags(Flag::f_url),
@@ -109,8 +112,10 @@ void UrlAuthBox::Activate(
 	}).fail([=] {
 		HiddenUrlClickHandler::Open(url, context);
 	}).send();
+#endif
 }
 
+#if 0 // mtp
 void UrlAuthBox::Request(
 		const MTPDurlAuthResultRequest &request,
 		not_null<const HistoryItem*> message,
@@ -226,6 +231,7 @@ void UrlAuthBox::Request(
 		Box<UrlAuthBox>(session, url, qs(request.vdomain()), bot, callback),
 		Ui::LayerOption::KeepOther);
 }
+#endif
 
 UrlAuthBox::UrlAuthBox(
 	QWidget*,
