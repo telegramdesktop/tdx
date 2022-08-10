@@ -102,11 +102,13 @@ public:
 
 	void deleteMessages(const MessageIdsList &ids, bool revoke);
 
+#if 0 // mtp
 	int sendRequest(
 		not_null<History*> history,
 		RequestType type,
 		Fn<mtpRequestId(Fn<void()> finish)> generator);
 	void cancelRequest(int id);
+#endif
 
 	using PreparedMessage = std::variant<
 		MTPmessages_SendMessage,
@@ -196,6 +198,7 @@ private:
 	void sendReadRequest(not_null<History*> history, State &state);
 	[[nodiscard]] State *lookup(not_null<History*> history);
 	void checkEmptyState(not_null<History*> history);
+#if 0 // mtp
 	void checkPostponed(not_null<History*> history, int id);
 	void finishSentRequest(
 		not_null<History*> history,
@@ -203,6 +206,7 @@ private:
 		int id);
 	[[nodiscard]] bool postponeHistoryRequest(const State &state) const;
 	[[nodiscard]] bool postponeEntryRequest(const State &state) const;
+#endif
 	void postponeRequestDialogEntries();
 
 	void sendDialogRequests();
