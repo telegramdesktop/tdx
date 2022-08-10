@@ -41,6 +41,63 @@ using Data::kPhotoSizeCount;
 		: image;
 }
 
+[[nodiscard]] int VideoStartTime(
+		const tl::conditional<TLanimatedChatPhoto> &photo) {
+	return int(
+		std::clamp(
+			std::floor(photo
+				? photo->data().vmain_frame_timestamp().v * 1000
+				: 0.),
+			0.,
+			double(std::numeric_limits<int>::max())));
+}
+
+struct Sizes {
+	ImageWithLocation small;
+	ImageWithLocation thumbnail;
+	ImageWithLocation large;
+};
+[[nodiscard]] Sizes LookupSizes(const TLvector<TLphotoSize> &data) {
+	const auto &sizes = data.v;
+	const auto i = ranges::find_if(sizes, [](const TLphotoSize &data) {
+		return !data.data().vprogressive_sizes().v.isEmpty();
+	});
+	const auto progressive = (i != sizes.end());
+	const auto find = [&](const QByteArray &levels) {
+		const auto kInvalidIndex = int(levels.size());
+		const auto level = [&](const TLphotoSize &size) {
+			const auto type = size.data().vtype().v;
+			const auto letter = type.isEmpty()
+				? 0
+				: type[0].unicode();
+			const auto index = levels.indexOf(char(letter));
+			return (index >= 0) ? index : kInvalidIndex;
+		};
+		const auto result = ranges::max_element(
+			sizes,
+			ranges::greater(),
+			level);
+		return (level(*result) == kInvalidIndex) ? sizes.end() : result;
+	};
+	const auto image = [&](const QByteArray &levels) {
+		const auto i = find(levels);
+		return (i == sizes.end())
+			? ImageWithLocation()
+			: Images::FromPhotoSize(*i);
+	};
+	return {
+		.small = (progressive
+			? ImageWithLocation()
+			: image("sa"_q)),
+		.thumbnail = (progressive
+			? Images::FromProgressiveSize(*i, 1)
+			: image("mbsa"_q)),
+		.large = (progressive
+			? Images::FromPhotoSize(*i)
+			: image("ydxncwmbsai"_q)),
+	};
+}
+
 } // namespace
 
 PhotoData::PhotoData(not_null<Data::Session*> owner, PhotoId id)
@@ -94,57 +151,80 @@ PhotoId PhotoData::IdFromTdb(const TLphoto &data) {
 		: sizes.front().data().vphoto().data().vid().v;
 }
 
+PhotoId PhotoData::IdFromTdb(const TLchatPhoto &data) {
+	return data.data().vid().v;
+}
+
 void PhotoData::setFromTdb(const TLphoto &data) {
 	const auto &fields = data.data();
 	setHasAttachedStickers(fields.vhas_stickers().v);
-
-	const auto &sizes = fields.vsizes().v;
-	const auto i = ranges::find_if(sizes, [](const TLphotoSize &data) {
-		return !data.data().vprogressive_sizes().v.isEmpty();
-	});
-	const auto useProgressive = (i != sizes.end());
-	const auto find = [&](const QByteArray &levels) {
-		const auto kInvalidIndex = int(levels.size());
-		const auto level = [&](const TLphotoSize &size) {
-			const auto type = size.data().vtype().v;
-			const auto letter = type.isEmpty()
-				? char(0)
-				: char(type[0].unicode());
-			const auto index = levels.indexOf(letter);
-			return (index >= 0) ? index : kInvalidIndex;
-		};
-		const auto result = ranges::max_element(
-			sizes,
-			std::greater<>(),
-			level);
-		return (level(*result) == kInvalidIndex) ? sizes.end() : result;
-	};
-	const auto image = [&](const QByteArray &levels) {
-		const auto i = find(levels);
-		return (i == sizes.end())
-			? ImageWithLocation()
-			: Images::FromPhotoSize(*i);
-	};
-	const auto large = useProgressive
-		? Images::FromPhotoSize(*i)
-		: image("ydxcwmbsai"_q);
-	if (!large.location.valid()) {
+	auto sizes = LookupSizes(fields.vsizes());
+	if (!sizes.large.location.valid()) {
 		return;
 	}
 	updateImages(
 		(fields.vminithumbnail()
 			? fields.vminithumbnail()->data().vdata().v
 			: QByteArray()),
-		(useProgressive
-			? ImageWithLocation()
-			: image("sa"_q)),
-		(useProgressive
-			? Images::FromProgressiveSize(*i, 1)
-			: image("mbsa"_q)),
-		large,
-		ImageWithLocation(), // todo video small in photo
-		ImageWithLocation(), // todo video large in photo
+		sizes.small,
+		sizes.thumbnail,
+		sizes.large,
+		ImageWithLocation(),
+		ImageWithLocation(),
 		crl::time());
+}
+
+void PhotoData::setFromTdb(const TLchatPhoto &data) {
+	const auto &fields = data.data();
+
+	_dateOrExtendedVideoDuration = fields.vadded_date().v;
+
+	const auto sizes = LookupSizes(fields.vsizes());
+	if (!sizes.large.location.valid()) {
+		return;
+	}
+	updateImages(
+		(fields.vminithumbnail()
+			? fields.vminithumbnail()->data().vdata().v
+			: QByteArray()),
+		sizes.small,
+		sizes.thumbnail,
+		sizes.large,
+		(fields.vsmall_animation()
+			? Images::FromAnimationSize(*fields.vsmall_animation())
+			: ImageWithLocation()),
+		(fields.vanimation()
+			? Images::FromAnimationSize(*fields.vanimation())
+			: ImageWithLocation()),
+		VideoStartTime(fields.vanimation()));
+	applyTdbFile(sizes.large->data().vphoto());
+}
+
+void PhotoData::setFromLocal(const Data::PhotoLocalData &data) {
+	Expects(id == data.id);
+
+	const auto image = [&](char level) {
+		const auto proj = [&](const auto &pair) {
+			return pair.first;
+		};
+		const auto i = ranges::find(data.thumbs, level, proj);
+		return (i == data.thumbs.end())
+			? ImageWithLocation()
+			: Images::FromImageInMemory(
+				i->second.image,
+				"JPG",
+				i->second.bytes);
+	};
+
+	_dateOrExtendedVideoDuration = data.added;
+	updateImages({}, {}, image('m'), image('y'), {}, {}, {});
+}
+
+uint64 PhotoData::persistentId() const {
+	constexpr auto large = PhotoSize::Large;
+	const auto tdb = std::get_if<TdbFileLocation>(
+		&location(large).file().data);
+	return tdb ? tdb->hash : id;
 }
 
 Data::Session &PhotoData::owner() const {
