@@ -64,10 +64,12 @@ public:
 		bool chatlist,
 		bool hasMyLinks) const;
 
+#if 0 // mtp
 	[[nodiscard]] static ChatFilter FromTL(
 		const MTPDialogFilter &data,
 		not_null<Session*> owner);
 	[[nodiscard]] MTPDialogFilter tl(FilterId replaceId = 0) const;
+#endif
 
 	[[nodiscard]] FilterId id() const;
 	[[nodiscard]] QString title() const;
@@ -128,11 +130,15 @@ public:
 	explicit ChatFilters(not_null<Session*> owner);
 	~ChatFilters();
 
+#if 0 // mtp
 	void setPreloaded(const QVector<MTPDialogFilter> &result);
+#endif
 
 	void load();
 	void reload();
+#if 0 // mtp
 	void apply(const MTPUpdate &update);
+#endif
 	void set(ChatFilter filter);
 	void remove(FilterId id);
 	void moveAllToFront();
@@ -194,8 +200,10 @@ private:
 	};
 
 	void load(bool force);
+#if 0 // mtp
 	void received(const QVector<MTPDialogFilter> &list);
 	bool applyOrder(const QVector<MTPint> &order);
+#endif
 	bool applyChange(ChatFilter &filter, ChatFilter &&updated);
 	void applyInsert(ChatFilter filter, int position);
 	void applyRemove(int position);

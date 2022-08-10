@@ -42,10 +42,12 @@ public:
 	// You should use create() static method instead.
 	Result(not_null<Main::Session*> session, const Creator &creator);
 
+#if 0 // mtp
 	static std::unique_ptr<Result> Create(
 		not_null<Main::Session*> session,
 		uint64 queryId,
 		const MTPBotInlineResult &mtpData);
+#endif
 
 	uint64 getQueryId() const {
 		return _queryId;

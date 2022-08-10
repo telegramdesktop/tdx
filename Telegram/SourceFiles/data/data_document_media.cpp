@@ -331,6 +331,7 @@ void DocumentMedia::automaticLoad(
 		true);
 }
 
+#if 0 // mtp
 void DocumentMedia::collectLocalData(not_null<DocumentMedia*> local) {
 	if (const auto image = local->_goodThumbnail.get()) {
 		_goodThumbnail = std::make_unique<Image>(image->original());
@@ -348,6 +349,7 @@ void DocumentMedia::collectLocalData(not_null<DocumentMedia*> local) {
 	_videoThumbnailBytes = local->_videoThumbnailBytes;
 	_flags = local->_flags;
 }
+#endif
 
 void DocumentMedia::setBytes(const QByteArray &bytes) {
 	if (!bytes.isEmpty()) {

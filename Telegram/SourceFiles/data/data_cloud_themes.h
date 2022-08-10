@@ -48,6 +48,7 @@ struct CloudTheme {
 	};
 	base::flat_map<Type, Settings> settings;
 
+#if 0 // mtp
 	static CloudTheme Parse(
 		not_null<Main::Session*> session,
 		const MTPDtheme &data,
@@ -56,6 +57,7 @@ struct CloudTheme {
 		not_null<Main::Session*> session,
 		const MTPTheme &data,
 		bool parseSettings = false);
+#endif
 };
 
 class CloudThemes final {
@@ -85,15 +87,19 @@ public:
 		const QString &emoticon,
 		const QMap<QString, QString> &params);
 
+#if 0 // mtp
 	void applyUpdate(const MTPTheme &theme);
+#endif
 
 	void resolve(
 		not_null<Window::Controller*> controller,
 		const QString &slug,
 		const FullMsgId &clickFromMessageId);
+#if 0 // mtp
 	void showPreview(
 		not_null<Window::Controller*> controller,
 		const MTPTheme &data);
+#endif
 	void showPreview(
 		not_null<Window::Controller*> controller,
 		const CloudTheme &cloud);

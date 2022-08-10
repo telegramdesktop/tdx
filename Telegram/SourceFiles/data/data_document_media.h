@@ -82,7 +82,9 @@ public:
 
 	void automaticLoad(Data::FileOrigin origin, const HistoryItem *item);
 
+#if 0 // mtp
 	void collectLocalData(not_null<DocumentMedia*> local);
+#endif
 
 	// For DocumentData.
 	static void CheckGoodThumbnail(not_null<DocumentData*> document);

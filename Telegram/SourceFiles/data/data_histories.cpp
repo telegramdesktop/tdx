@@ -480,11 +480,13 @@ void Histories::changeDialogUnreadMark(
 		bool unread) {
 	history->setUnreadMark(unread);
 
+#if 0 // todo
 	using Flag = MTPmessages_MarkDialogUnread::Flag;
 	session().api().request(MTPmessages_MarkDialogUnread(
 		MTP_flags(unread ? Flag::f_unread : Flag(0)),
 		MTP_inputDialogPeer(history->peer->input)
 	)).send();
+#endif
 }
 
 void Histories::requestFakeChatListMessage(

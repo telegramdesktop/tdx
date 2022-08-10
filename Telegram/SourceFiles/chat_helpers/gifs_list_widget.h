@@ -149,7 +149,9 @@ private:
 
 	int32 showInlineRows(bool newResults);
 	bool refreshInlineRows(int32 *added = 0);
+#if 0 // mtp
 	void inlineResultsDone(const MTPmessages_BotResults &result);
+#endif
 
 	void updateSelected();
 	void paintInlineItems(Painter &p, QRect clip);

@@ -93,13 +93,13 @@ public:
 	[[nodiscard]] MTPInputPhoto mtpInput() const;
 	[[nodiscard]] QByteArray fileReference() const;
 	void refreshFileReference(const QByteArray &value);
-#endif
 
 	// When we have some client-side generated photo
 	// (for example for displaying an external inline bot result)
 	// and it has downloaded full image, we can collect image from it
 	// to (this) received from the server "same" photo.
 	void collectLocalData(not_null<PhotoData*> local);
+#endif
 
 	[[nodiscard]] std::shared_ptr<Data::PhotoMedia> createMediaView();
 	[[nodiscard]] auto activeMediaView() const

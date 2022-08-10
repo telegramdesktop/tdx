@@ -68,9 +68,11 @@ struct WebPageCollage {
 	using Item = std::variant<PhotoData*, DocumentData*>;
 
 	WebPageCollage() = default;
+#if 0 // mtp
 	explicit WebPageCollage(
 		not_null<Data::Session*> owner,
 		const MTPDwebPage &data);
+#endif
 
 	std::vector<Item> items;
 

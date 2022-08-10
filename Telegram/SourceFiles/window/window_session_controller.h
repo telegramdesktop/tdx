@@ -285,9 +285,11 @@ private:
 		Fn<void(not_null<ChannelData*>)> done);
 #endif
 
+#if 0 // mtp
 	void resolveDone(
 		const MTPcontacts_ResolvedPeer &result,
 		Fn<void(not_null<PeerData*>)> done);
+#endif
 
 	void showMessageByLinkResolved(
 		not_null<HistoryItem*> item,

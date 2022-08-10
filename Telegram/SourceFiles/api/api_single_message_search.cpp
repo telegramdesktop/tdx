@@ -184,6 +184,7 @@ std::optional<HistoryItem*> SingleMessageSearch::performLookupByUsername(
 		_cache.emplace(_requestKey, FullMsgId());
 		ready();
 	};
+#if 0 // todo
 	_requestId = _session->api().request(MTPcontacts_ResolveUsername(
 		MTP_string(username)
 	)).done([=](const MTPcontacts_ResolvedPeer &result) {
@@ -205,6 +206,7 @@ std::optional<HistoryItem*> SingleMessageSearch::performLookupByUsername(
 	}).fail([=] {
 		fail();
 	}).send();
+#endif
 
 	return std::nullopt;
 }

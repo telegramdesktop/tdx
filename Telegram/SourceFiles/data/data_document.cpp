@@ -2068,6 +2068,7 @@ void DocumentData::setWebLocation(const WebFileLocation &location) {
 	_urlLocation = location;
 }
 
+#if 0 // mtp
 void DocumentData::collectLocalData(not_null<DocumentData*> local) {
 	if (local == this) {
 		return;
@@ -2084,3 +2085,4 @@ void DocumentData::collectLocalData(not_null<DocumentData*> local) {
 		session().local().writeFileLocation(mediaKey(), _location);
 	}
 }
+#endif
