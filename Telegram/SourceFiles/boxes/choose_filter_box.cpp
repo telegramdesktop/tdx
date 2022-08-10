@@ -78,6 +78,7 @@ void ChangeFilterById(
 		const auto was = *i;
 		const auto filter = ChangedFilter(was, history, add);
 		history->owner().chatsFilters().set(filter);
+#if 0 // todo
 		history->session().api().request(MTPmessages_UpdateDialogFilter(
 			MTP_flags(MTPmessages_UpdateDialogFilter::Flag::f_filter),
 			MTP_int(filter.id()),
@@ -99,6 +100,7 @@ void ChangeFilterById(
 			// Revert filter on fail.
 			history->owner().chatsFilters().set(was);
 		}).send();
+#endif
 	}
 }
 

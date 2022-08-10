@@ -219,6 +219,7 @@ void SponsoredMessages::request(not_null<History*> history, Fn<void()> done) {
 	}
 	const auto channel = history->peer->asChannel();
 	Assert(channel != nullptr);
+#if 0 // todo
 	request.requestId = _session->api().request(
 		MTPchannels_GetSponsoredMessages(
 			channel->inputChannel)
@@ -230,8 +231,10 @@ void SponsoredMessages::request(not_null<History*> history, Fn<void()> done) {
 	}).fail([=] {
 		_requests.remove(history);
 	}).send();
+#endif
 }
 
+#if 0 // mtp
 void SponsoredMessages::parse(
 		not_null<History*> history,
 		const MTPmessages_sponsoredMessages &list) {
@@ -311,6 +314,7 @@ void SponsoredMessages::append(
 	};
 	list.entries.push_back({ nullptr, {}, std::move(sharedMessage) });
 }
+#endif
 
 void SponsoredMessages::clearItems(not_null<History*> history) {
 	const auto it = _data.find(history);
@@ -357,6 +361,7 @@ void SponsoredMessages::view(const FullMsgId &fullId) {
 	}
 	const auto channel = entryPtr->item->history()->peer->asChannel();
 	Assert(channel != nullptr);
+#if 0 // todo test maybe is viewd already
 	request.requestId = _session->api().request(
 		MTPchannels_ViewSponsoredMessage(
 			channel->inputChannel,
@@ -368,6 +373,7 @@ void SponsoredMessages::view(const FullMsgId &fullId) {
 	}).fail([=] {
 		_viewRequests.remove(randomId);
 	}).send();
+#endif
 }
 
 SponsoredMessages::Details SponsoredMessages::lookupDetails(

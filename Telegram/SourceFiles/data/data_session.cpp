@@ -499,7 +499,9 @@ not_null<PeerData*> Session::peer(PeerId id) {
 		Unexpected("Peer id type.");
 	}();
 
+#if 0 // mtp
 	result->input = MTPinputPeer(MTP_inputPeerEmpty());
+#endif
 	return _peers.emplace(id, std::move(result)).first->second.get();
 }
 
@@ -546,11 +548,11 @@ ChannelData *Session::channelLoaded(ChannelId id) const {
 	return nullptr;
 }
 
+#if 0 // mtp
 not_null<UserData*> Session::processUser(const MTPUser &data) {
 	const auto result = user(data.match([](const auto &data) {
 		return data.vid().v;
 	}));
-#if 0 // mtp
 	auto minimal = false;
 	const MTPUserStatus *status = nullptr;
 	const MTPUserStatus emptyStatus = MTP_userStatusEmpty();
@@ -811,7 +813,6 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 	if (flags) {
 		session().changes().peerUpdated(result, flags);
 	}
-#endif
 
 	return result;
 }
@@ -829,7 +830,6 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		return peer(peerFromChannel(data.vid().v));
 	});
 	auto minimal = false;
-#if 0 // mtp
 	using UpdateFlag = Data::PeerUpdate::Flag;
 	auto flags = UpdateFlag::None | UpdateFlag::None;
 	data.match([&](const MTPDchat &data) {
@@ -1125,9 +1125,9 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 	if (flags) {
 		session().changes().peerUpdated(result, flags);
 	}
-#endif
 	return result;
 }
+#endif
 
 not_null<UserData*> Session::processUser(const TLuser &user) {
 	const auto &data = user.data();
@@ -1541,6 +1541,7 @@ not_null<ChannelData*> Session::processChannel(
 	return result;
 }
 
+#if 0 // mtp
 UserData *Session::processUsers(const MTPVector<MTPUser> &data) {
 	auto result = (UserData*)nullptr;
 	for (const auto &user : data.v) {
@@ -1556,6 +1557,7 @@ PeerData *Session::processChats(const MTPVector<MTPChat> &data) {
 	}
 	return result;
 }
+#endif
 
 PeerData *Session::processPeers(const std::vector<TLchat> &data) {
 	auto result = (PeerData*)nullptr;
@@ -1590,6 +1592,7 @@ ChannelData *Session::processChannels(
 	return result;
 }
 
+#if 0 // mtp
 void Session::applyMaximumChatVersions(const MTPVector<MTPChat> &data) {
 	for (const auto &chat : data.v) {
 		chat.match([&](const MTPDchat &data) {
@@ -1602,6 +1605,7 @@ void Session::applyMaximumChatVersions(const MTPVector<MTPChat> &data) {
 		});
 	}
 }
+#endif
 
 void Session::registerGroupCall(not_null<GroupCall*> call) {
 	_groupCalls.emplace(call->id(), call);
@@ -3218,7 +3222,7 @@ HistoryItem *Session::addNewMessage(
 #endif
 
 not_null<HistoryItem*> Session::processMessage(
-		const Tdb::TLmessage &message,
+		const TLmessage &message,
 		MsgId oldMessageId) {
 	const auto peerId = peerFromTdbChat(message.data().vchat_id());
 	const auto type = NewMessageType::Existing;
@@ -3226,7 +3230,7 @@ not_null<HistoryItem*> Session::processMessage(
 }
 
 not_null<HistoryItem*> Session::processMessage(
-		const Tdb::TLmessage &message,
+		const TLmessage &message,
 		NewMessageType type) {
 	const auto peerId = peerFromTdbChat(message.data().vchat_id());
 	const auto history = this->history(peerId);
@@ -3345,6 +3349,7 @@ not_null<PhotoData*> Session::photo(PhotoId id) {
 	return i->second.get();
 }
 
+#if 0 // mtp
 not_null<PhotoData*> Session::processPhoto(const MTPPhoto &data) {
 	return data.match([&](const MTPDphoto &data) {
 		return processPhoto(data);
@@ -3408,6 +3413,7 @@ not_null<PhotoData*> Session::processPhoto(
 		return photo(data.vid().v);
 	});
 }
+#endif
 
 not_null<PhotoData*> Session::photo(
 		PhotoId id,
@@ -3441,6 +3447,7 @@ not_null<PhotoData*> Session::photo(
 	return result;
 }
 
+#if 0 // mtp
 void Session::photoConvert(
 		not_null<PhotoData*> original,
 		const MTPPhoto &data) {
@@ -3608,6 +3615,7 @@ void Session::photoApplyFields(
 				: 0));
 	}
 }
+#endif
 
 void Session::photoApplyFields(
 		not_null<PhotoData*> photo,
@@ -3650,6 +3658,7 @@ not_null<DocumentData*> Session::document(DocumentId id) {
 	return i->second.get();
 }
 
+#if 0 // mtp
 not_null<DocumentData*> Session::processDocument(const MTPDocument &data) {
 	return data.match([&](const MTPDdocument &data) {
 		return processDocument(data);
@@ -3685,6 +3694,7 @@ not_null<DocumentData*> Session::processDocument(
 		return document(data.vid().v);
 	});
 }
+#endif
 
 not_null<DocumentData*> Session::document(
 		DocumentId id,
@@ -3716,6 +3726,7 @@ not_null<DocumentData*> Session::document(
 	return result;
 }
 
+#if 0 // mtp
 void Session::documentConvert(
 		not_null<DocumentData*> original,
 		const MTPDocument &data) {
@@ -3753,7 +3764,6 @@ void Session::documentConvert(
 	}
 }
 
-#if 0 // mtp
 DocumentData *Session::documentFromWeb(
 		const MTPWebDocument &data,
 		const ImageLocation &thumbnailLocation,
@@ -3809,7 +3819,6 @@ DocumentData *Session::documentFromWeb(
 	result->setContentUrl(qs(data.vurl()));
 	return result;
 }
-#endif
 
 void Session::documentApplyFields(
 		not_null<DocumentData*> document,
@@ -3848,6 +3857,7 @@ void Session::documentApplyFields(
 		data.vdc_id().v,
 		data.vsize().v);
 }
+#endif
 
 void Session::documentApplyFields(
 		not_null<DocumentData*> document,
@@ -3910,6 +3920,7 @@ not_null<WebPageData*> Session::webpage(WebPageId id) {
 	return i->second.get();
 }
 
+#if 0 // mtp
 not_null<WebPageData*> Session::processWebpage(const MTPWebPage &data) {
 	switch (data.type()) {
 	case mtpc_webPage:
@@ -3966,6 +3977,7 @@ not_null<WebPageData*> Session::processWebpage(
 			: (base::unixtime::now() + kDefaultPendingTimeout));
 	return result;
 }
+#endif
 
 not_null<WebPageData*> Session::webpage(
 		WebPageId id,
@@ -4029,6 +4041,7 @@ not_null<WebPageData*> Session::webpage(
 	return result;
 }
 
+#if 0 // mtp
 void Session::webpageApplyFields(
 		not_null<WebPageData*> page,
 		const MTPDwebPage &data) {
@@ -4194,6 +4207,7 @@ void Session::webpageApplyFields(
 		data.is_has_large_media(),
 		pendingTill);
 }
+#endif
 
 void Session::webpageApplyFields(
 		not_null<WebPageData*> page,
@@ -4249,11 +4263,13 @@ not_null<GameData*> Session::game(GameId id) {
 	return i->second.get();
 }
 
+#if 0 // mtp
 not_null<GameData*> Session::processGame(const MTPDgame &data) {
 	const auto result = game(data.vid().v);
 	gameApplyFields(result, data);
 	return result;
 }
+#endif
 
 not_null<GameData*> Session::game(
 		GameId id,
@@ -4275,6 +4291,7 @@ not_null<GameData*> Session::game(
 	return result;
 }
 
+#if 0 // mtp
 void Session::gameConvert(
 		not_null<GameData*> original,
 		const MTPGame &data) {
@@ -4314,6 +4331,7 @@ void Session::gameApplyFields(
 		processPhoto(data.vphoto()),
 		document ? processDocument(*document).get() : nullptr);
 }
+#endif
 
 void Session::gameApplyFields(
 		not_null<GameData*> game,
@@ -4382,6 +4400,7 @@ not_null<PollData*> Session::poll(PollId id) {
 	return i->second.get();
 }
 
+#if 0 // mtp
 not_null<PollData*> Session::processPoll(const MTPPoll &data) {
 	return data.match([&](const MTPDpoll &data) {
 		const auto id = data.vid().v;
@@ -4406,6 +4425,7 @@ not_null<PollData*> Session::processPoll(const MTPDmessageMediaPoll &data) {
 	}
 	return result;
 }
+#endif
 
 void Session::checkPollsClosings() {
 	const auto now = base::unixtime::now();
@@ -4523,19 +4543,41 @@ not_null<PhotoData*> Session::processPhoto(const TLchatPhoto &data) {
 	return result;
 }
 
-not_null<WebPageData*> Session::processWebpage(const Tdb::TLwebPage &data) {
+not_null<PhotoData*> Session::processSmallPhoto(
+		const TLchatPhotoInfo &data) {
+	const auto result = photo(PhotoData::IdFromTdb(data));
+	result->setFromTdb(data);
+	return result;
+}
+
+not_null<DocumentData*> Session::processDocument(
+		const DocumentLocalData &data) {
+	const auto result = document(data.id);
+	result->setFromLocal(data);
+	return result;
+}
+
+not_null<DocumentData*> Session::processPlainDocument(
+		const TLfile &data,
+		SimpleDocumentType type) {
+	const auto result = document(data.data().vid().v);
+	result->setSimpleFromTdb(data, type);
+	return result;
+}
+
+not_null<WebPageData*> Session::processWebpage(const TLlinkPreview &data) {
 	const auto result = webpage(WebPageData::IdFromTdb(data));
 	result->setFromTdb(data);
 	return result;
 }
 
-not_null<GameData*> Session::processGame(const Tdb::TLgame &data) {
+not_null<GameData*> Session::processGame(const TLgame &data) {
 	const auto result = game(GameData::IdFromTdb(data));
 	result->setFromTdb(data);
 	return result;
 }
 
-not_null<PollData*> Session::processPoll(const Tdb::TLpoll &data) {
+not_null<PollData*> Session::processPoll(const TLpoll &data) {
 	const auto result = poll(PollData::IdFromTdb(data));
 	const auto changed = result->applyChanges(data);
 	if (changed) {
@@ -4953,6 +4995,7 @@ Folder *Session::folderLoaded(FolderId id) const {
 	return (it == end(_folders)) ? nullptr : it->second.get();
 }
 
+#if 0 // mtp
 not_null<Folder*> Session::processFolder(const MTPFolder &data) {
 	return data.match([&](const MTPDfolder &data) {
 		return processFolder(data);
@@ -4962,6 +5005,7 @@ not_null<Folder*> Session::processFolder(const MTPFolder &data) {
 not_null<Folder*> Session::processFolder(const MTPDfolder &data) {
 	return folder(data.vid().v);
 }
+#endif
 
 not_null<Dialogs::MainList*> Session::chatsListFor(
 		not_null<Dialogs::Entry*> entry) {
@@ -5241,6 +5285,7 @@ void Session::setNotTopPromoted(not_null<History*> history) {
 	}
 }
 
+#if 0 // mtp
 bool Session::updateWallpapers(const MTPaccount_WallPapers &data) {
 	return data.match([&](const MTPDaccount_wallPapers &data) {
 		setWallpapers(data.vwallpapers().v, data.vhash().v);
@@ -5287,6 +5332,7 @@ void Session::setWallpapers(const QVector<MTPWallPaper> &data, uint64 hash) {
 			u":/gui/art/bg_thumbnail.png"_q));
 	}
 }
+#endif
 
 void Session::removeWallpaper(const WallPaper &paper) {
 	const auto i = ranges::find(_wallpapers, paper.id(), &WallPaper::id);

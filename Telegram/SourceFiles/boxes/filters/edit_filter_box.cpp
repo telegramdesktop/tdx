@@ -668,6 +668,7 @@ void EditExistingFilter(
 	const auto doneCallback = [=](const Data::ChatFilter &result) {
 		Expects(id == result.id());
 
+#if 0 // todo
 		const auto tl = result.tl();
 		session->data().chatsFilters().apply(MTP_updateDialogFilter(
 			MTP_flags(MTPDupdateDialogFilter::Flag::f_filter),
@@ -678,6 +679,7 @@ void EditExistingFilter(
 			MTP_int(id),
 			tl
 		)).send();
+#endif
 	};
 	const auto saveAnd = [=](
 			const Data::ChatFilter &data,

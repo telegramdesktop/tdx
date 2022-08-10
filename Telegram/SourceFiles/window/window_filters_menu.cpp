@@ -511,6 +511,7 @@ void FiltersMenu::remove(
 		FilterId id,
 		std::vector<not_null<PeerData*>> leave) {
 	const auto session = &_session->session();
+#if 0 // todo
 	const auto api = &session->api();
 	session->data().chatsFilters().apply(MTP_updateDialogFilter(
 		MTP_flags(MTPDupdateDialogFilter::Flag(0)),
@@ -534,6 +535,7 @@ void FiltersMenu::remove(
 			api->applyUpdates(result);
 		}).send();
 	}
+#endif
 }
 
 void FiltersMenu::applyReorder(

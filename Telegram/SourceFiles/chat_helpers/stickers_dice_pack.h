@@ -31,7 +31,9 @@ public:
 
 private:
 	void load();
+#if 0 // mtp
 	void applySet(const MTPDmessages_stickerSet &data);
+#endif
 	void tryGenerateLocalZero();
 	void generateLocal(int index, const QString &name);
 

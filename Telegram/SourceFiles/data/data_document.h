@@ -290,13 +290,13 @@ public:
 	[[nodiscard]] MTPInputDocument mtpInput() const;
 	[[nodiscard]] QByteArray fileReference() const;
 	void refreshFileReference(const QByteArray &value);
-#endif
 
 	// When we have some client-side generated document
 	// (for example for displaying an external inline bot result)
 	// and it has downloaded data, we can collect that data from it
 	// to (this) received from the server "same" document.
 	void collectLocalData(not_null<DocumentData*> local);
+#endif
 
 	[[nodiscard]] QString filename() const;
 	[[nodiscard]] Core::NameType nameType() const;

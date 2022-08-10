@@ -365,6 +365,7 @@ void Widget::inlineBotChanged() {
 	_requesting.fire(false);
 }
 
+#if 0 // mtp
 void Widget::inlineResultsDone(const MTPmessages_BotResults &result) {
 	_inlineRequestId = 0;
 	_requesting.fire(false);
@@ -422,6 +423,7 @@ void Widget::inlineResultsDone(const MTPmessages_BotResults &result) {
 	}
 	onScroll();
 }
+#endif
 
 void Widget::queryInlineBot(UserData *bot, PeerData *peer, QString query) {
 	bool force = false;
@@ -462,6 +464,7 @@ void Widget::onInlineRequest() {
 		}
 	}
 	_requesting.fire(true);
+#if 0 // todo
 	_inlineRequestId = _api.request(MTPmessages_GetInlineBotResults(
 		MTP_flags(0),
 		_inlineBot->inputUser,
@@ -476,6 +479,7 @@ void Widget::onInlineRequest() {
 		_requesting.fire(false);
 		_inlineRequestId = 0;
 	}).handleAllErrors().send();
+#endif
 }
 
 bool Widget::refreshInlineRows(int *added) {

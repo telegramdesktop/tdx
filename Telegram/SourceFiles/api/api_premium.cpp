@@ -137,6 +137,7 @@ void Premium::reloadPromo() {
 	if (_promoRequestId) {
 		return;
 	}
+#if 0 // todo
 	_promoRequestId = _api.request(MTPhelp_GetPremiumPromo(
 	)).done([=](const MTPhelp_PremiumPromo &result) {
 		_promoRequestId = 0;
@@ -180,12 +181,14 @@ void Premium::reloadPromo() {
 	}).fail([=] {
 		_promoRequestId = 0;
 	}).send();
+#endif
 }
 
 void Premium::reloadStickers() {
 	if (_stickersRequestId) {
 		return;
 	}
+#if 0 // todo
 	_stickersRequestId = _api.request(MTPmessages_GetStickers(
 		MTP_string("\xe2\xad\x90\xef\xb8\x8f\xe2\xad\x90\xef\xb8\x8f"),
 		MTP_long(_stickersHash)
@@ -207,6 +210,7 @@ void Premium::reloadStickers() {
 	}).fail([=] {
 		_stickersRequestId = 0;
 	}).send();
+#endif
 }
 
 void Premium::reloadCloudSet() {

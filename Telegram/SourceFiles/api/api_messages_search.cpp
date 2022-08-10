@@ -102,6 +102,7 @@ void MessagesSearch::searchRequest() {
 		const auto from = _request.from;
 		const auto fromPeer = _history->peer->isUser() ? nullptr : from;
 		const auto savedPeer = _history->peer->isSelf() ? from : nullptr;
+#if 0 // todo
 		_requestId = _history->session().api().request(MTPmessages_Search(
 			MTP_flags((fromPeer ? Flag::f_from_id : Flag())
 				| (savedPeer ? Flag::f_saved_peer_id : Flag())
@@ -139,6 +140,7 @@ void MessagesSearch::searchRequest() {
 
 			finish();
 		}).send();
+#endif
 		return _requestId;
 	};
 	_searchInHistoryRequest = _history->owner().histories().sendRequest(

@@ -70,6 +70,7 @@ namespace {
 constexpr auto kProlongTimeout = 60 * crl::time(1000);
 constexpr auto kRefreshBotsTimeout = 60 * 60 * crl::time(1000);
 
+#if 0 // mtp
 [[nodiscard]] DocumentData *ResolveIcon(
 		not_null<Main::Session*> session,
 		const MTPDattachMenuBot &data) {
@@ -140,6 +141,7 @@ constexpr auto kRefreshBotsTimeout = 60 * 60 * crl::time(1000);
 	}
 	return result;
 }
+#endif
 
 [[nodiscard]] PeerTypes PeerTypesFromNames(
 		const std::vector<QString> &names) {
@@ -808,6 +810,7 @@ void WebViewInstance::requestButton() {
 	Expects(_context.action.has_value());
 
 	const auto &action = *_context.action;
+#if 0 // todo
 	using Flag = MTPmessages_RequestWebView::Flag;
 	_requestId = _session->api().request(MTPmessages_RequestWebView(
 		MTP_flags(Flag::f_theme_params
@@ -841,9 +844,11 @@ void WebViewInstance::requestButton() {
 		}
 		close();
 	}).send();
+#endif
 }
 
 void WebViewInstance::requestSimple() {
+#if 0 // todo
 	using Flag = MTPmessages_RequestSimpleWebView::Flag;
 	_requestId = _session->api().request(MTPmessages_RequestSimpleWebView(
 		MTP_flags(Flag::f_theme_params
@@ -866,6 +871,7 @@ void WebViewInstance::requestSimple() {
 		_parentShow->showToast(error.type());
 		close();
 	}).send();
+#endif
 }
 
 void WebViewInstance::requestApp(bool allowWrite) {
@@ -1488,6 +1494,7 @@ void AttachWebView::requestBots(Fn<void()> callback) {
 	if (_botsRequestId) {
 		return;
 	}
+#if 0 // todo
 	_botsRequestId = _session->api().request(MTPmessages_GetAttachMenuBots(
 		MTP_long(_botsHash)
 	)).done([=](const MTPAttachMenuBots &result) {
@@ -1514,6 +1521,7 @@ void AttachWebView::requestBots(Fn<void()> callback) {
 			callback();
 		}
 	}).send();
+#endif
 }
 
 bool AttachWebView::disclaimerAccepted(const AttachWebViewBot &bot) const {
@@ -1550,6 +1558,7 @@ void AttachWebView::requestAddToMenu(
 		return;
 	}
 
+#if 0 // todo
 	process.requestId = _session->api().request(
 		MTPmessages_GetAttachMenuBot(bot->inputUser)
 	).done([=](const MTPAttachMenuBotsBot &result) {
@@ -1584,6 +1593,7 @@ void AttachWebView::requestAddToMenu(
 	}).fail([=] {
 		finish(AddToMenuResult::Unsupported, {});
 	}).send();
+#endif
 }
 
 void AttachWebView::removeFromMenu(
@@ -1603,6 +1613,7 @@ void AttachWebView::resolveUsername(
 		done(peer);
 		return;
 	}
+#if 0 // todo
 	_session->api().request(base::take(_requestId)).cancel();
 	_requestId = _session->api().request(MTPcontacts_ResolveUsername(
 		MTP_string(_botUsername)
@@ -1622,6 +1633,7 @@ void AttachWebView::resolveUsername(
 				tr::lng_username_not_found(tr::now, lt_user, _botUsername));
 		}
 	}).send();
+#endif
 }
 
 void AttachWebView::open(WebViewDescriptor &&descriptor) {
@@ -1757,6 +1769,7 @@ void AttachWebView::toggleInMenu(
 		not_null<UserData*> bot,
 		ToggledState state,
 		Fn<void(bool success)> callback) {
+#if 0 // todo
 	using Flag = MTPmessages_ToggleBotInAttachMenu::Flag;
 	_session->api().request(MTPmessages_ToggleBotInAttachMenu(
 		MTP_flags((state == ToggledState::AllowedToWrite)
@@ -1774,6 +1787,7 @@ void AttachWebView::toggleInMenu(
 			callback(false);
 		}
 	}).send();
+#endif
 }
 
 void ChooseAndSendLocation(

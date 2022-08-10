@@ -93,6 +93,7 @@ void DicePack::load() {
 #endif
 }
 
+#if 0 // mtp
 void DicePack::applySet(const MTPDmessages_stickerSet &data) {
 	const auto isSlotMachine = DicePacks::IsSlot(_emoji);
 	auto index = 0;
@@ -129,6 +130,7 @@ void DicePack::applySet(const MTPDmessages_stickerSet &data) {
 		});
 	}
 }
+#endif
 
 void DicePack::tryGenerateLocalZero() {
 	if (!_map.empty()) {
