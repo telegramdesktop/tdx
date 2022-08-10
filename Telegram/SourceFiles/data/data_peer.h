@@ -285,7 +285,7 @@ public:
 		return _nameFirstLetters;
 	}
 
-	void setPhotoFull(const Tdb::TLchatPhoto &data);
+	void setPhotoFull(const Tdb::TLchatPhoto &photo);
 
 	void clearPhoto();
 	void setUserpic(
@@ -462,12 +462,9 @@ protected:
 	void clearUserpic();
 	void invalidateEmptyUserpic();
 
-	void updateUserpic(
-		const Tdb::TLfile &file,
-		bool hasVideo,
-		PhotoId photoId = 0);
 	void updateUserpic(const Tdb::TLchatPhotoInfo &photo);
 	void updateUserpic(const Tdb::TLprofilePhoto &photo);
+	void updateUserpic(const Tdb::TLfile &small, bool hasVideo);
 
 private:
 	void fillNames();

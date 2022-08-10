@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Tdb {
 class TLphoto;
+class TLchatPhoto;
 class TLdocument;
 class TLvideo;
 class TLanimation;
@@ -647,6 +648,8 @@ public:
 		const LocationPoint &point);
 
 	not_null<PhotoData*> processPhoto(const Tdb::TLphoto &data);
+	not_null<PhotoData*> processPhoto(const Tdb::TLchatPhoto &photo);
+
 	template <
 		typename T,
 		typename = std::enable_if_t<IsTdbDocument<T>()>>
