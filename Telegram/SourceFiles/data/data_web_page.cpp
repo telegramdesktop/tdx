@@ -27,6 +27,7 @@ namespace {
 
 using namespace Tdb;
 
+#if 0 // mtp
 [[nodiscard]] WebPageCollage ExtractCollage(
 		not_null<Data::Session*> owner,
 		const QVector<MTPPageBlock> &items,
@@ -123,6 +124,7 @@ WebPageCollage ExtractCollage(
 		return WebPageCollage();
 	});
 }
+#endif
 
 } // namespace
 
@@ -196,11 +198,13 @@ WebPageType ParseWebPageType(const MTPDwebPage &page) {
 		!!page.vcached_page());
 }
 
+#if 0 // mtp
 WebPageCollage::WebPageCollage(
 	not_null<Data::Session*> owner,
 	const MTPDwebPage &data)
 : WebPageCollage(ExtractCollage(owner, data)) {
 }
+#endif
 
 WebPageData::WebPageData(not_null<Data::Session*> owner, const WebPageId &id)
 : id(id)

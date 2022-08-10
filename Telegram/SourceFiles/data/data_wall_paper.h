@@ -82,6 +82,7 @@ public:
 	[[nodiscard]] WallPaper withParamsFrom(const WallPaper &other) const;
 	[[nodiscard]] WallPaper withoutImageData() const;
 
+#if 0 // mtp
 	[[nodiscard]] static std::optional<WallPaper> Create(
 		not_null<Main::Session*> session,
 		const MTPWallPaper &data);
@@ -90,6 +91,7 @@ public:
 		const MTPDwallPaper &data);
 	[[nodiscard]] static std::optional<WallPaper> Create(
 		const MTPDwallPaperNoFile &data);
+#endif
 
 	[[nodiscard]] QByteArray serialize() const;
 	[[nodiscard]] static std::optional<WallPaper> FromSerialized(

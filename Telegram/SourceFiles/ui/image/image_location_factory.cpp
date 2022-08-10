@@ -388,12 +388,16 @@ ImageWithLocation FromVideoSize(
 
 ImageWithLocation FromPhotoSize(const TLphotoSize &size) {
 	const auto &data = size.data();
+	return FromTdbFile(data.vphoto(), data.vwidth().v, data.vheight().v);
+}
+
+ImageWithLocation FromTdbFile(const TLfile &file, int width, int height) {
 	return ImageWithLocation{
 		.location = ImageLocation(
-			DownloadLocation{ TdbFileLocation(data.vphoto()) },
-			data.vwidth().v,
-			data.vheight().v),
-		.bytesCount = int(data.vphoto().data().vsize().v),
+			DownloadLocation{ TdbFileLocation(file) },
+			width,
+			height),
+		.bytesCount = int(file.data().vsize().v),
 	};
 }
 

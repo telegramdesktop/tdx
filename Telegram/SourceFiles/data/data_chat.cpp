@@ -30,7 +30,10 @@ using UpdateFlag = Data::PeerUpdate::Flag;
 
 ChatData::ChatData(not_null<Data::Session*> owner, PeerId id)
 : PeerData(owner, id)
+{
+#if 0 // mtp
 , inputChat(MTP_long(peerToChat(id).bare)) {
+#endif
 	_flags.changes(
 	) | rpl::start_with_next([=](const Flags::Change &change) {
 		if (change.diff & Flag::CallNotEmpty) {
@@ -304,6 +307,7 @@ void ChatData::setBotCommands(const std::vector<Data::BotCommands> &list) {
 	}
 }
 
+#if 0 // mtp
 void ChatData::setPendingRequestsCount(
 		int count,
 		const QVector<MTPlong> &recentRequesters) {
@@ -313,6 +317,7 @@ void ChatData::setPendingRequestsCount(
 		return UserId(value);
 	}) | ranges::to_vector);
 }
+#endif
 
 void ChatData::setPendingRequestsCount(
 		int count,

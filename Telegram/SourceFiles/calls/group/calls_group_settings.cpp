@@ -681,6 +681,7 @@ void SettingsBox(
 		const auto state = top->lifetime().make_state<State>();
 		const auto revokeSure = [=] {
 			const auto session = &peer->session();
+#if 0 // todo
 			state->requestId = session->api().request(
 				MTPphone_GetGroupCallStreamRtmpUrl(
 					peer->input,
@@ -704,6 +705,7 @@ void SettingsBox(
 			}).fail([=] {
 				state->requestId = 0;
 			}).send();
+#endif
 		};
 		const auto revoke = [=] {
 			if (state->requestId || !top) {

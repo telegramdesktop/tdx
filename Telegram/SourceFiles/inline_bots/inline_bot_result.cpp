@@ -53,6 +53,7 @@ Result::Result(not_null<Main::Session*> session, const Creator &creator)
 , _type(creator.type) {
 }
 
+#if 0 // mtp
 std::unique_ptr<Result> Result::Create(
 		not_null<Main::Session*> session,
 		uint64 queryId,
@@ -120,7 +121,6 @@ std::unique_ptr<Result> Result::Create(
 						? Images::FromWebDocument(*data.vthumb())
 						: ImageLocation()));
 			} else if (contentMime != "text/html"_q) {
-#if 0 // todo
 				result->_document = session->data().documentFromWeb(
 					result->adjustAttributes(*content),
 					(imageThumb
@@ -129,7 +129,6 @@ std::unique_ptr<Result> Result::Create(
 					(videoThumb
 						? Images::FromWebDocument(*data.vthumb())
 						: ImageLocation()));
-#endif
 			}
 		}
 		if (!result->_photo && !result->_document && imageThumb) {
@@ -306,6 +305,7 @@ std::unique_ptr<Result> Result::Create(
 
 	return result;
 }
+#endif
 
 bool Result::onChoose(Layout::ItemBase *layout) {
 	if (_photo && _type == Type::Photo) {

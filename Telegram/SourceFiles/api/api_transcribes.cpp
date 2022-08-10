@@ -130,6 +130,8 @@ void Transcribes::load(not_null<HistoryItem*> item) {
 		}
 	};
 	const auto id = item->fullId();
+	const auto requestId = 0;
+#if 0 // todo
 	const auto requestId = _api.request(MTPmessages_TranscribeAudio(
 		item->history()->peer->input,
 		MTP_int(item->id)
@@ -174,6 +176,7 @@ void Transcribes::load(not_null<HistoryItem*> item) {
 			_session->data().requestItemResize(item);
 		}
 	}).send();
+#endif
 	auto &entry = _map.emplace(id).first->second;
 	entry.requestId = requestId;
 	entry.shown = true;

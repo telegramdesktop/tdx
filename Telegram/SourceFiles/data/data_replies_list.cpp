@@ -945,6 +945,7 @@ void RepliesList::requestUnreadCount() {
 			}
 		}
 	};
+#if 0 // todo
 	_reloadUnreadCountRequestId = session->api().request(
 		MTPmessages_GetDiscussionMessage(
 			_history->peer->input,
@@ -961,6 +962,7 @@ void RepliesList::requestUnreadCount() {
 				data.vunread_count().v);
 		});
 	}).send();
+#endif
 }
 
 void RepliesList::readTill(not_null<HistoryItem*> item) {
@@ -1010,6 +1012,7 @@ void RepliesList::sendReadTillRequest() {
 	const auto api = &_history->session().api();
 	api->request(base::take(_readRequestId)).cancel();
 
+#if 0 // todo
 	_readRequestId = api->request(MTPmessages_ReadDiscussion(
 		_history->peer->input,
 		MTP_int(_rootId),
@@ -1018,6 +1021,7 @@ void RepliesList::sendReadTillRequest() {
 		_readRequestId = 0;
 		reloadUnreadCountIfNeeded();
 	})).send();
+#endif
 }
 
 void RepliesList::reloadUnreadCountIfNeeded() {

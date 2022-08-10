@@ -170,9 +170,11 @@ public:
 	[[nodiscard]] const std::vector<UserId> &recentRequesters() const {
 		return _recentRequesters;
 	}
+#if 0 // mtp
 	void setPendingRequestsCount(
 		int count,
 		const QVector<MTPlong> &recentRequesters);
+#endif
 	void setPendingRequestsCount(
 		int count,
 		std::vector<UserId> recentRequesters);
@@ -180,8 +182,10 @@ public:
 	void setAllowedReactions(Data::AllowedReactions value);
 	[[nodiscard]] const Data::AllowedReactions &allowedReactions() const;
 
+#if 0 // mtp
 	// Still public data members.
 	const MTPlong inputChat;
+#endif
 
 	int count = 0;
 

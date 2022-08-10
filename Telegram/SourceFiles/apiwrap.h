@@ -592,7 +592,9 @@ private:
 		Fn<void(bool)> done = nullptr);
 
 	void getTopPromotionDelayed(TimeId now, TimeId next);
+#if 0 // mtp
 	void topPromotionDone(const MTPhelp_PromoData &proxy);
+#endif
 
 	void sendNotifySettingsUpdates();
 

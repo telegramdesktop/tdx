@@ -176,8 +176,8 @@ public:
 
 #if 0 // mtp
 	void setPhoto(const MTPChatPhoto &photo);
-#endif
 	void setAccessHash(uint64 accessHash);
+#endif
 
 	void setPhoto(const Tdb::TLchatPhotoInfo &photo);
 
@@ -225,9 +225,11 @@ public:
 	[[nodiscard]] const std::vector<UserId> &recentRequesters() const {
 		return _recentRequesters;
 	}
+#if 0 // mtp
 	void setPendingRequestsCount(
 		int count,
 		const QVector<MTPlong> &recentRequesters);
+#endif
 	void setPendingRequestsCount(
 		int count,
 		std::vector<UserId> recentRequesters);
@@ -391,7 +393,9 @@ public:
 	}
 	[[nodiscard]] bool canHaveInviteLink() const;
 
+#if 0 // mtp
 	void setLocation(const MTPChannelLocation &data);
+#endif
 	[[nodiscard]] const ChannelLocation *getLocation() const;
 
 	void setLinkedChat(ChannelData *linked);
@@ -509,7 +513,9 @@ public:
 	// Still public data members.
 	uint64 access = 0;
 
+#if 0 // mtp
 	MTPinputChannel inputChannel = MTP_inputChannelEmpty();
+#endif
 
 	int32 date = 0;
 	std::unique_ptr<MegagroupInfo> mgInfo;

@@ -31,6 +31,7 @@ bool IsTestingColors/* = false*/;
 
 } // namespace
 
+#if 0 // mtp
 CloudTheme CloudTheme::Parse(
 		not_null<Main::Session*> session,
 		const MTPDtheme &data,
@@ -119,6 +120,7 @@ CloudTheme CloudTheme::Parse(
 		return CloudTheme::Parse(session, data, parseSettings);
 	});
 }
+#endif
 
 QString CloudThemes::Format() {
 	static const auto kResult = QString::fromLatin1("tdesktop");
@@ -186,6 +188,7 @@ void CloudThemes::reloadCurrent() {
 		return;
 	}
 	const auto &fields = Window::Theme::Background()->themeObject().cloud;
+#if 0 // tdlib todo
 	_session->api().request(MTPaccount_GetTheme(
 		MTP_string(Format()),
 		MTP_inputTheme(MTP_long(fields.id), MTP_long(fields.accessHash))
@@ -194,8 +197,10 @@ void CloudThemes::reloadCurrent() {
 	}).fail([=] {
 		_reloadCurrentTimer.callOnce(kReloadTimeout);
 	}).send();
+#endif
 }
 
+#if 0 // mtp
 void CloudThemes::applyUpdate(const MTPTheme &theme) {
 	theme.match([&](const MTPDtheme &data) {
 		const auto cloud = CloudTheme::Parse(_session, data);
@@ -209,11 +214,13 @@ void CloudThemes::applyUpdate(const MTPTheme &theme) {
 	});
 	scheduleReload();
 }
+#endif
 
 void CloudThemes::resolve(
 		not_null<Window::Controller*> controller,
 		const QString &slug,
 		const FullMsgId &clickFromMessageId) {
+#if 0 // tdlib todo
 	_session->api().request(_resolveRequestId).cancel();
 	_resolveRequestId = _session->api().request(MTPaccount_GetTheme(
 		MTP_string(Format()),
@@ -225,8 +232,10 @@ void CloudThemes::resolve(
 			controller->show(Ui::MakeInformBox(tr::lng_theme_no_desktop()));
 		}
 	}).send();
+#endif
 }
 
+#if 0 // mtp
 void CloudThemes::showPreview(
 		not_null<Window::Controller*> controller,
 		const MTPTheme &data) {
@@ -234,6 +243,7 @@ void CloudThemes::showPreview(
 		showPreview(controller, CloudTheme::Parse(_session, data));
 	});
 }
+#endif
 
 void CloudThemes::showPreview(
 		not_null<Window::Controller*> controller,
@@ -330,6 +340,7 @@ void CloudThemes::refresh() {
 	if (_refreshRequestId) {
 		return;
 	}
+#if 0 // tdlib todo
 	_refreshRequestId = _session->api().request(MTPaccount_GetThemes(
 		MTP_string(Format()),
 		MTP_long(_hash)
@@ -344,8 +355,10 @@ void CloudThemes::refresh() {
 	}).fail([=] {
 		_refreshRequestId = 0;
 	}).send();
+#endif
 }
 
+#if 0 // mtp
 void CloudThemes::parseThemes(const QVector<MTPTheme> &list) {
 	_list.clear();
 	_list.reserve(list.size());
@@ -354,11 +367,13 @@ void CloudThemes::parseThemes(const QVector<MTPTheme> &list) {
 	}
 	checkCurrentTheme();
 }
+#endif
 
 void CloudThemes::refreshChatThemes() {
 	if (_chatThemesRequestId) {
 		return;
 	}
+#if 0 // todo
 	_chatThemesRequestId = _session->api().request(MTPaccount_GetChatThemes(
 		MTP_long(_chatThemesHash)
 	)).done([=](const MTPaccount_Themes &result) {
@@ -372,6 +387,7 @@ void CloudThemes::refreshChatThemes() {
 	}).fail([=] {
 		_chatThemesRequestId = 0;
 	}).send();
+#endif
 }
 
 const std::vector<CloudTheme> &CloudThemes::chatThemes() const {
@@ -566,6 +582,7 @@ std::optional<CloudTheme> CloudThemes::updateThemeFromLink(
 	return *i;
 }
 
+#if 0 // mtp
 void CloudThemes::parseChatThemes(const QVector<MTPTheme> &list) {
 	_chatThemes.clear();
 	_chatThemes.reserve(list.size());
@@ -573,6 +590,7 @@ void CloudThemes::parseChatThemes(const QVector<MTPTheme> &list) {
 		_chatThemes.push_back(CloudTheme::Parse(_session, theme, true));
 	}
 }
+#endif
 
 void CloudThemes::checkCurrentTheme() {
 	const auto &object = Window::Theme::Background()->themeObject();

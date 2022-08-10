@@ -279,6 +279,8 @@ void EmojiInteractions::sendAccumulatedOutgoing(
 	}
 	const auto peer = item->history()->peer;
 	const auto emoji = from->emoji;
+	const auto requestId = 0;
+#if 0 // todo
 	const auto requestId = _session->api().request(MTPmessages_SetTyping(
 		MTP_flags(0),
 		peer->input,
@@ -296,6 +298,7 @@ void EmojiInteractions::sendAccumulatedOutgoing(
 			}
 		}
 	}).send();
+#endif
 	_playsSent[peer][emoji] = PlaySent{ .lastRequestId = requestId };
 	animations.erase(from, till);
 }
@@ -424,12 +427,14 @@ void EmojiInteractions::playStarted(not_null<PeerData*> peer, QString emoji) {
 	if (i != end(map) && now - i->second < kAccumulateSeenRequests) {
 		return;
 	}
+#if 0 // todo
 	_session->api().request(MTPmessages_SetTyping(
 		MTP_flags(0),
 		peer->input,
 		MTPint(), // top_msg_id
 		MTP_sendMessageEmojiInteractionSeen(MTP_string(emoji))
 	)).send();
+#endif
 	map[emoji] = now;
 	if (!_checkTimer.isActive()) {
 		_checkTimer.callOnce(kAccumulateSeenRequests);

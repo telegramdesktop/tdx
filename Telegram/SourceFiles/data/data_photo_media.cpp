@@ -186,6 +186,7 @@ void PhotoMedia::automaticLoad(
 		true);
 }
 
+#if 0 // mtp
 void PhotoMedia::collectLocalData(not_null<PhotoMedia*> local) {
 	if (const auto image = local->_inlineThumbnail.get()) {
 		_inlineThumbnail = std::make_unique<Image>(image->original());
@@ -199,6 +200,7 @@ void PhotoMedia::collectLocalData(not_null<PhotoMedia*> local) {
 		}
 	}
 }
+#endif
 
 bool PhotoMedia::saveToFile(const QString &path) {
 	constexpr auto large = PhotoSize::Large;

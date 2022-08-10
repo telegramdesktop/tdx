@@ -299,6 +299,7 @@ PeerData *readPeer(
 				user->botInfo->inlinePlaceholder = inlinePlaceholder;
 			}
 
+#if 0 // mtp
 			if (user->id == selfId) {
 				user->input = MTP_inputPeerSelf();
 				user->inputUser = MTP_inputUserSelf();
@@ -306,6 +307,7 @@ PeerData *readPeer(
 				user->input = MTP_inputPeerUser(MTP_long(peerToUser(user->id).bare), MTP_long(user->accessHash()));
 				user->inputUser = MTP_inputUser(MTP_long(peerToUser(user->id).bare), MTP_long(user->accessHash()));
 			}
+#endif
 		}
 	} else if (const auto chat = result->asChat()) {
 		QString name, inviteLink;
@@ -374,7 +376,9 @@ PeerData *readPeer(
 			chat->creator = creator;
 			chat->setInviteLink(inviteLink);
 
+#if 0 // mtp
 			chat->input = MTP_inputPeerChat(MTP_long(peerToChat(chat->id).bare));
+#endif
 		}
 	} else if (const auto channel = result->asChannel()) {
 		QString name, inviteLink;
@@ -441,8 +445,10 @@ PeerData *readPeer(
 
 			channel->setInviteLink(inviteLink);
 
+#if 0 // mtp
 			channel->input = MTP_inputPeerChannel(MTP_long(peerToChannel(channel->id).bare), MTP_long(access));
 			channel->inputChannel = MTP_inputChannel(MTP_long(peerToChannel(channel->id).bare), MTP_long(access));
+#endif
 		}
 	}
 	if (apply) {

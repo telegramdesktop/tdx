@@ -374,6 +374,7 @@ void PeerData::setUserpic(
 	_userpic.set(&session(), ImageWithLocation{ .location = location });
 }
 
+#if 0 // mtp
 void PeerData::setUserpicPhoto(const MTPPhoto &data) {
 	const auto photoId = data.match([&](const MTPDphoto &data) {
 		const auto photo = owner().processPhoto(data);
@@ -387,6 +388,7 @@ void PeerData::setUserpicPhoto(const MTPPhoto &data) {
 		session().changes().peerUpdated(this, UpdateFlag::Photo);
 	}
 }
+#endif
 
 QImage *PeerData::userpicCloudImage(Ui::PeerUserpicView &view) const {
 	if (!_userpic.isCurrentView(view.cloud)) {

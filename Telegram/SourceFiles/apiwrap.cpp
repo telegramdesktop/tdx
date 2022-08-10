@@ -292,6 +292,7 @@ void ApiWrap::refreshTopPromotion() {
 		return;
 	}
 	_topPromotionKey = key;
+#if 0 // todo
 	_topPromotionRequestId = request(MTPhelp_GetPromoData(
 	)).done([=](const MTPhelp_PromoData &result) {
 		_topPromotionRequestId = 0;
@@ -305,6 +306,7 @@ void ApiWrap::refreshTopPromotion() {
 			getTopPromotionDelayed(now, next);
 		}
 	}).send();
+#endif
 }
 
 void ApiWrap::getTopPromotionDelayed(TimeId now, TimeId next) {
@@ -313,6 +315,7 @@ void ApiWrap::getTopPromotionDelayed(TimeId now, TimeId next) {
 		kTopPromotionInterval) * crl::time(1000));
 };
 
+#if 0 // mtp
 void ApiWrap::topPromotionDone(const MTPhelp_PromoData &proxy) {
 	_topPromotionNextRequestTime = proxy.match([&](const auto &data) {
 		return data.vexpires().v;
@@ -334,6 +337,7 @@ void ApiWrap::topPromotionDone(const MTPhelp_PromoData &proxy) {
 			data.vpsa_message().value_or_empty());
 	});
 }
+#endif
 
 void ApiWrap::requestDeepLinkInfo(
 		const QString &path,
@@ -894,6 +898,7 @@ QString ApiWrap::exportDirectMessageLink(
 	const auto current = (i != end(_unlikelyMessageLinks))
 		? i->second
 		: fallback();
+#if 0 // todo
 	request(MTPchannels_ExportMessageLink(
 		MTP_flags(inRepliesContext
 			? MTPchannels_ExportMessageLink::Flag::f_thread
@@ -906,6 +911,7 @@ QString ApiWrap::exportDirectMessageLink(
 			_unlikelyMessageLinks.emplace_or_assign(itemId, link);
 		}
 	}).send();
+#endif
 	return current;
 }
 
@@ -1256,6 +1262,7 @@ void ApiWrap::requestWallPaper(
 		const QString &slug,
 		Fn<void(const Data::WallPaper &)> done,
 		Fn<void()> fail) {
+#if 0 // todo
 	if (_wallPaperSlug != slug) {
 		_wallPaperSlug = slug;
 		if (_wallPaperRequestId) {
@@ -1286,6 +1293,7 @@ void ApiWrap::requestWallPaper(
 			fail();
 		}
 	}).send();
+#endif
 }
 
 void ApiWrap::requestFullPeer(not_null<PeerData*> peer) {
@@ -3100,10 +3108,12 @@ void ApiWrap::setGroupStickerSet(
 	Expects(megagroup->mgInfo != nullptr);
 
 	megagroup->mgInfo->stickerSet = set;
+#if 0 // todo
 	request(MTPchannels_SetStickers(
 		megagroup->inputChannel,
 		Data::InputStickerSet(set)
 	)).send();
+#endif
 	_session->data().stickers().notifyUpdated(Data::StickersType::Stickers);
 }
 
@@ -3136,6 +3146,7 @@ std::vector<not_null<DocumentData*>> *ApiWrap::stickersByEmoji(
 			&& (received + kStickersByEmojiInvalidateTimeout) <= now;
 	}();
 	if (sendRequest) {
+#if 0 // todo
 		const auto hash = (it != _stickersByEmoji.end())
 			? it->second.hash
 			: uint64(0);
@@ -3163,6 +3174,7 @@ std::vector<not_null<DocumentData*>> *ApiWrap::stickersByEmoji(
 			_session->data().stickers().notifyUpdated(
 				Data::StickersType::Stickers);
 		}).send();
+#endif
 	}
 	if (it == _stickersByEmoji.end()) {
 		_stickersByEmoji.emplace(key, StickersByEmoji());
