@@ -1237,7 +1237,9 @@ void RepliesWidget::edit(
 		if (!*saveEditMsgRequestId) {
 			return;
 		}
+#if 0 // todo
 		session().api().request(base::take(*saveEditMsgRequestId)).cancel();
+#endif
 	});
 
 	const auto done = [=](mtpRequestId requestId) {

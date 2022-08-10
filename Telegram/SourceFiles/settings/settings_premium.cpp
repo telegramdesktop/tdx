@@ -360,6 +360,7 @@ using Order = std::vector<QString>;
 	};
 }
 
+#if 0 // mtp
 void SendAppLog(
 		not_null<Main::Session*> session,
 		const QString &type,
@@ -375,6 +376,7 @@ void SendAppLog(
 		))
 	)).send();
 }
+#endif
 
 [[nodiscard]] QString ResolveRef(const QString &ref) {
 	return ref.isEmpty() ? "settings" : ref;
@@ -384,6 +386,7 @@ void SendScreenShow(
 		not_null<Window::SessionController*> controller,
 		const std::vector<QString> &order,
 		const QString &ref) {
+#if 0 // todo
 	auto list = QVector<MTPJSONValue>();
 	list.reserve(order.size());
 	for (const auto &element : order) {
@@ -403,13 +406,16 @@ void SendScreenShow(
 		&controller->session(),
 		"premium.promo_screen_show",
 		data);
+#endif
 }
 
 void SendScreenAccept(not_null<Window::SessionController*> controller) {
+#if 0 // todo
 	SendAppLog(
 		&controller->session(),
 		"premium.promo_screen_accept",
 		MTP_jsonNull());
+#endif
 }
 
 class TopBarAbstract : public Ui::RpWidget {

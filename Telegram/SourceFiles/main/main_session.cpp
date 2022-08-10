@@ -53,6 +53,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Main {
 namespace {
 
+using namespace Tdb;
+
 #if 0 // goodToRemove
 constexpr auto kTmpPasswordReserveTime = TimeId(10);
 #endif
@@ -106,7 +108,9 @@ Session::Session(
 , _saveSettingsTimer([=] { saveSettings(); }) {
 	Expects(_settings != nullptr);
 
+#if 0 // mtp
 	_api->requestTermsUpdate();
+#endif
 	_api->requestFullPeer(_user);
 
 #if 0 // mtp
@@ -365,11 +369,16 @@ void Session::unlockTerms() {
 }
 
 void Session::termsDeleteNow() {
+	sender().request(TLdeleteAccount(
+		tl_string("Decline ToS update")
+	)).send();
+#if 0 // mtp
 	api().request(MTPaccount_DeleteAccount(
 		MTP_flags(0),
 		MTP_string("Decline ToS update"),
 		MTPInputCheckPasswordSRP()
 	)).send();
+#endif
 }
 
 std::optional<Window::TermsLock> Session::termsLocked() const {

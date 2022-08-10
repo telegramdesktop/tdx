@@ -981,9 +981,11 @@ void Widget::fullSearchRefreshOn(rpl::producer<> events) {
 		_searchTimer.cancel();
 		_searchCache.clear();
 		_singleMessageSearch.clear();
+#if 0 // todo
 		for (const auto &[requestId, query] : base::take(_searchQueries)) {
 			session().api().request(requestId).cancel();
 		}
+#endif
 		_searchQuery = QString();
 		_scroll->scrollToY(0);
 		cancelSearchRequest();
@@ -2617,9 +2619,11 @@ bool Widget::setSearchInChat(Key chat, PeerData *from) {
 void Widget::clearSearchCache() {
 	_searchCache.clear();
 	_singleMessageSearch.clear();
+#if 0 // todo
 	for (const auto &[requestId, query] : base::take(_searchQueries)) {
 		session().api().request(requestId).cancel();
 	}
+#endif
 	_searchQuery = QString();
 	_searchQueryFrom = nullptr;
 	_topicSearchQuery = QString();
@@ -3025,9 +3029,11 @@ void Widget::scrollToEntry(const RowDescriptor &entry) {
 }
 
 void Widget::cancelSearchRequest() {
+#if 0 // todo
 	session().api().request(base::take(_searchRequest)).cancel();
 	session().data().histories().cancelRequest(
 		base::take(_searchInHistoryRequest));
+#endif
 }
 
 PeerData *Widget::searchInPeer() const {

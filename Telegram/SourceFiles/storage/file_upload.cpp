@@ -803,10 +803,12 @@ void Uploader::clear() {
 	cancelRequests();
 	dcMap.clear();
 	sentSize = 0;
+#if 0 // mtp
 	for (int i = 0; i < MTP::kUploadSessionsCount; ++i) {
 		_api->instance().stopSession(MTP::uploadDcId(i));
 		sentSizes[i] = 0;
 	}
+#endif
 	_stopSessionsTimer.cancel();
 }
 
