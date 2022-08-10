@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Tdb {
 class TLphoto;
+class TLchatPhoto;
 } // namespace Tdb
 
 namespace Main {
@@ -52,7 +53,9 @@ public:
 	~PhotoData();
 
 	[[nodiscard]] static PhotoId IdFromTdb(const Tdb::TLphoto &data);
+	[[nodiscard]] static PhotoId IdFromTdb(const Tdb::TLchatPhoto &data);
 	void setFromTdb(const Tdb::TLphoto &data);
+	void setFromTdb(const Tdb::TLchatPhoto &data);
 
 	[[nodiscard]] Data::Session &owner() const;
 	[[nodiscard]] Main::Session &session() const;

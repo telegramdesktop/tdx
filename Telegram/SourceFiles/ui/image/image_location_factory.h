@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Tdb {
 class TLphotoSize;
 class TLthumbnail;
+class TLanimatedChatPhoto;
 } // namespace Tdb
 
 namespace Main {
@@ -54,6 +55,8 @@ namespace Images {
 [[nodiscard]] ImageWithLocation FromProgressiveSize(
 	const Tdb::TLphotoSize &size,
 	int index);
+[[nodiscard]] ImageWithLocation FromAnimationSize(
+	const Tdb::TLanimatedChatPhoto &photo);
 [[nodiscard]] ImageWithLocation FromThumbnail(
 	const Tdb::TLthumbnail &thumbnail);
 
