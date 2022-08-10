@@ -416,6 +416,16 @@ void ApiWrap::acceptTerms(bytes::const_span id) {
 
 void ApiWrap::checkChatInvite(
 		const QString &hash,
+		FnMut<void(const TLchatInviteLinkInfo &)> done,
+		Fn<void(const Error &)> fail) {
+	sender().request(base::take(_checkInviteRequestId)).cancel();
+	_checkInviteRequestId = sender().request(TLcheckChatInviteLink(
+		tl_string("t.me/joinchat/" + hash)
+	)).done(std::move(done)).fail(std::move(fail)).send();
+}
+#if 0 // mtp
+void ApiWrap::checkChatInvite(
+		const QString &hash,
 		FnMut<void(const MTPChatInvite &)> done,
 		Fn<void(const MTP::Error &)> fail) {
 	request(base::take(_checkInviteRequestId)).cancel();
@@ -423,6 +433,7 @@ void ApiWrap::checkChatInvite(
 		MTP_string(hash)
 	)).done(std::move(done)).fail(std::move(fail)).send();
 }
+#endif
 
 void ApiWrap::checkFilterInvite(
 		const QString &slug,
