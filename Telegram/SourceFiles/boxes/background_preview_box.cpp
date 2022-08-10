@@ -831,10 +831,12 @@ void BackgroundPreviewBox::applyForEveryone() {
 		&& Data::IsCloudWallPaper(_paper);
 	_controller->content()->setChatBackground(_paper, std::move(_full));
 	if (install) {
+#if 0 // todo
 		_controller->session().api().request(MTPaccount_InstallWallPaper(
 			_paper.mtpInput(&_controller->session()),
 			_paper.mtpSettings()
 		)).send();
+#endif
 	}
 	closeBox();
 }

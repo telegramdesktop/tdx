@@ -32,7 +32,10 @@ namespace {
 
 Polls::Polls(not_null<ApiWrap*> api)
 : _session(&api->session())
+#if 0 // mtp
 , _api(&api->instance()) {
+#endif
+{
 }
 
 void Polls::create(

@@ -301,7 +301,10 @@ void ChooseJoinAsBox(
 
 ChooseJoinAsProcess::~ChooseJoinAsProcess() {
 	if (_request) {
+#if 0 // mtp
 		_request->peer->session().api().request(_request->id).cancel();
+#endif
+		_request->peer->session().sender().request(_request->id).cancel();
 	}
 }
 
@@ -324,7 +327,10 @@ void ChooseJoinAsProcess::start(
 			_request->changingJoinAsFrom = changingJoinAsFrom;
 			return;
 		}
+#if 0 // mtp
 		session->api().request(_request->id).cancel();
+#endif
+		session->sender().request(_request->id).cancel();
 		_request = nullptr;
 	}
 
@@ -382,7 +388,7 @@ void ChooseJoinAsProcess::requestList() {
 		});
 		processList(std::move(list));
 #endif
-	_request->id = session->api().sender().request(
+	_request->id = session->sender().request(
 		Tdb::TLgetVideoChatAvailableParticipants(
 			peerToTdbChat(_request->peer->id)
 	)).done([=](const Tdb::TLDmessageSenders &data) {

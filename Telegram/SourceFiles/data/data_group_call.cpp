@@ -86,9 +86,13 @@ GroupCall::GroupCall(
 }
 
 GroupCall::~GroupCall() {
+#if 0 // mtp
 	api().request(_unknownParticipantPeersRequestId).cancel();
 	api().request(_participantsRequestId).cancel();
 	api().request(_reloadRequestId).cancel();
+#endif
+	api().sender().request(_participantsRequestId).cancel();
+	api().sender().request(_reloadRequestId).cancel();
 }
 
 CallId GroupCall::id() const {
@@ -130,10 +134,15 @@ auto GroupCall::participants() const
 }
 
 void GroupCall::requestParticipants() {
-	api().sender().request(Tdb::TLloadGroupCallParticipants(
-		Tdb::tl_int32(_id),
-		Tdb::tl_int32(kRequestPerPage)
-	)).send();
+	_participantsRequestId = api().sender().request(
+		Tdb::TLloadGroupCallParticipants(
+			Tdb::tl_int32(_id),
+			Tdb::tl_int32(kRequestPerPage))
+	).done([=] {
+		_participantsRequestId = 0;
+	}).fail([=] {
+		_participantsRequestId = 0;
+	}).send();
 #if 0 // goodToRemove
 	if (!_savedFull) {
 		if (_participantsRequestId || _reloadRequestId) {
@@ -615,7 +624,10 @@ void GroupCall::reload() {
 	if (_reloadRequestId || _applyingQueuedUpdates) {
 		return;
 	}
+#if 0 // mtp
 	api().request(base::take(_participantsRequestId)).cancel();
+#endif
+	api().sender().request(base::take(_participantsRequestId)).cancel();
 
 	_reloadRequestId = api().sender().request(
 		Tdb::TLgetGroupCall(Tdb::tl_int32(_id))

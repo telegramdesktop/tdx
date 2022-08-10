@@ -614,7 +614,9 @@ Fn<void()> SavePreparedTheme(
 
 	return [=] {
 		state->generating = false;
+#if 0 // tdlib todo
 		api->request(base::take(state->requestId)).cancel();
+#endif
 		session->uploader().cancel(state->id);
 		state->lifetime.destroy();
 	};

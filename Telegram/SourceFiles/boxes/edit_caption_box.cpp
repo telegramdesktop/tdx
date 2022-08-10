@@ -1054,7 +1054,10 @@ void EditCaptionBox::save() {
 	lifetime().add([=] {
 		if (_saveRequestId) {
 			auto &session = _controller->session();
+#if 0 // mtp
 			session.api().request(base::take(_saveRequestId)).cancel();
+#endif
+			session.sender().request(base::take(_saveRequestId)).cancel();
 		}
 	});
 

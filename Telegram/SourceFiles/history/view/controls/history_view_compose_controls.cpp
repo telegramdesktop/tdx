@@ -920,7 +920,9 @@ ComposeControls::~ComposeControls() {
 	saveFieldToHistoryLocalDraft();
 	unregisterDraftSources();
 	setTabbedPanel(nullptr);
+#if 0 // todo
 	session().api().request(_inlineBotResolveRequestId).cancel();
+#endif
 }
 
 Main::Session &ComposeControls::session() const {
@@ -3203,7 +3205,9 @@ void ComposeControls::updateInlineBotQuery() {
 		_inlineBotUsername = query.username;
 		auto &api = session().api();
 		if (_inlineBotResolveRequestId) {
+#if 0 // todo
 			api.request(_inlineBotResolveRequestId).cancel();
+#endif
 			_inlineBotResolveRequestId = 0;
 		}
 		if (query.lookingUpBot) {

@@ -722,7 +722,9 @@ void SetupHelp(
 	const auto requestId = button->lifetime().make_state<mtpRequestId>();
 	button->lifetime().add([=] {
 		if (*requestId) {
+#if 0 // todo
 			controller->session().api().request(*requestId).cancel();
+#endif
 		}
 	});
 	button->addClickHandler([=] {

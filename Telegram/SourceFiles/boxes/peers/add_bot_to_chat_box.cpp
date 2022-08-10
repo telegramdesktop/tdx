@@ -213,7 +213,10 @@ void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
 		_existingRightsChannel = nullptr;
 		_promotedSince = 0;
 		_promotedBy = 0;
+#if 0 // mtp
 		_bot->session().api().request(_existingRightsRequestId).cancel();
+#endif
+		_bot->session().sender().request(_existingRightsRequestId).cancel();
 	}
 	const auto requestedAddAdmin = (_scope == Scope::GroupAdmin)
 		|| (_scope == Scope::ChannelAdmin);

@@ -805,7 +805,9 @@ void Uploader::cancelAllRequests() {
 void Uploader::clear() {
 	_queue.clear();
 	cancelAllRequests();
+#if 0 // mtp
 	stopSessions();
+#endif
 	_stopSessionsTimer.cancel();
 }
 

@@ -134,7 +134,10 @@ ScheduledMessages::~ScheduledMessages() {
 void ScheduledMessages::clear() {
 	_lifetime.destroy();
 	for (const auto &request : base::take(_requests)) {
+#if 0 // mtp
 		_session->api().request(request.second.requestId).cancel();
+#endif
+		_session->sender().request(request.second.requestId).cancel();
 	}
 	base::take(_data);
 }

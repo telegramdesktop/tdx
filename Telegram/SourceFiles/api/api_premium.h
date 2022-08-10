@@ -10,6 +10,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_premium_subscription_option.h"
 #include "mtproto/sender.h"
 
+namespace Tdb {
+class TLpremiumFeature;
+} // namespace Tdb
+
+enum class PremiumPreview;
+
 class History;
 class ApiWrap;
 

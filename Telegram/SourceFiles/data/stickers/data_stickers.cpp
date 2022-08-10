@@ -642,6 +642,7 @@ void Stickers::requestSetToPushFaved(
 		}
 		setIsFaved(nullptr, document, std::move(list));
 	};
+#if 0 // todo
 	session().api().request(MTPmessages_GetStickerSet(
 		Data::InputStickerSet(document->sticker()->set),
 		MTP_int(0) // hash
@@ -668,6 +669,7 @@ void Stickers::requestSetToPushFaved(
 		// Perhaps this is a deleted sticker pack. Add anyway.
 		addAnyway({});
 	}).send();
+#endif
 }
 
 void Stickers::removeFromRecentSet(not_null<DocumentData*> document) {

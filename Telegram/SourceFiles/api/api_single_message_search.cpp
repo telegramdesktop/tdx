@@ -60,7 +60,9 @@ SingleMessageSearch::~SingleMessageSearch() {
 void SingleMessageSearch::clear() {
 	_cache.clear();
 	_requestKey = Key();
+#if 0 // todo
 	_session->api().request(base::take(_requestId)).cancel();
+#endif
 }
 
 std::optional<HistoryItem*> SingleMessageSearch::lookup(
@@ -75,7 +77,9 @@ std::optional<HistoryItem*> SingleMessageSearch::lookup(
 		return _session->data().message(i->second);
 	}
 	if (!(_requestKey == key)) {
+#if 0 // todo
 		_session->api().request(base::take(_requestId)).cancel();
+#endif
 		_requestKey = key;
 	}
 	return performLookup(ready);
