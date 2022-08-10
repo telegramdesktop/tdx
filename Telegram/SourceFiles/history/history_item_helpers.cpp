@@ -110,7 +110,10 @@ MessageFlags FlagsFromTdb(const TLDmessage &data) {
 		| (mediaUnread ? Flag::MediaIsUnread : Flag())
 		//| ((flags & MTP::f_silent) ? Flag::Silent : Flag()) // todo
 		| (data.vis_channel_post().v ? Flag::Post : Flag())
-		//| ((flags & MTP::f_legacy) ? Flag::Legacy : Flag()) // todo
+		| (data.vcan_be_deleted_for_all_users().v
+			? Flag::CanDeleteForAll
+			: Flag())
+		| (data.vcan_be_edited().v ? Flag::CanEdit : Flag())
 		| (data.vis_pinned().v ? Flag::Pinned : Flag())
 		//| ((flags & MTP::f_from_id) ? Flag::HasFromId : Flag()) // todo
 		| (data.vreply_to_message_id().v ? Flag::HasReplyInfo : Flag())
