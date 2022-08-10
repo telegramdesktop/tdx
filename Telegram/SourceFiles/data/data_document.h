@@ -136,6 +136,7 @@ public:
 	[[nodiscard]] static DocumentId IdFromTdb(
 		const Tdb::TLnotificationSound &data);
 	void setFromTdb(const Tdb::TLnotificationSound &data);
+	void setSimpleFromTdb(const Tdb::TLfile &data);
 
 	[[nodiscard]] FileId tdbFileId() const;
 
