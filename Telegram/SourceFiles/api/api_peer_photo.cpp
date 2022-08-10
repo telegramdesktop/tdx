@@ -252,7 +252,8 @@ void PeerPhoto::upload(
 
 	auto generator = std::make_unique<FileGenerator>(
 		&_session->tdb(),
-		std::move(data));
+		std::move(data),
+		"photo.jpg");
 	auto inputFile = tl_inputChatPhotoStatic(generator->inputFile());
 
 	const auto eraseExisted = [=] {

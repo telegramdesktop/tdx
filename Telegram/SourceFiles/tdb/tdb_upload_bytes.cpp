@@ -15,7 +15,7 @@ BytesUploader::BytesUploader(
 	not_null<Tdb::Account*> account,
 	QByteArray content,
 	const TLfileType &type)
-: _fileGenerator(account, std::move(content))
+: _fileGenerator(account, std::move(content), QString())
 , _type(type)
 , _api(&account->sender()) {
 
