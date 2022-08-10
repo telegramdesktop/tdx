@@ -462,6 +462,7 @@ WallPaper WallPaper::withoutImageData() const {
 	return result;
 }
 
+#if 0 // mtp
 std::optional<WallPaper> WallPaper::Create(
 		not_null<Main::Session*> session,
 		const MTPWallPaper &data) {
@@ -523,6 +524,7 @@ std::optional<WallPaper> WallPaper::Create(const MTPDwallPaperNoFile &data) {
 	}
 	return result;
 }
+#endif
 
 QByteArray WallPaper::serialize() const {
 	auto size = sizeof(quint64) // _id

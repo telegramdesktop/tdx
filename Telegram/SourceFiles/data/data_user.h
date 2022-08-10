@@ -149,7 +149,9 @@ public:
 	// a full check by canShareThisContact() call.
 	[[nodiscard]] bool canShareThisContactFast() const;
 
+#if 0 // mtp
 	MTPInputUser inputUser = MTP_inputUserEmpty();
+#endif
 
 	QString firstName;
 	QString lastName;
