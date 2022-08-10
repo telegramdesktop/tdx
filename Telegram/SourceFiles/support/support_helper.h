@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "support/support_templates.h"
 #include "mtproto/sender.h"
 
+namespace Tdb {
+class TLuserSupportInfo;
+} // namespace Tdb
+
 class History;
 
 namespace Main {

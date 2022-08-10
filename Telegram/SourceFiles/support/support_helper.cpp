@@ -264,6 +264,7 @@ Helper::Helper(not_null<Main::Session*> session)
 , _templates(_session)
 , _reoccupyTimer([=] { reoccupy(); })
 , _checkOccupiedTimer([=] { checkOccupiedChats(); }) {
+#if 0 // tdlib todo
 	_api.request(MTPhelp_GetSupportName(
 	)).done([=](const MTPhelp_SupportName &result) {
 		result.match([&](const MTPDhelp_supportName &data) {
@@ -275,6 +276,7 @@ Helper::Helper(not_null<Main::Session*> session)
 			+ QString::number(Core::Launcher::Instance().installationTag())
 			+ ']');
 	}).send();
+#endif
 }
 
 std::unique_ptr<Helper> Helper::Create(not_null<Main::Session*> session) {

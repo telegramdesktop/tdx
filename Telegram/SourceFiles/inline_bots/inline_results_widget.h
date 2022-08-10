@@ -17,6 +17,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "inline_bots/inline_bot_layout_item.h"
 
+namespace Tdb {
+class TLinlineQueryResults;
+} // namespace Tdb
+
 namespace Api {
 struct SendOptions;
 } // namespace Api

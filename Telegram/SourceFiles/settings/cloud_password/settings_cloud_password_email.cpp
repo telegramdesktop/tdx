@@ -118,7 +118,10 @@ void Email::setupContent() {
 		}, [=](const QString &type) {
 			_requestLifetime.destroy();
 
+#if 0 // mtp
 			if (MTP::IsFloodError(type)) {
+#endif
+			if (Tdb::IsFloodError(type)) {
 				error->show();
 				error->setText(tr::lng_flood_error(tr::now));
 			} else if (AbstractStep::isPasswordInvalidError(type)) {

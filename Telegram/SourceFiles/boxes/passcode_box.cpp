@@ -927,9 +927,11 @@ void PasscodeBox::serverError() {
 	closeBox();
 }
 
+#if 0 // mtp
 bool PasscodeBox::handleCustomCheckError(const MTP::Error &error) {
 	return handleCustomCheckError(error.type());
 }
+#endif
 
 bool PasscodeBox::handleCustomCheckError(const QString &type) {
 #if 0 // goodToRemove

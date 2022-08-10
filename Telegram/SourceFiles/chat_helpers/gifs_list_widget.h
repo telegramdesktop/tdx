@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QTimer>
 
+#include "tdb/tdb_sender.h"
+
 namespace style {
 struct ComposeIcons;
 } // namespace style
@@ -180,7 +182,10 @@ private:
 	const std::shared_ptr<Show> _show;
 	std::unique_ptr<Ui::TabbedSearch> _search;
 
+#if 0 // mtp
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 
 	Section _section = Section::Gifs;
 	crl::time _lastScrolledAt = 0;

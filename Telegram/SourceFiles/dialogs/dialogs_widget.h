@@ -15,6 +15,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "api/api_single_message_search.h"
 
+namespace Tdb {
+class TLchats;
+class TLfoundMessages;
+class TLfoundChatMessages;
+} // namespace Tdb
+
 namespace MTP {
 class Error;
 } // namespace MTP
