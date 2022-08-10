@@ -26,8 +26,10 @@ struct ChatRestrictionsInfo;
 namespace Tdb {
 class Account;
 class Sender;
+struct Error;
 class TLstickerSet;
 class TLscopeNotificationSettings;
+class TLchatInviteLinkInfo;
 } // namespace Tdb
 
 namespace Main {
@@ -220,6 +222,11 @@ public:
 
 	void checkChatInvite(
 		const QString &hash,
+		FnMut<void(const Tdb::TLchatInviteLinkInfo &)> done,
+		Fn<void(const Tdb::Error &)> fail);
+#if 0 // mtp
+	void checkChatInvite(
+		const QString &hash,
 		FnMut<void(const MTPChatInvite &)> done,
 		Fn<void(const MTP::Error &)> fail);
 	void checkFilterInvite(
@@ -227,7 +234,6 @@ public:
 		FnMut<void(const MTPchatlists_ChatlistInvite &)> done,
 		Fn<void(const MTP::Error &)> fail);
 
-#if 0 // mtp
 	void processFullPeer(
 		not_null<PeerData*> peer,
 		const MTPmessages_ChatFull &result);
