@@ -74,6 +74,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 
+#include "tdb/tdb_sender.h"
+
 namespace HistoryView {
 namespace {
 
@@ -141,7 +143,10 @@ private:
 	void getWebPagePreview();
 
 	const not_null<History*> _history;
+#if 0 // mtp
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 	MessageLinksParser _fieldLinksParser;
 
 	Data::PreviewState _previewState = Data::PreviewState();
@@ -169,7 +174,10 @@ WebpageProcessor::WebpageProcessor(
 	not_null<History*> history,
 	not_null<Ui::InputField*> field)
 : _history(history)
+#if 0 // mtp
 , _api(&history->session().mtp())
+#endif
+, _api(&history->session().sender())
 , _fieldLinksParser(field)
 , _previewState(Data::PreviewState::Allowed)
 , _timer([=] {

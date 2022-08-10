@@ -200,7 +200,10 @@ Widget::Widget(
 	not_null<Window::SessionController*> controller,
 	Layout layout)
 : Window::AbstractSectionWidget(parent, controller, nullptr)
+#if 0 // mtp
 , _api(&controller->session().mtp())
+#endif
+, _api(&controller->session().sender())
 , _chooseByDragTimer([=] { _inner->chooseRow(); })
 , _layout(layout)
 , _narrowWidth(st::defaultDialogRow.padding.left()

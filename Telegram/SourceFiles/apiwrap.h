@@ -388,11 +388,13 @@ public:
 		not_null<InlineBots::Result*> data,
 		const SendAction &action,
 		std::optional<MsgId> localMessageId);
+#if 0 // mtp
 	void sendMessageFail(
 		const MTP::Error &error,
 		not_null<PeerData*> peer,
 		uint64 randomId = 0,
 		FullMsgId itemId = FullMsgId());
+#endif
 	void sendMessageFail(
 		const QString &error,
 		not_null<PeerData*> peer,

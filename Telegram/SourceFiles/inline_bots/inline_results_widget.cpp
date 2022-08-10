@@ -32,7 +32,10 @@ Widget::Widget(
 	not_null<Window::SessionController*> controller)
 : RpWidget(parent)
 , _controller(controller)
+#if 0 // mtp
 , _api(&_controller->session().mtp())
+#endif
+, _api(&_controller->session().sender())
 , _contentMaxHeight(st::emojiPanMaxHeight)
 , _contentHeight(_contentMaxHeight)
 , _scroll(this, st::inlineBotsScroll)
