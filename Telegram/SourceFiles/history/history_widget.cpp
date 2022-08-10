@@ -2547,8 +2547,12 @@ void HistoryWidget::clearSupportPreloadRequest() {
 	Expects(_history != nullptr);
 
 	if (_supportPreloadRequest) {
+#if 0 // mtp
 		auto &histories = _history->owner().histories();
 		histories.cancelRequest(_supportPreloadRequest);
+#endif
+		_history->session().sender().request(
+			_supportPreloadRequest).cancel();
 		_supportPreloadRequest = 0;
 	}
 }

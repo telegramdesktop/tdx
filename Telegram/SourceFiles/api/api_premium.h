@@ -8,7 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_subscription_option.h"
+#if 0 // mtp
 #include "mtproto/sender.h"
+#endif
 
 class ApiWrap;
 
@@ -109,7 +111,9 @@ private:
 	void reloadCloudSet();
 
 	const not_null<Main::Session*> _session;
+#if 0 // mtp
 	MTP::Sender _api;
+#endif
 
 	mtpRequestId _promoRequestId = 0;
 	std::optional<TextWithEntities> _statusText;

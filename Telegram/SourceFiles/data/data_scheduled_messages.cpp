@@ -122,7 +122,10 @@ ScheduledMessages::ScheduledMessages(not_null<Session*> owner)
 
 ScheduledMessages::~ScheduledMessages() {
 	for (const auto &request : _requests) {
+#if 0 // mtp
 		_session->api().request(request.second.requestId).cancel();
+#endif
+		_session->sender().request(request.second.requestId).cancel();
 	}
 }
 
