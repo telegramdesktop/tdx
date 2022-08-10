@@ -121,6 +121,7 @@ private:
 	void refresh();
 	void refreshDelayed();
 	void refreshAnimations();
+#if 0 // mtp
 	void applySet(const MTPDmessages_stickerSet &data);
 	void applyPack(
 		const MTPDstickerPack &data,
@@ -131,6 +132,7 @@ private:
 	[[nodiscard]] auto collectAnimationsIndices(
 		const QVector<MTPStickerPack> &packs) const
 		-> base::flat_map<uint64, base::flat_set<int>>;
+#endif
 	void refreshAll();
 	void refreshItems(EmojiPtr emoji);
 	void refreshItems(const base::flat_set<not_null<ViewElement*>> &list);

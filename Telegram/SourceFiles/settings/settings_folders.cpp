@@ -656,6 +656,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 
 		auto updated = Data::ChatFilter();
 
+#if 0 // todo
 		auto order = std::vector<FilterId>();
 		auto updates = std::vector<MTPUpdate>();
 		auto addRequests = std::vector<MTPmessages_UpdateDialogFilter>();
@@ -797,6 +798,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 			}
 			checkFinished();
 		});
+#endif
 	};
 	return [copy = state->save] {
 		copy(nullptr, nullptr);

@@ -193,6 +193,7 @@ void ListController::loadMoreRows() {
 		return;
 	}
 
+#if 0 // todo
 	using Flag = MTPmessages_GetPollVotes::Flag;
 	const auto flags = Flag::f_option
 		| (_offset.isEmpty() ? Flag(0) : Flag::f_offset);
@@ -241,6 +242,7 @@ void ListController::loadMoreRows() {
 	}).fail([=] {
 		_loadRequestId = 0;
 	}).send();
+#endif
 }
 
 void ListController::allowLoadMore() {

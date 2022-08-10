@@ -530,9 +530,11 @@ void Filler::addHidePromotion() {
 	}
 	_addAction(tr::lng_context_hide_psa(tr::now), [=] {
 		history->cacheTopPromotion(false, QString(), QString());
+#if 0 // todo
 		history->session().api().request(MTPhelp_HidePromoData(
 			history->peer->input
 		)).send();
+#endif
 	}, &st::menuIconRemove);
 }
 

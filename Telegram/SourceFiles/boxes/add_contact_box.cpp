@@ -456,6 +456,7 @@ void AddContactBox::save() {
 	const auto session = _session;
 	_sentName = firstName;
 	_contactId = base::RandomValue<uint64>();
+#if 0 // todo
 	_addRequest = _session->api().request(MTPcontacts_ImportContacts(
 		MTP_vector<MTPInputContact>(
 			1,
@@ -498,6 +499,7 @@ void AddContactBox::save() {
 			update();
 		}
 	})).send();
+#endif
 }
 
 void AddContactBox::retry() {
