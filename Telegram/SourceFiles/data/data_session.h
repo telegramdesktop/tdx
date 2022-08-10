@@ -29,6 +29,7 @@ class TLvoiceNote;
 class TLvideoNote;
 class TLgame;
 class TLwebPage;
+class TLfile;
 } // namespace Tdb
 
 struct HistoryMessageMarkupData;
@@ -676,6 +677,7 @@ public:
 		result->setFromTdb(data);
 		return result;
 	}
+	not_null<DocumentData*> processPlainDocument(const Tdb::TLfile &data);
 	not_null<WebPageData*> processWebpage(const Tdb::TLwebPage &data);
 	not_null<GameData*> processGame(const Tdb::TLgame &data);
 	not_null<PollData*> processPoll(const Tdb::TLpoll &data);

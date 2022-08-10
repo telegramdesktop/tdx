@@ -607,6 +607,10 @@ void DocumentData::setFromTdb(const TLvideoNote &data) {
 	_flags &= ~Flag::HasAttachedStickers;
 }
 
+void DocumentData::setSimpleFromTdb(const Tdb::TLfile &data) {
+	setTdbLocation(data);
+}
+
 Data::Session &DocumentData::owner() const {
 	return *_owner;
 }
