@@ -3083,7 +3083,11 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateTermsOfService &data) {
 	}, [&](const TLDupdateUsersNearby &data) {
 	}, [&](const TLDupdateAttachmentMenuBots &data) {
+		session().attachWebView().apply(data);
 	}, [&](const TLDupdateWebAppMessageSent &data) {
+		session().data().webViewResultSent({
+			.queryId = uint64(data.vweb_app_launch_id().v),
+		});
 	}, [&](const TLDupdateDiceEmojis &data) {
 		session().diceStickersPacks().apply(data);
 	}, [&](const TLDupdateAnimatedEmojiMessageClicked &data) {

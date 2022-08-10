@@ -1653,18 +1653,31 @@ std::unique_ptr<Ui::ChatTheme> DefaultChatThemeOn(rpl::lifetime &lifetime) {
 }
 
 TLthemeParameters WebViewTheme() {
-	const auto colorToInt = [=](const style::color &color) {
-		const auto value = uint32(0xFF000000U)
-			| (uint32(color->c.red()) << 16)
-			| (uint32(color->c.green()) << 8)
-			| (uint32(color->c.blue()));
-		return tl_int32(*reinterpret_cast<const int32*>(&value));
+	const auto qcolorToInt = [=](const QColor &color) {
+		return tl_int32((color.blue())
+			| (color.green() << 8)
+			| (color.red() << 16));
 	};
+	const auto colorToInt = [=](const style::color &color) {
+		return qcolorToInt(color->c);
+	};
+	const auto bg = st::windowBg->c;
+	const auto shadow = st::shadowFg->c;
+	const auto shadowAlpha = shadow.alphaF();
+	const auto mix = [&](int a, int b) {
+		return anim::interpolate(a, b, shadowAlpha);
+	};
+	const auto section_separator_color = qcolorToInt(QColor(
+		mix(bg.red(), shadow.red()),
+		mix(bg.green(), shadow.green()),
+		mix(bg.blue(), shadow.blue())));
 	return tl_themeParameters(
 		colorToInt(st::windowBg), // background_color
 		colorToInt(st::boxDividerBg), // secondary_background_color
 		colorToInt(st::windowBg), // header_background_color
+		colorToInt(st::windowBg), // bottom_bar_background_color
 		colorToInt(st::lightButtonBg), // section_background_color
+		section_separator_color,
 		colorToInt(st::windowFg), // text_color
 		colorToInt(st::lightButtonFg), // accent_text_color
 		colorToInt(st::windowActiveTextFg), // section_header_text_color
