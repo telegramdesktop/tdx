@@ -27,6 +27,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/network_reachability.h"
 
+#include "mtproto/facade.h"
+
 namespace MTP {
 namespace {
 
@@ -51,7 +53,10 @@ int GetNextRequestId() {
 
 } // namespace details
 
+#if 0 // mtp
 class Instance::Private : private Sender {
+#endif
+class Instance::Private {
 public:
 	Private(
 		not_null<Instance*> instance,
@@ -307,8 +312,11 @@ Instance::Private::Private(
 	not_null<Instance*> instance,
 	Instance::Mode mode,
 	Fields &&fields)
+#if 0 // mtp
 : Sender(instance)
 , _instance(instance)
+#endif
+: _instance(instance)
 , _mode(mode)
 , _config(std::move(fields.config))
 , _networkReachability(base::NetworkReachability::Instance())
@@ -589,6 +597,7 @@ void Instance::Private::requestCDNConfig() {
 	if (_cdnConfigLoadRequestId || !hasMainDcId()) {
 		return;
 	}
+#if 0 // mtp
 	_cdnConfigLoadRequestId = request(
 		MTPhelp_GetCdnConfig()
 	).done([this](const MTPCdnConfig &result) {
@@ -598,6 +607,7 @@ void Instance::Private::requestCDNConfig() {
 		});
 		Local::writeSettings();
 	}).send();
+#endif
 }
 
 void Instance::Private::restart() {
@@ -1821,7 +1831,9 @@ void Instance::Private::prepareToDestroy() {
 	// It accesses Instance in destructor, so it should be destroyed first.
 	_configLoader.reset();
 
+#if 0 // mtp
 	requestCancellingDiscard();
+#endif
 
 	for (const auto &[shiftedDcId, session] : base::take(_sessions)) {
 		session->kill();

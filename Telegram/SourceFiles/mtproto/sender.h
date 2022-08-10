@@ -7,6 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "tdb/tdb_sender.h"
+
+namespace MTP {
+using Sender = Tdb::Sender;
+} // namespace MTP
+
+#if 0 // mtp
+
 #include "base/variant.h"
 #include "mtproto/mtproto_response.h"
 #include "mtproto/mtp_instance.h"
@@ -475,3 +483,4 @@ inline Sender::SentRequestWrap Sender::request(mtpRequestId requestId) noexcept 
 }
 
 } // namespace MTP
+#endif
