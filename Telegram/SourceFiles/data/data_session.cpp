@@ -4280,6 +4280,12 @@ not_null<PhotoData*> Session::processPhoto(const TLphoto &data) {
 	return result;
 }
 
+not_null<PhotoData*> Session::processPhoto(const TLchatPhoto &data) {
+	const auto result = photo(PhotoData::IdFromTdb(data));
+	result->setFromTdb(data);
+	return result;
+}
+
 not_null<WebPageData*> Session::processWebpage(const Tdb::TLwebPage &data) {
 	const auto result = webpage(WebPageData::IdFromTdb(data));
 	result->setFromTdb(data);

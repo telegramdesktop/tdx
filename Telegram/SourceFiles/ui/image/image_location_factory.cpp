@@ -398,7 +398,7 @@ ImageWithLocation FromPhotoSize(const TLphotoSize &size) {
 }
 
 ImageWithLocation FromProgressiveSize(
-		const Tdb::TLphotoSize &size,
+		const TLphotoSize &size,
 		int index) {
 	const auto &data = size.data().vprogressive_sizes().v;
 	if (data.size() <= index) {
@@ -409,8 +409,21 @@ ImageWithLocation FromProgressiveSize(
 	};
 }
 
+[[nodiscard]] ImageWithLocation FromAnimationSize(
+		const TLanimatedChatPhoto &photo) {
+	const auto &data = photo.data();
+	return ImageWithLocation{
+		.location = ImageLocation(
+			DownloadLocation{ TdbFileLocation(data.vfile()) },
+			data.vlength().v,
+			data.vlength().v),
+		.bytesCount = int(data.vfile().data().vsize().v),
+	};
+}
+
+
 [[nodiscard]] ImageWithLocation FromThumbnail(
-		const Tdb::TLthumbnail &thumbnail) {
+		const TLthumbnail &thumbnail) {
 	const auto &fields = thumbnail.data();
 	return ImageWithLocation{
 		.location = ImageLocation(
