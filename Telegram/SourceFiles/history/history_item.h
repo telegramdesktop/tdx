@@ -331,7 +331,10 @@ public:
 		return _flags & MessageFlag::SendingFailed;
 	}
 	[[nodiscard]] bool hideEditedBadge() const {
+#if 0 // mtp
 		return (_flags & MessageFlag::HideEdited);
+#endif
+		return false;
 	}
 	[[nodiscard]] bool isLocal() const {
 		return _flags & MessageFlag::Local;

@@ -403,7 +403,10 @@ HistoryItem::HistoryItem(
 		: MediaCheckResult::Good;
 	if (checked == MediaCheckResult::Unsupported) {
 		_flags &= ~MessageFlag::HasPostAuthor;
+#if 0 // mtp
 		_flags |= MessageFlag::Legacy;
+#endif
+		_flags &= ~MessageFlag::CanEdit;
 		createComponents(data);
 		setText(UnsupportedMessageText());
 	} else if (checked == MediaCheckResult::Empty) {
@@ -2314,6 +2317,8 @@ bool HistoryItem::canDelete() const {
 }
 
 bool HistoryItem::canDeleteForEveryone(TimeId now) const {
+	return (_flags & MessageFlag::CanDeleteForAll);
+#if 0 // mtp
 	const auto peer = _history->peer;
 	const auto &config = _history->session().serverConfig();
 	const auto messageToMyself = peer->isSelf();
@@ -2351,6 +2356,7 @@ bool HistoryItem::canDeleteForEveryone(TimeId now) const {
 		}
 	}
 	return true;
+#endif
 }
 
 bool HistoryItem::suggestReport() const {
