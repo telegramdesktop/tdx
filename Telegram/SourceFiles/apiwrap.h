@@ -157,6 +157,12 @@ public:
 	[[nodiscard]] Tdb::Account &tdb() const;
 	[[nodiscard]] Tdb::Sender &sender() const;
 
+	// For using legacy code MTP::Sender _api; _api(&apiwrap->instance()).
+	[[nodiscard]] Tdb::Sender &instance() const {
+		return sender();
+	}
+
+	bool apply(const Tdb::TLDupdateOption &update);
 #if 0 // mtp
 	void applyUpdates(
 		const MTPUpdates &updates,
@@ -399,11 +405,13 @@ public:
 		not_null<InlineBots::Result*> data,
 		const SendAction &action,
 		std::optional<MsgId> localMessageId);
+#if 0 // mtp
 	void sendMessageFail(
 		const MTP::Error &error,
 		not_null<PeerData*> peer,
 		uint64 randomId = 0,
 		FullMsgId itemId = FullMsgId());
+#endif
 	void sendMessageFail(
 		const QString &error,
 		not_null<PeerData*> peer,

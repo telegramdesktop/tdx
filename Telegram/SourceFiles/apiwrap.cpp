@@ -611,6 +611,7 @@ void ApiWrap::toggleHistoryArchived(
 #endif
 }
 
+#if 0 // mtp
 void ApiWrap::sendMessageFail(
 		const MTP::Error &error,
 		not_null<PeerData*> peer,
@@ -618,6 +619,7 @@ void ApiWrap::sendMessageFail(
 		FullMsgId itemId) {
 	sendMessageFail(error.type(), peer, randomId, itemId);
 }
+#endif
 
 void ApiWrap::sendMessageFail(
 		const QString &error,

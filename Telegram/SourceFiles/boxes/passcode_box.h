@@ -82,7 +82,9 @@ public:
 
 	rpl::producer<MTPauth_Authorization> newAuthorization() const;
 
+#if 0 // mtp
 	bool handleCustomCheckError(const MTP::Error &error);
+#endif
 	bool handleCustomCheckError(const QString &type);
 
 protected:

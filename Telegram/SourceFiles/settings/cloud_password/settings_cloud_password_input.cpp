@@ -250,7 +250,10 @@ void Input::setupContent() {
 					_requestLifetime.destroy();
 
 					error->show();
+#if 0 // mtp
 					if (MTP::IsFloodError(type)) {
+#endif
+					if (Tdb::IsFloodError(type)) {
 						error->setText(tr::lng_flood_error(tr::now));
 					} else {
 						error->setText(Lang::Hard::ServerError());
@@ -320,7 +323,10 @@ void Input::setupContent() {
 				_requestLifetime.destroy();
 
 				error->show();
+#if 0 // mtp
 				if (MTP::IsFloodError(type)) {
+#endif
+				if (Tdb::IsFloodError(type)) {
 					error->setText(tr::lng_flood_error(tr::now));
 				} else {
 					error->setText(Lang::Hard::ServerError());
@@ -354,7 +360,10 @@ void Input::setupContent() {
 			newInput->showError();
 			newInput->selectAll();
 			error->show();
+#if 0 // mtp
 			if (MTP::IsFloodError(type)) {
+#endif
+			if (Tdb::IsFloodError(type)) {
 				error->setText(tr::lng_flood_error(tr::now));
 			} else if (type == u"PASSWORD_HASH_INVALID"_q
 				|| type == u"SRP_PASSWORD_CHANGED"_q) {

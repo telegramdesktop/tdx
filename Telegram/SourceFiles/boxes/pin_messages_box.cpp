@@ -59,8 +59,10 @@ void PinMessageBox(
 	const auto topicRootId = item->topic() ? item->topicRootId() : MsgId();
 	const auto pinningOld = IsOldForPin(msgId, peer, topicRootId);
 	const auto state = box->lifetime().make_state<State>();
+#if 0 // mtp
 	const auto api = box->lifetime().make_state<MTP::Sender>(
 		&peer->session().mtp());
+#endif
 
 	auto checkbox = [&]() -> object_ptr<Ui::Checkbox> {
 		if (peer->isUser() && !peer->isSelf()) {
