@@ -99,7 +99,10 @@ void Hint::setupContent() {
 				_requestLifetime.destroy();
 
 				error->show();
+#if 0 // mtp
 				if (MTP::IsFloodError(type)) {
+#endif
+				if (Tdb::IsFloodError(type)) {
 					error->setText(tr::lng_flood_error(tr::now));
 				} else {
 					error->setText(Lang::Hard::ServerError());
