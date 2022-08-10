@@ -155,6 +155,10 @@ PhotoId PhotoData::IdFromTdb(const TLchatPhoto &data) {
 	return data.data().vid().v;
 }
 
+PhotoId PhotoData::IdFromTdb(const TLchatPhotoInfo &data) {
+	return data.data().vbig().data().vid().v;
+}
+
 void PhotoData::setFromTdb(const TLphoto &data) {
 	const auto &fields = data.data();
 	setHasAttachedStickers(fields.vhas_stickers().v);
@@ -225,6 +229,22 @@ uint64 PhotoData::persistentId() const {
 	const auto tdb = std::get_if<TdbFileLocation>(
 		&location(large).file().data);
 	return tdb ? tdb->hash : id;
+}
+
+void PhotoData::setFromTdb(const TLchatPhotoInfo &data) {
+	constexpr auto kSmallSize = 160;
+	constexpr auto kBigSize = 640;
+	const auto &fields = data.data();
+	updateImages(
+		(fields.vminithumbnail()
+			? fields.vminithumbnail()->data().vdata().v
+			: QByteArray()),
+		Images::FromTdbFile(fields.vsmall(), kSmallSize, kSmallSize),
+		ImageWithLocation(),
+		Images::FromTdbFile(fields.vbig(), kBigSize, kBigSize),
+		ImageWithLocation(),
+		ImageWithLocation(),
+		crl::time());
 }
 
 Data::Session &PhotoData::owner() const {

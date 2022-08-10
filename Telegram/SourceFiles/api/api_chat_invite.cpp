@@ -42,6 +42,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_premium.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "base/unixtime.h"
+
+using namespace Tdb;
+
 namespace Api {
 
 namespace {
@@ -51,7 +56,7 @@ void SubmitChatInvite(
 		not_null<Main::Session*> session,
 		const QString &hash,
 		bool isGroup) {
-#if 0 // todo
+#if 0 // mtp
 	session->api().request(MTPmessages_ImportChatInvite(
 		MTP_string(hash)
 	)).done([=](const MTPUpdates &result) {
@@ -90,6 +95,20 @@ void SubmitChatInvite(
 		});
 	}).fail([=](const MTP::Error &error) {
 		const auto &type = error.type();
+#endif
+	session->sender().request(TLjoinChatByInviteLink(
+		tl_string("t.me/joinchat/" + hash)
+	)).done([=](const TLchat &result) {
+		const auto peer = session->data().processPeer(result);
+		const auto strong = weak.get();
+		if (!strong) {
+			return;
+		}
+
+		strong->hideLayer();
+		strong->showPeerHistory(peer, Window::SectionShow::Way::Forward);
+	}).fail([=](const Error &error) {
+		const auto &type = error.message;
 
 		const auto strongController = weak.get();
 		if (!strongController) {
@@ -113,20 +132,31 @@ void SubmitChatInvite(
 			}
 		}(), ApiWrap::kJoinErrorDuration);
 	}).send();
-#endif
 }
 
 void ConfirmSubscriptionBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session,
 		const QString &hash,
+#if 0 // mtp
 		const MTPDchatInvite *data) {
+#endif
+		const TLDchatInviteLinkInfo *data) {
 	box->setWidth(st::boxWideWidth);
+#if 0 // mtp
 	const auto amount = data->vsubscription_pricing()->data().vamount().v;
 	const auto formId = data->vsubscription_form_id()->v;
 	const auto name = qs(data->vtitle());
 	const auto maybePhoto = session->data().processPhoto(data->vphoto());
 	const auto photo = maybePhoto->isNull() ? nullptr : maybePhoto.get();
+#endif
+	const auto &pricing = data->vsubscription_info()->data().vpricing();
+	const auto amount = pricing.data().vstar_count().v;
+	const auto formId = data->vsubscription_info()->data().vform_id().v;
+	const auto name = qs(data->vtitle());
+	const auto photo = data->vphoto()
+		? session->data().processSmallPhoto(*data->vphoto()).get()
+		: nullptr;
 
 	struct State final {
 		std::shared_ptr<Data::PhotoMedia> photoMedia;
@@ -275,22 +305,40 @@ void ConfirmSubscriptionBox(
 		const auto buttonWidth = state->saveButton
 			? state->saveButton->width()
 			: 0;
+		state->api->request(TLsendPaymentForm(
+			tl_inputInvoiceTelegram(
+				tl_telegramPaymentPurposeJoinChat(tl_string(hash))),
+			tl_int64(formId),
+			tl_string(), // order_info_id
+			tl_string(), // shipping_option_id
+			null, // credentials
+			tl_int53(0) // tip_amount
+		)).done([=](const TLpaymentResult &result) {
+#if 0 // mtp
 		state->api->request(
 			MTPpayments_SendStarsForm(
 				MTP_long(formId),
 				MTP_inputInvoiceChatInviteSubscription(MTP_string(hash)))
 		).done([=](const MTPpayments_PaymentResult &result) {
+#endif
 			state->api = std::nullopt;
 			state->loading.force_assign(false);
+#if 0 // mtp
 			result.match([&](const MTPDpayments_paymentResult &data) {
 				session->api().applyUpdates(data.vupdates());
 			}, [](const MTPDpayments_paymentVerificationNeeded &data) {
 			});
+#endif
 			if (weak) {
 				box->closeBox();
 			}
+#if 0 // mtp
 		}).fail([=](const MTP::Error &error) {
 			const auto id = error.type();
+#endif
+
+		}).fail([=](const Error &error) {
+			const auto id = error.message;
 			if (weak) {
 				state->api = std::nullopt;
 			}
@@ -348,6 +396,88 @@ void CheckChatInvite(
 		Fn<void()> loaded) {
 	const auto session = &controller->session();
 	const auto weak = base::make_weak(controller);
+	session->api().checkChatInvite(hash, [=](
+			const TLchatInviteLinkInfo &result) {
+		const auto strong = weak.get();
+		if (!strong) {
+			return;
+		}
+		Core::App().hideMediaView();
+		const auto &data = result.data();
+		const auto id = data.vchat_id().v
+			? peerFromTdbChat(data.vchat_id())
+			: PeerId();
+		const auto peer = id ? session->data().peer(id).get() : nullptr;
+		if (peer) {
+			if (const auto channel = peer->asChannel()) {
+				const auto peek = data.vaccessible_for().v;
+				if (peek > 0) {
+					const auto now = base::unixtime::now();
+					channel->setInvitePeek(hash, now + peek);
+				} else {
+					channel->clearInvitePeek();
+				}
+			}
+			strong->showPeerHistory(
+				peer,
+				Window::SectionShow::Way::Forward);
+		} else {
+			const auto isGroup = data.vtype().match([](
+					const TLDinviteLinkChatTypeBasicGroup&) {
+				return true;
+			}, [&](const TLDinviteLinkChatTypeSupergroup&) {
+				return true;
+			}, [](const TLDinviteLinkChatTypeChannel&) {
+				return false;
+			});
+			const auto hasPricing = data.vsubscription_info().has_value();
+			const auto canRefulfill = hasPricing
+				&& data.vsubscription_info()->data().vcan_reuse().v;
+			const auto formId = hasPricing
+				? data.vsubscription_info()->data().vform_id().v
+				: 0;
+			if (hasPricing
+				&& !canRefulfill
+				&& !formId) {
+				strong->uiShow()->showToast(
+					tr::lng_confirm_phone_link_invalid(tr::now));
+				return;
+			}
+			const auto box = (hasPricing && !canRefulfill)
+				? strong->show(Box(
+					ConfirmSubscriptionBox,
+					session,
+					hash,
+					&data))
+				: strong->show(Box<ConfirmInviteBox>(
+					session,
+					data,
+					invitePeekChannel,
+					[=] { SubmitChatInvite(weak, session, hash, isGroup); }));
+			if (invitePeekChannel) {
+				box->boxClosing(
+				) | rpl::filter([=] {
+					return !invitePeekChannel->amIn();
+				}) | rpl::start_with_next([=] {
+					if (const auto strong = weak.get()) {
+						strong->clearSectionStack(Window::SectionShow(
+							Window::SectionShow::Way::ClearStack,
+							anim::type::normal,
+							anim::activation::background));
+					}
+				}, box->lifetime());
+			}
+		}
+	}, [=](const Error &error) {
+		if (error.code != 400) {
+			return;
+		}
+		Core::App().hideMediaView();
+		if (const auto strong = weak.get()) {
+			strong->show(Ui::MakeInformBox(tr::lng_group_invite_bad_link()));
+		}
+	});
+#if 0 // mtp
 	session->api().checkChatInvite(hash, [=](const MTPChatInvite &result) {
 		const auto strong = weak.get();
 		if (!strong) {
@@ -424,6 +554,7 @@ void CheckChatInvite(
 			strong->show(Ui::MakeInformBox(tr::lng_group_invite_bad_link()));
 		}
 	});
+#endif
 }
 
 } // namespace Api
@@ -433,10 +564,24 @@ struct ConfirmInviteBox::Participant {
 	Ui::PeerUserpicView userpic;
 };
 
+#if 0 // mtp
 ConfirmInviteBox::ConfirmInviteBox(
 	QWidget*,
 	not_null<Main::Session*> session,
 	const MTPDchatInvite &data,
+	ChannelData *invitePeekChannel,
+	Fn<void()> submit)
+: ConfirmInviteBox(
+	session,
+	Parse(session, data),
+	invitePeekChannel,
+	std::move(submit)) {
+}
+#endif
+ConfirmInviteBox::ConfirmInviteBox(
+	QWidget*,
+	not_null<Main::Session*> session,
+	const TLDchatInviteLinkInfo &data,
 	ChannelData *invitePeekChannel,
 	Fn<void()> submit)
 : ConfirmInviteBox(
@@ -517,6 +662,7 @@ ConfirmInviteBox::ConfirmInviteBox(
 
 ConfirmInviteBox::~ConfirmInviteBox() = default;
 
+#if 0 // mtp
 ConfirmInviteBox::ChatInvite ConfirmInviteBox::Parse(
 		not_null<Main::Session*> session,
 		const MTPDchatInvite &data) {
@@ -545,6 +691,42 @@ ConfirmInviteBox::ChatInvite ConfirmInviteBox::Parse(
 		.isScam = data.is_scam(),
 		.isVerified = data.is_verified(),
 	};
+}
+#endif
+ConfirmInviteBox::ChatInvite ConfirmInviteBox::Parse(
+		not_null<Main::Session*> session,
+		const TLDchatInviteLinkInfo &data) {
+	auto participants = std::vector<Participant>();
+	const auto &list = data.vmember_user_ids().v;
+	participants.reserve(list.size());
+	for (const auto &userId : list) {
+		participants.push_back(Participant{
+			session->data().user(UserId(userId.v))
+		});
+	}
+	auto result = ChatInvite{
+		.title = data.vtitle().v,
+		.about = data.vdescription().v,
+		.photo = (data.vphoto()
+			? session->data().processSmallPhoto(*data.vphoto()).get()
+			: nullptr),
+		.participantsCount = data.vmember_count().v,
+		.participants = std::move(participants),
+		.isPublic = data.vis_public().v,
+		.isRequestNeeded = data.vcreates_join_request().v,
+		.isFake = data.vis_fake().v,
+		.isScam = data.vis_scam().v,
+		.isVerified = data.vis_verified().v,
+	};
+	data.vtype().match([](const TLDinviteLinkChatTypeBasicGroup&) {
+	}, [&](const TLDinviteLinkChatTypeSupergroup&) {
+		result.isChannel = true;
+		result.isMegagroup = true;
+	}, [&](const TLDinviteLinkChatTypeChannel &data) {
+		result.isChannel = true;
+		result.isBroadcast = true;
+	});
+	return result;
 }
 
 [[nodiscard]] Info::Profile::BadgeType ConfirmInviteBox::BadgeForInvite(
