@@ -113,7 +113,10 @@ void StartRtmpProcess::start(
 			_request->done = std::move(done);
 			return;
 		}
+#if 0 // mtp
 		session->api().request(_request->id).cancel();
+#endif
+		session->sender().request(_request->id).cancel();
 		_request = nullptr;
 	}
 	_request = std::make_unique<RtmpRequest>(
@@ -132,7 +135,10 @@ void StartRtmpProcess::start(
 
 void StartRtmpProcess::close() {
 	if (_request) {
+#if 0 // mtp
 		_request->peer->session().api().request(_request->id).cancel();
+#endif
+		_request->peer->session().sender().request(_request->id).cancel();
 		if (const auto strong = _request->box.data()) {
 			strong->closeBox();
 		}
