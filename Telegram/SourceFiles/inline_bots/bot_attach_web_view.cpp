@@ -873,8 +873,10 @@ void AttachWebView::request(const WebViewButton &button) {
 
 void AttachWebView::cancel() {
 	ActiveWebViews().remove(this);
+#if 0 // todo
 	_session->api().request(base::take(_requestId)).cancel();
 	_session->api().request(base::take(_prolongId)).cancel();
+#endif
 	base::take(_panel);
 	_lastShownContext = base::take(_context);
 	_bot = nullptr;
@@ -982,7 +984,9 @@ void AttachWebView::requestAddToMenu(
 		if (_addToMenuBot == bot) {
 			return;
 		}
+#if 0 // todo
 		_session->api().request(base::take(_addToMenuId)).cancel();
+#endif
 	}
 	_addToMenuBot = bot;
 #if 0 // todo

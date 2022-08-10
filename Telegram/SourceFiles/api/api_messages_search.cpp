@@ -52,8 +52,10 @@ MessagesSearch::MessagesSearch(not_null<History*> history)
 }
 
 MessagesSearch::~MessagesSearch() {
+#if 0 // todo
 	_history->owner().histories().cancelRequest(
 		base::take(_searchInHistoryRequest));
+#endif
 }
 
 void MessagesSearch::searchMessages(const QString &query, PeerData *from) {
@@ -81,11 +83,11 @@ void MessagesSearch::searchRequest() {
 			return;
 		}
 	}
+#if 0 // todo
 	auto callback = [=](Fn<void()> finish) {
 		const auto flags = _from
 			? MTP_flags(MTPmessages_Search::Flag::f_from_id)
 			: MTP_flags(0);
-#if 0 // todo
 		_requestId = _history->session().api().request(MTPmessages_Search(
 			flags,
 			_history->peer->input,
@@ -119,13 +121,13 @@ void MessagesSearch::searchRequest() {
 
 			finish();
 		}).send();
-#endif
 		return _requestId;
 	};
 	_searchInHistoryRequest = _history->owner().histories().sendRequest(
 		_history,
 		Data::Histories::RequestType::History,
 		std::move(callback));
+#endif
 }
 
 void MessagesSearch::searchReceived(

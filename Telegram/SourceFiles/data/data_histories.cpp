@@ -340,6 +340,7 @@ void Histories::sendDialogRequests() {
 	if (_dialogRequestsPending.empty()) {
 		return;
 	}
+#if 0 // todo
 	const auto histories = ranges::views::all(
 		_dialogRequestsPending
 	) | ranges::views::transform([](const auto &pair) {
@@ -355,7 +356,6 @@ void Histories::sendDialogRequests() {
 		return false;
 	}) | ranges::to_vector;
 
-#if 0 // todo
 	auto peers = QVector<MTPInputDialogPeer>();
 	const auto dialogPeer = [](not_null<History*> history) {
 		return MTP_inputDialogPeer(history->peer->input);
@@ -485,6 +485,7 @@ void Histories::requestGroupAround(not_null<HistoryItem*> item) {
 	const auto id = item->id;
 	const auto key = GroupRequestKey{ history, item->topicRootId() };
 	const auto i = _chatListGroupRequests.find(key);
+#if 0 // todo
 	if (i != end(_chatListGroupRequests)) {
 		if (i->second.aroundId == id) {
 			return;
@@ -495,7 +496,6 @@ void Histories::requestGroupAround(not_null<HistoryItem*> item) {
 	}
 	constexpr auto kMaxAlbumCount = 10;
 
-#if 0 // todo
 	const auto requestId = sendRequest(history, RequestType::History, [=](
 			Fn<void()> finish) {
 		return session().api().request(MTPmessages_GetHistory(
@@ -653,6 +653,7 @@ void Histories::checkEmptyState(not_null<History*> history) {
 	}
 }
 
+#if 0 // mtp
 bool Histories::postponeHistoryRequest(const State &state) const {
 	const auto proj = [](const auto &pair) {
 		return pair.second.type;
@@ -667,7 +668,6 @@ bool Histories::postponeEntryRequest(const State &state) const {
 	});
 }
 
-#if 0 // mtp
 void Histories::deleteMessages(
 		not_null<History*> history,
 		const QVector<MTPint> &ids,
@@ -912,6 +912,7 @@ void Histories::deleteMessages(const MessageIdsList &ids, bool revoke) {
 	}
 }
 
+#if 0 // mtp
 int Histories::sendRequest(
 		not_null<History*> history,
 		RequestType type,
@@ -1173,6 +1174,7 @@ void Histories::finishSentRequest(
 	}
 	checkEmptyState(history);
 }
+#endif
 
 Histories::State *Histories::lookup(not_null<History*> history) {
 	const auto i = _states.find(history);
