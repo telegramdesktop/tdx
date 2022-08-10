@@ -36,9 +36,11 @@ SponsoredMessages::SponsoredMessages(not_null<Session*> owner)
 }
 
 SponsoredMessages::~SponsoredMessages() {
+#if 0 // todo
 	for (const auto &request : _requests) {
 		_session->api().request(request.second.requestId).cancel();
 	}
+#endif
 }
 
 void SponsoredMessages::clearOldRequests() {

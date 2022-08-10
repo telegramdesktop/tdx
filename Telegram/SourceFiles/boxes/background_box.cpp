@@ -364,11 +364,13 @@ void BackgroundBox::removePaper(const Data::WallPaper &paper) {
 			weak->_inner->removePaper(paper);
 		}
 		session->data().removeWallpaper(paper);
+#if 0 // todo
 		session->api().request(MTPaccount_SaveWallPaper(
 			paper.mtpInput(session),
 			MTP_bool(true),
 			paper.mtpSettings()
 		)).send();
+#endif
 	};
 	_controller->show(Ui::MakeConfirmBox({
 		.text = tr::lng_background_sure_delete(),

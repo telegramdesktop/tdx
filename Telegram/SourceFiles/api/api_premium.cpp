@@ -61,7 +61,10 @@ namespace {
 
 Premium::Premium(not_null<ApiWrap*> api)
 : _session(&api->session())
+#if 0 // mtp
 , _api(&api->instance()) {
+#endif
+{
 	crl::on_main(_session, [=] {
 		// You can't use _session->user() in the constructor,
 		// only queued, because it is not constructed yet.

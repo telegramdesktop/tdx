@@ -7,7 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#if 0 // todo
 #include "mtproto/sender.h"
+#endif
 
 class ApiWrap;
 
@@ -34,7 +36,9 @@ public:
 	void toggle(not_null<HistoryItem*> item);
 	[[nodiscard]] const Entry &entry(not_null<HistoryItem*> item) const;
 
+#if 0 // todo
 	void apply(const MTPDupdateTranscribedAudio &update);
+#endif
 
 	[[nodiscard]] bool freeFor(not_null<HistoryItem*> item) const;
 
@@ -47,7 +51,9 @@ private:
 	void load(not_null<HistoryItem*> item);
 
 	const not_null<Main::Session*> _session;
+#if 0 // todo
 	MTP::Sender _api;
+#endif
 
 	int _trialsCount = -1;
 	std::optional<bool> _trialsSupport;

@@ -94,8 +94,10 @@ namespace {
 // Save draft to the cloud with 1 sec extra delay.
 constexpr auto kSaveCloudDraftTimeout = 1000;
 
+#if 0 // mtp
 constexpr auto kTopPromotionInterval = TimeId(60 * 60);
 constexpr auto kTopPromotionMinDelay = TimeId(10);
+#endif
 constexpr auto kSmallDelayMs = 5;
 constexpr auto kReadFeaturedSetsTimeout = crl::time(1000);
 constexpr auto kFileLoaderQueueStopTimeout = crl::time(5000);
@@ -164,17 +166,20 @@ struct ApiWrap::DialogsLoadState {
 };
 
 ApiWrap::ApiWrap(not_null<Main::Session*> session)
+#if 0 // mtp
 : MTP::Sender(&session->account().mtp())
 , _session(session)
-#if 0 // mtp
 , _messageDataResolveDelayed([=] { resolveMessageDatas(); })
 , _webPagesTimer([=] { resolveWebPages(); })
 #endif
+: _session(session)
 , _draftsSaveTimer([=] { saveDraftsToCloud(); })
 , _featuredSetsReadTimer([=] { readFeaturedSets(); })
 , _dialogsLoadState(std::make_unique<DialogsLoadState>())
 , _fileLoader(std::make_unique<TaskQueue>(kFileLoaderQueueStopTimeout))
+#if 0 // mtp
 , _topPromotionTimer([=] { refreshTopPromotion(); })
+#endif
 , _updateNotifyTimer([=] { sendNotifySettingsUpdates(); })
 #if 0 // mtp
 , _statsSessionKillTimer([=] { checkStatsSessions(); })
@@ -213,10 +218,12 @@ ApiWrap::ApiWrap(not_null<Main::Session*> session)
 
 		setupSupportMode();
 
+#if 0 // mtp
 		Core::App().settings().proxy().connectionTypeValue(
 		) | rpl::start_with_next([=] {
 			refreshTopPromotion();
 		}, _session->lifetime());
+#endif
 	});
 }
 
@@ -254,6 +261,7 @@ void ApiWrap::setupSupportMode() {
 	}, _session->lifetime());
 }
 
+#if 0 // mtp
 void ApiWrap::requestChangelog(
 		const QString &sinceVersion,
 		Fn<void(const MTPUpdates &result)> callback) {
@@ -288,7 +296,6 @@ void ApiWrap::refreshTopPromotion() {
 		return;
 	}
 	_topPromotionKey = key;
-#if 0 // todo
 	_topPromotionRequestId = request(MTPhelp_GetPromoData(
 	)).done([=](const MTPhelp_PromoData &result) {
 		_topPromotionRequestId = 0;
@@ -302,7 +309,6 @@ void ApiWrap::refreshTopPromotion() {
 			getTopPromotionDelayed(now, next);
 		}
 	}).send();
-#endif
 }
 
 void ApiWrap::getTopPromotionDelayed(TimeId now, TimeId next) {
@@ -311,7 +317,6 @@ void ApiWrap::getTopPromotionDelayed(TimeId now, TimeId next) {
 		kTopPromotionInterval) * crl::time(1000));
 };
 
-#if 0 // mtp
 void ApiWrap::topPromotionDone(const MTPhelp_PromoData &proxy) {
 	_topPromotionNextRequestTime = proxy.match([&](const auto &data) {
 		return data.vexpires().v;
@@ -338,6 +343,7 @@ void ApiWrap::topPromotionDone(const MTPhelp_PromoData &proxy) {
 void ApiWrap::requestDeepLinkInfo(
 		const QString &path,
 		Fn<void(TextWithEntities message, bool updateRequired)> callback) {
+#if 0 // todo
 	request(_deepLinkInfoRequestId).cancel();
 	_deepLinkInfoRequestId = request(MTPhelp_GetDeepLinkInfo(
 		MTP_string(path)
@@ -355,8 +361,10 @@ void ApiWrap::requestDeepLinkInfo(
 	}).fail([=] {
 		_deepLinkInfoRequestId = 0;
 	}).send();
+#endif
 }
 
+#if 0 // mtp
 void ApiWrap::requestTermsUpdate() {
 	if (_termsUpdateRequestId) {
 		return;
@@ -405,13 +413,16 @@ void ApiWrap::requestTermsUpdate() {
 		requestTermsUpdate();
 	}).send();
 }
+#endif
 
 void ApiWrap::acceptTerms(bytes::const_span id) {
+#if 0 // todo
 	request(MTPhelp_AcceptTermsOfService(
 		MTP_dataJSON(MTP_bytes(id))
 	)).done([=] {
 		requestTermsUpdate();
 	}).send();
+#endif
 }
 
 void ApiWrap::checkChatInvite(
@@ -1108,11 +1119,11 @@ void ApiWrap::requestMoreDialogsIfNeeded() {
 	_session->data().shortcutMessages().preloadShortcuts();
 }
 
+#if 0 // mtp
 void ApiWrap::updateDialogsOffset(
 		Data::Folder *folder,
 		const QVector<MTPDialog> &dialogs,
 		const QVector<MTPMessage> &messages) {
-#if 0 // mtp
 	auto lastDate = TimeId(0);
 	auto lastPeer = PeerId(0);
 	auto lastMsgId = MsgId(0);
@@ -1154,8 +1165,8 @@ void ApiWrap::updateDialogsOffset(
 			dialogsLoadFinish(folder);
 		}
 	}
-#endif
 }
+#endif
 
 auto ApiWrap::dialogsLoadState(Data::Folder *folder) -> DialogsLoadState* {
 	if (!folder) {
@@ -1728,17 +1739,20 @@ void ApiWrap::saveStickerSets(
 			? _masksReorderRequestId
 			: _stickersReorderRequestId;
 	};
+#if 0 // todo
 	for (auto requestId : base::take(setDisenableRequests)) {
 		request(requestId).cancel();
 	}
 	request(base::take(reorderRequestId())).cancel();
 	request(base::take(_stickersClearRecentRequestId)).cancel();
 	request(base::take(_stickersClearRecentAttachedRequestId)).cancel();
+#endif
 
 	const auto stickersSaveOrder = [=] {
 		if (localOrder.size() < 2) {
 			return;
 		}
+#if 0 // todo
 		QVector<MTPlong> mtpOrder;
 		mtpOrder.reserve(localOrder.size());
 		for (const auto setId : std::as_const(localOrder)) {
@@ -1769,6 +1783,7 @@ void ApiWrap::saveStickerSets(
 				updateStickers();
 			}
 		}).send();
+#endif
 	};
 
 	const auto stickerSetDisenabled = [=](mtpRequestId requestId) {
@@ -1821,6 +1836,7 @@ void ApiWrap::saveStickerSets(
 				writeRecent = true;
 			}
 
+#if 0 // todo
 			const auto isAttached =
 				(removedSetId == Data::Stickers::CloudRecentAttachedSetId);
 			const auto flags = isAttached
@@ -1837,6 +1853,7 @@ void ApiWrap::saveStickerSets(
 			requestId = request(MTPmessages_ClearRecentStickers(
 				MTP_flags(flags)
 			)).done(finish).fail(finish).send();
+#endif
 			continue;
 		}
 
@@ -1857,6 +1874,9 @@ void ApiWrap::saveStickerSets(
 				const auto special = !!(set->flags & Flag::Special);
 				const auto emoji = !!(set->flags & Flag::Emoji);
 				const auto locked = (set->locked > 0);
+
+				const auto requestId = 0;
+#if 0 // todo
 				const auto setId = set->mtpInput();
 
 				auto requestId = request(MTPmessages_UninstallStickerSet(
@@ -1866,6 +1886,7 @@ void ApiWrap::saveStickerSets(
 				}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
 					stickerSetDisenabled(requestId);
 				}).afterDelay(kSmallDelayMs).send();
+#endif
 
 				setDisenableRequests.insert(requestId);
 
@@ -1908,6 +1929,8 @@ void ApiWrap::saveStickerSets(
 		const auto set = it->second.get();
 		const auto archived = !!(set->flags & Flag::Archived);
 		if (archived && !localRemoved.contains(set->id)) {
+			const auto requestId = 0;
+#if 0 // todo
 			const auto mtpSetId = set->mtpInput();
 
 			const auto requestId = request(MTPmessages_InstallStickerSet(
@@ -1922,6 +1945,7 @@ void ApiWrap::saveStickerSets(
 					mtpRequestId requestId) {
 				stickerSetDisenabled(requestId);
 			}).afterDelay(kSmallDelayMs).send();
+#endif
 
 			setDisenableRequests.insert(requestId);
 
@@ -1984,7 +2008,9 @@ void ApiWrap::saveStickerSets(
 	if (setDisenableRequests.empty()) {
 		stickersSaveOrder();
 	} else {
+#if 0 // todo
 		requestSendDelayed();
+#endif
 	}
 }
 
@@ -2526,7 +2552,7 @@ void ApiWrap::saveDraftsToCloud() {
 		auto cloudDraft = history->cloudDraft(topicRootId);
 		auto localDraft = history->localDraft(topicRootId);
 		if (cloudDraft && cloudDraft->saveRequestId) {
-			request(base::take(cloudDraft->saveRequestId)).cancel();
+			sender().request(base::take(cloudDraft->saveRequestId)).cancel();
 		}
 		if (!_session->supportMode()) {
 			cloudDraft = history->createCloudDraft(topicRootId, localDraft);
@@ -2689,7 +2715,10 @@ void ApiWrap::registerModifyRequest(
 		mtpRequestId requestId) {
 	const auto i = _modifyRequests.find(key);
 	if (i != end(_modifyRequests)) {
+		sender().request(i->second).cancel();
+#if 0 // mtp
 		request(i->second).cancel();
+#endif
 		i->second = requestId;
 	} else {
 		_modifyRequests.emplace(key, requestId);
@@ -4974,6 +5003,7 @@ void ApiWrap::reloadContactSignupSilent() {
 	if (_contactSignupSilentRequestId) {
 		return;
 	}
+#if 0 // todo
 	const auto requestId = request(MTPaccount_GetContactSignUpNotification(
 	)).done([=](const MTPBool &result) {
 		_contactSignupSilentRequestId = 0;
@@ -4984,6 +5014,7 @@ void ApiWrap::reloadContactSignupSilent() {
 		_contactSignupSilentRequestId = 0;
 	}).send();
 	_contactSignupSilentRequestId = requestId;
+#endif
 }
 
 rpl::producer<bool> ApiWrap::contactSignupSilent() const {
@@ -4998,6 +5029,7 @@ std::optional<bool> ApiWrap::contactSignupSilentCurrent() const {
 }
 
 void ApiWrap::saveContactSignupSilent(bool silent) {
+#if 0 // todo
 	request(base::take(_contactSignupSilentRequestId)).cancel();
 
 	const auto requestId = request(MTPaccount_SetContactSignUpNotification(
@@ -5010,6 +5042,7 @@ void ApiWrap::saveContactSignupSilent(bool silent) {
 		_contactSignupSilentRequestId = 0;
 	}).send();
 	_contactSignupSilentRequestId = requestId;
+#endif
 }
 
 auto ApiWrap::botCommonGroups(not_null<UserData*> bot) const
@@ -5059,7 +5092,10 @@ void ApiWrap::requestBotCommonGroups(
 void ApiWrap::saveSelfBio(const QString &text) {
 	if (_bio.requestId) {
 		if (text != _bio.requestedText) {
+			sender().request(_bio.requestId).cancel();
+#if 0 // mtp
 			request(_bio.requestId).cancel();
+#endif
 		} else {
 			return;
 		}
