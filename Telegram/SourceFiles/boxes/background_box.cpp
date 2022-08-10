@@ -379,6 +379,7 @@ BackgroundBox::Inner::Inner(
 }
 
 void BackgroundBox::Inner::requestPapers() {
+#if 0 // todo
 	_api.request(MTPaccount_GetWallPapers(
 		MTP_long(_session->data().wallpapersHash())
 	)).done([=](const MTPaccount_WallPapers &result) {
@@ -386,6 +387,7 @@ void BackgroundBox::Inner::requestPapers() {
 			updatePapers();
 		}
 	}).send();
+#endif
 }
 
 auto BackgroundBox::Inner::resolveResetCustomPaper() const

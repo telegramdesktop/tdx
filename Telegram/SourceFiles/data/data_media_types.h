@@ -150,6 +150,7 @@ public:
 		const TextWithEntities &text);
 	[[nodiscard]] virtual TextWithEntities consumedMessageText() const;
 
+#if 0 // mtp
 	// After sending an inline result we may want to completely recreate
 	// the media (all media that was generated on client side, for example).
 	virtual bool updateInlineResultMedia(const MTPMessageMedia &media) = 0;
@@ -159,6 +160,7 @@ public:
 			const MTPMessageExtendedMedia &media) {
 		return false;
 	}
+#endif
 	virtual std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent,
@@ -209,8 +211,10 @@ public:
 	bool allowsEditMedia() const override;
 	bool hasSpoiler() const override;
 
+#if 0 // mtp
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
+#endif
 	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent,
@@ -252,8 +256,10 @@ public:
 	bool dropForwardedInfo() const override;
 	bool hasSpoiler() const override;
 
+#if 0 // mtp
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
+#endif
 	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent,
@@ -284,8 +290,10 @@ public:
 	QString pinnedTextSubstring() const override;
 	TextForMimeData clipboardText() const override;
 
+#if 0 // mtp
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
+#endif
 	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent,
@@ -315,8 +323,10 @@ public:
 	QString pinnedTextSubstring() const override;
 	TextForMimeData clipboardText() const override;
 
+#if 0 // mtp
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
+#endif
 	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent,
@@ -343,8 +353,10 @@ public:
 	TextForMimeData clipboardText() const override;
 	bool allowsForward() const override;
 
+#if 0 // mtp
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
+#endif
 	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent,
@@ -382,8 +394,10 @@ public:
 	TextForMimeData clipboardText() const override;
 	bool allowsEdit() const override;
 
+#if 0 // mtp
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
+#endif
 	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent,
@@ -415,8 +429,10 @@ public:
 	bool consumeMessageText(const TextWithEntities &text) override;
 	TextWithEntities consumedMessageText() const override;
 
+#if 0 // mtp
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
+#endif
 	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent,
@@ -445,11 +461,13 @@ public:
 	QString pinnedTextSubstring() const override;
 	TextForMimeData clipboardText() const override;
 
+#if 0 // mtp
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
 	bool updateExtendedMedia(
 		not_null<HistoryItem*> item,
 		const MTPMessageExtendedMedia &media) override;
+#endif
 	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent,
@@ -475,8 +493,10 @@ public:
 	QString pinnedTextSubstring() const override;
 	TextForMimeData clipboardText() const override;
 
+#if 0 // mtp
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
+#endif
 	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent,
@@ -505,8 +525,10 @@ public:
 	TextForMimeData clipboardText() const override;
 	bool forceForwardedInfo() const override;
 
+#if 0 // mtp
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
+#endif
 	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent,

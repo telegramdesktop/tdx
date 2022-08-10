@@ -4405,10 +4405,12 @@ void HistoryWidget::checkSuggestToGigagroup() {
 	InvokeQueued(_list, [=] {
 		if (!controller()->isLayerShown()) {
 			group->owner().setSuggestToGigagroup(group, false);
+#if 0 // todo
 			group->session().api().request(MTPhelp_DismissSuggestion(
 				group->input,
 				MTP_string("convert_to_gigagroup")
 			)).send();
+#endif
 			controller()->show(Box([=](not_null<Ui::GenericBox*> box) {
 				box->setTitle(tr::lng_gigagroup_suggest_title());
 				box->addRow(
