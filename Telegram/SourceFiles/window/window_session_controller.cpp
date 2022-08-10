@@ -504,6 +504,7 @@ void SessionNavigation::resolveUsername(
 	}).send();
 }
 
+#if 0 // mtp
 void SessionNavigation::resolveDone(
 		const MTPcontacts_ResolvedPeer &result,
 		Fn<void(not_null<PeerData*>)> done) {
@@ -517,6 +518,7 @@ void SessionNavigation::resolveDone(
 		}
 	});
 }
+#endif
 
 void SessionNavigation::resolveMessageByLink(const PeerByLinkInfo &info) {
 	_api.request(base::take(_resolveRequestId)).cancel();

@@ -393,7 +393,6 @@ void PhotoData::refreshFileReference(const QByteArray &value) {
 		image.location.refreshFileReference(value);
 	}
 }
-#endif
 
 void PhotoData::collectLocalData(not_null<PhotoData*> local) {
 	if (local == this) {
@@ -413,6 +412,7 @@ void PhotoData::collectLocalData(not_null<PhotoData*> local) {
 		_owner->keepAlive(std::move(media));
 	}
 }
+#endif
 
 bool PhotoData::isNull() const {
 	return !_images[PhotoSizeIndex(PhotoSize::Large)].location.valid();

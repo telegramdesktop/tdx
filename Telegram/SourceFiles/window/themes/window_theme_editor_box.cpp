@@ -722,6 +722,7 @@ void SaveTheme(
 		window->show(Box(SaveThemeBox, window, fields, palette));
 	};
 	if (cloud.id) {
+#if 0 // tdlib todo
 		window->account().session().api().request(MTPaccount_GetTheme(
 			MTP_string(Data::CloudThemes::Format()),
 			MTP_inputTheme(MTP_long(cloud.id), MTP_long(cloud.accessHash))
@@ -732,6 +733,7 @@ void SaveTheme(
 		}).fail([=] {
 			save(CloudTheme());
 		}).send();
+#endif
 	} else {
 		save(CloudTheme());
 	}

@@ -136,6 +136,7 @@ private:
 		crl::time lastReceived = 0;
 	};
 
+#if 0 // mtp
 	void parse(
 		not_null<History*> history,
 		const MTPmessages_sponsoredMessages &list);
@@ -143,6 +144,7 @@ private:
 		not_null<History*> history,
 		List &list,
 		const MTPSponsoredMessage &message);
+#endif
 	void clearOldRequests();
 
 	const Entry *find(const FullMsgId &fullId) const;

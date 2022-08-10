@@ -3234,6 +3234,7 @@ void ComposeControls::updateInlineBotQuery() {
 			_inlineBot = nullptr;
 			_inlineLookingUpBot = true;
 			const auto username = _inlineBotUsername;
+#if 0 // todo
 			_inlineBotResolveRequestId = api.request(
 				MTPcontacts_ResolveUsername(MTP_string(username))
 			).done([=](const MTPcontacts_ResolvedPeer &result) {
@@ -3268,6 +3269,7 @@ void ComposeControls::updateInlineBotQuery() {
 					clearInlineBot();
 				}
 			}).send();
+#endif
 		} else {
 			applyInlineBotQuery(query.bot, query.query);
 		}

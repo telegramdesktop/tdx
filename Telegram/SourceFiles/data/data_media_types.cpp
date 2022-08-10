@@ -467,6 +467,36 @@ Call ComputeCallData(const TLDmessageCall &call) {
 	return result;
 }
 
+Giveaway ComputeGiveawayData(
+		not_null<HistoryItem*> item,
+		const TLDmessagePremiumGiveaway &data) {
+	const auto &fields = data.vparameters().data();
+	auto result = Giveaway{
+		.untilDate = fields.vwinners_selection_date().v,
+		.quantity = data.vwinner_count().v,
+		.months = data.vmonth_count().v,
+		.all = !fields.vonly_new_members().v,
+	};
+	const auto &list = fields.vadditional_chat_ids().v;
+	result.channels.reserve(1 + list.size());
+	const auto owner = &item->history()->owner();
+	const auto firstId = peerFromTdbChat(fields.vboosted_chat_id());
+	if (const auto channelId = peerToChannel(firstId)) {
+		result.channels.push_back(owner->channel(channelId));
+	}
+	for (const auto &id : list) {
+		if (const auto channelId = peerToChannel(peerFromTdbChat(id))) {
+			result.channels.push_back(owner->channel(channelId));
+		}
+	}
+	const auto &countries = fields.vcountry_codes().v;
+	result.countries.reserve(countries.size());
+	for (const auto &country : countries) {
+		result.countries.push_back(country.v);
+	}
+	return result;
+}
+
 Media::Media(not_null<HistoryItem*> parent) : _parent(parent) {
 }
 
@@ -837,6 +867,7 @@ bool MediaPhoto::hasSpoiler() const {
 	return _spoiler;
 }
 
+#if 0 // mtp
 bool MediaPhoto::updateInlineResultMedia(const MTPMessageMedia &media) {
 	if (media.type() != mtpc_messageMediaPhoto) {
 		return false;
@@ -874,6 +905,7 @@ bool MediaPhoto::updateSentMedia(const MTPMessageMedia &media) {
 	parent()->history()->owner().photoConvert(_photo, *content);
 	return true;
 }
+#endif
 
 std::unique_ptr<HistoryView::Media> MediaPhoto::createView(
 		not_null<HistoryView::Element*> message,
@@ -1181,6 +1213,7 @@ bool MediaFile::allowsForward() const {
 	return !ttlSeconds();
 }
 
+#if 0 // mtp
 bool MediaFile::updateInlineResultMedia(const MTPMessageMedia &media) {
 	if (media.type() != mtpc_messageMediaDocument) {
 		return false;
@@ -1218,6 +1251,7 @@ bool MediaFile::updateSentMedia(const MTPMessageMedia &media) {
 	parent()->history()->owner().documentConvert(_document, *content);
 	return true;
 }
+#endif
 
 std::unique_ptr<HistoryView::Media> MediaFile::createView(
 		not_null<HistoryView::Element*> message,
@@ -1323,6 +1357,7 @@ TextForMimeData MediaContact::clipboardText() const {
 	return TextForMimeData::Simple(text);
 }
 
+#if 0 // mtp
 bool MediaContact::updateInlineResultMedia(const MTPMessageMedia &media) {
 	return false;
 }
@@ -1343,6 +1378,7 @@ bool MediaContact::updateSentMedia(const MTPMessageMedia &media) {
 	}
 	return true;
 }
+#endif
 
 std::unique_ptr<HistoryView::Media> MediaContact::createView(
 		not_null<HistoryView::Element*> message,
@@ -1424,6 +1460,7 @@ TextForMimeData MediaLocation::clipboardText() const {
 	return result;
 }
 
+#if 0 // mtp
 bool MediaLocation::updateInlineResultMedia(const MTPMessageMedia &media) {
 	return false;
 }
@@ -1431,6 +1468,7 @@ bool MediaLocation::updateInlineResultMedia(const MTPMessageMedia &media) {
 bool MediaLocation::updateSentMedia(const MTPMessageMedia &media) {
 	return false;
 }
+#endif
 
 std::unique_ptr<HistoryView::Media> MediaLocation::createView(
 		not_null<HistoryView::Element*> message,
@@ -1487,6 +1525,7 @@ bool MediaCall::allowsForward() const {
 	return false;
 }
 
+#if 0 // mtp
 bool MediaCall::updateInlineResultMedia(const MTPMessageMedia &media) {
 	return false;
 }
@@ -1494,6 +1533,7 @@ bool MediaCall::updateInlineResultMedia(const MTPMessageMedia &media) {
 bool MediaCall::updateSentMedia(const MTPMessageMedia &media) {
 	return false;
 }
+#endif
 
 std::unique_ptr<HistoryView::Media> MediaCall::createView(
 		not_null<HistoryView::Element*> message,
@@ -1661,6 +1701,7 @@ bool MediaWebPage::allowsEdit() const {
 	return true;
 }
 
+#if 0 // mtp
 bool MediaWebPage::updateInlineResultMedia(const MTPMessageMedia &media) {
 	return false;
 }
@@ -1668,6 +1709,7 @@ bool MediaWebPage::updateInlineResultMedia(const MTPMessageMedia &media) {
 bool MediaWebPage::updateSentMedia(const MTPMessageMedia &media) {
 	return false;
 }
+#endif
 
 std::unique_ptr<HistoryView::Media> MediaWebPage::createView(
 		not_null<HistoryView::Element*> message,
@@ -1755,6 +1797,7 @@ TextWithEntities MediaGame::consumedMessageText() const {
 	return _consumedText;
 }
 
+#if 0 // mtp
 bool MediaGame::updateInlineResultMedia(const MTPMessageMedia &media) {
 	return updateSentMedia(media);
 }
@@ -1767,6 +1810,7 @@ bool MediaGame::updateSentMedia(const MTPMessageMedia &media) {
 		_game, media.c_messageMediaGame().vgame());
 	return true;
 }
+#endif
 
 std::unique_ptr<HistoryView::Media> MediaGame::createView(
 		not_null<HistoryView::Element*> message,
@@ -1844,6 +1888,7 @@ TextForMimeData MediaInvoice::clipboardText() const {
 	return TextForMimeData();
 }
 
+#if 0 // mtp
 bool MediaInvoice::updateInlineResultMedia(const MTPMessageMedia &media) {
 	return true;
 }
@@ -1851,6 +1896,7 @@ bool MediaInvoice::updateInlineResultMedia(const MTPMessageMedia &media) {
 bool MediaInvoice::updateSentMedia(const MTPMessageMedia &media) {
 	return true;
 }
+#endif
 
 bool MediaInvoice::updateExtendedMedia(
 		not_null<HistoryItem*> item,
@@ -1923,6 +1969,7 @@ TextForMimeData MediaPoll::clipboardText() const {
 	return TextForMimeData::Simple(text);
 }
 
+#if 0 // mtp
 bool MediaPoll::updateInlineResultMedia(const MTPMessageMedia &media) {
 	return false;
 }
@@ -1930,6 +1977,7 @@ bool MediaPoll::updateInlineResultMedia(const MTPMessageMedia &media) {
 bool MediaPoll::updateSentMedia(const MTPMessageMedia &media) {
 	return false;
 }
+#endif
 
 std::unique_ptr<HistoryView::Media> MediaPoll::createView(
 		not_null<HistoryView::Element*> message,
@@ -1987,6 +2035,7 @@ bool MediaDice::forceForwardedInfo() const {
 	return true;
 }
 
+#if 0 // mtp
 bool MediaDice::updateInlineResultMedia(const MTPMessageMedia &media) {
 	return updateSentMedia(media);
 }
@@ -1999,6 +2048,7 @@ bool MediaDice::updateSentMedia(const MTPMessageMedia &media) {
 	parent()->history()->owner().requestItemRepaint(parent());
 	return true;
 }
+#endif
 
 std::unique_ptr<HistoryView::Media> MediaDice::createView(
 		not_null<HistoryView::Element*> message,
@@ -2342,6 +2392,7 @@ std::unique_ptr<HistoryView::Media> MediaStory::createView(
 	}
 }
 
+#if 0 // mtp
 MediaGiveawayStart::MediaGiveawayStart(
 	not_null<HistoryItem*> parent,
 	const GiveawayStart &data)
@@ -2349,10 +2400,22 @@ MediaGiveawayStart::MediaGiveawayStart(
 , _data(data) {
 	parent->history()->session().giftBoxStickersPacks().load();
 }
+#endif
+MediaGiveawayStart::MediaGiveawayStart(
+	not_null<HistoryItem*> parent,
+	const GiveawayStart &data,
+	DocumentData *sticker)
+: Media(parent)
+, _data(data)
+, _sticker(sticker) {
+}
 
 std::unique_ptr<Media> MediaGiveawayStart::clone(
 		not_null<HistoryItem*> parent) {
+#if 0 // mtp
 	return std::make_unique<MediaGiveawayStart>(parent, _data);
+#endif
+	return std::make_unique<MediaGiveawayStart>(parent, _data, _sticker);
 }
 
 const GiveawayStart *MediaGiveawayStart::giveawayStart() const {
@@ -2375,6 +2438,7 @@ TextForMimeData MediaGiveawayStart::clipboardText() const {
 	return TextForMimeData();
 }
 
+#if 0 // mtp
 bool MediaGiveawayStart::updateInlineResultMedia(const MTPMessageMedia &media) {
 	return true;
 }
@@ -2382,6 +2446,7 @@ bool MediaGiveawayStart::updateInlineResultMedia(const MTPMessageMedia &media) {
 bool MediaGiveawayStart::updateSentMedia(const MTPMessageMedia &media) {
 	return true;
 }
+#endif
 
 std::unique_ptr<HistoryView::Media> MediaGiveawayStart::createView(
 		not_null<HistoryView::Element*> message,
@@ -2389,7 +2454,10 @@ std::unique_ptr<HistoryView::Media> MediaGiveawayStart::createView(
 		HistoryView::Element *replacing) {
 	return std::make_unique<HistoryView::MediaGeneric>(
 		message,
+#if 0 // mtp
 		HistoryView::GenerateGiveawayStart(message, &_data));
+#endif
+		HistoryView::GenerateGiveawayStart(message, &_data, _sticker));
 }
 
 MediaGiveawayResults::MediaGiveawayResults(

@@ -320,6 +320,7 @@ void EmojiPack::refresh() {
 	if (_requestId) {
 		return;
 	}
+#if 0 // todo
 	_requestId = _session->api().request(MTPmessages_GetStickerSet(
 		MTP_inputStickerSetAnimatedEmoji(),
 		MTP_int(0) // hash
@@ -335,12 +336,14 @@ void EmojiPack::refresh() {
 		_requestId = 0;
 		refreshDelayed();
 	}).send();
+#endif
 }
 
 void EmojiPack::refreshAnimations() {
 	if (_animationsRequestId) {
 		return;
 	}
+#if 0 // todo
 	_animationsRequestId = _session->api().request(MTPmessages_GetStickerSet(
 		MTP_inputStickerSetAnimatedEmojiAnimations(),
 		MTP_int(0) // hash
@@ -356,8 +359,10 @@ void EmojiPack::refreshAnimations() {
 		_animationsRequestId = 0;
 		refreshDelayed();
 	}).send();
+#endif
 }
 
+#if 0 // mtp
 void EmojiPack::applySet(const MTPDmessages_stickerSet &data) {
 	const auto stickers = collectStickers(data.vdocuments().v);
 	auto was = base::take(_map);
@@ -434,6 +439,7 @@ auto EmojiPack::collectAnimationsIndices(
 	}
 	return result;
 }
+#endif
 
 void EmojiPack::refreshAll() {
 	auto items = base::flat_set<not_null<HistoryItem*>>();
@@ -485,6 +491,7 @@ void EmojiPack::refreshItems(
 	}
 }
 
+#if 0 // mtp
 void EmojiPack::applyPack(
 		const MTPDstickerPack &data,
 		const base::flat_map<uint64, not_null<DocumentData*>> &map) {
@@ -517,6 +524,7 @@ base::flat_map<uint64, not_null<DocumentData*>> EmojiPack::collectStickers(
 	}
 	return result;
 }
+#endif
 
 void EmojiPack::refreshDelayed() {
 	base::call_delayed(kRefreshTimeout, _session, [=] {

@@ -931,6 +931,7 @@ void ExportTestChatTheme(
 		not_null<const Data::CloudTheme*> theme) {
 	const auto session = &controller->session();
 	const auto show = controller->uiShow();
+#if 0 // tdlib todo
 	const auto inputSettings = [&](Data::CloudThemeType type)
 	-> std::optional<MTPInputThemeSettings> {
 		const auto i = theme->settings.find(type);
@@ -1038,6 +1039,7 @@ void ExportTestChatTheme(
 	}).fail([=](const MTP::Error &error) {
 		show->showToast(u"Error: "_q + error.type());
 	}).send();
+#endif
 }
 
 bool ResolveTestChatTheme(

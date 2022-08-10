@@ -315,7 +315,9 @@ public:
 		PhotoId photoId,
 		const ImageLocation &location,
 		bool hasVideo);
+#if 0 // mtp
 	void setUserpicPhoto(const MTPPhoto &data);
+#endif
 	void paintUserpic(
 		Painter &p,
 		Ui::PeerUserpicView &view,
@@ -475,7 +477,10 @@ public:
 	void setStoriesState(StoriesState state);
 
 	const PeerId id;
+
+#if 0 // mtp
 	MTPinputPeer input = MTP_inputPeerEmpty();
+#endif
 
 protected:
 	void updateNameDelayed(
