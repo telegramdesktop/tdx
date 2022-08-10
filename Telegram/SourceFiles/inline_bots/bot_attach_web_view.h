@@ -16,6 +16,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_bot_webview.h"
 #include "ui/rp_widget.h"
 
+namespace Tdb {
+class TLDupdateAttachmentMenuBots;
+class TLwebApp;
+} // namespace Tdb
+
+namespace Api {
+struct SendAction;
+} // namespace Api
+
 namespace Data {
 class Thread;
 } // namespace Data
@@ -60,6 +69,7 @@ enum class PeerType : uint8 {
 	Broadcast = 0x10,
 };
 using PeerTypes = base::flags<PeerType>;
+inline constexpr bool is_flag_type(PeerType) { return true; }
 
 [[nodiscard]] bool PeerMatchesTypes(
 	not_null<PeerData*> peer,
@@ -320,6 +330,9 @@ public:
 		Unsupported,
 		Cancelled,
 	};
+
+	void apply(const Tdb::TLDupdateAttachmentMenuBots &update);
+
 	void requestAddToMenu(
 		not_null<UserData*> bot,
 		Fn<void(AddToMenuResult, PeerTypes supported)> done);
