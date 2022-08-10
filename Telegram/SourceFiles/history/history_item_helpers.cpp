@@ -111,14 +111,10 @@ MessageFlags FlagsFromTdb(const TLDmessage &data) {
 		| (mediaUnread ? Flag::MediaIsUnread : Flag())
 		//| ((flags & MTP::f_silent) ? Flag::Silent : Flag()) // todo
 		| (data.vis_channel_post().v ? Flag::Post : Flag())
-		//| ((flags & MTP::f_legacy) ? Flag::Legacy : Flag()) // todo
 		| (data.vis_pinned().v ? Flag::Pinned : Flag())
 		//| ((flags & MTP::f_from_id) ? Flag::HasFromId : Flag()) // todo
 		| (data.vreply_to_message_id().v ? Flag::HasReplyInfo : Flag())
 		| (data.vreply_markup() ? Flag::HasReplyMarkup : Flag())
-		| (data.vcan_get_added_reactions().v
-			? Flag::CanViewReactions
-			: Flag())
 		| (views ? Flag::HasViews : Flag())
 		| (invertMedia ? Flag::InvertMedia : Flag());
 }
