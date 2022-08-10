@@ -139,7 +139,10 @@ QString RequestKey(Types &&...values) {
 
 } // namespace Api
 
+#if 0 // mtp
 class ApiWrap final : public MTP::Sender {
+#endif
+class ApiWrap final {
 public:
 	using SendAction = Api::SendAction;
 	using MessageToSend = Api::MessageToSend;
@@ -211,12 +214,12 @@ public:
 		not_null<Storage::DownloadMtprotoTask*> task,
 		int requestId,
 		const QByteArray &current);
-#endif
 
 	void requestChangelog(
 		const QString &sinceVersion,
 		Fn<void(const MTPUpdates &result)> callback);
 	void refreshTopPromotion();
+#endif
 	void requestDeepLinkInfo(
 		const QString &path,
 		Fn<void(TextWithEntities message, bool updateRequired)> callback);
@@ -470,10 +473,12 @@ private:
 
 	void setupSupportMode();
 	void refreshDialogsLoadBlocked();
+#if 0 // mtp
 	void updateDialogsOffset(
 		Data::Folder *folder,
 		const QVector<MTPDialog> &dialogs,
 		const QVector<MTPMessage> &messages);
+#endif
 	void requestMoreDialogs(Data::Folder *folder);
 	DialogsLoadState *dialogsLoadState(Data::Folder *folder);
 	void dialogsLoadFinish(Data::Folder *folder);
@@ -584,15 +589,12 @@ private:
 		Api::SendOptions options,
 		uint64 randomId,
 		Fn<void(bool)> done = nullptr);
-#endif
-
 	void sendMultiPaidMedia(
 		not_null<HistoryItem*> item,
 		not_null<SendingAlbum*> album,
 		Fn<void(bool)> done = nullptr);
 
 	void getTopPromotionDelayed(TimeId now, TimeId next);
-#if 0 // mtp
 	void topPromotionDone(const MTPhelp_PromoData &proxy);
 #endif
 
@@ -735,12 +737,12 @@ private:
 
 #if 0 // mtp
 	base::flat_map<uint64, std::shared_ptr<SendingAlbum>> _sendingAlbums;
-#endif
 
 	mtpRequestId _topPromotionRequestId = 0;
 	std::pair<QString, uint32> _topPromotionKey;
 	TimeId _topPromotionNextRequestTime = TimeId(0);
 	base::Timer _topPromotionTimer;
+#endif
 
 	base::flat_set<not_null<const Data::ForumTopic*>> _updateNotifyTopics;
 	base::flat_set<not_null<const PeerData*>> _updateNotifyPeers;
@@ -756,8 +758,10 @@ private:
 
 	mtpRequestId _deepLinkInfoRequestId = 0;
 
+#if 0 // mtp
 	crl::time _termsUpdateSendAt = 0;
 	mtpRequestId _termsUpdateRequestId = 0;
+#endif
 
 	mtpRequestId _checkInviteRequestId = 0;
 	mtpRequestId _checkFilterInviteRequestId = 0;

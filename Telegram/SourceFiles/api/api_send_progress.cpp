@@ -42,7 +42,9 @@ void SendProgressManager::cancel(
 		SendProgressType type) {
 	const auto i = _requests.find(Key{ history, topMsgId, type });
 	if (i != _requests.end()) {
+#if 0 // todo
 		_session->api().request(i->second).cancel();
+#endif
 		_requests.erase(i);
 	}
 }

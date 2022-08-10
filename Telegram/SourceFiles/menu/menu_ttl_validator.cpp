@@ -71,7 +71,10 @@ Args TTLValidator::createArgs() const {
 			if (period == state->savingPeriod) {
 				return;
 			}
+#if 0 // mtp
 			api.request(state->savingRequestId).cancel();
+#endif
+			api.sender().request(state->savingRequestId).cancel();
 		}
 		state->savingPeriod = period;
 #if 0 // goodToRemove

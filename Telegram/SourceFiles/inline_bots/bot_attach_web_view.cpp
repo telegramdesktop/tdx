@@ -668,8 +668,11 @@ WebViewInstance::WebViewInstance(WebViewDescriptor &&descriptor)
 }
 
 WebViewInstance::~WebViewInstance() {
+	_session->sender().request(base::take(_requestId)).cancel();
+#if 0 // mtp
 	_session->api().request(base::take(_requestId)).cancel();
 	_session->api().request(base::take(_prolongId)).cancel();
+#endif
 	base::take(_panel);
 }
 
@@ -1692,7 +1695,9 @@ rpl::producer<> AttachWebView::popularAppBotsLoaded() const {
 }
 
 void AttachWebView::cancel() {
+#if 0 // todo
 	_session->api().request(base::take(_requestId)).cancel();
+#endif
 	_botUsername = QString();
 	_startCommand = QString();
 }

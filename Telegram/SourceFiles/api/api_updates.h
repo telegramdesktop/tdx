@@ -226,7 +226,9 @@ private:
 		not_null<PeerData*>,
 		base::flat_map<PeerId, crl::time>> _pendingSpeakingCallParticipants;
 
+#if 0 // mtp
 	mtpRequestId _onlineRequest = 0;
+#endif
 	base::Timer _idleFinishTimer;
 	crl::time _lastSetOnline = 0;
 	bool _lastWasOnline = false;

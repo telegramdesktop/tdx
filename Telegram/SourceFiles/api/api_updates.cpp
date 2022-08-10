@@ -1005,10 +1005,13 @@ void Updates::updateOnline(crl::time lastNonIdleTime, bool gotOtherOffline) {
 	if (isOnline != _lastWasOnline
 		|| (isOnline && _lastSetOnline + config.onlineUpdatePeriod <= ms)
 		|| (isOnline && gotOtherOffline)) {
+#if 0 // mtp
 		api().request(base::take(_onlineRequest)).cancel();
+#endif
 
 		_lastWasOnline = isOnline;
 		_lastSetOnline = ms;
+#if 0 // mtp
 		if (!Core::Quitting()) {
 			_onlineRequest = api().request(MTPaccount_UpdateStatus(
 				MTP_bool(!isOnline)
@@ -1016,6 +1019,22 @@ void Updates::updateOnline(crl::time lastNonIdleTime, bool gotOtherOffline) {
 		} else {
 			_onlineRequest = api().request(MTPaccount_UpdateStatus(
 				MTP_bool(!isOnline)
+			)).done([=] {
+				Core::App().quitPreventFinished();
+			}).fail([=] {
+				Core::App().quitPreventFinished();
+			}).send();
+		}
+#endif
+		if (!Core::Quitting()) {
+			_session->sender().request(TLsetOption(
+				tl_string("online"),
+				tl_optionValueBoolean(tl_bool(isOnline))
+			)).send();
+		} else {
+			_session->sender().request(TLsetOption(
+				tl_string("online"),
+				tl_optionValueBoolean(tl_bool(isOnline))
 			)).done([=] {
 				Core::App().quitPreventFinished();
 			}).fail([=] {

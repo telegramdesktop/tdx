@@ -356,9 +356,11 @@ EmojiKeywords::LangPack::LangPack(
 
 EmojiKeywords::LangPack::~LangPack() {
 	if (_requestId) {
+#if 0 // todo
 		if (const auto api = _delegate->api()) {
 			api->request(_requestId).cancel();
 		}
+#endif
 	}
 }
 
@@ -396,6 +398,7 @@ void EmojiKeywords::LangPack::refresh() {
 		return;
 	}
 	_state = State::Requested;
+#if 0 // todo
 	const auto send = [&](auto &&request) {
 		return api->request(
 			std::move(request)
@@ -414,6 +417,7 @@ void EmojiKeywords::LangPack::refresh() {
 			MTP_int(_data.version)))
 		: send(MTPmessages_GetEmojiKeywords(
 			MTP_string(_id)));
+#endif
 }
 
 void EmojiKeywords::LangPack::applyDifference(
@@ -695,6 +699,7 @@ void EmojiKeywords::refreshRemoteList() {
 		setRemoteList({});
 		return;
 	}
+#if 0 // todo
 	_api->request(base::take(_langsRequestId)).cancel();
 	auto languages = QVector<MTPstring>();
 	for (const auto &id : _localList) {
@@ -714,6 +719,7 @@ void EmojiKeywords::refreshRemoteList() {
 	}).fail([=] {
 		_langsRequestId = 0;
 	}).send();
+#endif
 }
 
 void EmojiKeywords::setRemoteList(std::vector<QString> &&list) {

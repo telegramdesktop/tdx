@@ -211,7 +211,9 @@ InactiveController::InactiveController(not_null<Main::Session*> session)
 
 InactiveController::~InactiveController() {
 	if (_requestId) {
+#if 0 // todo
 		_session->api().request(_requestId).cancel();
+#endif
 	}
 }
 
@@ -307,7 +309,9 @@ PublicsController::PublicsController(
 
 PublicsController::~PublicsController() {
 	if (_requestId) {
+#if 0 // todo
 		_navigation->session().api().request(_requestId).cancel();
+#endif
 	}
 }
 

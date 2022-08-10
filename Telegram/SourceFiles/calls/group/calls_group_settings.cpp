@@ -816,8 +816,11 @@ std::pair<Fn<void()>, rpl::lifetime> ShareInviteLinkAction(
 		State(not_null<Main::Session*> session) : session(session) {
 		}
 		~State() {
+#if 0 // mtp
 			session->api().request(linkListenerRequestId).cancel();
 			session->api().request(linkSpeakerRequestId).cancel();
+#endif
+			session->sender().request(linkListenerRequestId).cancel();
 		}
 
 		not_null<Main::Session*> session;
