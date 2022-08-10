@@ -19,7 +19,8 @@ public:
 
 	FileGenerator(
 		not_null<Account*> account,
-		QByteArray content);
+		QByteArray content,
+		QString filename);
 	~FileGenerator();
 
 	void start(int64 id);
@@ -39,6 +40,7 @@ private:
 	const QString _conversion;
 
 	QByteArray _content;
+	QString _filename;
 	Sender _api;
 	int64 _generationId = 0;
 	Offset _generationOffset = 0;

@@ -383,10 +383,12 @@ void Uploader::start(
 			std::shared_ptr<FileGenerator> &generator,
 			const TLfileType &type,
 			const QByteArray &bytes,
+			const QString &filename,
 			std::unique_ptr<TLfile> *outResult = nullptr) {
 		generator = std::make_shared<FileGenerator>(
 			&_api->session().tdb(),
-			bytes);
+			bytes,
+			filename);
 		_api->sender().request(TLuploadFile(
 			generator->inputFile(),
 			type,
@@ -407,7 +409,8 @@ void Uploader::start(
 		upload(
 			state->thumbnailGenerator,
 			tl_fileTypeThumbnail(),
-			file->thumbbytes);
+			file->thumbbytes,
+			file->thumbname);
 		state->result.thumbnailGenerator = state->thumbnailGenerator;
 	}
 	const auto type = [&] {
@@ -428,12 +431,14 @@ void Uploader::start(
 			state->fileGenerator,
 			type,
 			file->filebytes,
+			file->filepath,
 			&state->result.file);
 	} else if (file->filepath.isEmpty()) {
 		upload(
 			state->fileGenerator,
 			type,
 			file->content,
+			file->filename,
 			&state->result.file);
 	} else {
 		_api->sender().request(TLuploadFile(

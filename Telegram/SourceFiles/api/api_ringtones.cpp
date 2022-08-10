@@ -109,7 +109,8 @@ void Ringtones::upload(
 
 	auto generator = std::make_unique<Tdb::FileGenerator>(
 		&_session->tdb(),
-		content);
+		content,
+		filename);
 	auto inputFile = generator->inputFile();
 
 	const auto eraseExisted = [=] {

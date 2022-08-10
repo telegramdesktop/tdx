@@ -19,10 +19,12 @@ constexpr auto kChunk = 128 * 1024;
 
 FileGenerator::FileGenerator(
 	not_null<Tdb::Account*> account,
-	QByteArray content)
+	QByteArray content,
+	QString filename)
 : _account(account)
 , _conversion(u"bytes_"_q + QString::number(base::RandomValue<uint32>()))
 , _content(std::move(content))
+, _filename(std::move(filename))
 , _api(&account->sender()) {
 	_account->registerFileGenerator(this);
 }
@@ -95,7 +97,7 @@ void FileGenerator::cancel(int code, const QString &message) {
 
 TLinputFile FileGenerator::inputFile() const {
 	return tl_inputFileGenerated(
-		tl_string(),
+		tl_string(_filename),
 		tl_string(_conversion),
 		tl_int53(_content.size()));
 }
