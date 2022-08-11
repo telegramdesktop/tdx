@@ -9,6 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mtproto/sender.h"
 
+namespace Tdb {
+class TLok;
+class Error;
+} // namespace Tdb
+
 class ApiWrap;
 
 namespace Api {

@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "tdb/tdb_sender.h"
 #include "tdb/tdb_account.h"
+#include "tdb/tdb_tl_scheme.h"
 #include "tdb/tdb_file_proxy.h"
 
 namespace {

@@ -44,6 +44,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_premium.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace {
 
 constexpr auto kParticipantsFirstPageCount = 16;
@@ -1515,6 +1517,11 @@ std::unique_ptr<PeerListRow> AddSpecialBoxController::createRow(
 		not_null<PeerData*> participant) const {
 	return std::make_unique<PeerListRow>(participant);
 }
+
+struct AddSpecialBoxSearchController::CacheEntry {
+	Tdb::TLchatMembers result;
+	int requestedCount = 0;
+};
 
 AddSpecialBoxSearchController::AddSpecialBoxSearchController(
 	not_null<PeerData*> peer,

@@ -8,7 +8,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/timer.h"
-#include "tdb/tdb_tl_scheme.h"
+
+namespace Tdb {
+class TLDupdateGroupCall;
+class TLDupdateGroupCallParticipant;
+class TLDgroupCallParticipant;
+class TLDgroupCall;
+} // namespace Tdb
 
 class PeerData;
 

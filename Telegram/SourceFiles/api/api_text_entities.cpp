@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_stickers_set.h"
 #include "main/main_session.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Api {
 namespace {
 

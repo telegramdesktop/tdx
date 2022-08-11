@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "mtproto/mtp_instance.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 #include <QtCore/QFile>
 
 namespace Countries {

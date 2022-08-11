@@ -16,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h" // Ui::FormatPhone
 #include "window/window_session_controller.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Api {
 
 ConfirmPhone::ConfirmPhone(not_null<ApiWrap*> api)

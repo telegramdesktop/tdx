@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "ui/chat/chat_style.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Main {
 namespace {
 
