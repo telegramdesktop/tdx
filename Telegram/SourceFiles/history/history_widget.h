@@ -29,7 +29,7 @@ namespace Tdb {
 class TLmessages;
 class TLmessage;
 class TLwebPage;
-struct Error;
+class Error;
 } // namespace Tdb
 
 namespace MTP {

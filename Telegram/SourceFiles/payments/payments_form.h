@@ -10,8 +10,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/ui/payments_panel_data.h"
 #include "base/weak_ptr.h"
 #include "mtproto/sender.h"
+
 #include "tdb/tdb_sender.h"
-#include "tdb/tdb_tl_scheme.h"
+
+namespace Tdb {
+class TLDpaymentForm;
+class TLDpaymentReceipt;
+class TLDinvoice;
+class TLinputInvoice;
+class TLDpaymentForm;
+class TLDpaymentReceipt;
+class TLDorderInfo;
+class TLDsavedCredentials;
+class TLshippingOption;
+class TLDpaymentProviderStripe;
+class TLDpaymentProviderSmartGlocal;
+} // namespace Tdb
 
 class Image;
 class QJsonObject;

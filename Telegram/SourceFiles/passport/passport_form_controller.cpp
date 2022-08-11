@@ -40,6 +40,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QJsonObject>
 #endif
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Passport {
 namespace {
 

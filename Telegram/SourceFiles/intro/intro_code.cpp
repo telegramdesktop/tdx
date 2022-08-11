@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_intro.h"
 
 #include "tdb/tdb_format_phone.h" // Tdb::FormatPhone
+#include "tdb/tdb_tl_scheme.h"
 
 namespace Intro {
 namespace details {

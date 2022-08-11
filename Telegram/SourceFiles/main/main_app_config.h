@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "tdb/tdb_sender.h"
 
+namespace Tdb {
+class TLjsonValue;
+} // namespace Tdb
+
 namespace Ui {
 struct ColorIndicesCompressed;
 } // namespace Ui

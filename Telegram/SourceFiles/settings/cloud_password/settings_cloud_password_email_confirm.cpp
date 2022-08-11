@@ -33,6 +33,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 /*
 Available actions for follow states.
 

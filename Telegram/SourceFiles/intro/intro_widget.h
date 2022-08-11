@@ -15,6 +15,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_float.h"
 #include "tdb/tdb_sender.h"
 
+namespace Tdb {
+class TLauthenticationCodeInfo;
+class TLauthorizationState;
+class TLtermsOfService;
+class TLupdate;
+} // namespace Tdb
+
 namespace Main {
 class Account;
 } // namespace Main

@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tdb/tdb_account.h"
 #include "mtproto/sender.h"
 
+namespace Tdb {
+class TLDupdateOption;
+} // namespace Tdb
+
 class ApiWrap;
 
 namespace Main {

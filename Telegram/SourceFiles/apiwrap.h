@@ -24,7 +24,7 @@ struct ChatRestrictionsInfo;
 namespace Tdb {
 class Account;
 class Sender;
-struct Error;
+class Error;
 class TLstickerSet;
 class TLscopeNotificationSettings;
 class TLchatInviteLinkInfo;

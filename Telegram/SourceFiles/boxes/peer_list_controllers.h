@@ -15,6 +15,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "tdb/tdb_sender.h"
 
+namespace Tdb {
+class TLchats;
+} // namespace Tdb
+
 class History;
 
 namespace style {
