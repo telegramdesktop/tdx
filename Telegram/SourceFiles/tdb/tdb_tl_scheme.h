@@ -11,7 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Tdb {
 
-struct Error {
+class Error {
+public:
 	explicit Error(const TLerror &error)
 	: code(error.c_error().vcode().v)
 	, message(error.c_error().vmessage().v) {
@@ -20,13 +21,19 @@ struct Error {
 	: code(code)
 	, message(message) {
 	}
+	Error(const Error &other) = default;
+	Error &operator=(const Error &other) {
+		const_cast<int&>(code) = other.code;
+		const_cast<QString&>(message) = other.message;
+		return *this;
+	}
 
 	[[nodiscard]] static Error Local(const QString &message) {
 		return Error{ -555, message };
 	}
 
-	int code = 0;
-	QString message;
+	const int code = 0;
+	const QString message;
 
 };
 

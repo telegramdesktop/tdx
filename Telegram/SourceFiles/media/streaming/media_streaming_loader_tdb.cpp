@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/cache/storage_cache_types.h"
 #include "tdb/tdb_account.h"
 #include "tdb/tdb_file_proxy.h"
+#include "tdb/tdb_tl_scheme.h"
 
 namespace Media {
 namespace Streaming {

@@ -53,6 +53,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "styles/style_layers.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_option.h"
+#include "api/api_global_privacy.h"
+
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 #include "chat_helpers/spellchecker_common.h"
 #endif // TDESKTOP_DISABLE_SPELLCHECK

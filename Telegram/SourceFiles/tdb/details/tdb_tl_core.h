@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "tdb/details/tdb_tl_core_external.h"
 #include "tl/tl_basic_types.h"
 #include "base/match_method.h"
 
@@ -16,11 +17,6 @@ namespace td::tl {
 template <typename T>
 class unique_ptr;
 } // namespace td::tl
-
-namespace td::td_api {
-class Object;
-class Function;
-} // namespace td::td_api
 
 namespace tl {
 
@@ -157,11 +153,6 @@ inline bool operator==(const TLstring &a, const TLstring &b) {
 inline bool operator!=(const TLstring &a, const TLstring &b) {
 	return a.v != b.v;
 }
-
-using ExternalRequest = ::td::td_api::Function*;
-using ExternalResponse = const ::td::td_api::Object*;
-using ExternalGenerator = Fn<ExternalRequest()>;
-using ExternalCallback = FnMut<FnMut<void()>(uint64, ExternalResponse)>;
 
 template <typename Request>
 [[nodiscard]] ExternalGenerator tl_to_generator(Request &&);

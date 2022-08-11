@@ -7,16 +7,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "tdb/tdb_tl_scheme.h"
+#include "tdb/details/tdb_tl_core_external.h"
 #include "tdb/tdb_request_id.h"
 #include "base/expected.h"
 
+namespace Tdb {
+class Error;
+class TLupdate;
+} // namespace Tdb
+
 namespace Tdb::details {
 
-[[nodiscard]] std::optional<Error> ParseError(ExternalResponse);
 [[nodiscard]] bool ClientClosedUpdate(const TLupdate &update);
 
 void LogError(uint32 type, RequestId requestId, const Error &error);
+[[nodiscard]] FnMut<void()> HandleAsError(
+	uint32 type,
+	RequestId requestId,
+	ExternalResponse external,
+	FnMut<void(const Error &)> &&fail);
 
 template <typename Response>
 [[nodiscard]] ExternalCallback PrepareCallback(
@@ -32,28 +41,22 @@ template <typename Response>
 		fail = std::move(fail)
 	](RequestId requestId, ExternalResponse external) mutable
 	-> FnMut<void()> {
-		if (auto error = ParseError(external)) {
-			LogError(type, requestId, *error);
-			if (!fail) {
-				return nullptr;
-			}
-			return [
-				fail = std::move(fail),
-				error = *error
-			]() mutable {
-				fail(error);
-			};
-		} else {
-			if (!done) {
-				return nullptr;
-			}
-			return [
-				done = std::move(done),
-				response = tl_from<Response>(external)
-			]() mutable {
-				done(response);
-			};
+		auto handled = HandleAsError(
+			type,
+			requestId,
+			external,
+			std::move(fail));
+		if (handled) {
+			return handled;
+		} else if (!done) {
+			return nullptr;
 		}
+		return [
+			done = std::move(done),
+			response = tl_from<Response>(external)
+		]() mutable {
+			done(response);
+		};
 	};
 }
 

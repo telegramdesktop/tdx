@@ -81,8 +81,8 @@ public:
 #endif
 	StickersBox(
 		QWidget*,
-		not_null<Window::SessionController*> controller,
-		const Tdb::TLvector<Tdb::TLstickerSetInfo> &attachedSets);
+		std::shared_ptr<ChatHelpers::Show> show,
+		const QVector<Tdb::TLstickerSetInfo> &attachedSets);
 	StickersBox(
 		QWidget*,
 		std::shared_ptr<ChatHelpers::Show> show,
@@ -186,7 +186,7 @@ private:
 #if 0 // mtp
 	const QVector<MTPStickerSetCovered> _attachedSets;
 #endif
-	const Tdb::TLvector<Tdb::TLstickerSetInfo> _attachedSets;
+	const QVector<Tdb::TLstickerSetInfo> _attachedSets;
 	const std::vector<StickerSetIdentifier> _emojiSets;
 
 	ChannelData *_megagroupSet = nullptr;

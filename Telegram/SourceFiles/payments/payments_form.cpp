@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_payments.h" // paymentsThumbnailSize.
 
 #include "api/api_text_entities.h"
+#include "tdb/tdb_tl_scheme.h"
 
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>

@@ -31,6 +31,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webrtc/webrtc_video_track.h"
 #include "window/window_controller.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 #include <tgcalls/Instance.h>
 #include <tgcalls/VideoCaptureInterface.h>
 #include <tgcalls/StaticThreads.h>

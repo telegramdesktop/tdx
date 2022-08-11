@@ -2412,6 +2412,11 @@ void ParticipantsBoxController::refreshRows() {
 	delegate()->peerListRefreshRows();
 }
 
+struct ParticipantsBoxSearchController::CacheEntry {
+	Tdb::TLchatMembers result;
+	int requestedCount = 0;
+};
+
 ParticipantsBoxSearchController::ParticipantsBoxSearchController(
 	not_null<ChannelData*> channel,
 	Role role,

@@ -67,7 +67,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h" // Ui::FormatPhone
 
 #include "tdb/tdb_account.h"
-#include "api/api_global_privacy.h"
 #include "history/history_item_reply_markup.h"
 
 namespace Api {
@@ -3059,7 +3058,7 @@ void Updates::applyUpdate(const TLupdate &update) {
 			// todo
 		});
 	}, [&](const TLDupdateOption &data) {
-		if (session().api().globalPrivacy().apply(data)) {
+		if (session().apply(data)) {
 			return;
 		} else if (Lang::CurrentCloudManager().apply(data)) {
 			return;

@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "base/call_delayed.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Api {
 namespace {
 

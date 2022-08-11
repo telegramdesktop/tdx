@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Api {
 
 SelfDestruct::SelfDestruct(not_null<ApiWrap*> api)

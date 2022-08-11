@@ -16,6 +16,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/emoji_config.h"
 
+namespace Tdb {
+class TLDcall;
+class TLcallProtocol;
+class TLDcallStateReady;
+class TLDupdateNewCallSignalingData;
+} // namespace Tdb
+
 namespace Media {
 namespace Audio {
 class Track;

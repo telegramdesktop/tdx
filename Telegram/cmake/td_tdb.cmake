@@ -38,6 +38,7 @@ PRIVATE
     tdb/details/tdb_tl_core_conversion_from.h
     tdb/details/tdb_tl_core_conversion_to.cpp
     tdb/details/tdb_tl_core_conversion_to.h
+    tdb/details/tdb_tl_core_external.h
     tdb/details/tdb_tl_generate.py
     tdb/details/tdb_instance.cpp
     tdb/details/tdb_instance.h

@@ -26,6 +26,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h" // Ui::hideLayer().
 #include "styles/style_layers.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Lang {
 namespace {
 
@@ -356,10 +358,7 @@ void CloudManager::requestLangPackStrings(Pack pack) {
 		tl_vector<TLstring>()
 	)).done([=](const TLlanguagePackStrings &result) {
 		packRequestId(pack) = 0;
-		auto strings = result.match([](const TLDlanguagePackStrings &data) {
-			return data.vstrings();
-		});
-		applyStrings(pack, std::move(strings));
+		applyStrings(pack, result.data().vstrings().v);
 	}).fail([=](const Error &) {
 		packRequestId(pack) = 0;
 	}).send();
@@ -429,7 +428,7 @@ void CloudManager::apply(const Tdb::TLDupdateLanguagePackStrings &result) {
 	const auto langpackId = result.vlanguage_pack_id().v;
 	const auto pack = packTypeFromId(langpackId);
 	if (pack != Pack::None) {
-		applyStrings(pack, result.vstrings());
+		applyStrings(pack, result.vstrings().v);
 	} else {
 		LOG(("Lang Warning: "
 			"Ignoring update for '%1' because our language is '%2'").arg(
@@ -440,7 +439,7 @@ void CloudManager::apply(const Tdb::TLDupdateLanguagePackStrings &result) {
 
 void CloudManager::applyStrings(
 		Pack pack,
-		const Tdb::TLvector<Tdb::TLlanguagePackString> &strings) {
+		const QVector<Tdb::TLlanguagePackString> &strings) {
 	_langpack.apply(pack, strings);
 	Local::writeLangPack();
 	if (_restartAfterSwitch) {

@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Tdb {
 
+class TLinputFile;
+
 class Account;
 
 class FileGenerator final {

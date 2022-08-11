@@ -15,6 +15,10 @@ namespace Tdb {
 class TLDfoundMessages;
 } // namespace Tdb
 
+namespace Tdb {
+class TLDmessages;
+} // namespace Tdb
+
 namespace Window {
 class SessionController;
 } // namespace Window

@@ -34,6 +34,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_manager.h"
 #include "window/window_session_controller.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace AdminLog {
 namespace {
 
