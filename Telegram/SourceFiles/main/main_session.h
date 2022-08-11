@@ -18,6 +18,7 @@ namespace Tdb {
 class TLuser;
 class Account;
 class Sender;
+class TLDupdateOption;
 } // namespace Tdb
 
 namespace Api {
@@ -94,6 +95,8 @@ public:
 
 	[[nodiscard]] Tdb::Account &tdb() const;
 	[[nodiscard]] Tdb::Sender &sender();
+
+	bool apply(const Tdb::TLDupdateOption &option);
 
 	[[nodiscard]] bool premium() const;
 	[[nodiscard]] bool premiumPossible() const;

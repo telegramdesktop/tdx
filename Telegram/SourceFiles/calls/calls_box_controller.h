@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "tdb/tdb_sender.h"
 
+namespace Tdb {
+class TLDmessages;
+} // namespace Tdb
+
 namespace Window {
 class SessionController;
 } // namespace Window

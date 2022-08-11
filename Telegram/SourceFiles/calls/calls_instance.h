@@ -8,7 +8,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "mtproto/sender.h"
-#include "tdb/tdb_tl_scheme.h"
+
+namespace Tdb {
+class TLDupdateCall;
+class TLDupdateNewCallSignalingData;
+class TLDupdateGroupCall;
+class TLDupdateGroupCallParticipant;
+class TLDcall;
+} // namespace Tdb
 
 namespace crl {
 class semaphore;

@@ -46,6 +46,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "styles/style_layers.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_option.h"
+#include "api/api_global_privacy.h"
+
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 #include "chat_helpers/spellchecker_common.h"
 #endif // TDESKTOP_DISABLE_SPELLCHECK
@@ -252,6 +256,14 @@ Tdb::Account &Session::tdb() const {
 
 Tdb::Sender &Session::sender() {
 	return *_sender;
+}
+
+bool Session::apply(const TLDupdateOption &update) {
+	if (update.vname().v == "is_premium_available") {
+		_premiumPossible = OptionValue<bool>(update.vvalue());
+		return true;
+	}
+	return _api->globalPrivacy().apply(update);
 }
 
 void Session::notifyDownloaderTaskFinished() {
