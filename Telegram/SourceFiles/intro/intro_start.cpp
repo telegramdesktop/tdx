@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_app_config.h"
 
 #include "intro/intro_widget.h"
+#include "tdb/tdb_tl_scheme.h"
 
 namespace Intro {
 namespace details {

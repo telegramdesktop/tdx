@@ -24,6 +24,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtp_instance.h"
 #include "styles/style_intro.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Intro {
 namespace details {
 namespace {

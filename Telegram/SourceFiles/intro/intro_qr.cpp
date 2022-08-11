@@ -29,6 +29,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "qr/qr_generate.h"
 #include "styles/style_intro.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Intro {
 namespace details {
 namespace {

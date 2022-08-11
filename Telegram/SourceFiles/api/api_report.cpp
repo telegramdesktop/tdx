@@ -16,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/report_box.h"
 #include "ui/layers/show.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Api {
 
 namespace {

@@ -8,7 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/text/text_entity.h"
-#include "tdb/tdb_tl_scheme.h"
+
+namespace Tdb {
+class TLtextEntity;
+class TLformattedText;
+} // namespace Tdb
 
 namespace Main {
 class Session;

@@ -79,6 +79,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "spellcheck/spellcheck_highlight_syntax.h"
 
+#include "tdb/tdb_tl_scheme.h"
 #include "history/history_unread_things.h"
 #include "main/session/send_as_peers.h"
 

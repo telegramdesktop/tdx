@@ -13,6 +13,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "core/core_cloud_password.h"
 
+namespace Tdb {
+class BytesUploader;
+class TLpassportElementError;
+class TLDpassportAuthorizationForm;
+class TLinputPassportElement;
+class TLDfile;
+} // namespace Tdb
+
 class mtpFileLoader;
 
 namespace Storage {
