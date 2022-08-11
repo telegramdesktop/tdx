@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "tdb/tdb_sender.h"
 
+namespace Tdb {
+class TLpasswordState;
+} // namespace Tdb
+
 namespace Core {
 struct CloudPasswordState;
 } // namespace Core

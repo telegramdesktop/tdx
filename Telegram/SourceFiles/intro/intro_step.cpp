@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "intro/intro_code.h"
 #include "intro/intro_password_check.h"
 #include "intro/intro_start.h"
+#include "tdb/tdb_tl_scheme.h"
 
 namespace Intro {
 namespace details {

@@ -10,7 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang_auto.h"
 #include "base/const_string.h"
 #include "base/weak_ptr.h"
-#include "tdb/tdb_tl_scheme.h"
+
+namespace Tdb {
+class TLlanguagePackString;
+class TLlanguagePackStrings;
+} // namespace Tdb
 
 namespace Lang {
 
@@ -49,7 +53,7 @@ class Instance {
 	struct PrivateTag;
 
 public:
-	using TLStrings = Tdb::TLvector<Tdb::TLlanguagePackString>;
+	using TLStrings = QVector<Tdb::TLlanguagePackString>;
 	Instance();
 	Instance(not_null<Instance*> derived, const PrivateTag &);
 

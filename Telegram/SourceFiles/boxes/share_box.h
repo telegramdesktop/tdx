@@ -18,6 +18,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class History;
 
+namespace Tdb {
+class TLchats;
+} // namespace Tdb
+
 namespace style {
 struct MultiSelect;
 struct InputField;

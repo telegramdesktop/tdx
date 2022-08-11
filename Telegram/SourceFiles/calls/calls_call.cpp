@@ -30,6 +30,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_session.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 #include <tgcalls/Instance.h>
 #include <tgcalls/VideoCaptureInterface.h>
 #include <tgcalls/StaticThreads.h>
