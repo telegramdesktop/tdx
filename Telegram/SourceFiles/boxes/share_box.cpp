@@ -55,7 +55,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
 
-#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>

@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "tdb/tdb_sender.h"
 
+namespace Tdb {
+class TLcheckChatUsernameResult;
+} // namespace Tdb
+
 class PeerListBox;
 struct RequestPeerQuery;
 

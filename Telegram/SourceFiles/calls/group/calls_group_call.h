@@ -14,6 +14,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_auth_key.h"
 #include "tdb/tdb_sender.h"
 
+namespace Tdb {
+class TLgroupCallParticipant;
+class TLDgroupCallParticipant;
+class TLgroupCallParticipantVideoInfo;
+class TLDupdateGroupCall;
+class TLDupdateGroupCallParticipant;
+} // namespace Tdb
+
 class History;
 
 namespace tgcalls {
