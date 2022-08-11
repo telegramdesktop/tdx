@@ -15,6 +15,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "tdb/tdb_sender.h"
 
+namespace Tdb {
+class TLchatMembers;
+} // namespace Tdb
+
 class PeerListStories;
 struct ChatAdminRightsInfo;
 struct ChatRestrictionsInfo;
@@ -326,13 +330,13 @@ private:
 		bool allLoaded = false;
 		bool wasLoading = false;
 	};
-	struct CacheEntry {
 #if 0 // goodToRemove
+	struct CacheEntry {
 		MTPchannels_ChannelParticipants result;
-#endif
-		Tdb::TLchatMembers result;
 		int requestedCount = 0;
 	};
+#endif
+	struct CacheEntry;
 	struct Query {
 		QString text;
 		int offset = 0;

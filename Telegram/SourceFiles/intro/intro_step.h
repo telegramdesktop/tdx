@@ -13,6 +13,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 
+namespace Tdb {
+class TLuser;
+class TLauthorizationState;
+class TLchatFilter;
+} // namespace Tdb
+
 namespace style {
 struct RoundButton;
 } // namespace style;

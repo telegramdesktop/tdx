@@ -83,6 +83,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "spellcheck/spellcheck_highlight_syntax.h"
 #include "styles/style_boxes.h" // st::backgroundSize
 
+#include "tdb/tdb_tl_scheme.h"
 #include "history/history_unread_things.h"
 #include "main/session/send_as_peers.h"
 

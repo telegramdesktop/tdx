@@ -16,6 +16,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "tdb/tdb_sender.h"
 
+namespace Tdb {
+class TLstickerSets;
+} // namespace Tdb
+
 class StickerPremiumMark;
 
 namespace Main {
