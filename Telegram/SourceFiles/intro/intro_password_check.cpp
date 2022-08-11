@@ -22,6 +22,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_intro.h"
 #include "styles/style_boxes.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Intro {
 namespace details {
 namespace {

@@ -479,13 +479,16 @@ StickersBox::StickersBox(
 #endif
 StickersBox::StickersBox(
 	QWidget*,
-	not_null<Window::SessionController*> controller,
-	const Tdb::TLvector<TLstickerSetInfo> &attachedSets)
-: _controller(controller)
-, _api(&controller->session().sender())
+	std::shared_ptr<ChatHelpers::Show> show,
+	const QVector<TLstickerSetInfo> &attachedSets)
+: _st(st::stickersRowItem)
+, _show(std::move(show))
+, _session(&_show->session())
+, _api(&_show->session().sender())
 , _section(Section::Attached)
 , _isMasks(false)
-, _attached(0, this, controller, Section::Attached)
+, _isEmoji(false)
+, _attached(0, this, _show, Section::Attached)
 , _attachedSets(attachedSets) {
 }
 

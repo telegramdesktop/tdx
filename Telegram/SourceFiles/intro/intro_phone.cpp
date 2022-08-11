@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "countries/countries_instance.h" // Countries::Groups
 
 #include "tdb/tdb_format_phone.h" // Tdb::PhonePatternGroups
+#include "tdb/tdb_tl_scheme.h"
 
 namespace Intro {
 namespace details {

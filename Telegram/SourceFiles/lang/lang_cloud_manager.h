@@ -10,6 +10,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "base/weak_ptr.h"
 
+namespace Tdb {
+class TLDupdateLanguagePackStrings;
+class TLlanguagePackString;
+class TLlanguagePackInfo;
+class TLDupdateOption;
+} // namespace Tdb
+
 namespace MTP {
 class Instance;
 } // namespace MTP
@@ -68,7 +75,7 @@ private:
 	void applyStrings(
 		Pack pack,
 		// Instance::TLStrings.
-		const Tdb::TLvector<Tdb::TLlanguagePackString> &strings);
+		const QVector<Tdb::TLlanguagePackString> &strings);
 	bool canApplyWithoutRestart(const QString &id) const;
 	void performSwitchToCustom();
 	void performSwitch(const Language &data);

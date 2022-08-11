@@ -11,6 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "base/timer.h"
 
+namespace Tdb {
+class TLDchatMembers;
+class TLchatMember;
+} // namespace Tdb
+
 class ApiWrap;
 class ChannelData;
 

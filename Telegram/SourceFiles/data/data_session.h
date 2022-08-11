@@ -14,11 +14,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_location_manager.h"
 #include "base/timer.h"
 
-#include "tdb/tdb_tl_scheme.h"
-
 namespace Tdb {
+class TLchat;
+class TLuser;
+class TLbasicGroup;
+class TLsupergroup;
 class TLphoto;
 class TLchatPhoto;
+class TLchatPhotoInfo;
 class TLdocument;
 class TLvideo;
 class TLanimation;

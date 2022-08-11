@@ -181,13 +181,13 @@ public:
 	bool loadMoreRows() override;
 
 private:
-	struct CacheEntry {
 #if 0 // goodToRemove
+	struct CacheEntry {
 		MTPchannels_ChannelParticipants result;
-#endif
-		Tdb::TLchatMembers result;
 		int requestedCount = 0;
 	};
+#endif
+	struct CacheEntry;
 	struct Query {
 		QString text;
 		int offset = 0;

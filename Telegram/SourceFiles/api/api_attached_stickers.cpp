@@ -98,7 +98,7 @@ void AttachedStickers::request(
 			return;
 		} else if (list.size() > 1) {
 			strongController->show(
-				Box<StickersBox>(strongController, data.vsets()));
+				Box<StickersBox>(strongController, data.vsets().v));
 			return;
 		}
 		// Single attached sticker pack.

@@ -18,6 +18,10 @@ namespace Tdb {
 class TLstickerSets;
 } // namespace Tdb
 
+namespace Tdb {
+class TLstickerSets;
+} // namespace Tdb
+
 class StickerPremiumMark;
 
 namespace Main {

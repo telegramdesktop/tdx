@@ -16,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "base/qthelp_regex.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Lang {
 namespace {
 
@@ -771,8 +773,8 @@ void Instance::apply(Pack pack, const Instance::TLStrings &result) {
 	}
 }
 
-void Instance::applyToMe(const Instance::TLStrings &result) {
-	for (const auto &string : result.v) {
+void Instance::applyToMe(const TLStrings &result) {
+	for (const auto &string : result) {
 		HandleString(string, [&](auto &&key, auto &&value) {
 			applyValue(key, value);
 		}, [&](auto &&key) {

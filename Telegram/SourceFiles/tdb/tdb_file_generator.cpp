@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/random.h"
 #include "tdb/tdb_account.h"
+#include "tdb/tdb_tl_scheme.h"
 
 namespace Tdb {
 namespace {

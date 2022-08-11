@@ -23,6 +23,14 @@ class TLDupdateGroupCall;
 class TLDupdateGroupCallParticipant;
 } // namespace Tdb
 
+namespace Tdb {
+class TLgroupCallParticipant;
+class TLDgroupCallParticipant;
+class TLgroupCallParticipantVideoInfo;
+class TLDupdateGroupCall;
+class TLDupdateGroupCallParticipant;
+} // namespace Tdb
+
 class History;
 
 namespace tgcalls {

@@ -33,6 +33,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "base/qt/qt_common_adapters.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace {
 
 enum class PasswordErrorType {

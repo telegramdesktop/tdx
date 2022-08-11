@@ -7,7 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "tdb/tdb_tl_scheme.h"
+namespace Tdb {
+class TLDchatEvent;
+} // namespace Tdb
 
 class History;
 

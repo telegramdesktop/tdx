@@ -22,6 +22,13 @@ using namespace ::td;
 using ClientId = ClientManager::ClientId;
 namespace api = td_api;
 
+std::optional<Error> ParseError(ExternalResponse response) {
+	if (response->get_id() != api::error::ID) {
+		return std::nullopt;
+	}
+	return Error(tl_from<TLerror>(response));
+}
+
 } // namespace
 
 class Instance::Manager final
@@ -149,13 +156,6 @@ private:
 
 std::weak_ptr<Instance::Manager> Instance::ManagerInstance;
 
-std::optional<Error> ParseError(ExternalResponse response) {
-	if (response->get_id() != api::error::ID) {
-		return std::nullopt;
-	}
-	return Error(tl_from<TLerror>(response));
-}
-
 bool ClientClosedUpdate(const TLupdate &update) {
 	if (update.type() != id_updateAuthorizationState) {
 		return false;
@@ -171,6 +171,27 @@ void LogError(uint32 type, RequestId requestId, const Error &error) {
 		.arg(type, 0, 16)
 		.arg(requestId)
 		+ error.message);
+}
+
+FnMut<void()> HandleAsError(
+		uint32 type,
+		RequestId requestId,
+		ExternalResponse external,
+		FnMut<void(const Error &)> &&fail) {
+	auto error = ParseError(external);
+	if (!error) {
+		return nullptr;
+	}
+	LogError(type, requestId, *error);
+	if (!fail) {
+		return nullptr;
+	}
+	return[
+		fail = std::move(fail),
+		error = *error
+	]() mutable {
+		fail(error);
+	};
 }
 
 Instance::Manager::Manager(PrivateTag)

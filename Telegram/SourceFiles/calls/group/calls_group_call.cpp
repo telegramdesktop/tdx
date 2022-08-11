@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webrtc/webrtc_environment.h"
 
 #include "tdb/tdb_option.h"
+#include "tdb/tdb_tl_scheme.h"
 
 #include <tgcalls/group/GroupInstanceCustomImpl.h>
 #include <tgcalls/VideoCaptureInterface.h>

@@ -17,6 +17,10 @@ namespace Tdb {
 class TLchats;
 } // namespace Tdb
 
+namespace Tdb {
+class TLchats;
+} // namespace Tdb
+
 class History;
 
 namespace style {
