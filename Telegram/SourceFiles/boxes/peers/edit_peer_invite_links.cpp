@@ -32,6 +32,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h" // st::settingsDividerLabelPadding
 #include "styles/style_menu_icons.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 #include <xxhash.h>
 
 namespace {
