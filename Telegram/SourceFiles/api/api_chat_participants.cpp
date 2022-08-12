@@ -21,8 +21,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "mtproto/mtproto_config.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Api {
 namespace {
+
+using namespace Tdb;
 
 using Members = ChatParticipants::Members;
 
@@ -50,7 +54,7 @@ std::vector<ChatParticipant> ParseList(
 #endif
 	return ranges::views::all(
 		data.vmembers().v
-	) | ranges::views::transform([&](const Tdb::TLchatMember &p) {
+	) | ranges::views::transform([&](const TLchatMember &p) {
 		return ChatParticipant(p, peer);
 	}) | ranges::to_vector;
 }
@@ -262,7 +266,7 @@ ChatParticipant::ChatParticipant(
 #endif
 
 ChatParticipant::ChatParticipant(
-		const Tdb::TLchatMember &p,
+		const TLchatMember &p,
 		not_null<PeerData*> peer) {
 	_peer = peerFromSender(p.data().vmember_id());
 
@@ -270,21 +274,21 @@ ChatParticipant::ChatParticipant(
 	_rights = ChatAdminRightsInfo(p.data().vstatus());
 	_restrictions = ChatRestrictionsInfo(p.data().vstatus());
 
-	p.data().vstatus().match([&](const Tdb::TLDchatMemberStatusLeft &data) {
+	p.data().vstatus().match([&](const TLDchatMemberStatusLeft &data) {
 		_type = Type::Left;
-	}, [&](const Tdb::TLDchatMemberStatusCreator &data) {
+	}, [&](const TLDchatMemberStatusCreator &data) {
 		_canBeEdited = (peer->session().userPeerId() == _peer);
 		_type = Type::Creator;
 		_rank = data.vcustom_title().v;
-	}, [&](const Tdb::TLDchatMemberStatusAdministrator &data) {
+	}, [&](const TLDchatMemberStatusAdministrator &data) {
 		_canBeEdited = data.vcan_be_edited().v;
 		_type = Type::Admin;
 		_rank = data.vcustom_title().v;
-	}, [&](const Tdb::TLDchatMemberStatusMember &data) {
+	}, [&](const TLDchatMemberStatusMember &data) {
 		_type = Type::Member;
-	}, [&](const Tdb::TLDchatMemberStatusBanned &data) {
+	}, [&](const TLDchatMemberStatusBanned &data) {
 		_type = Type::Banned;
-	}, [&](const Tdb::TLDchatMemberStatusRestricted &data) {
+	}, [&](const TLDchatMemberStatusRestricted &data) {
 		_type = Type::Restricted;
 	});
 }
@@ -404,12 +408,12 @@ void ChatParticipants::requestForAdd(
 				"channels.channelParticipantsNotModified received!"));
 		});
 #endif
-	_forAdd.requestId = _api.request(Tdb::TLgetSupergroupMembers(
-		Tdb::tl_int53(peerToChannel(channel->id).bare),
-		Tdb::tl_supergroupMembersFilterRecent(),
-		Tdb::tl_int32(offset),
-		Tdb::tl_int32(channel->session().serverConfig().chatSizeMax)
-	)).done([=](const Tdb::TLDchatMembers &data) {
+	_forAdd.requestId = _api.request(TLgetSupergroupMembers(
+		tl_int53(peerToChannel(channel->id).bare),
+		tl_supergroupMembersFilterRecent(),
+		tl_int32(offset),
+		tl_int32(channel->session().serverConfig().chatSizeMax)
+	)).done([=](const TLDchatMembers &data) {
 		base::take(_forAdd).callback(data);
 	}).fail([=] {
 		base::take(_forAdd);
@@ -443,12 +447,12 @@ void ChatParticipants::requestLast(not_null<ChannelData*> channel) {
 				"channels.channelParticipantsNotModified received!"));
 		});
 #endif
-	const auto requestId = _api.request(Tdb::TLgetSupergroupMembers(
-		Tdb::tl_int53(peerToChannel(channel->id).bare),
-		Tdb::tl_supergroupMembersFilterRecent(),
-		Tdb::tl_int32(offset),
-		Tdb::tl_int32(channel->session().serverConfig().chatSizeMax)
-	)).done([=](const Tdb::TLDchatMembers &data) {
+	const auto requestId = _api.request(TLgetSupergroupMembers(
+		tl_int53(peerToChannel(channel->id).bare),
+		tl_supergroupMembersFilterRecent(),
+		tl_int32(offset),
+		tl_int32(channel->session().serverConfig().chatSizeMax)
+	)).done([=](const TLDchatMembers &data) {
 		_participantsRequests.remove(channel);
 		const auto &[availableCount, list] = Parse(channel, data);
 		ApplyLastList(channel, availableCount, list);
@@ -483,12 +487,12 @@ void ChatParticipants::requestBots(not_null<ChannelData*> channel) {
 				"channels.channelParticipantsNotModified received!"));
 		});
 #endif
-	const auto requestId = _api.request(Tdb::TLgetSupergroupMembers(
-		Tdb::tl_int53(peerToChannel(channel->id).bare),
-		Tdb::tl_supergroupMembersFilterBots(),
-		Tdb::tl_int32(offset),
-		Tdb::tl_int32(channel->session().serverConfig().chatSizeMax)
-	)).done([=](const Tdb::TLDchatMembers &data) {
+	const auto requestId = _api.request(TLgetSupergroupMembers(
+		tl_int53(peerToChannel(channel->id).bare),
+		tl_supergroupMembersFilterBots(),
+		tl_int32(offset),
+		tl_int32(channel->session().serverConfig().chatSizeMax)
+	)).done([=](const TLDchatMembers &data) {
 		_botsRequests.remove(channel);
 		const auto &[availableCount, list] = Parse(channel, data);
 		ApplyBotsList(channel, availableCount, list);
@@ -524,12 +528,12 @@ void ChatParticipants::requestAdmins(not_null<ChannelData*> channel) {
 				"channels.channelParticipantsNotModified received!"));
 		});
 #endif
-	const auto requestId = _api.request(Tdb::TLgetSupergroupMembers(
-		Tdb::tl_int53(peerToChannel(channel->id).bare),
-		Tdb::tl_supergroupMembersFilterAdministrators(),
-		Tdb::tl_int32(offset),
-		Tdb::tl_int32(channel->session().serverConfig().chatSizeMax)
-	)).done([=](const Tdb::TLDchatMembers &data) {
+	const auto requestId = _api.request(TLgetSupergroupMembers(
+		tl_int53(peerToChannel(channel->id).bare),
+		tl_supergroupMembersFilterAdministrators(),
+		tl_int32(offset),
+		tl_int32(channel->session().serverConfig().chatSizeMax)
+	)).done([=](const TLDchatMembers &data) {
 		_adminsRequests.remove(channel);
 		ApplyMegagroupAdmins(channel, ParseList(data, channel));
 	}).fail([=] {
@@ -569,15 +573,15 @@ void ChatParticipants::add(
 				if (done) done(false);
 			}).afterDelay(kSmallDelayMs).send();
 #endif
-			_api.request(Tdb::TLaddChatMember(
+			_api.request(TLaddChatMember(
 				peerToTdbChat(peer->id),
-				Tdb::tl_int53(peerToUser(user->id).bare),
-				Tdb::tl_int32(kForwardMessagesOnAdd)
+				tl_int53(peerToUser(user->id).bare),
+				tl_int32(kForwardMessagesOnAdd)
 			)).done([=] {
 				if (done) {
 					done(true);
 				}
-			}).fail([=](const Tdb::Error &error) {
+			}).fail([=](const Error &error) {
 				ShowAddParticipantsError(error.message, peer, { 1, user });
 				if (done) {
 					done(false);
@@ -595,7 +599,7 @@ void ChatParticipants::add(
 #if 0 // goodToRemove
 		auto list = QVector<MTPInputUser>();
 #endif
-		auto list = QVector<Tdb::TLint53>();
+		auto list = QVector<TLint53>();
 		list.reserve(std::min(int(users.size()), int(kMaxUsersPerInvite)));
 		const auto send = [&] {
 			const auto callback = base::take(done);
@@ -616,15 +620,15 @@ void ChatParticipants::add(
 				if (callback) callback(false);
 			}).afterDelay(kSmallDelayMs).send();
 #endif
-			_api.request(Tdb::TLaddChatMembers(
+			_api.request(TLaddChatMembers(
 				peerToTdbChat(peer->id),
-				Tdb::tl_vector<Tdb::TLint53>(list)
+				tl_vector<TLint53>(list)
 			)).done([=] {
 				requestCountDelayed(channel);
 				if (callback) {
 					callback(true);
 				}
-			}).fail([=](const Tdb::Error &error) {
+			}).fail([=](const Error &error) {
 				ShowAddParticipantsError(error.message, peer, users);
 				if (callback) {
 					callback(false);
@@ -635,7 +639,7 @@ void ChatParticipants::add(
 #if 0 // goodToRemove
 			list.push_back(user->inputUser);
 #endif
-			list.push_back(Tdb::tl_int53(peerToUser(user->id).bare));
+			list.push_back(tl_int53(peerToUser(user->id).bare));
 			if (list.size() == kMaxUsersPerInvite) {
 				send();
 				list.clear();
@@ -745,44 +749,38 @@ void ChatParticipants::requestSelf(not_null<ChannelData*> channel) {
 		finalize();
 	}).afterDelay(kSmallDelayMs).send();
 #endif
-	_api.request(Tdb::TLgetChatMember(
+	_api.request(TLgetChatMember(
 		peerToTdbChat(channel->id),
 		peerToSender(channel->session().userPeerId())
-	)).done([=](const Tdb::TLDchatMember &data) {
+	)).done([=](const TLDchatMember &data) {
 		_selfParticipantRequests.erase(channel);
 
-		data.vstatus().match([&](const Tdb::TLDchatMemberStatusMember &) {
-			const auto inviter = data.vinviter_user_id().v
-				? data.vinviter_user_id().v
-				: -1;
+		data.vstatus().match([&](const TLDchatMemberStatusMember &) {
 			finalize(
-				inviter,
+				data.vinviter_user_id().v,
 				data.vjoined_chat_date().v,
 				false);
 #if 0 // doLater
 				data.is_via_invite());
 #endif
-		}, [&](const Tdb::TLDchatMemberStatusCreator &) {
+		}, [&](const TLDchatMemberStatusCreator &) {
 			if (channel->mgInfo) {
 				channel->mgInfo->creator = channel->session().user();
 			}
 			finalize(channel->session().userId(), channel->date);
-		}, [&](const Tdb::TLDchatMemberStatusAdministrator &) {
-			const auto inviter = data.vinviter_user_id().v
-				? data.vinviter_user_id().v
-				: -1;
-			finalize(inviter, data.vjoined_chat_date().v);
-		}, [&](const Tdb::TLDchatMemberStatusBanned &data) {
+		}, [&](const TLDchatMemberStatusAdministrator &) {
+			finalize(data.vinviter_user_id().v, data.vjoined_chat_date().v);
+		}, [&](const TLDchatMemberStatusBanned &data) {
 			LOG(("API Error: Got self banned participant."));
 			finalize();
-		}, [&](const Tdb::TLDchatMemberStatusRestricted &data) {
+		}, [&](const TLDchatMemberStatusRestricted &data) {
 			LOG(("API Error: Got self restricted participant."));
 			finalize();
-		}, [&](const Tdb::TLDchatMemberStatusLeft &data) {
+		}, [&](const TLDchatMemberStatusLeft &data) {
 			LOG(("API Error: Got self left participant."));
 			finalize();
 		});
-	}).fail([=](const Tdb::Error &error) {
+	}).fail([=](const Error &error) {
 		_selfParticipantRequests.erase(channel);
 		if (error.message == u"CHANNEL_PRIVATE"_q) {
 			channel->privateErrorReceived();
@@ -806,11 +804,11 @@ void ChatParticipants::kick(
 	}).send();
 #endif
 
-	_api.request(Tdb::TLbanChatMember(
+	_api.request(TLbanChatMember(
 		peerToTdbChat(chat->id),
 		peerToSender(participant->id),
-		Tdb::tl_int32(0),
-		Tdb::tl_bool(false)
+		tl_int32(0),
+		tl_bool(false)
 	)).send();
 }
 
@@ -841,11 +839,11 @@ void ChatParticipants::kick(
 		_kickRequests.remove(kick);
 	}).send();
 #endif
-	const auto requestId = _api.request(Tdb::TLbanChatMember(
+	const auto requestId = _api.request(TLbanChatMember(
 		peerToTdbChat(channel->id),
 		peerToSender(participant->id),
-		Tdb::tl_int32(0),
-		Tdb::tl_bool(false)
+		tl_int32(0),
+		tl_bool(false)
 	)).done([=] {
 		_kickRequests.remove(KickRequest(channel, participant));
 		channel->applyEditBanned(participant, currentRights, rights);
@@ -873,10 +871,10 @@ void ChatParticipants::unblock(
 		channel->session().api().applyUpdates(result);
 #endif
 
-	const auto requestId = _api.request(Tdb::TLsetChatMemberStatus(
+	const auto requestId = _api.request(TLsetChatMemberStatus(
 		peerToTdbChat(channel->id),
 		peerToSender(participant->id),
-		Tdb::tl_chatMemberStatusMember()
+		tl_chatMemberStatusMember()
 	)).done([=] {
 		_kickRequests.remove(KickRequest(channel, participant));
 		if (channel->kickedCount() > 0) {
