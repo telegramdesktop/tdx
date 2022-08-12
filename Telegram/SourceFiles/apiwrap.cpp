@@ -88,6 +88,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tdb/tdb_sender.h"
 #include "tdb/tdb_account.h"
 #include "tdb/tdb_option.h"
+#include "tdb/tdb_tl_scheme.h"
 
 namespace {
 
@@ -3720,7 +3721,7 @@ void ApiWrap::requestSharedMedia(
 		return;
 	}
 
-	const auto prepared = Api::PrepareSearchRequest(
+	auto prepared = Api::PrepareSearchRequest(
 		peer,
 		topicRootId,
 		type,
@@ -3731,16 +3732,18 @@ void ApiWrap::requestSharedMedia(
 		return;
 	}
 
+#if 0 // mtp
 	const auto history = _session->data().history(peer);
 	auto &histories = history->owner().histories();
 	const auto requestType = Data::Histories::RequestType::History;
 	histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
-#if 0 // goodToRemove
 		return request(
 			std::move(*prepared)
 #endif
-		return sender().request(
-			base::duplicate(*prepared)
+	{
+		const auto finish = [] {};
+		sender().request(
+			std::move(*prepared)
 		).done([=](const Api::SearchRequestResult &result) {
 			_sharedMediaRequests.remove(key);
 			auto parsed = Api::ParseSearchResult(
@@ -3755,7 +3758,10 @@ void ApiWrap::requestSharedMedia(
 			_sharedMediaRequests.remove(key);
 			finish();
 		}).send();
+	}
+#if 0 // mtp
 	});
+#endif
 	_sharedMediaRequests.emplace(key);
 }
 

@@ -31,6 +31,10 @@ class TLvideoNote;
 class TLgame;
 class TLwebPage;
 class TLfile;
+class TLmessage;
+class TLpoll;
+class TLDupdateChatPosition;
+class TLDupdateChatLastMessage;
 } // namespace Tdb
 
 struct HistoryMessageMarkupData;

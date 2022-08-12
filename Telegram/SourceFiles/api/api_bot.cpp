@@ -37,8 +37,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Api {
 namespace {
+
+using namespace Tdb;
 
 void SendBotCallbackData(
 		not_null<Window::SessionController*> controller,
@@ -97,21 +101,21 @@ void SendBotCallbackData(
 	const auto show = controller->uiShow();
 	auto payload = [&] {
 		if (isGame) {
-			return Tdb::tl_callbackQueryPayloadGame(Tdb::tl_string());
+			return tl_callbackQueryPayloadGame(tl_string());
 		} else {
-			const auto tlBytes = Tdb::tl_bytes(button->data);
+			const auto tlBytes = tl_bytes(button->data);
 			return withPassword
-				? Tdb::tl_callbackQueryPayloadDataWithPassword(
-					Tdb::tl_string(password->password),
+				? tl_callbackQueryPayloadDataWithPassword(
+					tl_string(password->password),
 					tlBytes)
-				: Tdb::tl_callbackQueryPayloadData(tlBytes);
+				: tl_callbackQueryPayloadData(tlBytes);
 		}
 	}();
-	button->requestId = api->sender().request(Tdb::TLgetCallbackQueryAnswer(
+	button->requestId = api->sender().request(TLgetCallbackQueryAnswer(
 		peerToTdbChat(history->peer->id),
-		Tdb::tl_int53(item->id.bare),
+		tl_int53(item->id.bare),
 		std::move(payload)
-	)).done([=](const Tdb::TLDcallbackQueryAnswer &data) {
+	)).done([=](const TLDcallbackQueryAnswer &data) {
 		const auto guard = gsl::finally([&] {
 			if (done) {
 				done();
@@ -173,7 +177,7 @@ void SendBotCallbackData(
 #if 0 // goodToRemove
 	}).fail([=](const MTP::Error &error) {
 #endif
-	}).fail([=](const Tdb::Error &error) {
+	}).fail([=](const Error &error) {
 		const auto guard = gsl::finally([&] {
 			if (handleError) {
 #if 0 // goodToRemove

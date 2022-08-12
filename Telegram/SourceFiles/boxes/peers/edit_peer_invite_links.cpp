@@ -31,6 +31,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h" // st::boxDividerLabel
 #include "styles/style_menu_icons.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace {
 
 enum class Color {

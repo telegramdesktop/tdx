@@ -28,8 +28,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 
 #include "tdb/tdb_format_phone.h" // Tdb::FormatPhone
+#include "tdb/tdb_tl_scheme.h"
 
 namespace {
+
+using namespace Tdb;
 
 QString UserPhone(not_null<UserData*> user) {
 	const auto phone = user->phone();
@@ -59,14 +62,14 @@ void SendRequest(
 		MTP_string(phone)
 	)).done([=](const MTPUpdates &result) {
 #endif
-	user->session().sender().request(Tdb::TLaddContact(
-		Tdb::tl_contact(
-			Tdb::tl_string(phone),
-			Tdb::tl_string(first),
-			Tdb::tl_string(last),
-			Tdb::tl_string(), // VCard.
-			Tdb::tl_int53(peerToUser(user->id).bare)),
-		Tdb::tl_bool(sharePhone)
+	user->session().sender().request(TLaddContact(
+		tl_contact(
+			tl_string(phone),
+			tl_string(first),
+			tl_string(last),
+			tl_string(), // VCard.
+			tl_int53(peerToUser(user->id).bare)),
+		tl_bool(sharePhone)
 	)).done([=] {
 		user->setName(
 			first,
