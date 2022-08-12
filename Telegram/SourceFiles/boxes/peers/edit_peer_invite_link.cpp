@@ -58,12 +58,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_premium.h"
 
 #include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
 
 #include <QtCore/QMimeData>
 #include <QtGui/QGuiApplication>
 #include <QtSvg/QSvgRenderer>
 
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kFirstPage = 20;
 constexpr auto kPerPage = 100;
@@ -261,7 +264,7 @@ private:
 #if 0 // goodToRemove
 	MTP::Sender _api;
 #endif
-	Tdb::Sender _api;
+	Sender _api;
 	rpl::lifetime _lifetime;
 
 };
@@ -925,32 +928,33 @@ void Controller::loadMoreRows() {
 	}).send();
 #endif
 	if (_role == Role::Requested) {
-		_requestId = _api.request(Tdb::TLgetChatJoinRequests(
+		_requestId = _api.request(TLgetChatJoinRequests(
 			peerToTdbChat(_peer->id),
-			Tdb::tl_string(_link),
-			Tdb::tl_string(), // Query.
-			Tdb::tl_chatJoinRequest( // Offset.
-				Tdb::tl_int53(_lastUser
+			tl_string(_link),
+			tl_string(), // Query.
+			tl_chatJoinRequest( // Offset.
+				tl_int53(_lastUser
 					? peerToUser(_lastUser->user->id).bare
 					: 0),
-				Tdb::tl_int32(_lastUser ? _lastUser->date : 0),
-				Tdb::tl_string()),
-			Tdb::tl_int32(_lastUser ? kPerPage : kFirstPage)
-		)).done([=](const Tdb::TLDchatJoinRequests &data) {
+				tl_int32(_lastUser ? _lastUser->date : 0),
+				tl_string()),
+			tl_int32(_lastUser ? kPerPage : kFirstPage)
+		)).done([=](const TLDchatJoinRequests &data) {
 			done(data);
 		}).fail(fail).send();
 	} else {
-		_requestId = _api.request(Tdb::TLgetChatInviteLinkMembers(
+		_requestId = _api.request(TLgetChatInviteLinkMembers(
 			peerToTdbChat(_peer->id),
-			Tdb::tl_string(_link),
-			Tdb::tl_chatInviteLinkMember( // Offset.
-				Tdb::tl_int53(_lastUser
+			tl_string(_link),
+			tl_bool(false), // only_with_expired_subscription
+			tl_chatInviteLinkMember( // Offset.
+				tl_int53(_lastUser
 					? peerToUser(_lastUser->user->id).bare
 					: 0),
-				Tdb::tl_int32(_lastUser ? _lastUser->date : 0),
-				Tdb::tl_int53(0)),
-			Tdb::tl_int32(_lastUser ? kPerPage : kFirstPage)
-		)).done([=](const Tdb::TLDchatInviteLinkMembers &data) {
+				tl_int32(_lastUser ? _lastUser->date : 0),
+				tl_int53(0)),
+			tl_int32(_lastUser ? kPerPage : kFirstPage)
+		)).done([=](const TLDchatInviteLinkMembers &data) {
 			done(data);
 		}).fail(fail).send();
 	}

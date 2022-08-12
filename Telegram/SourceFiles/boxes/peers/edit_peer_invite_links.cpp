@@ -35,6 +35,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtSvg/QSvgRenderer>
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace {
 
 enum class Color {

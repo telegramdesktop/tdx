@@ -420,7 +420,7 @@ TextWithEntities FormattedTextFromTdb(
 	};
 }
 
-TLvector<TLtextEntity> EntitiesToTdb(const EntitiesInText &entities) {
+QVector<TLtextEntity> EntitiesToTdb(const EntitiesInText &entities) {
 	constexpr auto option = ConvertOption::SkipLocal;
 
 	auto v = QVector<TLtextEntity>();
@@ -478,13 +478,13 @@ TLvector<TLtextEntity> EntitiesToTdb(const EntitiesInText &entities) {
 				*type));
 		}
 	}
-	return tl_vector<TLtextEntity>(std::move(v));
+	return std::move(v);
 }
 
 TLformattedText FormattedTextToTdb(const TextWithEntities &text) {
 	return tl_formattedText(
 		tl_string(text.text),
-		EntitiesToTdb(text.entities));
+		tl_vector<TLtextEntity>(EntitiesToTdb(text.entities)));
 }
 
 } // namespace Api

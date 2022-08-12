@@ -20,9 +20,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "storage/file_upload.h"
 #include "storage/localimageloader.h"
+
 #include "tdb/tdb_file_generator.h"
+#include "tdb/tdb_tl_scheme.h"
 
 namespace Api {
+namespace {
+
+using namespace Tdb;
+
+} // namespace
+
 #if 0 // goodToRemove
 namespace {
 
@@ -107,7 +115,7 @@ void Ringtones::upload(
 #endif
 	const auto token = filename + QString::number(content.size());
 
-	auto generator = std::make_unique<Tdb::FileGenerator>(
+	auto generator = std::make_unique<FileGenerator>(
 		&_session->tdb(),
 		content,
 		filename);
@@ -128,14 +136,14 @@ void Ringtones::upload(
 
 	_api.request(TLaddSavedNotificationSound(
 		std::move(inputFile)
-	)).done([=](const Tdb::TLnotificationSound &result) {
+	)).done([=](const TLnotificationSound &result) {
 		const auto document = _session->data().processDocument(result);
 		_list.documents.insert(_list.documents.begin(), document->id);
 		const auto media = document->createMediaView();
 		media->setBytes(content);
 		document->owner().notifySettings().cacheSound(document);
 		_uploadDones.fire_copy(document->id);
-	}).fail([=](const Tdb::Error &error) {
+	}).fail([=](const Error &error) {
 		_uploadFails.fire_copy(error.message);
 	}).send();
 }

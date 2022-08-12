@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h" // Ui::show().
 
 #include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
 #include "api/api_sending.h"
 
 namespace Api {

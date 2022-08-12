@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 
 #include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
 
 namespace Api {
 namespace {
@@ -638,15 +639,36 @@ void SearchController::requestMore(
 	if (!prepared) {
 		return;
 	}
+
+	const auto requestId = _session->sender().request(
+		base::duplicate(*prepared)
+	).done([=](const SearchRequestResult &result) {
+		listData->requests.remove(key);
+		auto parsed = ParseSearchResult(
+			listData->peer,
+			query.type,
+			key.aroundId,
+			key.direction,
+			result);
+		listData->list.addSlice(
+			std::move(parsed.messageIds),
+			parsed.noSkipRange,
+			parsed.fullCount);
+	}).send();
+	listData->requests.emplace(key, [=] {
+		_session->sender().request(requestId).cancel();
+	});
+#if 0 // mtp
 	auto &histories = _session->data().histories();
 	const auto type = ::Data::Histories::RequestType::History;
 	const auto history = _session->data().history(listData->peer);
 	auto requestId = histories.sendRequest(history, type, [=](Fn<void()> finish) {
-#if 0 // goodToRemove
 		return _session->api().request(
 			std::move(*prepared)
 #endif
-		return _session->sender().request(
+	{
+		const auto finish = [] {};
+		const auto requestId = _session->sender().request(
 			base::duplicate(*prepared)
 		).done([=](const SearchRequestResult &result) {
 			listData->requests.remove(key);
@@ -664,10 +686,16 @@ void SearchController::requestMore(
 		}).fail([=] {
 			finish();
 		}).send();
+		listData->requests.emplace(key, [=] {
+			_session->sender().request(requestId).cancel();
+		});
+	}
+#if 0 // mtp
 	});
 	listData->requests.emplace(key, [=] {
 		_session->data().histories().cancelRequest(requestId);
 	});
+#endif
 }
 
 DelayedSearchController::DelayedSearchController(

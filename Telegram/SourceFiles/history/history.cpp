@@ -68,6 +68,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qt/qt_common_adapters.h"
 #include "styles/style_dialogs.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace {
 
 constexpr auto kNewBlockEachMessage = 50;

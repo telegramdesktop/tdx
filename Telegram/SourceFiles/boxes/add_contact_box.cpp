@@ -48,10 +48,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "tdb/tdb_format_phone.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
 
 namespace {
+
+using namespace Tdb;
 
 bool IsValidPhone(QString phone) {
 	phone = phone.replace(QRegularExpression(u"[^\\d]"_q), QString());
@@ -302,7 +306,7 @@ AddContactBox::AddContactBox(
 	tr::lng_contact_phone(),
 	Countries::ExtractPhoneCode(session->user()->phone()),
 	phone,
-	[](const QString &s) { return Tdb::PhonePatternGroups(s); })
+	[](const QString &s) { return PhonePatternGroups(s); })
 #if 0 // goodToRemove
 	[](const QString &s) { return Countries::Groups(s); })
 #endif
@@ -733,7 +737,7 @@ void GroupInfoBox::createGroup(
 #if 0 // goodToRemove
 	using TLUsers = MTPInputUser;
 #endif
-	using TLUsers = Tdb::TLint53;
+	using TLUsers = TLint53;
 	auto inputs = QVector<TLUsers>();
 	inputs.reserve(users.size());
 	for (auto peer : users) {
@@ -743,7 +747,7 @@ void GroupInfoBox::createGroup(
 #if 0 // goodToRemove
 			inputs.push_back(user->inputUser);
 #endif
-			inputs.push_back(Tdb::tl_int53(peerToUser(user->id).bare));
+			inputs.push_back(tl_int53(peerToUser(user->id).bare));
 		}
 	}
 #if 0 // goodToRemove
@@ -754,10 +758,10 @@ void GroupInfoBox::createGroup(
 		MTP_int(ttlPeriod())
 	)).done([=](const MTPmessages_InvitedUsers &result) {
 #endif
-	_creationRequestId = _api.request(Tdb::TLcreateNewBasicGroupChat(
-		Tdb::tl_vector<TLUsers>(std::move(inputs)),
-		Tdb::tl_string(title)
-	)).done([=](const Tdb::TLchat &result) {
+	_creationRequestId = _api.request(TLcreateNewBasicGroupChat(
+		tl_vector<TLUsers>(std::move(inputs)),
+		tl_string(title)
+	)).done([=](const TLchat &result) {
 		auto image = _photo->takeResultImage();
 		const auto period = ttlPeriod();
 		const auto navigation = _navigation;
@@ -943,7 +947,7 @@ void GroupInfoBox::createChannel(
 		session.api().requestFullPeer(peer);
 		_createdChannel = peer->asChannel();
 		checkInviteLink();
-	}).fail([this](const Tdb::Error &error) {
+	}).fail([this](const Error &error) {
 		const auto &type = error.message;
 		_creationRequestId = 0;
 		const auto controller = _navigation->parentController();
@@ -1090,10 +1094,10 @@ void SetupChannelBox::prepare() {
 
 	setMouseTracking(true);
 
-	_checkRequestId = _api.request(Tdb::TLcheckChatUsername(
+	_checkRequestId = _api.request(TLcheckChatUsername(
 		peerToTdbChat(_channel->id),
-		Tdb::tl_string("preston")
-	)).done([=](const Tdb::TLcheckChatUsernameResult &result) {
+		tl_string("preston")
+	)).done([=](const TLcheckChatUsernameResult &result) {
 		_checkRequestId = 0;
 		firstCheckFail(parseError(result));
 	}).send();
@@ -1346,13 +1350,13 @@ void SetupChannelBox::updateSelected(const QPoint &cursorGlobalPosition) {
 void SetupChannelBox::save() {
 	const auto saveUsername = [&](const QString &link) {
 		_sentUsername = link;
-		_saveRequestId = _api.request(Tdb::TLsetSupergroupUsername(
-			Tdb::tl_int53(peerToChannel(_channel->id).bare),
-			Tdb::tl_string(_sentUsername)
+		_saveRequestId = _api.request(TLsetSupergroupUsername(
+			tl_int53(peerToChannel(_channel->id).bare),
+			tl_string(_sentUsername)
 		)).done([=] {
 			_saveRequestId = 0;
 			updateFail(UsernameResult::Ok);
-		}).fail([=](const Tdb::Error &error) {
+		}).fail([=](const Error &error) {
 			const auto &type = error.message;
 			_saveRequestId = 0;
 			updateFail([&] {
@@ -1451,10 +1455,10 @@ void SetupChannelBox::check() {
 	const auto link = _link->text().trimmed();
 	if (link.size() >= Ui::EditPeer::kMinUsernameLength) {
 		_checkUsername = link;
-		_checkRequestId = _api.request(Tdb::TLcheckChatUsername(
+		_checkRequestId = _api.request(TLcheckChatUsername(
 			peerToTdbChat(_channel->id),
-			Tdb::tl_string(link)
-		)).done([=](const Tdb::TLcheckChatUsernameResult &result) {
+			tl_string(link)
+		)).done([=](const TLcheckChatUsernameResult &result) {
 			_checkRequestId = 0;
 			const auto parsed = parseError(result);
 			if ((parsed == UsernameResult::Ok)
@@ -1519,16 +1523,16 @@ void SetupChannelBox::privacyChanged(Privacy value) {
 }
 
 SetupChannelBox::UsernameResult SetupChannelBox::parseError(
-		const Tdb::TLcheckChatUsernameResult &result) {
-	return result.match([](const Tdb::TLDcheckChatUsernameResultOk &) {
+		const TLcheckChatUsernameResult &result) {
+	return result.match([](const TLDcheckChatUsernameResultOk &) {
 		return UsernameResult::Ok;
-	}, [](const Tdb::TLDcheckChatUsernameResultUsernameInvalid &) {
+	}, [](const TLDcheckChatUsernameResultUsernameInvalid &) {
 		return UsernameResult::Invalid;
-	}, [](const Tdb::TLDcheckChatUsernameResultUsernameOccupied &) {
+	}, [](const TLDcheckChatUsernameResultUsernameOccupied &) {
 		return UsernameResult::Occupied;
-	}, [](const Tdb::TLDcheckChatUsernameResultPublicChatsTooMuch &) {
+	}, [](const TLDcheckChatUsernameResultPublicChatsTooMuch &) {
 		return UsernameResult::ChatsTooMuch;
-	}, [](const Tdb::TLDcheckChatUsernameResultPublicGroupsUnavailable &) {
+	}, [](const TLDcheckChatUsernameResultPublicGroupsUnavailable &) {
 		return UsernameResult::NA;
 	});
 #if 0 // goodToRemove
@@ -1764,12 +1768,12 @@ void EditNameBox::save() {
 		last = QString();
 	}
 	_sentName = first;
-	_requestId = _api.request(Tdb::TLsetName(
-		Tdb::tl_string(first),
-		Tdb::tl_string(last)
+	_requestId = _api.request(TLsetName(
+		tl_string(first),
+		tl_string(last)
 	)).done([=] {
 		closeBox();
-	}).fail([=](const Tdb::Error &error) {
+	}).fail([=](const Error &error) {
 		_requestId = 0;
 		saveSelfFail(error.message);
 	}).send();

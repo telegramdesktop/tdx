@@ -51,10 +51,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_calls.h"
 #include "styles/style_settings.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 #include <QtGui/QGuiApplication>
 
 namespace Calls::Group {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kDelaysCount = 201;
 constexpr auto kMicrophoneTooltipAfterLoudCount = 3;
@@ -80,9 +84,9 @@ void SaveCallJoinMuted(
 	}
 	call->setJoinMutedLocally(joinMuted);
 	peer->session().sender().request(
-		Tdb::TLtoggleGroupCallMuteNewParticipants(
-			Tdb::tl_int32(callId),
-			Tdb::tl_bool(joinMuted)
+		TLtoggleGroupCallMuteNewParticipants(
+			tl_int32(callId),
+			tl_bool(joinMuted)
 	)).send();
 #if 0 // goodToRemove
 	peer->session().api().request(MTPphone_ToggleGroupCallSettings(
@@ -855,11 +859,11 @@ std::pair<Fn<void()>, rpl::lifetime> ShareInviteLinkAction(
 		state->generatingLink = true;
 
 		state->linkListenerRequestId = peer->session().sender().request(
-			Tdb::TLgetGroupCallInviteLink(
-				Tdb::tl_int32(real->id()),
-				Tdb::tl_bool(false)
+			TLgetGroupCallInviteLink(
+				tl_int32(real->id()),
+				tl_bool(false)
 			)
-		).done([=](const Tdb::TLDhttpUrl &data) {
+		).done([=](const TLDhttpUrl &data) {
 			state->linkListenerRequestId = 0;
 			state->linkListener = data.vurl().v;
 			shareReady();
@@ -905,11 +909,11 @@ std::pair<Fn<void()>, rpl::lifetime> ShareInviteLinkAction(
 			}).send();
 #endif
 			state->linkListenerRequestId = peer->session().sender().request(
-				Tdb::TLgetGroupCallInviteLink(
-					Tdb::tl_int32(real->id()),
-					Tdb::tl_bool(true)
+				TLgetGroupCallInviteLink(
+					tl_int32(real->id()),
+					tl_bool(true)
 				)
-			).done([=](const Tdb::TLDhttpUrl &data) {
+			).done([=](const TLDhttpUrl &data) {
 				state->linkSpeakerRequestId = 0;
 				state->linkSpeaker = data.vurl().v;
 				shareReady();

@@ -29,7 +29,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "styles/style_boxes.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace {
+
+using namespace Tdb;
 
 class Controller final
 	: public PeerListController
@@ -158,10 +162,10 @@ void AddBotToGroupBoxController::requestExistingRights(
 	}
 	_existingRightsChannel = channel;
 	_bot->session().sender().request(_existingRightsRequestId).cancel();
-	_bot->session().sender().request(Tdb::TLgetChatMember(
+	_bot->session().sender().request(TLgetChatMember(
 		peerToTdbChat(_existingRightsChannel->id),
 		peerToSender(_bot->id)
-	)).done([=](const Tdb::TLchatMember &data) {
+	)).done([=](const TLchatMember &data) {
 		const auto participant = Api::ChatParticipant(data, channel);
 		_existingRights = participant.rights().flags;
 		_existingRank = participant.rank();

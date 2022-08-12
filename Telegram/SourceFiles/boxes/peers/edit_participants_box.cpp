@@ -37,7 +37,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "styles/style_menu_icons.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace {
+
+using namespace Tdb;
 
 // How many messages from chat history server should forward to user,
 // that was added to this chat.
@@ -56,10 +60,10 @@ void RemoveAdmin(
 		ChatAdminRightsInfo oldRights,
 		Fn<void()> onDone,
 		Fn<void()> onFail) {
-	peer->session().sender().request(Tdb::TLsetChatMemberStatus(
+	peer->session().sender().request(TLsetChatMemberStatus(
 		peerToTdbChat(peer->id),
 		peerToSender(user->id),
-		Tdb::tl_chatMemberStatusMember()
+		tl_chatMemberStatusMember(tl_int32(0)) // member_until_date
 	)).done([=] {
 		if (const auto channel = peer->asChannel()) {
 			channel->applyEditAdmin(user, oldRights, {}, {});
@@ -101,10 +105,10 @@ void AddChatParticipant(
 		not_null<UserData*> user,
 		Fn<void()> onDone,
 		Fn<void()> onFail) {
-	chat->session().sender().request(Tdb::TLaddChatMember(
+	chat->session().sender().request(TLaddChatMember(
 		peerToTdbChat(chat->id),
-		Tdb::tl_int53(peerToUser(user->id).bare),
-		Tdb::tl_int32(kForwardMessagesOnAdd)
+		tl_int53(peerToUser(user->id).bare),
+		tl_int32(kForwardMessagesOnAdd)
 	)).done([=] {
 		if (onDone) {
 			onDone();
@@ -254,7 +258,7 @@ Fn<void(
 				not_null<PeerData*> peer) -> void {
 			Expects(peer->isChat() || peer->isChannel());
 			const auto isChannel = peer->isChat();
-			peer->session().sender().request(Tdb::TLsetChatMemberStatus(
+			peer->session().sender().request(TLsetChatMemberStatus(
 				peerToTdbChat(peer->id),
 				peerToSender(user->id),
 				ChatAdminRightsInfo::ToTL(newRights, rank)
@@ -269,7 +273,7 @@ Fn<void(
 					chat->applyEditAdmin(user, isAdmin);
 				}
 				done();
-			}).fail([=](const Tdb::Error &error) {
+			}).fail([=](const Error &error) {
 				const auto message = error.message;
 				if (isChannel) {
 					ShowAddParticipantsError(
@@ -354,7 +358,7 @@ Fn<void(
 		const auto request = [=](not_null<PeerData*> peer) {
 			Expects(peer->isChat() || peer->isChannel());
 			const auto isChannel = peer->isChat();
-			peer->session().sender().request(Tdb::TLsetChatMemberStatus(
+			peer->session().sender().request(TLsetChatMemberStatus(
 				peerToTdbChat(peer->id),
 				peerToSender(participant->id),
 				ChatRestrictionsInfo::ToTL(newRights)
@@ -1685,7 +1689,7 @@ void ParticipantsBoxController::loadMoreRows() {
 			_allLoaded = true;
 		}
 #endif
-	_loadRequestId = _api.request(Tdb::TLgetSupergroupMembers(
+	_loadRequestId = _api.request(TLgetSupergroupMembers(
 		tl_int53(peerToChannel(channel->id).bare),
 		filter,
 		tl_int32(_offset),
@@ -2368,12 +2372,12 @@ void ParticipantsBoxController::subscribeToCreatorChange(
 			MTP_long(0) // hash
 		)).done([=](const MTPchannels_ChannelParticipants &result) {
 #endif
-		channel->session().sender().request(Tdb::TLgetSupergroupMembers(
-			Tdb::tl_int53(peerToChannel(channel->id).bare),
-			Tdb::tl_supergroupMembersFilterRecent(),
-			Tdb::tl_int32(0), // offset
-			Tdb::tl_int32(channel->session().serverConfig().chatSizeMax)
-		)).done([=](const Tdb::TLchatMembers &result) {
+		channel->session().sender().request(TLgetSupergroupMembers(
+			tl_int53(peerToChannel(channel->id).bare),
+			tl_supergroupMembersFilterRecent(),
+			tl_int32(0), // offset
+			tl_int32(channel->session().serverConfig().chatSizeMax)
+		)).done([=](const TLchatMembers &result) {
 			if (channel->amCreator()) {
 				channel->mgInfo->creator = channel->session().user().get();
 			}
@@ -2413,7 +2417,7 @@ void ParticipantsBoxController::refreshRows() {
 }
 
 struct ParticipantsBoxSearchController::CacheEntry {
-	Tdb::TLchatMembers result;
+	TLchatMembers result;
 	int requestedCount = 0;
 };
 
@@ -2554,9 +2558,9 @@ bool ParticipantsBoxSearchController::loadMoreRows() {
 		filter,
 		tl_int32(_offset),
 		tl_int32(perPage)
-	)).done([=](const TLchatMembers &result, Tdb::RequestId requestId) {
+	)).done([=](const TLchatMembers &result, RequestId requestId) {
 		searchDone(requestId, result, perPage);
-	}).fail([=](const Tdb::Error &error, Tdb::RequestId requestId) {
+	}).fail([=](const Error &error, RequestId requestId) {
 		if (_requestId == requestId) {
 			_requestId = 0;
 			_allLoaded = true;
@@ -2576,7 +2580,7 @@ void ParticipantsBoxSearchController::searchDone(
 #if 0 // goodToRemove
 		const MTPchannels_ChannelParticipants &result,
 #endif
-		const Tdb::TLchatMembers &result,
+		const TLchatMembers &result,
 		int requestedCount) {
 	auto query = _query;
 	if (requestId) {

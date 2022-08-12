@@ -207,7 +207,6 @@ public:
 
 	template <
 		typename Request,
-		typename = std::enable_if_t<!std::is_reference_v<Request>>,
 		typename = typename Request::ResponseType>
 	[[nodiscard]] SpecificRequestBuilder<Request> request(
 		Request &&request) noexcept;
@@ -281,8 +280,12 @@ private:
 
 };
 
-template <typename Request, typename, typename>
+template <typename Request, typename>
 Sender::SpecificRequestBuilder<Request> Sender::request(Request &&request) noexcept {
+	static_assert(
+		!std::is_reference_v<Request> && !std::is_const_v<Request>,
+		"You're supposed to pass non-const rvalue referenced request: "
+		"'request(TLsmth())' or 'auto r = TLsmth(); request(std::move(r))'");
 	return SpecificRequestBuilder<Request>(this, std::move(request));
 }
 

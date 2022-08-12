@@ -29,8 +29,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_calls.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Calls::Group {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kLabelRefreshInterval = 10 * crl::time(1000);
 
@@ -389,18 +393,18 @@ void ChooseJoinAsProcess::requestList() {
 		processList(std::move(list));
 #endif
 	_request->id = session->sender().request(
-		Tdb::TLgetVideoChatAvailableParticipants(
+		TLgetVideoChatAvailableParticipants(
 			peerToTdbChat(_request->peer->id)
-	)).done([=](const Tdb::TLDmessageSenders &data) {
+	)).done([=](const TLDmessageSenders &data) {
 		auto list = std::vector<not_null<PeerData*>>();
 		list.reserve(data.vtotal_count().v);
 		for (const auto &sender : data.vsenders().v) {
-			sender.match([&](const Tdb::TLDmessageSenderUser &data) {
+			sender.match([&](const TLDmessageSenderUser &data) {
 				const auto userId = data.vuser_id();
 				if (const auto user = session->data().userLoaded(userId)) {
 					list.push_back(user);
 				}
-			}, [&](const Tdb::TLDmessageSenderChat &data) {
+			}, [&](const TLDmessageSenderChat &data) {
 				const auto peerId = peerFromTdbChat(data.vchat_id());
 				if (const auto peer = session->data().peerLoaded(peerId)) {
 					list.push_back(peer);
