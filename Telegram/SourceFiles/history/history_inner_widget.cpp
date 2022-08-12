@@ -102,6 +102,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/payments_form.h"
 #include "base/random.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 #include <QtGui/QClipboard>
 #include <QtWidgets/QApplication>
 #include <QtCore/QMimeData>

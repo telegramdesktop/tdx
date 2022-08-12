@@ -30,6 +30,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_invite_links.h"
 #include "styles/style_boxes.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace {
 
 constexpr auto kFirstPageCount = 16;
