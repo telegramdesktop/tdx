@@ -21,6 +21,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "mtproto/mtproto_config.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Api {
 namespace {
 
@@ -832,10 +834,11 @@ void ChatParticipants::requestSelf(not_null<ChannelData*> channel) {
 	}
 
 	const auto finalize = [=](
-			UserId inviter = -1,
+			UserId inviter = 0,
 			TimeId inviteDate = 0,
 			bool inviteViaRequest = false) {
 		channel->inviter = inviter;
+		channel->inviterLoaded = true;
 		channel->inviteDate = inviteDate;
 		channel->inviteViaRequest = inviteViaRequest;
 		if (const auto history = channel->owner().historyLoaded(channel)) {
@@ -899,11 +902,8 @@ void ChatParticipants::requestSelf(not_null<ChannelData*> channel) {
 		_selfParticipantRequests.erase(channel);
 
 		data.vstatus().match([&](const TLDchatMemberStatusMember &) {
-			const auto inviter = data.vinviter_user_id().v
-				? data.vinviter_user_id().v
-				: -1;
 			finalize(
-				inviter,
+				data.vinviter_user_id().v,
 				data.vjoined_chat_date().v,
 				false);
 #if 0 // doLater
@@ -915,10 +915,7 @@ void ChatParticipants::requestSelf(not_null<ChannelData*> channel) {
 			}
 			finalize(channel->session().userId(), channel->date);
 		}, [&](const TLDchatMemberStatusAdministrator &) {
-			const auto inviter = data.vinviter_user_id().v
-				? data.vinviter_user_id().v
-				: -1;
-			finalize(inviter, data.vjoined_chat_date().v);
+			finalize(data.vinviter_user_id().v, data.vjoined_chat_date().v);
 		}, [&](const TLDchatMemberStatusBanned &data) {
 			LOG(("API Error: Got self banned participant."));
 			finalize();

@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "inline_bots/bot_attach_web_view.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace {
 
 using namespace Tdb;

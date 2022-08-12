@@ -46,11 +46,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 
 #include "tdb/tdb_option.h"
+#include "tdb/tdb_tl_scheme.h"
 
 #include <QtWidgets/QApplication>
 
 namespace ChatHelpers {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kSearchRequestDelay = 400;
 constexpr auto kMinRepaintDelay = crl::time(33);
@@ -913,12 +916,12 @@ void GifsListWidget::searchForGifs(const QString &query) {
 	}
 
 	if (!_searchBot && !_searchBotRequestId) {
-		_searchBotRequestId = _api.request(Tdb::TLgetOption(
-			Tdb::tl_string("animation_search_bot_username")
-		)).done([=](const Tdb::TLoptionValue &result) {
-			_searchBotRequestId = _api.request(Tdb::TLsearchPublicChat(
-				Tdb::tl_string(Tdb::OptionValue<QString>(result))
-			)).done([=](const Tdb::TLchat &result) {
+		_searchBotRequestId = _api.request(TLgetOption(
+			tl_string("animation_search_bot_username")
+		)).done([=](const TLoptionValue &result) {
+			_searchBotRequestId = _api.request(TLsearchPublicChat(
+				tl_string(OptionValue<QString>(result))
+			)).done([=](const TLchat &result) {
 				const auto peer = controller()->session().data().processPeer(
 					result);
 				if (const auto user = peer ? peer->asUser() : nullptr) {
@@ -994,13 +997,13 @@ void GifsListWidget::sendInlineRequest() {
 		_inlineRequestId = 0;
 	}).handleAllErrors().send();
 #endif
-	_inlineRequestId = _api.request(Tdb::TLgetInlineQueryResults(
+	_inlineRequestId = _api.request(TLgetInlineQueryResults(
 		peerToTdbChat(_searchBot->id),
 		peerToTdbChat(_inlineQueryPeer->id),
 		std::nullopt, // Location.
-		Tdb::tl_string(_inlineQuery),
-		Tdb::tl_string(nextOffset)
-	)).done([this](const Tdb::TLinlineQueryResults &result) {
+		tl_string(_inlineQuery),
+		tl_string(nextOffset)
+	)).done([this](const TLinlineQueryResults &result) {
 		inlineResultsDone(result);
 	}).fail([this] {
 		// show error?
