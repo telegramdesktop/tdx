@@ -21,6 +21,10 @@ namespace Tdb {
 class TLinlineQueryResults;
 } // namespace Tdb
 
+namespace Tdb {
+class TLinlineQueryResults;
+} // namespace Tdb
+
 namespace Api {
 struct SendOptions;
 } // namespace Api

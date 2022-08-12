@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "data/data_peer_values.h" // Data::AmPremiumValue.
 
+#include "tdb/tdb_tl_scheme.h"
 #include "tdb/tdb_account.h"
 
 namespace Main {
