@@ -47,7 +47,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace {
+
+using namespace Tdb;
 
 class Controller : public base::has_weak_ptr {
 public:
@@ -149,7 +153,7 @@ private:
 #if 0 // goodToRemove
 	MTP::Sender _api;
 #endif
-	Tdb::Sender _api;
+	Sender _api;
 	std::optional<EditPeerTypeData> _dataSavedValue;
 
 	bool _useLocationPhrases = false;
@@ -560,8 +564,8 @@ void Controller::checkUsernameAvailability() {
 	const auto username = channel ? channel->editableUsername() : QString();
 	_checkUsernameRequestId = _api.request(Tdb::TLcheckChatUsername(
 		peerToTdbChat(channel->id),
-		Tdb::tl_string(checking)
-	)).done([=](const Tdb::TLcheckChatUsernameResult &result) {
+		tl_string(checking)
+	)).done([=](const TLcheckChatUsernameResult &result) {
 		_checkUsernameRequestId = 0;
 		using namespace Tdb;
 		result.match([&](const TLDcheckChatUsernameResultOk &) {
@@ -584,7 +588,7 @@ void Controller::checkUsernameAvailability() {
 			_usernameState = UsernameState::NotAvailable;
 			_controls.privacy->setValue(Privacy::NoUsername);
 		});
-	}).fail([=](const Tdb::Error &error) {
+	}).fail([=](const Error &error) {
 		_checkUsernameRequestId = 0;
 		_usernameState = UsernameState::Normal;
 		const auto &type = error.message;

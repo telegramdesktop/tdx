@@ -50,7 +50,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 #include "styles/style_chat_helpers.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kSortByOnlineThrottle = 3 * crl::time(1000);
 constexpr auto kSearchPerPage = 50;
@@ -219,12 +223,12 @@ void PeerListGlobalSearchController::searchOnServer() {
 		}
 	}).send();
 #endif
-	_requestId = _api.request(Tdb::TLsearchChatsOnServer(
-		Tdb::tl_string(_query),
-		Tdb::tl_int32(SearchPeopleLimit)
-	)).done([=](const Tdb::TLchats &result, Tdb::RequestId requestId) {
+	_requestId = _api.request(TLsearchChatsOnServer(
+		tl_string(_query),
+		tl_int32(SearchPeopleLimit)
+	)).done([=](const TLchats &result, RequestId requestId) {
 		searchDone(result, requestId);
-	}).fail([=](const Tdb::Error &error, Tdb::RequestId requestId) {
+	}).fail([=](const Error &error, RequestId requestId) {
 		if (_requestId == requestId) {
 			_requestId = 0;
 			delegate()->peerListSearchRefreshRows();
@@ -237,7 +241,7 @@ void PeerListGlobalSearchController::searchDone(
 #if 0 // goodToRemove
 		const MTPcontacts_Found &result,
 #endif
-		const Tdb::TLchats &result,
+		const TLchats &result,
 		mtpRequestId requestId) {
 #if 0 // goodToRemove
 	Expects(result.type() == mtpc_contacts_found);

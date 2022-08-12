@@ -14,7 +14,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_id.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
+
 #include "tdb/tdb_account.h"
+#include "tdb/tdb_tl_scheme.h"
 
 namespace Api {
 namespace {

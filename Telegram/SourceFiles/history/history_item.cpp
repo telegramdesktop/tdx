@@ -72,6 +72,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "spellcheck/spellcheck_highlight_syntax.h"
 #include "styles/style_dialogs.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace {
 
 using namespace Tdb;

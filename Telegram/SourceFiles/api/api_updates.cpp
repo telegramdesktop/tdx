@@ -68,6 +68,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "tdb/tdb_account.h"
 #include "history/history_item_reply_markup.h"
+#include "tdb/tdb_tl_scheme.h"
 
 namespace Api {
 namespace {

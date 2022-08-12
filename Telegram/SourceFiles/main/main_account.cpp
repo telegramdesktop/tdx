@@ -28,7 +28,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "main/main_session_settings.h"
 #include "lang/lang_instance.h"
+
 #include "tdb/tdb_account.h"
+#include "tdb/tdb_tl_scheme.h"
 
 namespace Main {
 namespace {

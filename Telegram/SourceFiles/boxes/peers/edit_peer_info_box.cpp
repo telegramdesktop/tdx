@@ -77,9 +77,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 #include <QtSvg/QSvgRenderer>
 
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kBotManagerUsername = "BotFather"_cs;
 
@@ -153,7 +157,7 @@ void SaveDefaultRestrictions(
 		Fn<void()> done) {
 	const auto api = &peer->session().api();
 	const auto key = Api::RequestKey("default_restrictions", peer->id);
-	const auto requestId = api->sender().request(Tdb::TLsetChatPermissions(
+	const auto requestId = api->sender().request(TLsetChatPermissions(
 		peerToTdbChat(peer->id),
 		ChatRestrictionsInfo::ToTLPermissions(rights)
 	)).done([=] {
@@ -208,9 +212,9 @@ void SaveSlowmodeSeconds(
 		Fn<void()> done) {
 	const auto api = &channel->session().api();
 	const auto key = Api::RequestKey("slowmode_seconds", channel->id);
-	const auto requestId = api->sender().request(Tdb::TLsetChatSlowModeDelay(
+	const auto requestId = api->sender().request(TLsetChatSlowModeDelay(
 		peerToTdbChat(channel->id),
-		Tdb::tl_int32(seconds)
+		tl_int32(seconds)
 	)).done([=] {
 		api->clearModifyRequest(key);
 		// CHAT_NOT_MODIFIED is processed as TLok.
@@ -450,7 +454,7 @@ private:
 #if 0 // goodToRemove
 	MTP::Sender _api;
 #endif
-	Tdb::Sender _api;
+	Sender _api;
 	const bool _isGroup = false;
 	const bool _isBot = false;
 
@@ -886,8 +890,8 @@ void Controller::showEditLinkedChatBox() {
 		return;
 	}
 	_linkedChatsRequestId = _api.request(
-		Tdb::TLgetSuitableDiscussionChats()
-	).done([=](const Tdb::TLDchats &data) {
+		TLgetSuitableDiscussionChats()
+	).done([=](const TLDchats &data) {
 		_linkedChatsRequestId = 0;
 
 		auto chats = std::vector<not_null<PeerData*>>();
@@ -2036,7 +2040,7 @@ void Controller::saveUsername() {
 			TextUtilities::SingleLine(channel->name),
 			newUsername);
 		continueSave();
-	}).fail([=](const Tdb::Error &error) {
+	}).fail([=](const Error &error) {
 		const auto &type = error.message;
 		// Very rare case.
 		showEditPeerTypeBox([&] {
@@ -2082,8 +2086,8 @@ void Controller::saveLinkedChat() {
 #endif
 	const auto input = *_savingData.linkedChat
 		? peerToTdbChat((*_savingData.linkedChat)->id)
-		: Tdb::tl_int53(0);
-	_api.request(Tdb::TLsetChatDiscussionGroup(
+		: tl_int53(0);
+	_api.request(TLsetChatDiscussionGroup(
 		(channel->isBroadcast() ? peerToTdbChat(channel->id) : input),
 		(channel->isBroadcast() ? input : peerToTdbChat(channel->id))
 	)).done([=] {
@@ -2170,9 +2174,9 @@ void Controller::saveTitle() {
 	if (!_peer->isChat() && !_peer->isChannel()) {
 		return continueSave();
 	}
-	_api.request(Tdb::TLsetChatTitle(
+	_api.request(TLsetChatTitle(
 		peerToTdbChat(_peer->id),
-		Tdb::tl_string(*_savingData.title)
+		tl_string(*_savingData.title)
 	)).done([=] {
 		// CHAT_NOT_MODIFIED is processed as TLok.
 		if (const auto channel = _peer->asChannel()) {
@@ -2181,7 +2185,7 @@ void Controller::saveTitle() {
 			chat->setName(*_savingData.title);
 		}
 		continueSave();
-	}).fail([=](const Tdb::Error &error) {
+	}).fail([=](const Error &error) {
 		const auto &type = error.message;
 		_controls.title->showError();
 		if (error.message == u"NO_CHAT_TITLE"_q) {
@@ -2246,9 +2250,9 @@ void Controller::saveDescription() {
 		cancelSave();
 	}).send();
 #endif
-	_api.request(Tdb::TLsetChatDescription(
+	_api.request(TLsetChatDescription(
 		peerToTdbChat(_peer->id),
-		Tdb::tl_string(*_savingData.description)
+		tl_string(*_savingData.description)
 	)).done([=] {
 		// CHAT_ABOUT_NOT_MODIFIED is processed as TLok.
 		_peer->setAbout(*_savingData.description);
@@ -2318,9 +2322,9 @@ void Controller::togglePreHistoryHidden(
 
 		done();
 	};
-	_api.request(Tdb::TLtoggleSupergroupIsAllHistoryAvailable(
-		Tdb::tl_int53(peerToChannel(channel->id).bare),
-		Tdb::tl_bool(hidden)
+	_api.request(TLtoggleSupergroupIsAllHistoryAvailable(
+		tl_int53(peerToChannel(channel->id).bare),
+		tl_bool(hidden)
 	)).done(apply).fail(fail).send();
 #if 0 // goodToRemove
 	_api.request(MTPchannels_TogglePreHistoryHidden(
@@ -2409,9 +2413,10 @@ void Controller::saveSignatures() {
 		}
 	}).send();
 #endif
-	_api.request(Tdb::TLtoggleSupergroupSignMessages(
-		Tdb::tl_int53(peerToChannel(channel->id).bare),
-		Tdb::tl_bool(*_savingData.signatures)
+	_api.request(TLtoggleSupergroupSignMessages(
+		tl_int53(peerToChannel(channel->id).bare),
+		tl_bool(*_savingData.signatures),
+		tl_bool(*_savingData.signatureProfiles)
 	)).done([=] {
 		// CHAT_NOT_MODIFIED is processed as TLok.
 		continueSave();
@@ -2440,9 +2445,9 @@ void Controller::saveForwards() {
 		}
 	}).send();
 #endif
-	_api.request(Tdb::TLtoggleChatHasProtectedContent(
+	_api.request(TLtoggleChatHasProtectedContent(
 		peerToTdbChat(_peer->id),
-		Tdb::tl_bool(*_savingData.noForwards)
+		tl_bool(*_savingData.noForwards)
 	)).done([=] {
 		// CHAT_NOT_MODIFIED is processed as TLok.
 		continueSave();
@@ -2476,9 +2481,9 @@ void Controller::saveJoinToWrite() {
 	if (!_peer->isChannel()) {
 		return continueSave();
 	}
-	_api.request(Tdb::TLtoggleSupergroupJoinToSendMessages(
-		Tdb::tl_int53(peerToChannel(_peer->id).bare),
-		Tdb::tl_bool(*_savingData.joinToWrite)
+	_api.request(TLtoggleSupergroupJoinToSendMessages(
+		tl_int53(peerToChannel(_peer->id).bare),
+		tl_bool(*_savingData.joinToWrite)
 	)).done([=] {
 		// CHAT_NOT_MODIFIED is processed as TLok.
 		continueSave();
@@ -2512,9 +2517,9 @@ void Controller::saveRequestToJoin() {
 	if (!_peer->isChannel()) {
 		return continueSave();
 	}
-	_api.request(Tdb::TLtoggleSupergroupJoinByRequest(
-		Tdb::tl_int53(peerToChannel(_peer->id).bare),
-		Tdb::tl_bool(*_savingData.requestToJoin)
+	_api.request(TLtoggleSupergroupJoinByRequest(
+		tl_int53(peerToChannel(_peer->id).bare),
+		tl_bool(*_savingData.requestToJoin)
 	)).done([=] {
 		// CHAT_NOT_MODIFIED is processed as TLok.
 		continueSave();
@@ -2578,7 +2583,7 @@ void Controller::deleteChannel() {
 	//	}
 	}).send();
 #endif
-	session->sender().request(Tdb::TLdeleteChat(
+	session->sender().request(TLdeleteChat(
 		peerToTdbChat(channel->id)
 	)).send();
 	//}).fail([=](const MTP::Error &error) {

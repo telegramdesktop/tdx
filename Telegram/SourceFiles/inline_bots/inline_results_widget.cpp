@@ -20,9 +20,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "styles/style_chat_helpers.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace InlineBots {
 namespace Layout {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kInlineBotRequestDelay = 400;
 
@@ -369,7 +373,7 @@ void Widget::inlineBotChanged() {
 #if 0 // goodToRemove
 void Widget::inlineResultsDone(const MTPmessages_BotResults &result) {
 #endif
-void Widget::inlineResultsDone(const Tdb::TLinlineQueryResults &result) {
+void Widget::inlineResultsDone(const TLinlineQueryResults &result) {
 	_inlineRequestId = 0;
 	_requesting.fire(false);
 
@@ -504,19 +508,19 @@ void Widget::onInlineRequest() {
 		_inlineRequestId = 0;
 	}).handleAllErrors().send();
 #endif
-	_inlineRequestId = _api.request(Tdb::TLgetInlineQueryResults(
-		Tdb::tl_int53(_inlineBot->id.value),
+	_inlineRequestId = _api.request(TLgetInlineQueryResults(
+		tl_int53(_inlineBot->id.value),
 		peerToTdbChat(_inlineQueryPeer->id),
 		std::nullopt, // Location.
-		Tdb::tl_string(_inlineQuery),
-		Tdb::tl_string(nextOffset)
+		tl_string(_inlineQuery),
+		tl_string(nextOffset)
 	)).done([this](
-			const Tdb::TLinlineQueryResults &result,
-			Tdb::RequestId requestId) {
+			const TLinlineQueryResults &result,
+			RequestId requestId) {
 		if (_inlineRequestId == requestId) {
 			inlineResultsDone(result);
 		}
-	}).fail([this](const Tdb::Error &, Tdb::RequestId requestId) {
+	}).fail([this](const Error &, RequestId requestId) {
 		if (_inlineRequestId == requestId) {
 			// show error?
 			_requesting.fire(false);

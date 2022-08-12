@@ -40,7 +40,7 @@ enum class ConvertOption {
 [[nodiscard]] TextWithEntities FormattedTextFromTdb(
 	const Tdb::TLformattedText &text);
 
-[[nodiscard]] Tdb::TLvector<Tdb::TLtextEntity> EntitiesToTdb(
+[[nodiscard]] QVector<Tdb::TLtextEntity> EntitiesToTdb(
 	const EntitiesInText &entities);
 
 [[nodiscard]] Tdb::TLformattedText FormattedTextToTdb(

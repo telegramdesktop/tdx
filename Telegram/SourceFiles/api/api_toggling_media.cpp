@@ -14,9 +14,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_stickers.h"
 #include "window/window_session_controller.h"
 #include "main/main_session.h"
+
 #include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
 
 namespace Api {
+namespace {
+
+using namespace Tdb;
+
+} // namespace
+
 #if 0 // goodToRemove
 namespace {
 
@@ -74,12 +82,12 @@ void ToggleFavedSticker(
 	};
 	auto &api = document->owner().session().sender();
 	if (faved) {
-		api.request(Tdb::TLaddFavoriteSticker(
-			Tdb::tl_inputFileId(Tdb::tl_int32(document->id))
+		api.request(TLaddFavoriteSticker(
+			tl_inputFileId(tl_int32(document->id))
 		)).done(std::move(done)).send();
 	} else {
-		api.request(Tdb::TLremoveFavoriteSticker(
-			Tdb::tl_inputFileId(Tdb::tl_int32(document->id))
+		api.request(TLremoveFavoriteSticker(
+			tl_inputFileId(tl_int32(document->id))
 		)).done(std::move(done)).send();
 	}
 #if 0 // goodToRemove
@@ -107,14 +115,14 @@ void ToggleRecentSticker(
 	};
 	auto &api = document->owner().session().sender();
 	if (saved) {
-		api.request(Tdb::TLaddRecentSticker(
-			Tdb::tl_bool(false),
-			Tdb::tl_inputFileId(Tdb::tl_int32(document->id))
+		api.request(TLaddRecentSticker(
+			tl_bool(false),
+			tl_inputFileId(tl_int32(document->id))
 		)).done(std::move(done)).send();
 	} else {
-		api.request(Tdb::TLremoveRecentSticker(
-			Tdb::tl_bool(false),
-			Tdb::tl_inputFileId(Tdb::tl_int32(document->id))
+		api.request(TLremoveRecentSticker(
+			tl_bool(false),
+			tl_inputFileId(tl_int32(document->id))
 		)).done(std::move(done)).send();
 	}
 #if 0 // goodToRemove
@@ -146,12 +154,12 @@ void ToggleSavedGif(
 	};
 	auto &api = document->owner().session().sender();
 	if (saved) {
-		api.request(Tdb::TLaddSavedAnimation(
-			Tdb::tl_inputFileId(Tdb::tl_int32(document->id))
+		api.request(TLaddSavedAnimation(
+			tl_inputFileId(tl_int32(document->id))
 		)).done(std::move(done)).send();
 	} else {
-		api.request(Tdb::TLremoveSavedAnimation(
-			Tdb::tl_inputFileId(Tdb::tl_int32(document->id))
+		api.request(TLremoveSavedAnimation(
+			tl_inputFileId(tl_int32(document->id))
 		)).done(std::move(done)).send();
 	}
 #if 0 // goodToRemove
@@ -172,15 +180,15 @@ void ToggleSavedRingtone(
 		bool saved) {
 	auto &api = document->owner().session().sender();
 	if (saved) {
-		api.request(Tdb::TLaddSavedNotificationSound(
-			Tdb::tl_inputFileId(Tdb::tl_int32(document->id)))
-		).done([=](const Tdb::TLnotificationSound &result) {
+		api.request(TLaddSavedNotificationSound(
+			tl_inputFileId(tl_int32(document->id)))
+		).done([=](const TLnotificationSound &result) {
 			document->owner().processDocument(result);
 			done();
 		}).send();
 	} else {
-		api.request(Tdb::TLremoveSavedNotificationSound(
-			Tdb::tl_int64(document->id)
+		api.request(TLremoveSavedNotificationSound(
+			tl_int64(document->id)
 		)).done(std::move(done)).send();
 	}
 #if 0 // goodToRemove

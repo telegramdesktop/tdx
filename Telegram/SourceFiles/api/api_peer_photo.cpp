@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #endif
 #include "storage/storage_user_photos.h"
 #include "tdb/tdb_file_generator.h"
+#include "tdb/tdb_tl_scheme.h"
 
 #include <QtCore/QBuffer>
 
@@ -593,7 +594,6 @@ void PeerPhoto::requestUserPhotos(
 		_userPhotosRequests.remove(user);
 	}).send();
 	_userPhotosRequests.emplace(user, requestId);
-#endif
 }
 
 auto PeerPhoto::emojiList(EmojiListType type) -> EmojiListData & {

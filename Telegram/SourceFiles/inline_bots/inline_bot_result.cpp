@@ -30,8 +30,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "styles/style_chat_helpers.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace InlineBots {
 namespace {
+
+using namespace Tdb;
 
 const auto kVideoThumbMime = "video/mp4"_q;
 
@@ -53,16 +57,15 @@ Result::Result(not_null<Main::Session*> session, const Creator &creator)
 , _type(creator.type) {
 }
 
-#if 0 // mtp
 std::unique_ptr<Result> Result::Create(
 		not_null<Main::Session*> session,
 		uint64 queryId,
-		const Tdb::TLinlineQueryResult &tlData) {
+		const TLinlineQueryResult &tlData) {
 	using Type = Result::Type;
 
 	const auto processThumbnail = [&](
 			not_null<Result*> result,
-			tl::conditional<Tdb::TLthumbnail> thumb) {
+			tl::conditional<TLthumbnail> thumb) {
 		if (thumb) {
 			result->_thumbnail.update(
 				result->_session,
@@ -107,7 +110,7 @@ std::unique_ptr<Result> Result::Create(
 #if 0 // todo invoice
 #endif
 
-	return tlData.match([&](const Tdb::TLDinlineQueryResultArticle &data) {
+	return tlData.match([&](const TLDinlineQueryResultArticle &data) {
 		auto result = createResult(Type::Article);
 
 		result->_id = data.vid().v;
@@ -120,7 +123,7 @@ std::unique_ptr<Result> Result::Create(
 		result->sendData = std::make_unique<internal::SendDataTDLib>(session);
 
 		return result;
-	}, [&](const Tdb::TLDinlineQueryResultContact &data) {
+	}, [&](const TLDinlineQueryResultContact &data) {
 		auto result = createResult(Type::Contact);
 
 		result->_id = data.vid().v;
@@ -132,7 +135,7 @@ std::unique_ptr<Result> Result::Create(
 			data.vcontact().data().vphone_number().v);
 
 		return result;
-	}, [&](const Tdb::TLDinlineQueryResultLocation &data) {
+	}, [&](const TLDinlineQueryResultLocation &data) {
 		auto result = createResult(Type::Geo);
 
 		result->_id = data.vid().v;
@@ -144,7 +147,7 @@ std::unique_ptr<Result> Result::Create(
 		processGeo(result.get());
 
 		return result;
-	}, [&](const Tdb::TLDinlineQueryResultVenue &data) {
+	}, [&](const TLDinlineQueryResultVenue &data) {
 		auto result = createResult(Type::Venue);
 
 		result->_id = data.vid().v;
@@ -162,7 +165,7 @@ std::unique_ptr<Result> Result::Create(
 		processGeo(result.get());
 
 		return result;
-	}, [&](const Tdb::TLDinlineQueryResultGame &data) {
+	}, [&](const TLDinlineQueryResultGame &data) {
 		auto result = createResult(Type::Game);
 
 		result->_id = data.vid().v;
@@ -177,7 +180,7 @@ std::unique_ptr<Result> Result::Create(
 		}
 
 		return result;
-	}, [&](const Tdb::TLDinlineQueryResultAnimation &data) {
+	}, [&](const TLDinlineQueryResultAnimation &data) {
 		auto result = createResult(Type::Gif);
 
 		result->_id = data.vid().v;
@@ -187,7 +190,7 @@ std::unique_ptr<Result> Result::Create(
 		processSendDocument(result.get());
 
 		return result;
-	}, [&](const Tdb::TLDinlineQueryResultAudio &data) {
+	}, [&](const TLDinlineQueryResultAudio &data) {
 		auto result = createResult(Type::Audio);
 
 		result->_id = data.vid().v;
@@ -197,7 +200,7 @@ std::unique_ptr<Result> Result::Create(
 		processSendDocument(result.get());
 
 		return result;
-	}, [&](const Tdb::TLDinlineQueryResultDocument &data) {
+	}, [&](const TLDinlineQueryResultDocument &data) {
 		auto result = createResult(Type::File);
 
 		result->_id = data.vid().v;
@@ -207,7 +210,7 @@ std::unique_ptr<Result> Result::Create(
 		processSendDocument(result.get());
 
 		return result;
-	}, [&](const Tdb::TLDinlineQueryResultPhoto &data) {
+	}, [&](const TLDinlineQueryResultPhoto &data) {
 		auto result = createResult(Type::Photo);
 
 		result->_id = data.vid().v;
@@ -222,7 +225,7 @@ std::unique_ptr<Result> Result::Create(
 			EntitiesInText());
 
 		return result;
-	}, [&](const Tdb::TLDinlineQueryResultSticker &data) {
+	}, [&](const TLDinlineQueryResultSticker &data) {
 		auto result = createResult(Type::Sticker);
 
 		result->_id = data.vid().v;
@@ -230,7 +233,7 @@ std::unique_ptr<Result> Result::Create(
 		processSendDocument(result.get());
 
 		return result;
-	}, [&](const Tdb::TLDinlineQueryResultVideo &data) {
+	}, [&](const TLDinlineQueryResultVideo &data) {
 		auto result = createResult(Type::Video);
 
 		result->_id = data.vid().v;
@@ -240,7 +243,7 @@ std::unique_ptr<Result> Result::Create(
 		processSendDocument(result.get());
 
 		return result;
-	}, [&](const Tdb::TLDinlineQueryResultVoiceNote &data) {
+	}, [&](const TLDinlineQueryResultVoiceNote &data) {
 		auto result = createResult(Type::Audio);
 
 		result->_id = data.vid().v;
@@ -253,6 +256,7 @@ std::unique_ptr<Result> Result::Create(
 	});
 }
 
+#if 0 // mtp
 std::unique_ptr<Result> Result::Create(
 		not_null<Main::Session*> session,
 		uint64 queryId,

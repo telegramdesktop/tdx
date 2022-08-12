@@ -17,6 +17,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "base/timer.h"
 
+namespace Tdb {
+class TLchatEvent;
+} // namespace Tdb
+
 struct ChatRestrictionsInfo;
 
 namespace Main {

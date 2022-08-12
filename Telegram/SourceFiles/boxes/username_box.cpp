@@ -31,7 +31,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
+#include <QtGui/QGuiApplication>
+#include <QtGui/QClipboard>
+
 namespace {
+
+using namespace Tdb;
 
 class UsernameEditor final : public Ui::RpWidget {
 public:
@@ -137,12 +144,12 @@ rpl::producer<> UsernameEditor::save() {
 	}
 
 	_sentUsername = getName();
-	_saveRequestId = _api.request(Tdb::TLsetUsername(
-		Tdb::tl_string(_sentUsername)
+	_saveRequestId = _api.request(TLsetUsername(
+		tl_string(_sentUsername)
 	)).done([=] {
 		_saveRequestId = 0;
 		_saved.fire_done();
-	}).fail([=](const Tdb::Error &error) {
+	}).fail([=](const Error &error) {
 		_saveRequestId = 0;
 		updateFail(error.message);
 	}).send();
@@ -183,10 +190,10 @@ void UsernameEditor::check() {
 		return;
 	}
 	_checkUsername = name;
-	_checkRequestId = _api.request(Tdb::TLcheckChatUsername(
+	_checkRequestId = _api.request(TLcheckChatUsername(
 		peerToTdbChat(_session->userPeerId()),
-		Tdb::tl_string(name)
-	)).done([=](const Tdb::TLcheckChatUsernameResult &result) {
+		tl_string(name)
+	)).done([=](const TLcheckChatUsernameResult &result) {
 		using namespace Tdb;
 		_checkRequestId = 0;
 		result.match([&](const TLDcheckChatUsernameResultOk &data) {
