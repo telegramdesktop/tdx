@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/round_rect.h"
 #include "ui/userpic_view.h"
 
+#include "tdb/tdb_sender.h"
+
 namespace Ui {
 class InputField;
 class CrossButton;
@@ -323,14 +325,20 @@ public:
 	bool clearInstalledLocally();
 
 private:
+#if 0 // mtp
 	void sendInstallRequest(
 		uint64 setId,
 		const MTPInputStickerSet &input);
+#endif
+	void sendInstallRequest(uint64 setId, std::nullopt_t);
 	void installedLocally(uint64 setId);
 	void notInstalledLocally(uint64 setId);
 
 	const not_null<Main::Session*> _session;
+#if 0 // mtp
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 
 	base::flat_set<uint64> _installedLocallySets;
 

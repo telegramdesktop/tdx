@@ -24,12 +24,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace HistoryView {
 
+#if 0 // mtp
 PremiumGift::PremiumGift(
 	not_null<Element*> parent,
 	not_null<Data::MediaGiftBox*> gift)
 : _parent(parent)
 , _gift(gift)
 , _data(gift->data()) {
+}
+#endif
+PremiumGift::PremiumGift(
+	not_null<Element*> parent,
+	not_null<Data::MediaGiftBox*> gift,
+	DocumentData *document)
+: _parent(parent)
+, _gift(gift)
+, _data(gift->data())
+, _document(document) {
 }
 
 PremiumGift::~PremiumGift() = default;
@@ -150,10 +161,13 @@ void PremiumGift::ensureStickerCreated() const {
 	if (_sticker) {
 		return;
 	}
+#if 0 // mtp
 	const auto &session = _parent->history()->session();
 	const auto months = _gift->data().months;
 	auto &packs = session.giftBoxStickersPacks();
 	if (const auto document = packs.lookup(months)) {
+#endif
+	if (const auto document = _document) {
 		if (const auto sticker = document->sticker()) {
 			const auto skipPremiumEffect = false;
 			_sticker.emplace(_parent, document, skipPremiumEffect, _parent);

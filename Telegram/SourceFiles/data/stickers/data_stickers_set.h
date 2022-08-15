@@ -67,8 +67,10 @@ enum class StickersSetFlag {
 inline constexpr bool is_flag_type(StickersSetFlag) { return true; };
 using StickersSetFlags = base::flags<StickersSetFlag>;
 
+#if 0 // mtp
 [[nodiscard]] StickersSetFlags ParseStickersSetFlags(
 	const MTPDstickerSet &data);
+#endif
 
 [[nodiscard]] StickersSetFlags ParseStickersSetFlags(
 	const Tdb::TLDstickerSet &data);
@@ -92,7 +94,9 @@ public:
 	[[nodiscard]] Data::Session &owner() const;
 	[[nodiscard]] Main::Session &session() const;
 
+#if 0 // mtp
 	[[nodiscard]] MTPInputStickerSet mtpInput() const;
+#endif
 	[[nodiscard]] StickerSetIdentifier identifier() const;
 	[[nodiscard]] StickersType type() const;
 	[[nodiscard]] bool textColor() const;
@@ -134,7 +138,9 @@ private:
 
 };
 
+#if 0 // mtp
 [[nodiscard]] MTPInputStickerSet InputStickerSet(StickerSetIdentifier id);
 [[nodiscard]] StickerSetIdentifier FromInputSet(const MTPInputStickerSet &id);
+#endif
 
 } // namespace Data

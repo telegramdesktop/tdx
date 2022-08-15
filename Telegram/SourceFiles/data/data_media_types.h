@@ -572,6 +572,7 @@ private:
 
 class MediaGiftBox final : public Media {
 public:
+#if 0 // mtp
 	MediaGiftBox(
 		not_null<HistoryItem*> parent,
 		not_null<PeerData*> from,
@@ -580,6 +581,17 @@ public:
 		not_null<HistoryItem*> parent,
 		not_null<PeerData*> from,
 		GiftCode data);
+#endif
+	MediaGiftBox(
+		not_null<HistoryItem*> parent,
+		not_null<PeerData*> from,
+		int months,
+		DocumentData *sticker);
+	MediaGiftBox(
+		not_null<HistoryItem*> parent,
+		not_null<PeerData*> from,
+		GiftCode data,
+		DocumentData *sticker);
 
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
 
@@ -590,8 +602,10 @@ public:
 	QString pinnedTextSubstring() const override;
 	TextForMimeData clipboardText() const override;
 
+#if 0 // mtp
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
+#endif
 	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent,
@@ -600,6 +614,8 @@ public:
 private:
 	not_null<PeerData*> _from;
 	GiftCode _data;
+
+	DocumentData *_sticker = nullptr; // later todo move up
 
 };
 
