@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#if 0 // mtp
+
 #include "history/history_item_reply_markup.h"
 
 namespace Main {
@@ -37,3 +39,5 @@ struct HistoryMessageEdition {
 	const MTPMessageMedia *mtpMedia = nullptr;
 	const MTPMessageReactions *mtpReactions = nullptr;
 };
+
+#endif

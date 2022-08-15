@@ -21,7 +21,8 @@ class TLinputInvoice;
 class TLDpaymentForm;
 class TLDpaymentReceipt;
 class TLDorderInfo;
-class TLDsavedCredentials;
+class TLpaymentOption;
+class TLsavedCredentials;
 class TLshippingOption;
 class TLDpaymentProviderStripe;
 class TLDpaymentProviderSmartGlocal;
@@ -311,7 +312,10 @@ private:
 	void processDetails(const Tdb::TLDpaymentForm &data);
 	void processDetails(const Tdb::TLDpaymentReceipt &data);
 	void processSavedInformation(const Tdb::TLDorderInfo &data);
-	void processSavedCredentials(const Tdb::TLDsavedCredentials &data);
+	void processSavedCredentials(
+		const QVector<Tdb::TLsavedCredentials> &data);
+	void processAdditionalPaymentMethods(
+		const QVector<Tdb::TLpaymentOption> &list);
 	void processShippingOptions(
 		const QVector<Tdb::TLshippingOption> &options);
 	void fillStripeNativeMethod(const Tdb::TLDpaymentProviderStripe &data);

@@ -176,6 +176,7 @@ bool PollData::applyChanges(const TLpoll &poll) {
 	return true;
 }
 
+#if 0 // mtp
 bool PollData::applyResults(const MTPPollResults &results) {
 	return results.match([&](const MTPDpollResults &results) {
 		_lastResultsUpdate = crl::now();
@@ -231,6 +232,7 @@ bool PollData::applyResults(const MTPPollResults &results) {
 		return changed;
 	});
 }
+#endif
 
 bool PollData::checkResultsReload(crl::time now) {
 	if (_lastResultsUpdate > 0
@@ -309,6 +311,7 @@ bool PollData::quiz() const {
 	return (_flags & Flag::Quiz);
 }
 
+#if 0 // mtp
 MTPPoll PollDataToMTP(not_null<const PollData*> poll, bool close) {
 	const auto convert = [](const PollAnswer &answer) {
 		return MTP_pollAnswer(
@@ -372,3 +375,4 @@ MTPInputMedia PollDataToInputMedia(
 		MTP_string(solution.text),
 		sentEntities);
 }
+#endif

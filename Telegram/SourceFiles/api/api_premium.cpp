@@ -24,8 +24,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/payments_form.h"
 #include "ui/text/format_values.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Api {
 namespace {
+
+using namespace Tdb;
 
 [[nodiscard]] GiftCode Parse(const MTPDpayments_checkedGiftCode &data) {
 	return {
@@ -64,7 +68,7 @@ Premium::Premium(not_null<ApiWrap*> api)
 #if 0 // mtp
 , _api(&api->instance()) {
 #endif
-{
+, _api(&_session->sender()) {
 	crl::on_main(_session, [=] {
 		// You can't use _session->user() in the constructor,
 		// only queued, because it is not constructed yet.
@@ -220,6 +224,7 @@ void Premium::reloadCloudSet() {
 	if (_cloudSetRequestId) {
 		return;
 	}
+#if 0 // mtp
 	_cloudSetRequestId = _api.request(MTPmessages_GetStickers(
 		MTP_string("\xf0\x9f\x93\x82\xe2\xad\x90\xef\xb8\x8f"),
 		MTP_long(_cloudSetHash)
@@ -228,6 +233,11 @@ void Premium::reloadCloudSet() {
 		result.match([&](const MTPDmessages_stickersNotModified &) {
 		}, [&](const MTPDmessages_stickers &data) {
 			_cloudSetHash = data.vhash().v;
+#endif
+	_cloudSetRequestId = _api.request(TLgetPremiumStickers(
+	)).done([=](const TLstickers &result) {
+		_cloudSetRequestId = 0;
+		result.match([&](const TLDstickers &data) {
 			const auto owner = &_session->data();
 			_cloudSet.clear();
 			for (const auto &sticker : data.vstickers().v) {

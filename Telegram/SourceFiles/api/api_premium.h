@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #if 0 // mtp
 #include "mtproto/sender.h"
 #endif
+#include "tdb/tdb_sender.h"
 
 class History;
 class ApiWrap;
@@ -124,6 +125,7 @@ private:
 #if 0 // mtp
 	MTP::Sender _api;
 #endif
+	Tdb::Sender _api;
 
 	mtpRequestId _promoRequestId = 0;
 	std::optional<TextWithEntities> _statusText;

@@ -508,7 +508,10 @@ StickersBox::StickersBox(
 : _st(st::stickersRowItem)
 , _show(std::move(show))
 , _session(&_show->session())
+#if 0 // mtp
 , _api(&_session->mtp())
+#endif
+, _api(&_session->sender())
 , _section(Section::Attached)
 , _isMasks(false)
 , _isEmoji(true)
@@ -837,7 +840,7 @@ void StickersBox::loadMoreArchived() {
 		}
 	}
 	_archivedRequestId = _api.request(TLgetArchivedStickerSets(
-		tl_bool(_isMasks),
+		(_isMasks ? tl_stickerTypeMask() : tl_stickerTypeRegular()),
 		tl_int64(lastId),
 		tl_int32(kArchivedLimitPerPage)
 	)).done([=](const TLstickerSets &result) {
@@ -1059,7 +1062,7 @@ void StickersBox::preloadArchivedSets() {
 		}).send();
 #endif
 		_archivedRequestId = _api.request(TLgetArchivedStickerSets(
-			tl_bool(_isMasks),
+			(_isMasks ? tl_stickerTypeMask() : tl_stickerTypeRegular()),
 			tl_int64(0),
 			tl_int32(kArchivedLimitFirstRequest)
 		)).done([=](const TLstickerSets &result) {

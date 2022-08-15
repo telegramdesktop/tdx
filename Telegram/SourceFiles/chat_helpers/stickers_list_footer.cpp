@@ -31,10 +31,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect_part.h"
 #include "styles/style_chat_helpers.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 #include <QtWidgets/QApplication>
 
 namespace ChatHelpers {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kEmojiSectionSetIdBase = uint64(0x77FF'FFFF'FFFF'FFF0ULL);
 constexpr auto kEmojiSearchLimit = 32;
@@ -1476,7 +1480,10 @@ void StickersListFooter::paintSetIconToCache(
 
 LocalStickersManager::LocalStickersManager(not_null<Main::Session*> session)
 : _session(session)
+#if 0 // mtp
 , _api(&session->mtp()) {
+#endif
+, _api(&session->sender()) {
 }
 
 void LocalStickersManager::install(uint64 setId) {
@@ -1486,13 +1493,19 @@ void LocalStickersManager::install(uint64 setId) {
 		return;
 	}
 	const auto set = it->second.get();
-	const auto input = set->mtpInput();
+	const auto input = std::nullopt;
 	if (!(set->flags & Data::StickersSetFlag::NotLoaded)
 		&& !set->stickers.empty()) {
 		sendInstallRequest(setId, input);
 		return;
 	}
 #if 0 // mtp
+	const auto input = set->mtpInput();
+	if (!(set->flags & Data::StickersSetFlag::NotLoaded)
+		&& !set->stickers.empty()) {
+		sendInstallRequest(setId, input);
+		return;
+	}
 	_api.request(MTPmessages_GetStickerSet(
 		input,
 		MTP_int(0) // hash
@@ -1516,10 +1529,10 @@ bool LocalStickersManager::isInstalledLocally(uint64 setId) const {
 	return _installedLocallySets.contains(setId);
 }
 
+#if 0 // mtp
 void LocalStickersManager::sendInstallRequest(
 		uint64 setId,
 		const MTPInputStickerSet &input) {
-#if 0 // mtp
 	_api.request(MTPmessages_InstallStickerSet(
 		input,
 		MTP_bool(false)
@@ -1530,6 +1543,7 @@ void LocalStickersManager::sendInstallRequest(
 		}
 	}).fail([=] {
 #endif
+void LocalStickersManager::sendInstallRequest(uint64 setId, std::nullopt_t) {
 	_api.request(TLchangeStickerSet(
 		tl_int64(setId),
 		tl_bool(true),

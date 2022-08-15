@@ -59,21 +59,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_premium.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 #include <QtGui/QGuiApplication>
 
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kUserpicsMax = size_t(3);
 
 using GiftOption = Data::SubscriptionOption;
 using GiftOptions = Data::SubscriptionOptions;
 
+#if 0 // mtp
 GiftOptions GiftOptionFromTL(const MTPDuserFull &data) {
 	auto result = GiftOptions();
 	const auto gifts = data.vpremium_gifts();
 	if (!gifts) {
 		return result;
 	}
+#endif
+
+GiftOptions GiftOptionFromTL(const TLDuserFullInfo &data) {
+	auto result = GiftOptions();
+	const auto gifts = &data.vpremium_gift_options();
 	result = Api::SubscriptionOptionsFromTL(gifts->v);
 	for (auto &option : result) {
 		option.costPerMonth = tr::lng_premium_gift_per(
@@ -944,7 +954,10 @@ void ShowAlreadyPremiumToast(
 GiftPremiumValidator::GiftPremiumValidator(
 	not_null<Window::SessionController*> controller)
 : _controller(controller)
+#if 0 // mtp
 , _api(&_controller->session().mtp()) {
+#endif
+, _api(&_controller->session().sender()) {
 }
 
 void GiftPremiumValidator::cancel() {
@@ -1089,19 +1102,26 @@ void GiftPremiumValidator::showBox(not_null<UserData*> user) {
 	if (_requestId) {
 		return;
 	}
+#if 0 // mtp
 	_requestId = _api.request(MTPusers_GetFullUser(
 		user->inputUser
 	)).done([=](const MTPusers_UserFull &result) {
+#endif
+	_requestId = _api.request(TLgetUserFullInfo(
+		tl_int53(peerToUser(user->id).bare)
+	)).done([=](const TLDuserFullInfo &fullUser) {
 		if (!_requestId) {
 			// Canceled.
 			return;
 		}
 		_requestId = 0;
+#if 0 // mtp
 //		_controller->api().processFullPeer(peer, result);
 		_controller->session().data().processUsers(result.data().vusers());
 		_controller->session().data().processChats(result.data().vchats());
 
 		const auto &fullUser = result.data().vfull_user().data();
+#endif
 		auto options = GiftOptionFromTL(fullUser);
 		if (!options.empty()) {
 			_controller->show(

@@ -1813,7 +1813,7 @@ void Controller::saveUsername() {
 	)).done([=] {
 		// USERNAME_NOT_MODIFIED is processed as TLok.
 		channel->setName(
-			TextUtilities::SingleLine(channel->name),
+			TextUtilities::SingleLine(channel->name()),
 			newUsername);
 		continueSave();
 	}).fail([=](const Error &error) {

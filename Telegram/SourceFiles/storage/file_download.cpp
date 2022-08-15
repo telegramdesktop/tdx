@@ -539,6 +539,8 @@ std::unique_ptr<FileLoader> CreateFileLoader(
 			autoLoading,
 			cacheTag);
 	}, [&](const AudioAlbumThumbLocation &data) {
+		Unexpected("Trying to load a file by MTProto audio thumb location.");
+#if 0 // mtp
 		result = std::make_unique<mtpFileLoader>(
 			session,
 			data,
@@ -547,6 +549,7 @@ std::unique_ptr<FileLoader> CreateFileLoader(
 			fromCloud,
 			autoLoading,
 			cacheTag);
+#endif
 	}, [&](const InMemoryLocation &data) {
 		result = std::make_unique<FromMemoryLoader>(
 			session,
