@@ -405,6 +405,7 @@ void StickersListWidget::preloadMoreOfficial() {
 		}, [&](const MTPDmessages_featuredStickers &data) {
 #endif
 	_officialRequestId = _api.request(TLgetTrendingStickerSets(
+		tl_stickerTypeRegular(),
 		tl_int32(_officialOffset),
 		tl_int32(kOfficialLoadLimit)
 	)).done([=](const TLtrendingStickerSets &result) {
@@ -2986,7 +2987,7 @@ object_ptr<Ui::BoxContent> MakeConfirmRemoveSetBox(
 					).send();
 				}
 #endif
-				_api.request(TLchangeStickerSet(
+				session->sender().request(TLchangeStickerSet(
 					tl_int64(setId),
 					tl_bool(false),
 					tl_bool(false)

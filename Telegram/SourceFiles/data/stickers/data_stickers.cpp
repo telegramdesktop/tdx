@@ -153,6 +153,16 @@ void RemoveFromSet(
 
 } // namespace
 
+StickersType TypeFromTL(const TLstickerType &type) {
+	return type.match([](const TLDstickerTypeRegular &) {
+		return StickersType::Stickers;
+	}, [](const TLDstickerTypeMask &) {
+		return StickersType::Masks;
+	}, [](const TLDstickerTypeCustomEmoji &) {
+		return StickersType::Emoji;
+	});
+}
+
 Stickers::Stickers(not_null<Session*> owner) : _owner(owner) {
 }
 
@@ -696,11 +706,15 @@ void Stickers::setFaved(
 }
 
 void Stickers::setsReceived(const QVector<TLstickerSetInfo> &data) {
-	setsOrMasksReceived(data, false);
+	somethingReceived(data, StickersType::Stickers);
 }
 
 void Stickers::masksReceived(const QVector<TLstickerSetInfo> &data) {
-	setsOrMasksReceived(data, true);
+	somethingReceived(data, StickersType::Masks);
+}
+
+void Stickers::emojiReceived(const QVector<TLstickerSetInfo> &data) {
+	somethingReceived(data, StickersType::Emoji);
 }
 
 #if 0 // mtp
@@ -941,22 +955,39 @@ void Stickers::specialSetReceived(
 	default: Unexpected("setId in SpecialSetReceived()");
 	}
 
-	notifyUpdated();
+	notifyUpdated((setId == CloudRecentAttachedSetId)
+		? StickersType::Masks
+		: StickersType::Stickers);
 }
 
 void Stickers::featuredSetsReceived(const TLtrendingStickerSets &data) {
-	auto &setsOrder = featuredSetsOrderRef();
-	setsOrder.clear();
+	featuredReceived(data, StickersType::Stickers);
+}
+
+void Stickers::featuredEmojiSetsReceived(const TLtrendingStickerSets &data) {
+	featuredReceived(data, StickersType::Emoji);
+}
+
+void Stickers::featuredReceived(
+		const TLtrendingStickerSets &data,
+		StickersType type) {
+	const auto isEmoji = (type == StickersType::Emoji);
+	auto &featuredOrder = isEmoji
+		? featuredEmojiSetsOrderRef()
+		: featuredSetsOrderRef();
+	featuredOrder.clear();
 
 	auto &sets = setsRef();
 	auto setsToRequest = base::flat_map<uint64, uint64>();
 	for (auto &[id, set] : sets) {
 		// Mark for removing.
-		set->flags &= ~SetFlag::Featured;
+		if (set->type() == type) {
+			set->flags &= ~SetFlag::Featured;
+		}
 	}
 	for (const auto &entry : data.data().vsets().v) {
 		const auto set = feedSet(entry, StickersSetFlag::Featured);
-		setsOrder.push_back(set->id);
+		featuredOrder.push_back(set->id);
 		if (set->stickers.isEmpty()
 			|| (set->flags & SetFlag::NotLoaded)) {
 			setsToRequest.emplace(set->id, set->accessHash);
@@ -966,13 +997,16 @@ void Stickers::featuredSetsReceived(const TLtrendingStickerSets &data) {
 	auto unreadCount = 0;
 	for (auto it = sets.begin(); it != sets.end();) {
 		const auto set = it->second.get();
-		bool installed = (set->flags & SetFlag::Installed);
-		bool featured = (set->flags & SetFlag::Featured);
-		bool special = (set->flags & SetFlag::Special);
-		bool archived = (set->flags & SetFlag::Archived);
-		if (installed || featured || special || archived) {
+		const auto installed = (set->flags & SetFlag::Installed);
+		const auto featured = (set->flags & SetFlag::Featured);
+		const auto special = (set->flags & SetFlag::Special);
+		const auto archived = (set->flags & SetFlag::Archived);
+		const auto locked = (set->locked > 0);
+		if (installed || featured || special || archived || locked) {
 			if (featured && (set->flags & SetFlag::Unread)) {
-				++unreadCount;
+				if (!(set->flags & SetFlag::Emoji)) {
+					++unreadCount;
+				}
 			}
 			++it;
 		} else {
@@ -988,10 +1022,13 @@ void Stickers::featuredSetsReceived(const TLtrendingStickerSets &data) {
 		}
 		api.requestStickerSets();
 	}
+	if (isEmoji) {
+		session().local().writeFeaturedCustomEmoji();
+	} else {
+		session().local().writeFeaturedStickers();
+	}
 
-	session().local().writeFeaturedStickers();
-
-	notifyUpdated();
+	notifyUpdated(type);
 }
 
 #if 0 // mtp
@@ -2235,7 +2272,7 @@ StickersSet *Stickers::feedSetFull(const TLstickerSet &value) {
 		}
 	}
 
-	notifyUpdated();
+	notifyUpdated(set->type());
 
 	return set;
 }
