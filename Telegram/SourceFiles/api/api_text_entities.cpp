@@ -22,6 +22,7 @@ namespace {
 using namespace TextUtilities;
 using namespace Tdb;
 
+#if 0 // mtp
 [[nodiscard]] QString CustomEmojiEntityData(
 		const MTPDmessageEntityCustomEmoji &data) {
 	return Data::SerializeCustomEmojiId(data.vdocument_id().v);
@@ -59,9 +60,11 @@ using namespace Tdb;
 				MTP_long(parsed.userId),
 				MTP_long(parsed.accessHash))));
 }
+#endif
 
 } // namespace
 
+#if 0 // mtp
 EntitiesInText EntitiesFromMTP(
 		Main::Session *session,
 		const QVector<MTPMessageEntity> &entities) {
@@ -183,6 +186,7 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(
 	}
 	return MTP_vector<MTPMessageEntity>(std::move(v));
 }
+#endif
 
 EntitiesInText EntitiesFromTdb(const QVector<TLtextEntity> &entities) {
 	auto result = EntitiesInText();
@@ -236,8 +240,12 @@ EntitiesInText EntitiesFromTdb(const QVector<TLtextEntity> &entities) {
 				}, [&](const TLDtextEntityTypeSpoiler &data) {
 					return EntityType::Spoiler;
 				}, [&](const TLDtextEntityTypeMediaTimestamp &data) {
-					// #TODO entities media timestamp links
+					// later todo entities media timestamp links
 					return EntityType::Invalid;
+				}, [&](const TLDtextEntityTypeCustomEmoji &data) {
+					additional = QString::number(
+						uint64(data.vcustom_emoji_id().v));
+					return EntityType::CustomEmoji;
 				});
 				if (type != EntityType::Invalid) {
 					result.push_back({ type, offset, length, additional });
@@ -305,6 +313,9 @@ QVector<TLtextEntity> EntitiesToTdb(const EntitiesInText &entities) {
 				return entity.data().isEmpty()
 					? tl_textEntityTypePre()
 					: tl_textEntityTypePreCode(tl_string(entity.data()));
+			case EntityType::CustomEmoji:
+				return tl_textEntityTypeCustomEmoji(
+					tl_int64(entity.data().toULongLong()));
 			}
 			return std::nullopt;
 		}();

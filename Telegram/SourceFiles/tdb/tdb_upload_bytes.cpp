@@ -46,7 +46,7 @@ BytesUploader::BytesUploader(
 }
 
 void BytesUploader::start() {
-	_api.request(TLuploadFile(
+	_api.request(TLpreliminaryUploadFile(
 		_fileGenerator.inputFile(),
 		_type,
 		tl_int32(1)
@@ -59,7 +59,7 @@ void BytesUploader::start() {
 
 void BytesUploader::cancel() {
 	if (fileId()) {
-		_api.request(TLcancelUploadFile(_fileId)).send();
+		_api.request(TLcancelPreliminaryUploadFile(_fileId)).send();
 	}
 }
 

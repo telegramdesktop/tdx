@@ -33,11 +33,21 @@ namespace {
 
 } // namespace
 
+#if 0 // mtp
 PremiumGift::PremiumGift(
 	not_null<Element*> parent,
 	not_null<Data::MediaGiftBox*> gift)
 : _parent(parent)
 , _gift(gift) {
+}
+#endif
+PremiumGift::PremiumGift(
+	not_null<Element*> parent,
+	not_null<Data::MediaGiftBox*> gift,
+	DocumentData *document)
+: _parent(parent)
+, _gift(gift)
+, _document(document) {
 }
 
 PremiumGift::~PremiumGift() = default;
@@ -119,12 +129,18 @@ void PremiumGift::ensureStickerCreated() const {
 	if (_sticker) {
 		return;
 	}
+#if 0 // mtp
 	const auto &session = _parent->history()->session();
 	auto &packs = session.giftBoxStickersPacks();
 	if (const auto document = packs.lookup(_gift->months())) {
 		if (const auto sticker = document->sticker()) {
 			const auto skipPremiumEffect = false;
 			_sticker.emplace(_parent, document, skipPremiumEffect, _parent);
+#endif
+	if (_document) {
+		if (const auto sticker = _document->sticker()) {
+			const auto skipPremiumEffect = false;
+			_sticker.emplace(_parent, _document, skipPremiumEffect, _parent);
 			_sticker->setDiceIndex(sticker->alt, 1);
 			_sticker->setGiftBoxSticker(true);
 			_sticker->initSize();

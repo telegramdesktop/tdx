@@ -415,6 +415,7 @@ void Helper::refreshInfo(not_null<UserData*> user) {
 #endif
 }
 
+#if 0 // mtp
 void Helper::applyInfo(
 		not_null<UserData*> user,
 		const MTPhelp_UserInfo &result) {
@@ -445,6 +446,7 @@ void Helper::applyInfo(
 		remove();
 	});
 }
+#endif
 
 rpl::producer<UserInfo> Helper::infoValue(not_null<UserData*> user) const {
 	return user->session().changes().peerFlagsValue(
