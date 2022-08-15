@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mtproto/sender.h"
 
+#include "tdb/tdb_sender.h"
+
 class UserData;
 
 namespace Window {
@@ -24,7 +26,10 @@ public:
 
 private:
 	const not_null<Window::SessionController*> _controller;
+#if 0 // mtp
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 
 	mtpRequestId _requestId = 0;
 

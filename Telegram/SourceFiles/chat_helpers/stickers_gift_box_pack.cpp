@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/stickers_gift_box_pack.h"
 
+#if 0 // mtp
+
 #include "apiwrap.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
@@ -97,3 +99,5 @@ void GiftBoxPack::applySet(const MTPDmessages_stickerSet &data) {
 }
 
 } // namespace Stickers
+
+#endif

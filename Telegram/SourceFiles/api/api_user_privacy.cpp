@@ -382,6 +382,9 @@ TLuserPrivacySetting KeyToTL(UserPrivacy::Key key) {
 		return tl_userPrivacySettingAllowPeerToPeerCalls();
 	case Key::AddedByPhone:
 		return tl_userPrivacySettingAllowFindingByPhoneNumber();
+	case Key::Voices:
+		return tl_userPrivacySettingAllowPrivateVoiceAndVideoNoteMessages();
+	case Key::About: return tl_userPrivacySettingShowBio();
 	}
 	Unexpected("Key in Api::UserPrivacy::KetToTL.");
 }
@@ -403,6 +406,10 @@ UserPrivacy::Key TLToKey(const TLuserPrivacySetting &setting) {
 		return UserPrivacy::Key::CallsPeer2Peer;
 	}, [](const TLDuserPrivacySettingAllowFindingByPhoneNumber &data) {
 		return UserPrivacy::Key::AddedByPhone;
+	}, [](TLDuserPrivacySettingAllowPrivateVoiceAndVideoNoteMessages) {
+		return UserPrivacy::Key::Voices;
+	}, [](const TLDuserPrivacySettingShowBio &data) {
+		return UserPrivacy::Key::About;
 	});
 }
 

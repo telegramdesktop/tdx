@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#if 0 // mtp
+
 class DocumentData;
 
 namespace Main {
@@ -37,3 +39,5 @@ private:
 };
 
 } // namespace Stickers
+
+#endif

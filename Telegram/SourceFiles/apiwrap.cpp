@@ -914,6 +914,7 @@ QString ApiWrap::exportDirectStoryLink(not_null<Data::Story*> story) {
 	}).send();
 	return current;
 }
+#endif
 
 void ApiWrap::requestContacts() {
 	if (_session->data().contactsLoaded().current() || _contactsRequestId) {
@@ -3184,7 +3185,7 @@ void ApiWrap::requestStickers(TimeId now) {
 	}).send();
 #endif
 	_stickersUpdateRequest = sender().request(TLgetInstalledStickerSets(
-		tl_bool(false) // masks
+		tl_stickerTypeRegular()
 	)).done([=](const TLstickerSets &result) {
 		_session->data().stickers().setLastUpdate(crl::now());
 		_stickersUpdateRequest = 0;
@@ -3217,7 +3218,7 @@ void ApiWrap::requestMasks(TimeId now) {
 	}).send();
 #endif
 	_masksUpdateRequest = sender().request(TLgetInstalledStickerSets(
-		tl_bool(true) // masks
+		tl_stickerTypeMask()
 	)).done([=](const TLstickerSets &result) {
 		_session->data().stickers().setLastUpdate(crl::now());
 		_masksUpdateRequest = 0;
@@ -3230,6 +3231,7 @@ void ApiWrap::requestCustomEmoji(TimeId now) {
 		|| _customEmojiUpdateRequest) {
 		return;
 	}
+#if 0 // mtp
 	const auto done = [=](const MTPmessages_AllStickers &result) {
 		_session->data().stickers().setLastEmojiUpdate(crl::now());
 		_customEmojiUpdateRequest = 0;
@@ -3247,6 +3249,15 @@ void ApiWrap::requestCustomEmoji(TimeId now) {
 		LOG(("App Fail: Failed to get custom emoji!"));
 		done(MTP_messages_allStickersNotModified());
 	}).send();
+#endif
+	_masksUpdateRequest = sender().request(TLgetInstalledStickerSets(
+		tl_stickerTypeCustomEmoji()
+	)).done([=](const TLstickerSets &result) {
+		_session->data().stickers().setLastEmojiUpdate(crl::now());
+		_customEmojiUpdateRequest = 0;
+		_session->data().stickers().emojiReceived(result.data().vsets().v);
+	}).send();
+
 }
 
 void ApiWrap::requestRecentStickers(TimeId now, bool attached) {
@@ -3408,7 +3419,10 @@ void ApiWrap::requestFeaturedStickers(TimeId now) {
 		_featuredStickersUpdateRequest = 0;
 	};
 	_featuredStickersUpdateRequest = sender().request(
-		TLgetTrendingStickerSets(tl_int32(0), tl_int32(100))
+		TLgetTrendingStickerSets(
+			tl_stickerTypeRegular(),
+			tl_int32(0),
+			tl_int32(100))
 	).done([=](const TLtrendingStickerSets &result) {
 		finish();
 		_session->data().stickers().featuredSetsReceived(result);
@@ -3435,6 +3449,23 @@ void ApiWrap::requestFeaturedEmoji(TimeId now) {
 		|| _featuredEmojiUpdateRequest) {
 		return;
 	}
+	const auto finish = [=] {
+		_session->data().stickers().setLastFeaturedEmojiUpdate(crl::now());
+		_featuredStickersUpdateRequest = 0;
+	};
+	_featuredStickersUpdateRequest = sender().request(
+		TLgetTrendingStickerSets(
+			tl_stickerTypeCustomEmoji(),
+			tl_int32(0),
+			tl_int32(100))
+	).done([=](const TLtrendingStickerSets &result) {
+		finish();
+		_session->data().stickers().featuredEmojiSetsReceived(result);
+	}).fail([=] {
+		finish();
+		LOG(("App Fail: Failed to get featured emoji!"));
+	}).send();
+#if 0 // mtp
 	_featuredEmojiUpdateRequest = request(
 		MTPmessages_GetFeaturedEmojiStickers(
 			MTP_long(Api::CountFeaturedStickersHash(_session)))
@@ -3446,6 +3477,7 @@ void ApiWrap::requestFeaturedEmoji(TimeId now) {
 		_session->data().stickers().setLastFeaturedEmojiUpdate(crl::now());
 		LOG(("App Fail: Failed to get featured emoji!"));
 	}).send();
+#endif
 }
 
 void ApiWrap::requestSavedGifs(TimeId now) {
@@ -3526,7 +3558,8 @@ void ApiWrap::readFeaturedSets() {
 			tl_vector<TLint64>(wrappedIds)
 		)).done([=] {
 			local().writeFeaturedStickers();
-			_session->data().stickers().notifyUpdated();
+			_session->data().stickers().notifyUpdated(
+				Data::StickersType::Stickers);
 		}).send();
 #if 0 // mtp
 		auto requestData = MTPmessages_ReadFeaturedStickers(

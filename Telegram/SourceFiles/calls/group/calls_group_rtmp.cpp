@@ -156,7 +156,9 @@ void StartRtmpProcess::requestUrl(bool revoke) {
 		});
 	};
 	const auto fail = [=] {
-		_request->showToast(Lang::Hard::ServerError());
+		Ui::Toast::Show(
+			_request->show->toastParent(),
+			Lang::Hard::ServerError());
 	};
 	_request->id = (!revoke)
 		? session->sender().request(
