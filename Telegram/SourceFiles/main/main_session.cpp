@@ -115,7 +115,9 @@ Session::Session(
 , _user(_data->processUser(user))
 , _emojiStickersPack(std::make_unique<Stickers::EmojiPack>(this))
 , _diceStickersPacks(std::make_unique<Stickers::DicePacks>(this))
+#if 0 // mtp
 , _giftBoxStickersPacks(std::make_unique<Stickers::GiftBoxPack>(this))
+#endif
 , _sendAsPeers(std::make_unique<SendAsPeers>(this))
 , _attachWebView(std::make_unique<InlineBots::AttachWebView>(this))
 , _recentPeers(std::make_unique<Data::RecentPeers>(this))
@@ -419,7 +421,8 @@ void Session::unlockTerms() {
 
 void Session::termsDeleteNow() {
 	sender().request(TLdeleteAccount(
-		tl_string("Decline ToS update")
+		tl_string("Decline ToS update"),
+		tl_string()
 	)).send();
 #if 0 // mtp
 	api().request(MTPaccount_DeleteAccount(

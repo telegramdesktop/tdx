@@ -311,6 +311,7 @@ void PasscodeLockWidget::setInnerFocus() {
 	_passcode->setFocusFast();
 }
 
+#if 0 // mtp
 TermsLock TermsLock::FromMTP(
 		Main::Session *session,
 		const MTPDhelp_termsOfService &data) {
@@ -324,6 +325,7 @@ TermsLock TermsLock::FromMTP(
 		data.is_popup()
 	};
 }
+#endif
 
 TermsLock TermsLock::FromTL(
 		Main::Session *session,

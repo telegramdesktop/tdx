@@ -743,7 +743,8 @@ void Widget::resetAccount() {
 			return;
 		}
 		_resetRequest = _api.request(TLdeleteAccount(
-			tl_string("Forgot password")
+			tl_string("Forgot password"),
+			tl_string() // password
 		)).done([=] {
 			_resetRequest = 0;
 

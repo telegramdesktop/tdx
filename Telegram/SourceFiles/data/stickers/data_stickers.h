@@ -19,6 +19,7 @@ class TLDstickerSet;
 class TLDstickerSetInfo;
 class TLsticker;
 class TLtrendingStickerSets;
+class TLstickerType;
 } // namespace Tdb
 
 class HistoryItem;
@@ -48,6 +49,8 @@ enum class StickersType : uchar {
 };
 [[nodiscard]] StickerType ThumbnailTypeFromPhotoSize(
 	const MTPPhotoSize &size);
+
+[[nodiscard]] StickersType TypeFromTL(const Tdb::TLstickerType &type);
 
 class Stickers final {
 public:
@@ -232,6 +235,7 @@ public:
 
 	void setsReceived(const QVector<Tdb::TLstickerSetInfo> &data);
 	void masksReceived(const QVector<Tdb::TLstickerSetInfo> &data);
+	void emojiReceived(const QVector<Tdb::TLstickerSetInfo> &data);
 
 #if 0 // mtp
 	void setsReceived(const QVector<MTPStickerSet> &data, uint64 hash);
@@ -254,6 +258,7 @@ public:
 		const QString &setTitle,
 		const QVector<Tdb::TLsticker> &stickers);
 	void featuredSetsReceived(const Tdb::TLtrendingStickerSets &data);
+	void featuredEmojiSetsReceived(const Tdb::TLtrendingStickerSets &data);
 	void gifsReceived(const QVector<Tdb::TLanimation> &items, uint64 hash);
 
 	[[nodiscard]] std::vector<not_null<DocumentData*>> getPremiumList(
@@ -330,6 +335,9 @@ private:
 #endif
 	void somethingReceived(
 		const QVector<Tdb::TLstickerSetInfo> &list,
+		StickersType type);
+	void featuredReceived(
+		const Tdb::TLtrendingStickerSets &data,
 		StickersType type);
 
 	const not_null<Session*> _owner;

@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/history_item_edition.h"
 
+#if 0 // mtp
+
 #include "api/api_text_entities.h"
 #include "main/main_session.h"
 
@@ -35,3 +37,5 @@ HistoryMessageEdition::HistoryMessageEdition(
 	const auto period = message.vttl_period();
 	ttl = (period && period->v > 0) ? (message.vdate().v + period->v) : 0;
 }
+
+#endif

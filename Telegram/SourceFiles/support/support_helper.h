@@ -83,9 +83,11 @@ private:
 	void occupyInDraft();
 	void reoccupy();
 
+#if 0 // mtp
 	void applyInfo(
 		not_null<UserData*> user,
 		const MTPhelp_UserInfo &result);
+#endif
 	void showEditInfoBox(
 		not_null<Window::SessionController*> controller,
 		not_null<UserData*> user);
