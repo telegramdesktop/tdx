@@ -38,8 +38,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Data {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kMaxPerRequest = 100;
 #if 0 // inject-to-on_main
@@ -739,21 +743,33 @@ QString CustomEmojiManager::lookupSetName(uint64 setId) {
 }
 
 void CustomEmojiManager::request() {
+#if 0 // mtp
 	auto ids = QVector<MTPlong>();
+#endif
+	auto ids = QVector<TLint64>();
 	ids.reserve(std::min(kMaxPerRequest, int(_pendingForRequest.size())));
 	while (!_pendingForRequest.empty() && ids.size() < kMaxPerRequest) {
 		const auto i = _pendingForRequest.end() - 1;
+#if 0 // mtp
 		ids.push_back(MTP_long(*i));
+#endif
+		ids.push_back(tl_int64(*i));
 		_pendingForRequest.erase(i);
 	}
 	if (ids.isEmpty()) {
 		return;
 	}
+#if 0 // mtp
 	const auto api = &_owner->session().api();
 	_requestId = api->request(MTPmessages_GetCustomEmojiDocuments(
 		MTP_vector<MTPlong>(ids)
 	)).done([=](const MTPVector<MTPDocument> &result) {
 		for (const auto &entry : result.v) {
+#endif
+	_requestId = _owner->session().sender().request(TLgetCustomEmojiStickers(
+		tl_vector<TLint64>(ids)
+	)).done([=](const TLDstickers &result) {
+		for (const auto &entry : result.vstickers().v) {
 			const auto document = _owner->processDocument(entry);
 			fillColoredFlags(document);
 			processLoaders(document);

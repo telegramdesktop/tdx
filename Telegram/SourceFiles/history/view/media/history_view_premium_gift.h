@@ -19,9 +19,15 @@ namespace HistoryView {
 
 class PremiumGift final : public ServiceBoxContent {
 public:
+#if 0 // mtp
 	PremiumGift(
 		not_null<Element*> parent,
 		not_null<Data::MediaGiftBox*> gift);
+#endif
+	PremiumGift(
+		not_null<Element*> parent,
+		not_null<Data::MediaGiftBox*> gift,
+		DocumentData *document);
 	~PremiumGift();
 
 	int top() override;
@@ -58,6 +64,7 @@ private:
 	const not_null<Element*> _parent;
 	const not_null<Data::MediaGiftBox*> _gift;
 	const Data::GiftCode &_data;
+	const DocumentData *_document = nullptr;
 	mutable std::optional<Sticker> _sticker;
 
 };

@@ -389,7 +389,7 @@ void Uploader::start(
 			&_api->session().tdb(),
 			bytes,
 			filename);
-		_api->sender().request(TLuploadFile(
+		_api->sender().request(TLpreliminaryUploadFile(
 			generator->inputFile(),
 			type,
 			tl_int32(1)
@@ -441,7 +441,7 @@ void Uploader::start(
 			file->filename,
 			&state->result.file);
 	} else {
-		_api->sender().request(TLuploadFile(
+		_api->sender().request(TLpreliminaryUploadFile(
 			tl_inputFileLocal(tl_string(file->filepath)),
 			type,
 			tl_int32(1)

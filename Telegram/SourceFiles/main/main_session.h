@@ -187,9 +187,11 @@ public:
 	[[nodiscard]] Stickers::DicePacks &diceStickersPacks() const {
 		return *_diceStickersPacks;
 	}
+#if 0 // mtp
 	[[nodiscard]] Stickers::GiftBoxPack &giftBoxStickersPacks() const {
 		return *_giftBoxStickersPacks;
 	}
+#endif
 	[[nodiscard]] Data::Session &data() const {
 		return *_data;
 	}
@@ -294,7 +296,9 @@ private:
 	// _emojiStickersPack depends on _data.
 	const std::unique_ptr<Stickers::EmojiPack> _emojiStickersPack;
 	const std::unique_ptr<Stickers::DicePacks> _diceStickersPacks;
+#if 0 // mtp
 	const std::unique_ptr<Stickers::GiftBoxPack> _giftBoxStickersPacks;
+#endif
 	const std::unique_ptr<SendAsPeers> _sendAsPeers;
 	const std::unique_ptr<InlineBots::AttachWebView> _attachWebView;
 	const std::unique_ptr<Data::RecentPeers> _recentPeers;

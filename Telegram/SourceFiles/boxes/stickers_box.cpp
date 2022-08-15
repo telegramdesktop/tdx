@@ -828,7 +828,7 @@ void StickersBox::loadMoreArchived() {
 		}
 	}
 	_archivedRequestId = _api.request(TLgetArchivedStickerSets(
-		tl_bool(_isMasks),
+		(_isMasks ? tl_stickerTypeMask() : tl_stickerTypeRegular()),
 		tl_int64(lastId),
 		tl_int32(kArchivedLimitPerPage)
 	)).done([=](const TLstickerSets &result) {
@@ -1050,7 +1050,7 @@ void StickersBox::preloadArchivedSets() {
 		}).send();
 #endif
 		_archivedRequestId = _api.request(TLgetArchivedStickerSets(
-			tl_bool(_isMasks),
+			(_isMasks ? tl_stickerTypeMask() : tl_stickerTypeRegular()),
 			tl_int64(0),
 			tl_int32(kArchivedLimitFirstRequest)
 		)).done([=](const TLstickerSets &result) {
