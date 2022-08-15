@@ -2496,7 +2496,10 @@ MediaGiftBox::MediaGiftBox(
 }
 
 std::unique_ptr<Media> MediaGiftBox::clone(not_null<HistoryItem*> parent) {
+#if 0 // mtp
 	return std::make_unique<MediaGiftBox>(parent, _from, _data);
+#endif
+	return std::make_unique<MediaGiftBox>(parent, _from, _data, _sticker);
 }
 
 not_null<PeerData*> MediaGiftBox::from() const {
@@ -2519,6 +2522,7 @@ TextForMimeData MediaGiftBox::clipboardText() const {
 	return {};
 }
 
+#if 0 // mtp
 bool MediaGiftBox::updateInlineResultMedia(const MTPMessageMedia &media) {
 	return false;
 }
@@ -2526,6 +2530,7 @@ bool MediaGiftBox::updateInlineResultMedia(const MTPMessageMedia &media) {
 bool MediaGiftBox::updateSentMedia(const MTPMessageMedia &media) {
 	return false;
 }
+#endif
 
 std::unique_ptr<HistoryView::Media> MediaGiftBox::createView(
 		not_null<HistoryView::Element*> message,
@@ -2533,7 +2538,10 @@ std::unique_ptr<HistoryView::Media> MediaGiftBox::createView(
 		HistoryView::Element *replacing) {
 	return std::make_unique<HistoryView::ServiceBox>(
 		message,
+#if 0 // mtp
 		std::make_unique<HistoryView::PremiumGift>(message, this));
+#endif
+		std::make_unique<HistoryView::PremiumGift>(message, this, _sticker));
 }
 
 MediaWallPaper::MediaWallPaper(

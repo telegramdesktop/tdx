@@ -327,9 +327,12 @@ public:
 	bool clearInstalledLocally();
 
 private:
+#if 0 // mtp
 	void sendInstallRequest(
 		uint64 setId,
 		const MTPInputStickerSet &input);
+#endif
+	void sendInstallRequest(uint64 setId, std::nullopt_t);
 	void installedLocally(uint64 setId);
 	void notInstalledLocally(uint64 setId);
 

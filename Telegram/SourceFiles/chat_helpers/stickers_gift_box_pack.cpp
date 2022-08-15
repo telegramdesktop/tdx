@@ -13,7 +13,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "main/main_session.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+
 namespace Stickers {
+
+using namespace Tdb;
 
 GiftBoxPack::GiftBoxPack(not_null<Main::Session*> session)
 : _session(session)
@@ -37,6 +42,7 @@ int GiftBoxPack::monthsForStars(int stars) const {
 }
 
 DocumentData *GiftBoxPack::lookup(int months) const {
+#if 0 // mtp
 	const auto it = ranges::lower_bound(_localMonths, months);
 	const auto fallback = _documents.empty() ? nullptr : _documents[0];
 	if (it == begin(_localMonths)) {
@@ -51,12 +57,29 @@ DocumentData *GiftBoxPack::lookup(int months) const {
 		: 0;
 	const auto index = int(std::distance(begin(_localMonths), it - shift));
 	return (index >= _documents.size()) ? fallback : _documents[index];
+#endif
+	const auto i = _months.find(months);
+	if (i == end(_months)) {
+		_months.emplace(months, nullptr);
+		_session->sender().request(TLgetPremiumInfoSticker(
+			tl_int32(months)
+		)).done([=](const TLsticker &result) {
+			const auto document = _session->data().processDocument(result);
+			if (document->sticker()) {
+				_months[months] = document;
+				_updated.fire({});
+			}
+		}).send();
+		return nullptr;
+	}
+	return i->second;
 }
 
 Data::FileOrigin GiftBoxPack::origin() const {
 	return Data::FileOriginStickerSet(_setId, _accessHash);
 }
 
+#if 0 // mtp
 void GiftBoxPack::load() {
 	if (_requestId || !_documents.empty()) {
 		return;
@@ -118,5 +141,6 @@ void GiftBoxPack::applySet(const MTPDmessages_stickerSet &data) {
 	}
 	_updated.fire({});
 }
+#endif
 
 } // namespace Stickers

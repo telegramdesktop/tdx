@@ -1474,7 +1474,7 @@ not_null<ChannelData*> Session::processChannel(
 			? Flag::Creator
 			: Flag());
 	result->setMembersCount(data.vmember_count().v);
-	result->setName(result->name, data.vusername().v);
+	result->setName(result->name(), data.vusername().v);
 	//data.vrestriction_reason(); // todo
 	data.vstatus().match([&](const TLDchatMemberStatusCreator &data) {
 		if (!data.vis_member().v) {

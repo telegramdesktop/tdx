@@ -98,7 +98,9 @@ void AttachedStickers::request(
 			return;
 		} else if (list.size() > 1) {
 			strongController->show(
-				Box<StickersBox>(strongController, data.vsets().v));
+				Box<StickersBox>(
+					strongController->uiShow(),
+					data.vsets().v));
 			return;
 		}
 		// Single attached sticker pack.
@@ -106,7 +108,10 @@ void AttachedStickers::request(
 			.id = uint64(list.front().data().vid().v),
 		};
 		strongController->show(
-			Box<StickerSetBox>(strongController, setId),
+			Box<StickerSetBox>(
+				strongController->uiShow(),
+				setId,
+				Data::TypeFromTL(list.front().data().vsticker_type())),
 			Ui::LayerOption::KeepOther);
 	}).fail([=] {
 		_requestId = 0;

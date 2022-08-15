@@ -88,6 +88,7 @@ const auto kLottieStickerDimensions = QSize(
 void UpdateStickerSetIdentifier(
 		StickerSetIdentifier &now,
 		const MTPInputStickerSet &from) {
+#if 0 // mtp
 	now = from.match([&](const MTPDinputStickerSetID &data) {
 		return StickerSetIdentifier{
 			.id = data.vid().v,
@@ -96,6 +97,7 @@ void UpdateStickerSetIdentifier(
 	}, [](const auto &) {
 		return StickerSetIdentifier();
 	});
+#endif
 }
 
 [[nodiscard]] QPainterPath PathFromOutline(
@@ -457,8 +459,14 @@ void DocumentData::setFromTdb(const TLaudio &data) {
 	songData->performer = fields.vperformer().v;
 	if (!hasThumbnail()
 		&& !songData->title.isEmpty()
-		&& !songData->performer.isEmpty()) {
-		Storage::CloudSongCover::LoadThumbnailFromExternal(this);
+		&& !songData->performer.isEmpty()
+		&& !fields.vexternal_album_covers().v.empty()) {
+		_flags |= Flag::PossibleCoverThumbnail;
+		updateThumbnails(
+			nullptr,
+			&fields.vexternal_album_covers().v.front(),
+			false);
+		loadThumbnail({});
 	}
 }
 
@@ -470,11 +478,12 @@ void DocumentData::setFromTdb(const TLnotificationSound &data) {
 	setFromTdb(Tdb::tl_audio(
 		data.data().vduration(),
 		data.data().vtitle(),
-		Tdb::tl_string(), // Performer.
-		data.data().vtitle(), // File name.
-		Tdb::tl_string("mp3"), // Mime type.
-		std::nullopt, // Album mini covers.
-		std::nullopt, // Album covers.
+		Tdb::tl_string(), // performer
+		tl_string(data.data().vtitle().v + ".mp3"), // file_name
+		Tdb::tl_string("audio/mp3"),
+		std::nullopt, // album_cover_minithumbnail
+		std::nullopt, // album_cover_thumbnail
+		tl_vector<TLthumbnail>(), // external_album_covers
 		data.data().vsound()));
 	date = data.data().vdate().v;
 }
@@ -503,20 +512,20 @@ void DocumentData::setFromTdb(const TLanimation &data) {
 }
 
 DocumentId DocumentData::IdFromTdb(const TLsticker &data) {
-	return data.data().vsticker().data().vid().v;
+	return data.data().vcustom_emoji_id().v
+		? data.data().vcustom_emoji_id().v
+		: data.data().vsticker().data().vid().v;
 }
 
 void DocumentData::setFromTdb(const TLsticker &data) {
 	const auto &fields = data.data();
-	const auto stickerType = fields.vtype().match([&](
-		const TLDstickerTypeAnimated &) {
+	const auto stickerType = fields.vformat().match([&](
+		const TLDstickerFormatTgs &) {
 		return StickerType::Tgs;
-	}, [&](const TLDstickerTypeStatic &) {
+	}, [&](const TLDstickerFormatWebp &) {
 		return StickerType::Webp;
-	}, [&](const TLDstickerTypeVideo &) {
+	}, [&](const TLDstickerFormatWebm &) {
 		return StickerType::Webm;
-	}, [&](const TLDstickerTypeMask &) {
-		return StickerType::Webp;
 	});
 	setFileName(QString());// animated ? u"sticker.tgs"_q : u"sticker.webp"_q
 	setMimeString((stickerType == StickerType::Tgs)

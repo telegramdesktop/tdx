@@ -415,7 +415,8 @@ void Session::unlockTerms() {
 
 void Session::termsDeleteNow() {
 	sender().request(TLdeleteAccount(
-		tl_string("Decline ToS update")
+		tl_string("Decline ToS update"),
+		tl_string()
 	)).send();
 #if 0 // mtp
 	api().request(MTPaccount_DeleteAccount(

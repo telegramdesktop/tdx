@@ -50,6 +50,7 @@ QByteArray StickersSetThumbnailView::content() const {
 	return _content;
 }
 
+#if 0 // mtp
 StickersSetFlags ParseStickersSetFlags(const MTPDstickerSet &data) {
 	using Flag = StickersSetFlag;
 	return (data.is_archived() ? Flag::Archived : Flag())
@@ -62,6 +63,7 @@ StickersSetFlags ParseStickersSetFlags(const MTPDstickerSet &data) {
 		| (data.is_channel_emoji_status() ? Flag::ChannelStatus : Flag())
 		| (data.is_creator() ? Flag::AmCreator : Flag());
 }
+#endif
 
 StickersSetFlags ParseStickersSetFlags(const TLDstickerSet &data) {
 	using Flag = StickersSetFlag;
@@ -70,10 +72,10 @@ StickersSetFlags ParseStickersSetFlags(const TLDstickerSet &data) {
 		| (data.vsticker_type().type() == id_stickerTypeMask
 			? Flag::Masks
 			: Flag())
-		| (data.vis_installed().v ? Flag::Installed : Flag())
-		| (data.vsticker_type().type() == id_stickerTypeVideo
-			? Flag::Webm
+		| (data.vsticker_type().type() == id_stickerTypeCustomEmoji
+			? Flag::Emoji
 			: Flag())
+		| (data.vis_installed().v ? Flag::Installed : Flag())
 		| (data.vneeds_repainting().v ? Flag::TextColor : Flag());
 }
 
@@ -84,10 +86,10 @@ StickersSetFlags ParseStickersSetFlags(const TLDstickerSetInfo &data) {
 		| (data.vsticker_type().type() == id_stickerTypeMask
 			? Flag::Masks
 			: Flag())
-		| (data.vis_installed().v ? Flag::Installed : Flag())
-		| (data.vsticker_type().type() == id_stickerTypeVideo
-			? Flag::Webm
+		| (data.vsticker_type().type() == id_stickerTypeCustomEmoji
+			? Flag::Emoji
 			: Flag())
+		| (data.vis_installed().v ? Flag::Installed : Flag())
 		| (data.vneeds_repainting().v ? Flag::TextColor : Flag());
 }
 
@@ -122,11 +124,13 @@ Main::Session &StickersSet::session() const {
 	return _owner->session();
 }
 
+#if 0 // mtp
 MTPInputStickerSet StickersSet::mtpInput() const {
 	return (id && accessHash)
 		? MTP_inputStickerSetID(MTP_long(id), MTP_long(accessHash))
 		: MTP_inputStickerSetShortName(MTP_string(shortName));
 }
+#endif
 
 StickerSetIdentifier StickersSet::identifier() const {
 	return StickerSetIdentifier{
@@ -263,6 +267,7 @@ std::shared_ptr<StickersSetThumbnailView> StickersSet::activeThumbnailView() {
 	return _thumbnailView.lock();
 }
 
+#if 0 // mtp
 MTPInputStickerSet InputStickerSet(StickerSetIdentifier id) {
 	return !id
 		? MTP_inputStickerSetEmpty()
@@ -283,5 +288,6 @@ StickerSetIdentifier FromInputSet(const MTPInputStickerSet &id) {
 		return StickerSetIdentifier();
 	});
 }
+#endif
 
 } // namespace Stickers

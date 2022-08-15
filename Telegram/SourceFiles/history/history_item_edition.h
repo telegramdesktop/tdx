@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/history_item_reply_markup.h"
 
+#if 0 // mtp
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -38,3 +40,5 @@ struct HistoryMessageEdition {
 	const MTPMessageReactions *mtpReactions = nullptr;
 	const MTPFactCheck *mtpFactcheck = nullptr;
 };
+
+#endif

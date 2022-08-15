@@ -24,7 +24,9 @@ public:
 	explicit GiftBoxPack(not_null<Main::Session*> session);
 	~GiftBoxPack();
 
+#if 0 // mtp
 	void load();
+#endif
 	[[nodiscard]] int monthsForStars(int stars) const;
 	[[nodiscard]] DocumentData *lookup(int months) const;
 	[[nodiscard]] Data::FileOrigin origin() const;
@@ -32,7 +34,11 @@ public:
 
 private:
 	using SetId = uint64;
+#if 0 // mtp
 	void applySet(const MTPDmessages_stickerSet &data);
+#endif
+
+	mutable base::flat_map<int, DocumentData*> _months;
 
 	const not_null<Main::Session*> _session;
 	const std::vector<int> _localMonths;

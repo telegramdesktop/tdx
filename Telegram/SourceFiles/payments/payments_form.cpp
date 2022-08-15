@@ -51,7 +51,7 @@ constexpr auto kPasswordPeriod = 15 * TimeId(60);
 
 using namespace Tdb;
 
-[[nodiscard]] Ui::Address ParseAddress(const Tdb::TLaddress &address) {
+[[nodiscard]] Ui::Address ParseAddress(const TLaddress &address) {
 	return Ui::Address{
 		.address1 = address.data().vstreet_line1().v,
 		.address2 = address.data().vstreet_line2().v,
@@ -120,10 +120,10 @@ using namespace Tdb;
 #endif
 
 [[nodiscard]] std::vector<Ui::LabeledPrice> ParsePrices(
-		const Tdb::TLvector<Tdb::TLlabeledPricePart> &data) {
+		const TLvector<TLlabeledPricePart> &data) {
 	return ranges::views::all(
 		data.v
-	) | ranges::views::transform([](const Tdb::TLlabeledPricePart &price) {
+	) | ranges::views::transform([](const TLlabeledPricePart &price) {
 		return Ui::LabeledPrice{
 			.label = price.data().vlabel().v,
 			.price = ParsePriceAmount(price.data().vamount().v),
@@ -131,19 +131,19 @@ using namespace Tdb;
 	}) | ranges::to_vector;
 }
 
-[[nodiscard]] Tdb::TLorderInfo Serialize(
+[[nodiscard]] TLorderInfo Serialize(
 		const Ui::RequestedInformation &information) {
-	return Tdb::tl_orderInfo(
-		Tdb::tl_string(information.name),
-		Tdb::tl_string(information.phone),
-		Tdb::tl_string(information.email),
-		Tdb::tl_address(
-			Tdb::tl_string(information.shippingAddress.countryIso2),
-			Tdb::tl_string(information.shippingAddress.state),
-			Tdb::tl_string(information.shippingAddress.city),
-			Tdb::tl_string(information.shippingAddress.address1),
-			Tdb::tl_string(information.shippingAddress.address2),
-			Tdb::tl_string(information.shippingAddress.postcode)));
+	return tl_orderInfo(
+		tl_string(information.name),
+		tl_string(information.phone),
+		tl_string(information.email),
+		tl_address(
+			tl_string(information.shippingAddress.countryIso2),
+			tl_string(information.shippingAddress.state),
+			tl_string(information.shippingAddress.city),
+			tl_string(information.shippingAddress.address1),
+			tl_string(information.shippingAddress.address2),
+			tl_string(information.shippingAddress.postcode)));
 }
 
 [[nodiscard]] QString CardTitle(const Stripe::Card &card) {
@@ -489,7 +489,7 @@ MTPInputInvoice Form::inputInvoice() const {
 }
 #endif
 
-Tdb::TLinputInvoice Form::inputInvoice() const {
+TLinputInvoice Form::inputInvoice() const {
 	if (const auto slug = std::get_if<InvoiceSlug>(&_id.value)) {
 		return tl_inputInvoiceName(tl_string(slug->slug));
 	}
@@ -501,10 +501,10 @@ Tdb::TLinputInvoice Form::inputInvoice() const {
 
 void Form::requestForm() {
 	showProgress();
-	_api.request(Tdb::TLgetPaymentForm(
+	_api.request(TLgetPaymentForm(
 		inputInvoice(),
 		Window::Theme::WebViewTheme()
-	)).done([=](const Tdb::TLDpaymentForm &data) {
+	)).done([=](const TLDpaymentForm &data) {
 		hideProgress();
 		processForm(data);
 	}).fail([=](const Tdb::Error &error) {
@@ -595,10 +595,10 @@ void Form::requestReceipt() {
 
 	const auto message = v::get<InvoiceMessage>(_id.value);
 	showProgress();
-	_api.request(Tdb::TLgetPaymentReceipt(
+	_api.request(TLgetPaymentReceipt(
 		peerToTdbChat(message.peer->id),
-		Tdb::tl_int53(message.itemId.bare)
-	)).done([=](const Tdb::TLDpaymentReceipt &data) {
+		tl_int53(message.itemId.bare)
+	)).done([=](const TLDpaymentReceipt &data) {
 		hideProgress();
 		processReceipt(data);
 	}).fail([=](const Tdb::Error &error) {
@@ -845,15 +845,13 @@ void Form::processSavedInformation(const MTPDpaymentRequestedInfo &data) {
 }
 #endif
 
-void Form::processForm(const Tdb::TLDpaymentForm &data) {
+void Form::processForm(const TLDpaymentForm &data) {
 	processInvoice(data.vinvoice().data());
 	processDetails(data);
 	if (const auto info = data.vsaved_order_info()) {
 		processSavedInformation(info->data());
 	}
-	if (const auto credentials = data.vsaved_credentials()) {
-		processSavedCredentials(credentials->data());
-	}
+	processSavedCredentials(data.vsaved_credentials().v);
 	data.vpayment_provider().match([&](const TLDpaymentProviderOther &data) {
 		fillPaymentMethodInformation();
 	}, [&](const TLDpaymentProviderStripe &data) {
@@ -866,7 +864,7 @@ void Form::processForm(const Tdb::TLDpaymentForm &data) {
 	_updates.fire(FormReady{});
 }
 
-void Form::processReceipt(const Tdb::TLDpaymentReceipt &data) {
+void Form::processReceipt(const TLDpaymentReceipt &data) {
 	processInvoice(data.vinvoice().data());
 	processDetails(data);
 	if (const auto info = data.vorder_info()) {
@@ -878,15 +876,15 @@ void Form::processReceipt(const Tdb::TLDpaymentReceipt &data) {
 			_shippingOptions.selectedId = _shippingOptions.list.front().id;
 		}
 	}
-	_paymentMethod.savedCredentials = SavedCredentials{
+	_paymentMethod.savedCredentials = { {
 		.id = "(used)",
 		.title = data.vcredentials_title().v,
-	};
+	} };
 	fillPaymentMethodInformation();
 	_updates.fire(FormReady{});
 }
 
-void Form::processInvoice(const Tdb::TLDinvoice &data) {
+void Form::processInvoice(const TLDinvoice &data) {
 	_invoice = Ui::Invoice{
 		.cover = std::move(_invoice.cover),
 
@@ -894,7 +892,7 @@ void Form::processInvoice(const Tdb::TLDinvoice &data) {
 		.suggestedTips = ranges::views::all(
 			data.vsuggested_tip_amounts().v
 		) | ranges::views::transform(
-			&Tdb::TLint53::v
+			&TLint53::v
 		) | ranges::views::transform(
 			ParsePriceAmount
 		) | ranges::to_vector,
@@ -913,7 +911,7 @@ void Form::processInvoice(const Tdb::TLDinvoice &data) {
 	};
 }
 
-void Form::processDetails(const Tdb::TLDpaymentForm &data) {
+void Form::processDetails(const TLDpaymentForm &data) {
 	const auto url = data.vpayment_provider().match([&](
 			const TLDpaymentProviderOther &data) {
 		return data.vurl().v;
@@ -929,17 +927,17 @@ void Form::processDetails(const Tdb::TLDpaymentForm &data) {
 	};
 	if (const auto botId = _details.botId) {
 		if (const auto bot = _session->data().userLoaded(botId)) {
-			_invoice.cover.seller = bot->name;
+			_invoice.cover.seller = bot->name();
 		}
 	}
 	if (const auto providerId = _details.providerId) {
 		if (const auto bot = _session->data().userLoaded(providerId)) {
-			_invoice.provider = bot->name;
+			_invoice.provider = bot->name();
 		}
 	}
 }
 
-void Form::processDetails(const Tdb::TLDpaymentReceipt &data) {
+void Form::processDetails(const TLDpaymentReceipt &data) {
 	_invoice.receipt = Ui::Receipt{
 		.date = data.vdate().v,
 		.tipAmount = data.vtip_amount().v,
@@ -965,12 +963,12 @@ void Form::processDetails(const Tdb::TLDpaymentReceipt &data) {
 	}
 	if (_details.botId) {
 		if (const auto bot = _session->data().userLoaded(_details.botId)) {
-			_invoice.cover.seller = bot->name;
+			_invoice.cover.seller = bot->name();
 		}
 	}
 }
 
-void Form::processSavedInformation(const Tdb::TLDorderInfo &data) {
+void Form::processSavedInformation(const TLDorderInfo &data) {
 	const auto address = data.vshipping_address();
 	_savedInformation = _information = Ui::RequestedInformation{
 		.defaultPhone = defaultPhone(),
@@ -982,14 +980,21 @@ void Form::processSavedInformation(const Tdb::TLDorderInfo &data) {
 	};
 }
 
-void Form::processSavedCredentials(const Tdb::TLDsavedCredentials &data) {
-	_paymentMethod.savedCredentials = SavedCredentials{
-		.id = data.vid().v,
-		.title = data.vtitle().v,
-	};
+void Form::processSavedCredentials(
+		const QVector<TLsavedCredentials> &data) {
+	_paymentMethod.savedCredentials.clear();
+	_paymentMethod.savedCredentialsIndex = 0;
+	_paymentMethod.savedCredentials.reserve(data.size());
+	for (const auto &saved : data) {
+		_paymentMethod.savedCredentials.push_back({
+			.id = saved.data().vid().v,
+			.title = saved.data().vtitle().v,
+		});
+	}
 	refreshPaymentMethodDetails();
 }
 
+#if 0 // mtp
 void Form::processAdditionalPaymentMethods(
 		const QVector<MTPPaymentFormMethod> &list) {
 	_paymentMethod.ui.additionalMethods = ranges::views::all(
@@ -998,6 +1003,19 @@ void Form::processAdditionalPaymentMethods(
 		return Ui::PaymentMethodAdditional{
 			.title = qs(method.data().vtitle()),
 			.url = qs(method.data().vurl()),
+		};
+	}) | ranges::to_vector;
+}
+#endif
+
+void Form::processAdditionalPaymentMethods(
+		const QVector<TLpaymentOption> &list) {
+	_paymentMethod.ui.additionalMethods = ranges::views::all(
+		list
+	) | ranges::views::transform([](const TLpaymentOption &method) {
+		return Ui::PaymentMethodAdditional{
+			.title = method.data().vtitle().v,
+			.url = method.data().vurl().v,
 		};
 	}) | ranges::to_vector;
 }
@@ -1074,7 +1092,7 @@ void Form::fillPaymentMethodInformation() {
 }
 
 void Form::fillStripeNativeMethod(
-		const Tdb::TLDpaymentProviderStripe &data) {
+		const TLDpaymentProviderStripe &data) {
 	_paymentMethod.native = NativePaymentMethod{
 		.data = StripePaymentMethod{
 			.publishableKey = data.vpublishable_key().v,
@@ -1089,7 +1107,7 @@ void Form::fillStripeNativeMethod(
 }
 
 void Form::fillSmartGlocalNativeMethod(
-		const Tdb::TLDpaymentProviderSmartGlocal &data) {
+		const TLDpaymentProviderSmartGlocal &data) {
 	_paymentMethod.native = NativePaymentMethod{
 		.data = SmartGlocalPaymentMethod{
 			.publicToken = data.vpublic_token().v,
@@ -1177,20 +1195,20 @@ void Form::submit() {
 	}
 
 	showProgress();
-	_api.request(Tdb::TLsendPaymentForm(
+	_api.request(TLsendPaymentForm(
 		inputInvoice(),
-		Tdb::tl_int64(_details.formId),
-		Tdb::tl_string(_requestedInformationId),
-		Tdb::tl_string(_shippingOptions.selectedId),
+		tl_int64(_details.formId),
+		tl_string(_requestedInformationId),
+		tl_string(_shippingOptions.selectedId),
 		(index < list.size()
-			? Tdb::tl_inputCredentialsSaved(
-				Tdb::tl_string(list[index].id))
-			: Tdb::tl_inputCredentialsNew(
-				Tdb::tl_string(_paymentMethod.newCredentials.data),
-				Tdb::tl_bool(_paymentMethod.newCredentials.saveOnServer
+			? tl_inputCredentialsSaved(
+				tl_string(list[index].id))
+			: tl_inputCredentialsNew(
+				tl_string(_paymentMethod.newCredentials.data),
+				tl_bool(_paymentMethod.newCredentials.saveOnServer
 					&& _details.canSaveCredentials))),
-		Tdb::tl_int53(_invoice.tipsSelected)
-	)).done([=](const Tdb::TLDpaymentResult &data) {
+		tl_int53(_invoice.tipsSelected)
+	)).done([=](const TLDpaymentResult &data) {
 		hideProgress();
 		if (data.vsuccess().v && data.vverification_url().v.isEmpty()) {
 			_updates.fire(PaymentFinished{});
@@ -1252,10 +1270,10 @@ void Form::submit(const Core::CloudPasswordResult &result) {
 	if (_passwordRequestId) {
 		return;
 	}
-	_passwordRequestId = _api.request(Tdb::TLcreateTemporaryPassword(
-		Tdb::tl_string(result.password),
-		Tdb::tl_int32(kPasswordPeriod)
-	)).done([=](const Tdb::TLDtemporaryPasswordState &data) {
+	_passwordRequestId = _api.request(TLcreateTemporaryPassword(
+		tl_string(result.password),
+		tl_int32(kPasswordPeriod)
+	)).done([=](const TLDtemporaryPasswordState &data) {
 		_passwordRequestId = 0;
 		submit();
 	}).fail([=](const Tdb::Error &error) {
@@ -1311,10 +1329,10 @@ void Form::validateInformation(const Ui::RequestedInformation &information) {
 #if 0 // goodToRemove
 	using Flag = MTPpayments_ValidateRequestedInfo::Flag;
 #endif
-	_validateRequestId = _api.request(Tdb::TLvalidateOrderInfo(
+	_validateRequestId = _api.request(TLvalidateOrderInfo(
 		inputInvoice(),
 		Serialize(information),
-		Tdb::tl_bool(information.save)
+		tl_bool(information.save)
 #if 0 // goodToRemove
 	_validateRequestId = _api.request(MTPpayments_ValidateRequestedInfo(
 		MTP_flags(information.save ? Flag::f_save : Flag(0)),
@@ -1322,7 +1340,7 @@ void Form::validateInformation(const Ui::RequestedInformation &information) {
 		Serialize(information)
 	)).done([=](const MTPpayments_ValidatedRequestedInfo &result) {
 #endif
-	)).done([=](const Tdb::TLDvalidatedOrderInfo &data) {
+	)).done([=](const TLDvalidatedOrderInfo &data) {
 		hideProgress();
 		_validateRequestId = 0;
 		const auto oldSelectedId = _shippingOptions.selectedId;
@@ -1658,11 +1676,11 @@ void Form::processShippingOptions(const QVector<MTPShippingOption> &data) {
 #endif
 
 void Form::processShippingOptions(
-		const QVector<Tdb::TLshippingOption> &options) {
+		const QVector<TLshippingOption> &options) {
 	const auto currency = _invoice.currency;
 	_shippingOptions = Ui::ShippingOptions{ currency, ranges::views::all(
 		options
-	) | ranges::views::transform([](const Tdb::TLshippingOption &option) {
+	) | ranges::views::transform([](const TLshippingOption &option) {
 		return Ui::ShippingOption{
 			.id = option.data().vid().v,
 			.title = option.data().vtitle().v,

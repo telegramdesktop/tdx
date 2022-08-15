@@ -96,9 +96,11 @@ private:
 
 };
 
+#if 0 // mtp
 [[nodiscard]] MTPPoll PollDataToMTP(
 	not_null<const PollData*> poll,
 	bool close = false);
 [[nodiscard]] MTPInputMedia PollDataToInputMedia(
 	not_null<const PollData*> poll,
 	bool close = false);
+#endif

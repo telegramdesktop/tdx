@@ -111,9 +111,11 @@ struct TermsLock {
 		return !(*this == other);
 	}
 
+#if 0 // mtp
 	static TermsLock FromMTP(
 		Main::Session *session,
 		const MTPDhelp_termsOfService &data);
+#endif
 	static TermsLock FromTL(
 		Main::Session *session,
 		const Tdb::TLDtermsOfService &data);
