@@ -610,8 +610,27 @@ void ApplyUserUpdate(
 
 	//MTPDuserFull::Flag::f_video_calls_available; // todo
 	//update.vsupports_video_calls();
-	//user->setFullFlags(update.vflags().v);
-	user->setIsBlocked(update.vis_blocked().v);
+	using Flag = UserDataFlag;
+	const auto mask = Flag::Blocked
+		// | Flag::HasPhoneCalls // Unused.
+		| Flag::PhoneCallsPrivate
+		| Flag::CanReceiveGifts
+		| Flag::CanPinMessages
+		| Flag::VoiceMessagesForbidden;
+	const auto blocked = update.vblock_list()
+		&& (update.vblock_list()->type() == id_blockListMain);
+	user->setFlags((user->flags() & ~mask)
+		| (update.vhas_private_calls().v ? Flag::PhoneCallsPrivate : Flag())
+		// | (update.is_phone_calls_available() ? Flag::HasPhoneCalls : Flag())
+		| (!update.vpremium_gift_options().v.empty()
+			? Flag::CanReceiveGifts
+			: Flag())
+		| (true /* Always true from TDLib. */ ? Flag::CanPinMessages : Flag())
+		| (blocked ? Flag::Blocked : Flag())
+		| (update.vhas_restricted_voice_and_video_note_messages().v
+			? Flag::VoiceMessagesForbidden
+			: Flag()));
+	user->setIsBlocked(blocked);
 	user->setCallsStatus(update.vhas_private_calls().v
 		? UserData::CallsStatus::Private
 		: update.vcan_be_called().v
