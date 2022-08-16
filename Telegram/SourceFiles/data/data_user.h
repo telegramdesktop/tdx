@@ -68,7 +68,7 @@ enum class UserDataFlag : uint32 {
 	Fake = (1 << 5),
 	BotInlineGeo = (1 << 6),
 	Blocked = (1 << 7),
-	HasPhoneCalls = (1 << 8),
+	HasPhoneCalls = (1 << 8), // Unused.
 	PhoneCallsPrivate = (1 << 9),
 	Support = (1 << 10),
 	CanPinMessages = (1 << 11),
