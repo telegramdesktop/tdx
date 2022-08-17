@@ -2764,9 +2764,13 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateMessageContent &data) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
 		const auto id = data.vmessage_id().v;
-		if (const auto item = owner.message(peerId, id)) {
-			item->updateContent(data.vnew_content());
-		}
+		data.vnew_content().match([&](const TLDmessagePoll &poll) {
+			owner.applyUpdate(poll.vpoll());
+		}, [&](auto &&) {
+			if (const auto item = owner.message(peerId, id)) {
+				item->updateContent(data.vnew_content());
+			}
+		});
 	}, [&](const TLDupdateMessageEdited &data) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
 		const auto id = data.vmessage_id().v;

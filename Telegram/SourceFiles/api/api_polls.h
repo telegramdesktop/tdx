@@ -7,9 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#if 0 // mtp
 #include "mtproto/sender.h"
-#endif
 
 class ApiWrap;
 class HistoryItem;
@@ -40,9 +38,7 @@ public:
 
 private:
 	const not_null<Main::Session*> _session;
-#if 0 // mtp
 	MTP::Sender _api;
-#endif
 
 	base::flat_map<FullMsgId, mtpRequestId> _pollVotesRequestIds;
 	base::flat_map<FullMsgId, mtpRequestId> _pollCloseRequestIds;
