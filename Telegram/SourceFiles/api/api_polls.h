@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #if 0 // mtp
 #include "mtproto/sender.h"
 #endif
+#include "tdb/tdb_sender.h"
 
 class ApiWrap;
 class HistoryItem;
@@ -43,6 +44,7 @@ private:
 #if 0 // mtp
 	MTP::Sender _api;
 #endif
+	Tdb::Sender _api;
 
 	base::flat_map<FullMsgId, mtpRequestId> _pollVotesRequestIds;
 	base::flat_map<FullMsgId, mtpRequestId> _pollCloseRequestIds;
