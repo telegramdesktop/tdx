@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Tdb {
 class TLpoll;
+class TLDpollOption;
 } // namespace Tdb
 
 namespace Data {
@@ -54,15 +55,19 @@ struct PollData {
 	using Flags = base::flags<Flag>;
 
 	bool closeByTimer();
+#if 0 // mtp
 	bool applyChanges(const MTPDpoll &poll);
 	bool applyResults(const MTPPollResults &results);
+#endif
 	[[nodiscard]] bool checkResultsReload(crl::time now);
 
 	bool applyChanges(const Tdb::TLpoll &data);
+	bool applyResults(const Tdb::TLpoll &data);
 
 	[[nodiscard]] PollAnswer *answerByOption(const QByteArray &option);
 	[[nodiscard]] const PollAnswer *answerByOption(
 		const QByteArray &option) const;
+	[[nodiscard]] int indexByOption(const QByteArray &option) const;
 
 	void setFlags(Flags flags);
 	[[nodiscard]] Flags flags() const;
@@ -88,6 +93,9 @@ struct PollData {
 private:
 	bool applyResultToAnswers(
 		const MTPPollAnswerVoters &result,
+		bool isMinResults);
+	bool applyResultToAnswers(
+		const Tdb::TLDpollOption &result,
 		bool isMinResults);
 
 	const not_null<Data::Session*> _owner;

@@ -4493,6 +4493,18 @@ void Session::checkPollsClosings() {
 	}
 }
 
+void Session::applyUpdate(const Tdb::TLpoll &update) {
+	const auto updated = [&] {
+		const auto i = _polls.find(update.data().vid().v);
+		return (i == end(_polls))
+			? nullptr
+			: processPoll(update).get();
+	}();
+	if (updated && updated->applyResults(update)) {
+		notifyPollUpdateDelayed(updated);
+	}
+}
+
 #if 0 // mtp
 void Session::applyUpdate(const MTPDupdateMessagePoll &update) {
 	const auto updated = [&] {

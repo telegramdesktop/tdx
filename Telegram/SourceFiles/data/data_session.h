@@ -429,6 +429,7 @@ public:
 	MessageIdsList itemsToIds(const HistoryItemsList &items) const;
 	MessageIdsList itemOrItsGroup(not_null<HistoryItem*> item) const;
 
+	void applyUpdate(const Tdb::TLpoll &update);
 #if 0 // mtp
 	void applyUpdate(const MTPDupdateMessagePoll &update);
 	void applyUpdate(const MTPDupdateChatParticipants &update);
