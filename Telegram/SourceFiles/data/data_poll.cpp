@@ -40,6 +40,14 @@ PollAnswer *AnswerByOption(
 		option));
 }
 
+std::optional<int> CorrectAnswerIndexFromTL(const TLpoll &poll) {
+	return poll.data().vtype().match([&](const TLDpollTypeQuiz &data) {
+		return std::make_optional<int>(data.vcorrect_option_id().v);
+	}, [](auto &&) -> std::optional<int> {
+		return std::nullopt;
+	});
+}
+
 } // namespace
 
 PollData::PollData(not_null<Data::Session*> owner, PollId id)
@@ -160,7 +168,8 @@ bool PollData::applyChanges(const TLpoll &poll) {
 		|| (closePeriod != newClosePeriod)
 		|| (_flags != newFlags);
 	const auto changed2 = (answers != newAnswers);
-	if (!changed1 && !changed2) {
+	const auto changed3 = applyResults(poll);
+	if (!changed1 && !changed2 && !changed3) {
 		return false;
 	}
 	if (changed1) {
@@ -174,6 +183,80 @@ bool PollData::applyChanges(const TLpoll &poll) {
 	}
 	++version;
 	return true;
+}
+
+bool PollData::applyResults(const TLpoll &poll) {
+	return poll.match([&](const TLDpoll &results) {
+		_lastResultsUpdate = crl::now();
+
+		const auto newTotalVoters = results.vtotal_voter_count().v;
+		auto changed = (newTotalVoters != totalVoters);
+
+		if (const auto correctOption = CorrectAnswerIndexFromTL(poll)) {
+			const auto set = [&](int id, bool v) {
+				if (id < answers.size()) {
+					answers[id].correct = v;
+				}
+			};
+			const auto wasCorrectIt = ranges::find_if(
+				answers,
+				&PollAnswer::correct);
+			if (wasCorrectIt == end(answers)) {
+				changed = true;
+			} else {
+				const auto wasCorrectIndex = std::distance(
+					begin(answers),
+					wasCorrectIt);
+				if (wasCorrectIndex != (*correctOption)) {
+					set(wasCorrectIndex, false);
+					changed = true;
+				}
+			}
+			set(*correctOption, true);
+		}
+
+		for (const auto &result : results.voptions().v) {
+			if (applyResultToAnswers(result.data(), false)) {
+				changed = true;
+			}
+		}
+		{
+			const auto &recent = results.vrecent_voter_ids();
+			const auto recentChanged = !ranges::equal(
+				recentVoters,
+				recent.v,
+				ranges::equal_to(),
+				&PeerData::id,
+				&peerFromSender);
+			if (recentChanged) {
+				changed = true;
+				recentVoters = ranges::views::all(
+					recent.v
+				) | ranges::views::transform([&](const TLmessageSender &d) {
+					const auto peer = _owner->peer(peerFromSender(d));
+					return peer->isMinimalLoaded() ? peer.get() : nullptr;
+				}) | ranges::views::filter([](PeerData *peer) {
+					return peer != nullptr;
+				}) | ranges::views::transform([](PeerData *peer) {
+					return not_null(peer);
+				}) | ranges::to_vector;
+			}
+		}
+		results.vtype().match([&](const TLDpollTypeQuiz &data) {
+			auto newSolution = Api::FormattedTextFromTdb(data.vexplanation());
+			if (solution != newSolution) {
+				solution = std::move(newSolution);
+				changed = true;
+			}
+		}, [](auto &&) {
+		});
+		if (!changed) {
+			return false;
+		}
+		totalVoters = newTotalVoters;
+		++version;
+		return changed;
+	});
 }
 
 #if 0 // mtp
@@ -253,6 +336,16 @@ const PollAnswer *PollData::answerByOption(const QByteArray &option) const {
 	return AnswerByOption(answers, option);
 }
 
+int PollData::indexByOption(const QByteArray &option) const {
+	const auto it = ranges::find(answers, option, &PollAnswer::option);
+
+	return std::clamp(
+		int(std::distance(begin(answers), it)),
+		0,
+		int(answers.size() - 1));
+}
+
+#if 0 // goodToRemove
 bool PollData::applyResultToAnswers(
 		const MTPPollAnswerVoters &result,
 		bool isMinResults) {
@@ -278,6 +371,28 @@ bool PollData::applyResultToAnswers(
 		}
 		return changed;
 	});
+}
+#endif
+
+bool PollData::applyResultToAnswers(
+		const TLDpollOption &result,
+		bool isMinResults) {
+	const auto option = result.vtext().v.toUtf8();
+	const auto answer = answerByOption(option);
+	if (!answer) {
+		return false;
+	}
+	auto changed = (answer->votes != result.vvoter_count().v);
+	if (changed) {
+		answer->votes = result.vvoter_count().v;
+	}
+	if (!isMinResults) {
+		if (answer->chosen != result.vis_chosen().v) {
+			answer->chosen = result.vis_chosen().v;
+			changed = true;
+		}
+	}
+	return changed;
 }
 
 void PollData::setFlags(Flags flags) {
