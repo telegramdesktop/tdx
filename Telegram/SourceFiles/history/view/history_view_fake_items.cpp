@@ -12,7 +12,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace HistoryView {
+namespace {
+
+using namespace Tdb;
+
+} // namespace
 
 AdminLog::OwnedItem GenerateItem(
 		not_null<HistoryView::ElementDelegate*> delegate,
@@ -41,7 +48,36 @@ PeerId GenerateUser(not_null<History*> history, const QString &name) {
 	Expects(history->peer->isUser());
 
 	const auto peerId = Data::FakePeerIdForJustName(name);
-#if 0 // todo
+	history->owner().processUser(tl_user(
+		peerToTdbChat(peerId),
+		tl_string(name),
+		TLstring(), // last_name_
+		TLstring(), // username_
+		TLstring(), // phone_number_
+		tl_userStatusEmpty(), // status_
+		null, // profile_photo_
+		tl_int32(Data::DecideColorIndex(peerId)),
+		tl_int64(0), // background_custom_emoji_id_
+		tl_int32(0), // profile_accent_color_id_
+		tl_int64(0), // profile_background_custom_emoji_id_
+		null, // emoji_status_
+		tl_bool(false), // is_contact_
+		tl_bool(false), // is_mutual_contact_
+		tl_bool(false), // is_close_friend_
+		tl_bool(false), // is_verified_
+		tl_bool(false), // is_premium_
+		tl_bool(false), // is_support_
+		TLstring(), // restriction_reason_
+		tl_bool(false), // is_scam_
+		tl_bool(false), // is_fake_
+		tl_bool(false), // has_active_stories_
+		tl_bool(false), // has_unread_active_stories_
+		tl_bool(false), // restricts_new_chats
+		tl_bool(true), // have_access_
+		tl_userTypeRegular(), // type_
+		TLstring(), // language_code_
+		tl_bool(false))); // added_to_attachment_menu_
+#if 0 // goodToRemove
 	history->owner().processUser(MTP_user(
 		MTP_flags(MTPDuser::Flag::f_first_name | MTPDuser::Flag::f_min),
 		peerToBareMTPInt(peerId),
