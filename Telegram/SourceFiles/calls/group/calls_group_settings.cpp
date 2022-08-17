@@ -685,7 +685,15 @@ void SettingsBox(
 		const auto state = top->lifetime().make_state<State>();
 		const auto revokeSure = [=] {
 			const auto session = &peer->session();
-#if 0 // todo
+
+			state->requestId = session->sender().request(
+				Tdb::TLreplaceVideoChatRtmpUrl(peerToTdbChat(peer->id)
+			)).done([=](const Tdb::TLrtmpUrl &result) {
+				auto data = RtmpInfo{
+					.url = result.data().vurl().v,
+					.key = result.data().vstream_key().v,
+				};
+#if 0 // goodToRemove
 			state->requestId = session->api().request(
 				MTPphone_GetGroupCallStreamRtmpUrl(
 					peer->input,
@@ -698,6 +706,7 @@ void SettingsBox(
 						.key = qs(data.vkey()),
 					};
 				});
+#endif
 				if (const auto call = weakCall.get()) {
 					call->setRtmpInfo(data);
 				}
@@ -709,7 +718,6 @@ void SettingsBox(
 			}).fail([=] {
 				state->requestId = 0;
 			}).send();
-#endif
 		};
 		const auto revoke = [=] {
 			if (state->requestId || !top) {
