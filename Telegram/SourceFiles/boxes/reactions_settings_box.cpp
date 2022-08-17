@@ -47,7 +47,27 @@ PeerId GenerateUser(not_null<History*> history, const QString &name) {
 	Expects(history->peer->isUser());
 
 	const auto peerId = Data::FakePeerIdForJustName(name);
-#if 0 // todo
+	history->owner().processUser(Tdb::tl_user(
+		peerToTdbChat(peerId),
+		Tdb::tl_string(tr::lng_settings_chat_message_reply_from(tr::now)),
+		Tdb::TLstring(), // last_name_
+		Tdb::TLstring(), // username_
+		Tdb::TLstring(), // phone_number_
+		Tdb::tl_userStatusEmpty(), // status_
+		std::nullopt, // profile_photo_
+		Tdb::tl_bool(false), // is_contact_
+		Tdb::tl_bool(false), // is_mutual_contact_
+		Tdb::tl_bool(false), // is_verified_
+		Tdb::tl_bool(false), // is_premium_
+		Tdb::tl_bool(false), // is_support_
+		Tdb::TLstring(), // restriction_reason_
+		Tdb::tl_bool(false), // is_scam_
+		Tdb::tl_bool(false), // is_fake_
+		Tdb::tl_bool(true), // have_access_
+		Tdb::tl_userTypeRegular(), // type_
+		Tdb::TLstring(), // language_code_
+		Tdb::tl_bool(false))); // added_to_attachment_menu_
+#if 0 // goodToRemove
 	history->owner().processUser(MTP_user(
 		MTP_flags(MTPDuser::Flag::f_first_name | MTPDuser::Flag::f_min),
 		peerToBareMTPInt(peerId),
