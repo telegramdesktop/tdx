@@ -193,7 +193,31 @@ void ListController::loadMoreRows() {
 		return;
 	}
 
-#if 0 // todo
+	const auto limit = _offset.isEmpty() ? kFirstPage : kPerPage;
+	_loadRequestId = _api.request(Tdb::TLgetPollVoters(
+		peerToTdbChat(item->history()->peer->id),
+		Tdb::tl_int53(item->id.bare),
+		Tdb::tl_int32(_poll->indexByOption(_option)),
+		Tdb::tl_int32(_offset.toInt()),
+		Tdb::tl_int32(limit)
+	)).done([=](const Tdb::TLDmessageSenders &data) {
+		_offset = QString::number(_offset.toInt() + limit);
+		const auto count = data.vtotal_count().v;
+		auto add = limit - kLeavePreloaded;
+		const auto &senders = data.vsenders().v;
+		for (const auto &sender : senders) {
+			const auto peer = session().data().peer(peerFromSender(sender));
+			if (peer->isMinimalLoaded()) {
+				if (add) {
+					appendRow(peer);
+					--add;
+				} else {
+					_preloaded.push_back(peer);
+				}
+			}
+		}
+
+#if 0 // goodToRemove
 	using Flag = MTPmessages_GetPollVotes::Flag;
 	const auto flags = Flag::f_option
 		| (_offset.isEmpty() ? Flag(0) : Flag::f_offset);
@@ -228,6 +252,7 @@ void ListController::loadMoreRows() {
 			}
 			return data.vcount().v;
 		});
+#endif
 		if (_offset.isEmpty()) {
 			addPreloaded();
 			_fullCount = delegate()->peerListFullRowsCount();
@@ -242,7 +267,6 @@ void ListController::loadMoreRows() {
 	}).fail([=] {
 		_loadRequestId = 0;
 	}).send();
-#endif
 }
 
 void ListController::allowLoadMore() {

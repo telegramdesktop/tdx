@@ -8,7 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_polls.h"
 
 #include "api/api_common.h"
-#include "api/api_updates.h"
+#include "api/api_text_entities.h" // FormattedTextToTdb.
+#include "api/api_sending.h" // MessageSendOptions.
 #include "apiwrap.h"
 #include "base/random.h"
 #include "data/business/data_shortcut_messages.h"
@@ -28,14 +29,42 @@ namespace {
 	return TimeId(msgId >> 32);
 }
 
+[[nodiscard]] Tdb::TLinputMessageContent PollToTL(
+		not_null<const PollData*> poll) {
+	auto options = ranges::views::all(
+		poll->answers
+	) | ranges::views::transform([](const PollAnswer &answer) {
+		return FormattedTextToTdb(answer.text);
+	}) | ranges::to<QVector>();
+	auto type = [&] {
+		if (poll->quiz()) {
+			const auto correctIt = ranges::find_if(
+				poll->answers,
+				&PollAnswer::correct);
+			const auto index = std::clamp(
+				size_t(std::distance(begin(poll->answers), correctIt)),
+				size_t(0),
+				poll->answers.size() - 1);
+			;
+			return Tdb::tl_pollTypeQuiz(
+				Tdb::tl_int32(index),
+				Api::FormattedTextToTdb(poll->solution));
+		} else {
+			return Tdb::tl_pollTypeRegular(Tdb::tl_bool(poll->multiChoice()));
+		}
+	}();
+	return Tdb::tl_inputMessagePoll(
+		FormattedTextToTdb(poll->question),
+		Tdb::tl_vector<Tdb::TLformattedText>(std::move(options)),
+		Tdb::tl_bool(!poll->publicVotes()),
+		std::move(type));
+}
+
 } // namespace
 
 Polls::Polls(not_null<ApiWrap*> api)
 : _session(&api->session())
-#if 0 // mtp
 , _api(&api->instance()) {
-#endif
-{
 }
 
 void Polls::create(
@@ -43,9 +72,20 @@ void Polls::create(
 		const SendAction &action,
 		Fn<void()> done,
 		Fn<void()> fail) {
-	_session->api().sendAction(action);
+	const auto peer = action.history->peer;
 
-#if 0 // todo
+	_api.request(Tdb::TLsendMessage(
+		peerToTdbChat(peer->id),
+		Tdb::tl_int53(0), // message_thread_id
+		Tdb::tl_int53(action.replyTo.bare),
+		MessageSendOptions(peer, action),
+		PollToTL(&data)
+	)).done([=](const Tdb::TLmessage &result) {
+		_session->data().processMessage(result, NewMessageType::Unread);
+		done();
+	}).fail(fail).send();
+
+#if 0 // goodToRemove
 	const auto history = action.history;
 	const auto peer = history->peer;
 	const auto topicRootId = action.replyTo.messageId
@@ -148,7 +188,27 @@ void Polls::sendVotes(
 		_session->data().requestItemRepaint(item);
 	}
 
-#if 0 // todo
+	auto optionIds = ranges::views::all(
+		options
+	) | ranges::views::transform([p = _session->data().poll(poll->id)](
+			const QByteArray &d) {
+		return Tdb::tl_int32(p->indexByOption(d));
+	}) | ranges::to<QVector>();
+
+	const auto requestId = _api.request(Tdb::TLsetPollAnswer(
+		peerToTdbChat(item->history()->peer->id),
+		Tdb::tl_int53(item->id.bare),
+		Tdb::tl_vector<Tdb::TLint32>(std::move(optionIds))
+	)).done([=] {
+		_pollVotesRequestIds.erase(itemId);
+		hideSending();
+	}).fail([=] {
+		_pollVotesRequestIds.erase(itemId);
+		hideSending();
+	}).send();
+	_pollVotesRequestIds.emplace(itemId, requestId);
+
+#if 0 // goodToRemove
 	auto prepared = QVector<MTPbytes>();
 	prepared.reserve(options.size());
 	ranges::transform(
@@ -181,7 +241,16 @@ void Polls::close(not_null<HistoryItem*> item) {
 	if (!poll) {
 		return;
 	}
-#if 0 // todo
+	const auto requestId = _api.request(Tdb::TLstopPoll(
+		peerToTdbChat(item->history()->peer->id),
+		Tdb::tl_int53(item->id.bare)
+	)).done([=] {
+		_pollCloseRequestIds.erase(itemId);
+	}).fail([=] {
+		_pollCloseRequestIds.erase(itemId);
+	}).send();
+	_pollCloseRequestIds.emplace(itemId, requestId);
+#if 0 // goodToRemove
 	const auto requestId = _api.request(MTPmessages_EditMessage(
 		MTP_flags(MTPmessages_EditMessage::Flag::f_media),
 		item->history()->peer->input,
@@ -203,11 +272,12 @@ void Polls::close(not_null<HistoryItem*> item) {
 }
 
 void Polls::reloadResults(not_null<HistoryItem*> item) {
+	// Managed by TDLib.
+#if 0 // goodToRemove
 	const auto itemId = item->fullId();
 	if (!item->isRegular() || _pollReloadRequestIds.contains(itemId)) {
 		return;
 	}
-#if 0 // todo
 	const auto requestId = _api.request(MTPmessages_GetPollResults(
 		item->history()->peer->input,
 		MTP_int(item->id)
