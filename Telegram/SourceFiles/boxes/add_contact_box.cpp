@@ -460,7 +460,25 @@ void AddContactBox::save() {
 	const auto session = _session;
 	_sentName = firstName;
 	_contactId = base::RandomValue<uint64>();
-#if 0 // todo
+
+	_addRequest = _session->sender().request(Tdb::TLimportContacts(
+		Tdb::tl_vector<Tdb::TLcontact>(
+			1,
+			Tdb::tl_contact(
+				Tdb::tl_string(phone),
+				Tdb::tl_string(firstName),
+				Tdb::tl_string(lastName),
+				Tdb::TLstring(), // VCard.
+				Tdb::tl_int53(_contactId)))
+	)).done(crl::guard(weak, [=](const Tdb::TLDimportedContacts &data) {
+		if (!weak) {
+			return;
+		}
+		const auto &list = data.vuser_ids().v;
+		const auto user = list.isEmpty()
+			? nullptr
+			: session->data().userLoaded(UserId(list.front()));
+#if 0 // goodToRemove
 	_addRequest = _session->api().request(MTPcontacts_ImportContacts(
 		MTP_vector<MTPInputContact>(
 			1,
@@ -487,6 +505,7 @@ void AddContactBox::save() {
 		const auto user = list.isEmpty()
 			? nullptr
 			: extractUser(list.front());
+#endif
 		if (user) {
 			if (user->isContact() || user->session().supportMode()) {
 				if (const auto window = user->session().tryResolveWindow()) {
@@ -503,7 +522,6 @@ void AddContactBox::save() {
 			update();
 		}
 	})).send();
-#endif
 }
 
 void AddContactBox::retry() {
