@@ -528,7 +528,12 @@ void Filler::addHidePromotion() {
 	}
 	_addAction(tr::lng_context_hide_psa(tr::now), [=] {
 		history->cacheTopPromotion(false, QString(), QString());
-#if 0 // todo
+		history->session().sender().request(TLdeleteChatHistory(
+			peerToTdbChat(history->peer->id),
+			tl_bool(true),
+			tl_bool(false) // revoke
+		)).send();
+#if 0 // mtp
 		history->session().api().request(MTPhelp_HidePromoData(
 			history->peer->input
 		)).send();
