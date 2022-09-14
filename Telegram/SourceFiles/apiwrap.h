@@ -30,6 +30,7 @@ class Error;
 class TLstickerSet;
 class TLscopeNotificationSettings;
 class TLchatInviteLinkInfo;
+class TLDupdateOption;
 } // namespace Tdb
 
 namespace Main {
@@ -155,6 +156,7 @@ public:
 	[[nodiscard]] Tdb::Account &tdb() const;
 	[[nodiscard]] Tdb::Sender &sender() const;
 
+	bool apply(const Tdb::TLDupdateOption &update);
 #if 0 // mtp
 	void applyUpdates(
 		const MTPUpdates &updates,
@@ -177,10 +179,12 @@ public:
 		Fn<void()> callback);
 
 	void requestMessageData(PeerData *peer, MsgId msgId, Fn<void()> done);
+#if 0 // mtp
 	QString exportDirectMessageLink(
 		not_null<HistoryItem*> item,
 		bool inRepliesContext);
 	QString exportDirectStoryLink(not_null<Data::Story*> item);
+#endif
 
 	void requestContacts();
 	void requestDialogs(Data::Folder *folder = nullptr);
@@ -220,7 +224,9 @@ public:
 	void requestDeepLinkInfo(
 		const QString &path,
 		Fn<void(TextWithEntities message, bool updateRequired)> callback);
+#if 0 // mtp
 	void requestTermsUpdate();
+#endif
 	void acceptTerms(bytes::const_span termsId);
 
 	void checkChatInvite(
