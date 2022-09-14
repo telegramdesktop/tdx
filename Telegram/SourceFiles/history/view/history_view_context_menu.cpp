@@ -102,6 +102,8 @@ namespace {
 constexpr auto kRescheduleLimit = 20;
 constexpr auto kTagNameLimit = 12;
 
+using namespace Tdb;
+
 bool HasEditMessageAction(
 		const ContextMenuRequest &request,
 		not_null<ListWidget*> list) {
@@ -1311,6 +1313,7 @@ void CopyPostLink(
 		return;
 	}
 	const auto inRepliesContext = (context == Context::Replies);
+#if 0 // mtp
 	QGuiApplication::clipboard()->setText(
 		item->history()->session().api().exportDirectMessageLink(
 			item,
@@ -1332,10 +1335,22 @@ void CopyPostLink(
 		}
 		return channel->hasUsername();
 	}();
+#endif
+	item->history()->session().sender().request(TLgetMessageLink(
+		peerToTdbChat(item->history()->peer->id),
+		tl_int53(item->id.bare),
+		tl_int32(0), // media_timestamp
+		tl_bool(false), // for_album
+		tl_bool(inRepliesContext)
+	)).done([=](const TLDmessageLink &result) {
+		QGuiApplication::clipboard()->setText(result.vlink().v);
+		const auto isPublicLink = result.vis_public().v;
 
 	show->showToast(isPublicLink
 		? tr::lng_channel_public_link_copied(tr::now)
 		: tr::lng_context_about_private_link(tr::now));
+
+	}).send();
 }
 
 void CopyStoryLink(

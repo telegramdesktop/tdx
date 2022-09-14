@@ -16,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "main/main_session.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Ui {
 
 QColor ColorFromSerialized(MTPint serialized) {
@@ -31,6 +33,8 @@ std::optional<QColor> MaybeColorFromSerialized(
 
 namespace Data {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto FromLegacyBackgroundId(int32 legacyId) -> WallPaperId {
 	return uint64(0xFFFFFFFF00000000ULL) | uint64(uint32(legacyId));
@@ -64,6 +68,7 @@ using Ui::MaybeColorFromSerialized;
 	return color ? SerializeColor(*color) : quint32(-1);
 }
 
+#if 0 // mtp
 [[nodiscard]] std::vector<QColor> ColorsFromMTP(
 		const MTPDwallPaperSettings &data) {
 	auto result = std::vector<QColor>();
@@ -91,6 +96,41 @@ using Ui::MaybeColorFromSerialized;
 	}
 	result.push_back(*c4);
 	return result;
+}
+#endif
+
+[[nodiscard]] std::vector<QColor> ColorsFromTL(
+		const TLbackgroundFill &fill) {
+	auto result = std::vector<QColor>();
+	const auto push = [&](const TLint32 &value) {
+		if (const auto color = MaybeColorFromSerialized(value.v)) {
+			result.push_back(*color);
+		}
+	};
+	fill.match([&](const TLDbackgroundFillSolid &data) {
+		push(data.vcolor());
+	}, [&](const TLDbackgroundFillGradient &data) {
+		result.reserve(2);
+		push(data.vtop_color());
+		push(data.vbottom_color());
+	}, [&](const TLDbackgroundFillFreeformGradient &data) {
+		const auto &list = data.vcolors().v;
+		result.reserve(list.size());
+		for (const auto &value : list) {
+			push(value);
+		}
+	});
+	return result;
+}
+
+[[nodiscard]] int RotationFromTL(const TLbackgroundFill &fill) {
+	return fill.match([&](const TLDbackgroundFillSolid &data) {
+		return 0;
+	}, [&](const TLDbackgroundFillGradient &data) {
+		return data.vrotation_angle().v;
+	}, [&](const TLDbackgroundFillFreeformGradient &data) {
+		return 0;
+	});;
 }
 
 [[nodiscard]] std::optional<QColor> ColorFromString(QStringView string) {
@@ -533,6 +573,41 @@ std::optional<WallPaper> WallPaper::Create(const MTPDwallPaperNoFile &data) {
 	return result;
 }
 #endif
+
+std::optional<WallPaper> WallPaper::Create(
+		not_null<Main::Session*> session,
+		const TLDbackground &data) {
+	const auto document = data.vdocument()
+		? session->data().processDocument(*data.vdocument()).get()
+		: nullptr;
+	if (document && !document->checkWallPaperProperties()) {
+		return std::nullopt;
+	}
+	auto result = WallPaper(data.vid().v);
+	using Flag = WallPaperFlag;
+	result._ownerId = session->userId();
+	result._flags = (data.vis_dark().v ? Flag::Dark : Flag(0))
+		| (data.vis_default().v ? Flag::Default : Flag(0));
+	result._slug = data.vname().v;
+	result._document = document;
+	result._blurred = false;
+	data.vtype().match([&](const TLDbackgroundTypeFill &data) {
+		result._backgroundColors = ColorsFromTL(data.vfill());
+		result._rotation = RotationFromTL(data.vfill());
+	}, [&](const TLDbackgroundTypePattern &data) {
+		result._backgroundColors = ColorsFromTL(data.vfill());
+		result._rotation = RotationFromTL(data.vfill());
+		result._intensity = (data.vis_inverted().v ? -1 : 1)
+			* data.vintensity().v;
+		result._flags |= Flag::Pattern;
+	}, [&](const TLDbackgroundTypeWallpaper &data) {
+		result._blurred = data.vis_blurred().v;
+	}, [&](const TLDbackgroundTypeChatTheme &data) {
+		result._emojiId = data.vtheme_name().v;
+	});
+	// later todo Flag::Creator
+	return result;
+}
 
 QByteArray WallPaper::serialize() const {
 	auto size = sizeof(quint64) // _id
