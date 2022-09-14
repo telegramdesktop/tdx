@@ -265,7 +265,7 @@ bool Session::apply(const TLDupdateOption &update) {
 		_premiumPossible = OptionValue<bool>(update.vvalue());
 		return true;
 	}
-	return _api->globalPrivacy().apply(update);
+	return _api->apply(update);
 }
 
 void Session::notifyDownloaderTaskFinished() {
