@@ -347,7 +347,7 @@ void ApiWrap::topPromotionDone(const MTPhelp_PromoData &proxy) {
 void ApiWrap::requestDeepLinkInfo(
 		const QString &path,
 		Fn<void(TextWithEntities message, bool updateRequired)> callback) {
-#if 0 // todo
+#if 0 // mtp
 	request(_deepLinkInfoRequestId).cancel();
 	_deepLinkInfoRequestId = request(MTPhelp_GetDeepLinkInfo(
 		MTP_string(path)
@@ -362,10 +362,18 @@ void ApiWrap::requestDeepLinkInfo(
 					data.ventities().value_or_empty())
 			}, data.is_update_app());
 		}
+#endif
+	sender().request(_deepLinkInfoRequestId).cancel();
+	_deepLinkInfoRequestId = sender().request(TLgetDeepLinkInfo(
+		tl_string("tg://" + path)
+	)).done([=](const TLDdeepLinkInfo &result) {
+		_deepLinkInfoRequestId = 0;
+		callback(
+			Api::FormattedTextFromTdb(result.vtext()),
+			result.vneed_update_application().v);
 	}).fail([=] {
 		_deepLinkInfoRequestId = 0;
 	}).send();
-#endif
 }
 
 #if 0 // mtp
@@ -420,7 +428,13 @@ void ApiWrap::requestTermsUpdate() {
 #endif
 
 void ApiWrap::acceptTerms(bytes::const_span id) {
-#if 0 // todo
+	sender().request(TLacceptTermsOfService(
+		tl_string(QByteArray::fromRawData(
+			reinterpret_cast<const char*>(id.data()),
+			id.size()
+		).toStdString())
+	)).send();
+#if 0 // mtp
 	request(MTPhelp_AcceptTermsOfService(
 		MTP_dataJSON(MTP_bytes(id))
 	)).done([=] {
@@ -837,7 +851,6 @@ void ApiWrap::finalizeMessageDataRequest(
 		callback();
 	}
 }
-#endif
 
 QString ApiWrap::exportDirectMessageLink(
 		not_null<HistoryItem*> item,
@@ -911,7 +924,6 @@ QString ApiWrap::exportDirectMessageLink(
 	const auto current = (i != end(_unlikelyMessageLinks))
 		? i->second
 		: fallback();
-#if 0 // todo
 	request(MTPchannels_ExportMessageLink(
 		MTP_flags(inRepliesContext
 			? MTPchannels_ExportMessageLink::Flag::f_thread
@@ -924,7 +936,6 @@ QString ApiWrap::exportDirectMessageLink(
 			_unlikelyMessageLinks.emplace_or_assign(itemId, link);
 		}
 	}).send();
-#endif
 	return current;
 }
 
@@ -1276,7 +1287,7 @@ void ApiWrap::requestWallPaper(
 		const QString &slug,
 		Fn<void(const Data::WallPaper &)> done,
 		Fn<void()> fail) {
-#if 0 // todo
+#if 0 // mtp
 	if (_wallPaperSlug != slug) {
 		_wallPaperSlug = slug;
 		if (_wallPaperRequestId) {
@@ -1301,13 +1312,37 @@ void ApiWrap::requestWallPaper(
 			fail();
 		}
 	}).fail([=](const MTP::Error &error) {
+#endif
+	if (_wallPaperSlug != slug) {
+		_wallPaperSlug = slug;
+		if (_wallPaperRequestId) {
+			sender().request(base::take(_wallPaperRequestId)).cancel();
+		}
+	}
+	_wallPaperDone = std::move(done);
+	_wallPaperFail = std::move(fail);
+	if (_wallPaperRequestId) {
+		return;
+	}
+	_wallPaperRequestId = sender().request(TLsearchBackground(
+		tl_string(slug)
+	)).done([=](const TLDbackground &result) {
+		_wallPaperRequestId = 0;
+		_wallPaperSlug = QString();
+		if (const auto paper = Data::WallPaper::Create(_session, result)) {
+			if (const auto done = base::take(_wallPaperDone)) {
+				done(*paper);
+			}
+		} else if (const auto fail = base::take(_wallPaperFail)) {
+			fail();
+		}
+	}).fail([=] {
 		_wallPaperRequestId = 0;
 		_wallPaperSlug = QString();
 		if (const auto fail = base::take(_wallPaperFail)) {
 			fail();
 		}
 	}).send();
-#endif
 }
 
 void ApiWrap::requestFullPeer(not_null<PeerData*> peer) {
@@ -2500,6 +2535,20 @@ void ApiWrap::deleteHistory(
 	}
 }
 
+bool ApiWrap::apply(const Tdb::TLDupdateOption &update) {
+	if (update.vname().v == "disable_contact_registered_notifications") {
+		sender().request(base::take(_contactSignupSilentRequestId)).cancel();
+		const auto silent = (update.vvalue().type() == id_optionValueBoolean)
+			&& update.vvalue().c_optionValueBoolean().vvalue().v;
+		if (_contactSignupSilent != silent) {
+			_contactSignupSilent = silent;
+			_contactSignupSilentChanges.fire_copy(silent);
+		}
+		return true;
+	}
+	return globalPrivacy().apply(update);
+}
+
 #if 0 // mtp
 void ApiWrap::applyUpdates(
 		const MTPUpdates &updates,
@@ -3140,7 +3189,11 @@ void ApiWrap::setGroupStickerSet(
 	Expects(megagroup->mgInfo != nullptr);
 
 	megagroup->mgInfo->stickerSet = set;
-#if 0 // todo
+	sender().request(TLsetSupergroupStickerSet(
+		tl_int53(peerToChannel(megagroup->id).bare),
+		tl_int64(set.id)
+	)).send();
+#if 0 // mtp
 	request(MTPchannels_SetStickers(
 		megagroup->inputChannel,
 		Data::InputStickerSet(set)
@@ -5151,18 +5204,25 @@ void ApiWrap::reloadContactSignupSilent() {
 	if (_contactSignupSilentRequestId) {
 		return;
 	}
-#if 0 // todo
+#if 0 // mtp
 	const auto requestId = request(MTPaccount_GetContactSignUpNotification(
 	)).done([=](const MTPBool &result) {
 		_contactSignupSilentRequestId = 0;
 		const auto silent = mtpIsTrue(result);
-		_contactSignupSilent = silent;
-		_contactSignupSilentChanges.fire_copy(silent);
+#endif
+	const auto requestId = sender().request(TLgetOption(
+		tl_string("disable_contact_registered_notifications")
+	)).done([=](const TLoptionValue &result) {
+		const auto silent = (result.type() == id_optionValueBoolean)
+			&& result.c_optionValueBoolean().vvalue().v;
+		if (_contactSignupSilent != silent) {
+			_contactSignupSilent = silent;
+			_contactSignupSilentChanges.fire_copy(silent);
+		}
 	}).fail([=] {
 		_contactSignupSilentRequestId = 0;
 	}).send();
 	_contactSignupSilentRequestId = requestId;
-#endif
 }
 
 rpl::producer<bool> ApiWrap::contactSignupSilent() const {
@@ -5177,11 +5237,17 @@ std::optional<bool> ApiWrap::contactSignupSilentCurrent() const {
 }
 
 void ApiWrap::saveContactSignupSilent(bool silent) {
-#if 0 // todo
+#if 0 // mtp
 	request(base::take(_contactSignupSilentRequestId)).cancel();
 
 	const auto requestId = request(MTPaccount_SetContactSignUpNotification(
 		MTP_bool(silent)
+#endif
+	sender().request(base::take(_contactSignupSilentRequestId)).cancel();
+
+	const auto requestId = sender().request(TLsetOption(
+		tl_string("disable_contact_registered_notifications"),
+		tl_optionValueBoolean(tl_bool(silent))
 	)).done([=] {
 		_contactSignupSilentRequestId = 0;
 		_contactSignupSilent = silent;
@@ -5190,7 +5256,6 @@ void ApiWrap::saveContactSignupSilent(bool silent) {
 		_contactSignupSilentRequestId = 0;
 	}).send();
 	_contactSignupSilentRequestId = requestId;
-#endif
 }
 
 auto ApiWrap::botCommonGroups(not_null<UserData*> bot) const

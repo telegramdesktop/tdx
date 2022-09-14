@@ -1207,6 +1207,9 @@ not_null<UserData*> Session::processUser(const TLuser &user) {
 		updateFlags |= UpdateFlag::CanShareContact;
 	}
 
+	result->setFlags((result->flags() & ~UserDataFlag::Premium)
+		| (data.vis_premium().v ? UserDataFlag::Premium : UserDataFlag(0)));
+
 	if (minimal) {
 		if (!result->isMinimalLoaded()) {
 			result->setLoadedStatus(PeerData::LoadedStatus::Minimal);
@@ -1473,8 +1476,6 @@ not_null<ChannelData*> Session::processChannel(
 		| ((data.vstatus().type() == id_chatMemberStatusCreator)
 			? Flag::Creator
 			: Flag());
-	result->setMembersCount(data.vmember_count().v);
-	result->setName(result->name(), data.vusername().v);
 	//data.vrestriction_reason(); // todo
 	data.vstatus().match([&](const TLDchatMemberStatusCreator &data) {
 		if (!data.vis_member().v) {
@@ -1517,6 +1518,9 @@ not_null<ChannelData*> Session::processChannel(
 		result->setRestrictions({ flags, data.vbanned_until_date().v });
 	});
 	result->setFlags(flags);
+
+	result->setMembersCount(data.vmember_count().v);
+	result->setName(result->name(), data.vusername().v);
 
 	if (wasInChannel != result->amIn()) {
 		updateFlags |= UpdateFlag::ChannelAmIn;

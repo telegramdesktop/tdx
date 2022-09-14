@@ -40,8 +40,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h" // attentionBoxButton
 #include "styles/style_menu_icons.h"
 
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Window {
 namespace {
+
+using namespace Tdb;
 
 [[nodiscard]] Dialogs::UnreadState MainListMapUnreadState(
 		not_null<Main::Session*> session,
@@ -527,7 +532,14 @@ void FiltersMenu::remove(
 		FilterId id,
 		std::vector<not_null<PeerData*>> leave) {
 	const auto session = &_session->session();
-#if 0 // todo
+	if (leave.empty()) {
+		session->sender().request(TLdeleteChatFilter(
+			tl_int32(id)
+		)).send();
+	} else {
+		// todo
+	}
+#if 0 // mtp
 	const auto api = &session->api();
 	session->data().chatsFilters().apply(MTP_updateDialogFilter(
 		MTP_flags(MTPDupdateDialogFilter::Flag(0)),
