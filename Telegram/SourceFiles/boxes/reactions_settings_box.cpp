@@ -42,6 +42,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_media_player.h" // mediaPlayerMenuCheck
 #include "styles/style_settings.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace {
 
 void AddMessage(
