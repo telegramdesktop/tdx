@@ -22,6 +22,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_helpers.h" // ShouldSendSilent
 #include "main/main_session.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Api {
 namespace {
 
