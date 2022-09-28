@@ -18,13 +18,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "ui/controls/tabbed_search.h"
 
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Data {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kRefreshDefaultListEach = 60 * 60 * crl::time(1000);
 constexpr auto kRecentRequestTimeout = 10 * crl::time(1000);
 constexpr auto kMaxTimeout = 6 * 60 * 60 * crl::time(1000);
 
+#if 0 // mtp
 [[nodiscard]] std::vector<DocumentId> ListFromMTP(
 		const MTPDaccount_emojiStatuses &data) {
 	const auto &list = data.vstatuses().v;
@@ -40,12 +46,27 @@ constexpr auto kMaxTimeout = 6 * 60 * 60 * crl::time(1000);
 	}
 	return result;
 }
+#endif
+
+[[nodiscard]] std::vector<DocumentId> ListFromTL(
+		const TLDemojiStatuses &data) {
+	const auto &list = data.vcustom_emoji_ids().v;
+	auto result = std::vector<DocumentId>();
+	result.reserve(list.size());
+	for (const auto &status : list) {
+		result.push_back(status.v);
+	}
+	return result;
+}
 
 } // namespace
 
 EmojiStatuses::EmojiStatuses(not_null<Session*> owner)
 : _owner(owner)
+#if 0 // mtp
 , _clearingTimer([=] { processClearing(); }) {
+#endif
+{
 	refreshDefault();
 	refreshColored();
 
@@ -103,6 +124,7 @@ rpl::producer<> EmojiStatuses::defaultUpdates() const {
 	return _defaultUpdated.events();
 }
 
+#if 0 // mtp
 void EmojiStatuses::registerAutomaticClear(
 		not_null<UserData*> user,
 		TimeId until) {
@@ -234,6 +256,7 @@ void EmojiStatuses::processClearing() {
 		_clearingTimer.cancel();
 	}
 }
+#endif
 
 void EmojiStatuses::processClearingIn(TimeId wait) {
 	const auto waitms = wait * crl::time(1000);
@@ -244,6 +267,7 @@ void EmojiStatuses::requestRecent() {
 	if (_recentRequestId) {
 		return;
 	}
+#if 0 // mtp
 	auto &api = _owner->session().api();
 	_recentRequestScheduled = false;
 	_recentRequestId = api.request(MTPaccount_GetRecentEmojiStatuses(
@@ -254,6 +278,13 @@ void EmojiStatuses::requestRecent() {
 			updateRecent(data);
 		}, [](const MTPDaccount_emojiStatusesNotModified&) {
 		});
+#endif
+	auto &api = _owner->session().sender();
+	_recentRequestScheduled = false;
+	_recentRequestId = api.request(TLgetRecentEmojiStatuses(
+	)).done([=](const TLDemojiStatuses &result) {
+		_recentRequestId = 0;
+		updateRecent(result);
 	}).fail([=] {
 		_recentRequestId = 0;
 		_recentHash = 0;
@@ -264,6 +295,7 @@ void EmojiStatuses::requestDefault() {
 	if (_defaultRequestId) {
 		return;
 	}
+#if 0 // mtp
 	auto &api = _owner->session().api();
 	_defaultRequestId = api.request(MTPaccount_GetDefaultEmojiStatuses(
 		MTP_long(_recentHash)
@@ -273,6 +305,12 @@ void EmojiStatuses::requestDefault() {
 			updateDefault(data);
 		}, [&](const MTPDaccount_emojiStatusesNotModified &) {
 		});
+#endif
+	auto &api = _owner->session().sender();
+	_defaultRequestId = api.request(TLgetDefaultEmojiStatuses(
+	)).done([=](const TLDemojiStatuses &result) {
+		_defaultRequestId = 0;
+		updateDefault(result);
 	}).fail([=] {
 		_defaultRequestId = 0;
 		_defaultHash = 0;
@@ -283,6 +321,7 @@ void EmojiStatuses::requestColored() {
 	if (_coloredRequestId) {
 		return;
 	}
+#if 0 // mtp
 	auto &api = _owner->session().api();
 	_coloredRequestId = api.request(MTPmessages_GetStickerSet(
 		MTP_inputStickerSetEmojiDefaultStatuses(),
@@ -294,11 +333,18 @@ void EmojiStatuses::requestColored() {
 		}, [](const MTPDmessages_stickerSetNotModified &) {
 			LOG(("API Error: Unexpected messages.stickerSetNotModified."));
 		});
+#endif
+	auto &api = _owner->session().sender();
+	_coloredRequestId = api.request(TLgetThemedEmojiStatuses(
+	)).done([=](const TLDemojiStatuses &result) {
+		_coloredRequestId = 0;
+		updateColored(result);
 	}).fail([=] {
 		_coloredRequestId = 0;
 	}).send();
 }
 
+#if 0 // mtp
 void EmojiStatuses::updateRecent(const MTPDaccount_emojiStatuses &data) {
 	_recentHash = data.vhash().v;
 	_recent = ListFromMTP(data);
@@ -320,8 +366,25 @@ void EmojiStatuses::updateColored(const MTPDmessages_stickerSet &data) {
 	}
 	_coloredUpdated.fire({});
 }
+#endif
+
+void EmojiStatuses::updateRecent(const TLDemojiStatuses &data) {
+	_recent = ListFromTL(data);
+	_recentUpdated.fire({});
+}
+
+void EmojiStatuses::updateDefault(const TLDemojiStatuses &data) {
+	_default = ListFromTL(data);
+	_defaultUpdated.fire({});
+}
+
+void EmojiStatuses::updateColored(const TLDemojiStatuses &data) {
+	_colored = ListFromTL(data);
+	_coloredUpdated.fire({});
+}
 
 void EmojiStatuses::set(DocumentId id, TimeId until) {
+#if 0 // mtp
 	auto &api = _owner->session().api();
 	if (_sentRequestId) {
 		api.request(base::take(_sentRequestId)).cancel();
@@ -333,6 +396,15 @@ void EmojiStatuses::set(DocumentId id, TimeId until) {
 		: !until
 		? MTP_emojiStatus(MTP_long(id))
 		: MTP_emojiStatusUntil(MTP_long(id), MTP_int(until))
+#endif
+	auto &api = _owner->session().sender();
+	if (_sentRequestId) {
+		api.request(base::take(_sentRequestId)).cancel();
+	}
+	_owner->session().user()->setEmojiStatus(id, until);
+	_sentRequestId = api.request(TLsetEmojiStatus(id
+		? tl_emojiStatus(tl_int64(id), tl_int32(until))
+		: std::optional<TLemojiStatus>()
 	)).done([=] {
 		_sentRequestId = 0;
 	}).fail([=] {

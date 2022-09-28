@@ -160,8 +160,9 @@ constexpr auto kRefreshBotsTimeout = 60 * 60 * crl::time(1000);
 		not_null<Main::Session*> session,
 		const TLDattachmentMenuBot &data) {
 	if (const auto &icon = data.vdefault_icon()) {
-		const auto result = session->data().processPlainDocument(*icon);
-		result->forceToCache(true);
+		const auto result = session->data().processPlainDocument(
+			*icon,
+			SimpleDocumentType::BotAttachSvgIcon);
 		return result;
 	}
 	return nullptr;
