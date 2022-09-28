@@ -270,9 +270,13 @@ void SaveAllowedReactions(
 		Data::ReactionToTL
 	) | ranges::to<QVector>;
 
+	using Type = Data::AllowedReactionsType;
+	const auto updated = (allowed.type != Type::Some)
+		? tl_chatAvailableReactionsAll()
+		: tl_chatAvailableReactionsSome(MTP_vector<TLreactionType>(ids));
 	peer->session().sender().request(TLsetChatAvailableReactions(
 		peerToTdbChat(peer->id),
-		tl_vector<TLstring>(std::move(ids))
+		updated
 	)).send();
 
 #if 0 // mtp

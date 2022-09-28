@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Tdb {
+class TLreactionType;
+} // namespace Tdb
+
 namespace Data {
 
 struct ReactionId {
@@ -41,8 +45,15 @@ inline bool operator==(const ReactionId &a, const ReactionId &b) {
 
 [[nodiscard]] QString ReactionEntityData(const ReactionId &id);
 
+#if 0 // mtp
 [[nodiscard]] ReactionId ReactionFromMTP(const MTPReaction &reaction);
 [[nodiscard]] MTPReaction ReactionToMTP(ReactionId id);
+#endif
+
+[[nodiscard]] ReactionId ReactionFromTL(const Tdb::TLreactionType &reaction);
+[[nodiscard]] Tdb::TLreactionType ReactionToTL(ReactionId id);
+[[nodiscard]] std::optional<Tdb::TLreactionType> ReactionToMaybeTL(
+	ReactionId id);
 
 } // namespace Data
 

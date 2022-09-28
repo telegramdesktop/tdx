@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_subscription_option.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Api {
 
 [[nodiscard]] Data::SubscriptionOption CreateSubscriptionOption(
@@ -31,15 +33,35 @@ template<typename Option>
 			ranges::less(),
 			[](const Option &o) { return o.data().vamount().v; }
 		)->data();
+#if 0 // mtp
 		return min.vamount().v / float64(min.vmonths().v);
+#endif
+		return min.vamount().v / float64(min.vmonth_count().v);
 	}();
 	result.reserve(tlOptions.size());
 	for (const auto &tlOption : tlOptions) {
 		const auto &option = tlOption.data();
+#if 0 // mtp
 		const auto botUrl = qs(option.vbot_url());
 		const auto months = option.vmonths().v;
 		const auto amount = option.vamount().v;
 		const auto currency = qs(option.vcurrency());
+#endif
+		const auto lnk = option.vpayment_link();
+		const auto botUrl = !lnk // later todo internalLink types.
+			? QString()
+			: (lnk->type() == Tdb::id_internalLinkTypeInvoice)
+			? ("https://t.me/$"
+				+ lnk->c_internalLinkTypeInvoice().vinvoice_name().v)
+			: (lnk->type() == Tdb::id_internalLinkTypeBotStart)
+			? ("https://t.me/"
+				+ lnk->c_internalLinkTypeBotStart().vbot_username().v
+				+ "?start="
+				+ lnk->c_internalLinkTypeBotStart().vstart_parameter().v)
+			: QString();
+		const auto months = option.vmonth_count().v;
+		const auto amount = option.vamount().v;
+		const auto currency = option.vcurrency().v;
 		result.push_back(CreateSubscriptionOption(
 			months,
 			monthlyAmount,

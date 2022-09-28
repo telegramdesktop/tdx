@@ -35,7 +35,10 @@ ViewsManager::ViewsManager(not_null<ApiWrap*> api)
 , _api(&api->instance())
 #endif
 , _incrementTimer([=] { viewsIncrement(); })
+#if 0 // mtp
 , _pollTimer([=] { sendPollRequests(); }) {
+#endif
+{
 }
 
 void ViewsManager::scheduleIncrement(not_null<HistoryItem*> item) {
@@ -61,6 +64,7 @@ void ViewsManager::removeIncremented(not_null<PeerData*> peer) {
 	_incremented.remove(peer);
 }
 
+#if 0 // mtp
 void ViewsManager::pollExtendedMedia(not_null<HistoryItem*> item) {
 	if (!item->isRegular()) {
 		return;
@@ -79,6 +83,7 @@ void ViewsManager::pollExtendedMedia(not_null<HistoryItem*> item) {
 		_pollTimer.callOnce(kPollExtendedMediaPeriod);
 	}
 }
+#endif
 
 void ViewsManager::viewsIncrement() {
 	for (auto i = _toIncrement.begin(); i != _toIncrement.cend();) {
@@ -130,6 +135,7 @@ void ViewsManager::viewsIncrement() {
 	}
 }
 
+#if 0 // mtp
 void ViewsManager::sendPollRequests() {
 	const auto now = crl::now();
 	auto toRequest = base::flat_map<not_null<PeerData*>, QVector<MTPint>>();
@@ -212,7 +218,6 @@ void ViewsManager::sendPollRequests(
 	}
 }
 
-#if 0 // mtp
 void ViewsManager::done(
 		QVector<MTPint> ids,
 		const MTPmessages_MessageViews &result,
