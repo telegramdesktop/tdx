@@ -139,6 +139,12 @@ private:
 		std::unique_ptr<Ui::AnimatedIcon> icon;
 		bool fromSelectAnimation = false;
 	};
+	struct EmojiResolved {
+		QString emoji;
+		mtpRequestId requestId = 0;
+		bool resolved = false;
+		bool active = false;
+	};
 
 	[[nodiscard]] not_null<CustomEmojiManager::Listener*> resolveListener();
 	void customEmojiResolveDone(not_null<DocumentData*> document) override;
@@ -175,6 +181,11 @@ private:
 	[[nodiscard]] std::optional<Reaction> parse(
 		const Tdb::TLemojiReaction &entry);
 	void updateGeneric(const Tdb::TLDfiles &data);
+	void resolveEmojiNext();
+	void resolveEmoji(const QString &emoji);
+	void resolveEmoji(not_null<EmojiResolved*> entry);
+	void checkAllActiveResolved();
+	[[nodiscard]] bool allActiveResolved() const;
 
 	void loadImage(
 		ImageSet &set,
@@ -231,7 +242,7 @@ private:
 	mtpRequestId _defaultRequestId = 0;
 	int32 _defaultHash = 0;
 #endif
-	std::vector<QString> _activeEmojiList;
+	std::vector<EmojiResolved> _emojiReactions;
 
 	mtpRequestId _genericRequestId = 0;
 
