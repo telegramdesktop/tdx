@@ -62,6 +62,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
 
+namespace {
+
+using namespace Tdb;
+
+} // namespace
+
 class ShareBox::Inner final : public Ui::RpWidget {
 public:
 	Inner(
@@ -1629,9 +1635,10 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 				}
 			};
 			auto &api = threadHistory->session().sender();
-			auto tlOptions = Tdb::tl_messageSendOptions(
-				Tdb::tl_bool(ShouldSendSilent(peer, options)),
-				Tdb::tl_bool(true), // From background.
+			auto tlOptions = tl_messageSendOptions(
+				tl_bool(ShouldSendSilent(peer, options)),
+				tl_bool(true), // from_background.
+				tl_bool(false), // update_order_of_installed_stickers_sets
 				Api::ScheduledToTL(options.scheduled));
 
 			// If we have only one message to send

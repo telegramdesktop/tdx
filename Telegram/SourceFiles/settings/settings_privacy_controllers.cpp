@@ -175,18 +175,7 @@ AdminLog::OwnedItem GenerateForwardedItem(
 		tl_bool(false), // is_outgoing
 		tl_bool(false), // is_pinned
 		tl_bool(false), // is_from_offline
-		tl_bool(false), // can_be_edited
-		tl_bool(false), // can_be_forwarded
-		tl_bool(false), // can_be_replied_in_another_chat
 		tl_bool(true), // can_be_saved
-		tl_bool(true), // can_be_deleted_only_for_self
-		tl_bool(false), // can_be_deleted_for_all_users
-		tl_bool(false), // can_get_added_reactions
-		tl_bool(false), // can_get_statistics
-		tl_bool(false), // can_get_message_thread
-		tl_bool(false), // can_get_read_date
-		tl_bool(false), // can_get_viewers
-		tl_bool(false), // can_get_media_timestamp_links
 		tl_bool(false), // has_timestamped_media
 		tl_bool(false), // is_channel_post
 		tl_bool(false), // contains_unread_mention
@@ -214,6 +203,7 @@ AdminLog::OwnedItem GenerateForwardedItem(
 		tl_string(), // author_signature
 		tl_int64(0), // media_album_id
 		tl_int64(0), // effect_id
+		tl_bool(false), // has_sensitive_content
 		tl_string(), // restriction_reason
 		tl_messageText(
 			tl_formattedText(tl_string(text), tl_vector<TLtextEntity>()),

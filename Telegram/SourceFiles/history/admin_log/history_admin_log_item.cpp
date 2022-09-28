@@ -211,6 +211,7 @@ Tdb::TLmessage PrepareLogMessage(
 		Tdb::tl_bool(false), // thread.
 		Tdb::tl_bool(false), // views.
 		message.data().vcan_get_media_timestamp_links(),
+		Tdb::tl_bool(false), // can_report_reactions
 		message.data().vhas_timestamped_media(),
 		Tdb::tl_bool(false), // post.
 		Tdb::tl_bool(false), // unreadMention.
@@ -2008,6 +2009,7 @@ void GenerateItems(
 
 	const auto createChangeAvailableReactions = [&](
 			const LogChangeAvailableReactions &data) {
+#if 0 // mtp
 		const auto text = data.vnew_value().match([&](
 				const MTPDchatReactionsNone&) {
 			return tr::lng_admin_log_reactions_disabled(
@@ -2035,6 +2037,42 @@ void GenerateItems(
 				Ui::Text::WithEntities);
 		}, [&](const MTPDchatReactionsAll &data) {
 			return (data.is_allow_custom()
+				? tr::lng_admin_log_reactions_allowed_all
+				: tr::lng_admin_log_reactions_allowed_official)(
+					tr::now,
+					lt_from,
+					fromLinkText,
+					Ui::Text::WithEntities);
+		});
+#endif
+		const auto text = data.vnew_available_reactions().match([&](
+				const TLDchatAvailableReactionsSome &data) {
+			if (data.vreactions().v.isEmpty()) {
+				return tr::lng_admin_log_reactions_disabled(
+					tr::now,
+					lt_from,
+					fromLinkText,
+					Ui::Text::WithEntities);
+			}
+			using namespace Window::Notifications;
+			auto list = TextWithEntities();
+			for (const auto &one : data.vreactions().v) {
+				if (!list.empty()) {
+					list.append(", ");
+				}
+				list.append(Manager::ComposeReactionEmoji(
+					session,
+					Data::ReactionFromTL(one)));
+			}
+			return tr::lng_admin_log_reactions_updated(
+				tr::now,
+				lt_from,
+				fromLinkText,
+				lt_emoji,
+				list,
+				Ui::Text::WithEntities);
+		}, [&](const TLDchatAvailableReactionsAll &data) {
+			return (!history->peer->isBroadcast()
 				? tr::lng_admin_log_reactions_allowed_all
 				: tr::lng_admin_log_reactions_allowed_official)(
 					tr::now,

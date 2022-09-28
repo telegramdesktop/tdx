@@ -2921,18 +2921,17 @@ void Updates::applyUpdate(const TLupdate &update) {
 			if (peer->isUser()) {
 				return;
 			}
-			auto list = base::flat_set<QString>();
-			for (const auto &reaction : data.vavailable_reactions().v) {
-				list.emplace(reaction.v);
-			}
+			auto allowed = Data::Parse(peer, data.vavailable_reactions());
 			if (const auto chat = peer->asChat()) {
-				chat->setAllowedReactions(std::move(list));
+				chat->setAllowedReactions(std::move(allowed));
 			} else if (const auto channel = peer->asChannel()) {
-				channel->setAllowedReactions(std::move(list));
+				channel->setAllowedReactions(std::move(allowed));
 			}
 		}
-	}, [&](const TLDupdateReactions &data) {
-		owner.reactions().refresh(data.vreactions());
+	}, [&](const TLDupdateActiveEmojiReactions &data) {
+		owner.reactions().refreshActive(data);
+	}, [&](const TLDupdateDefaultReactionType &data) {
+		owner.reactions().refreshFavorite(data);
 	}, [&](const TLDupdateChatNotificationSettings &data) {
 		const auto peer = owner.peerLoaded(peerFromTdbChat(data.vchat_id()));
 		if (peer) {

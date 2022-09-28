@@ -296,11 +296,6 @@ void Widget::handleUpdate(const TLupdate &update) {
 void Widget::handleAuthorizationState(const TLauthorizationState &state) {
 	state.match([&](const TLDauthorizationStateWaitTdlibParameters &) {
 		Unexpected("authorizationStateWaitTdlibParameters in client code.");
-	}, [&](const TLDauthorizationStateWaitEncryptionKey &data) {
-		if (data.vis_encrypted().v) {
-			// todo jump to passcoded state.
-		} else {
-		}
 	}, [&](const TLDauthorizationStateWaitPhoneNumber &) {
 	}, [&](const TLDauthorizationStateWaitCode &data) {
 		fillCodeInfo(data.vcode_info());
@@ -320,6 +315,10 @@ void Widget::handleAuthorizationState(const TLauthorizationState &state) {
 	}, [&](const TLDauthorizationStateLoggingOut &) {
 	}, [&](const TLDauthorizationStateClosing &) {
 	}, [&](const TLDauthorizationStateClosed &) {
+	}, [](const TLDauthorizationStateWaitEmailAddress &) {
+		LOG(("Tdb Error: Should not StateWaitEmailAddress in TDesktop."));
+	}, [](const TLDauthorizationStateWaitEmailCode &) {
+		LOG(("Tdb Error: Should not StateWaitEmailCode in TDesktop."));
 	});
 	if (!getStep()->applyState(state)) {
 		getStep()->jumpByState(state);

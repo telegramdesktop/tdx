@@ -94,8 +94,6 @@ public:
 	explicit Impl(InstanceConfig &&config);
 	~Impl();
 
-	void checkEncryptionKey(bytes::const_span key);
-
 	[[nodiscard]] RequestId allocateRequestId() const;
 	void sendPrepared(
 		RequestId requestId,
@@ -381,19 +379,6 @@ Instance::Impl::~Impl() {
 	_manager->destroyClient(_client);
 }
 
-void Instance::Impl::checkEncryptionKey(bytes::const_span key) {
-	const auto fail = [=](Error error) {
-		LOG(("Critical Error: Invalid local key - %1").arg(error.message));
-		send(allocateRequestId(), TLdestroy(), nullptr, nullptr, true);
-	};
-	send(
-		allocateRequestId(),
-		TLcheckDatabaseEncryptionKey(tl_bytes(key)),
-		nullptr,
-		fail,
-		true);
-}
-
 RequestId Instance::Impl::allocateRequestId() const {
 	return _manager->allocateRequestId();
 }
@@ -467,8 +452,6 @@ void Instance::Impl::handleUpdate(TLupdate &&update) {
 	update.match([&](const TLDupdateAuthorizationState &data) {
 		data.vauthorization_state().match([](
 			const TLDauthorizationStateWaitTdlibParameters &) {
-		}, [&](const TLDauthorizationStateWaitEncryptionKey &data) {
-			_updates.fire(std::move(update));
 		}, [&](const TLDauthorizationStateLoggingOut &) {
 			_ready = false;
 		}, [&](const TLDauthorizationStateClosing &) {
@@ -504,25 +487,29 @@ void Instance::Impl::sendTdlibParameters() {
 	const auto fail = [=](Error error) {
 		LOG(("Critical Error: setTdlibParameters - %1").arg(error.message));
 	};
+	//const auto fail = [=](Error error) {
+	//	LOG(("Critical Error: Invalid local key - %1").arg(error.message));
+	//	send(allocateRequestId(), TLdestroy(), nullptr, nullptr, true);
+	//};
 	send(
 		allocateRequestId(),
 		TLsetTdlibParameters(
-			tl_tdlibParameters(
-				tl_bool(_config.testDc),
-				tl_string(_config.databaseDirectory),
-				tl_string(_config.filesDirectory), // files_directory
-				tl_bool(true), // use_file_database
-				tl_bool(true), // use_chat_info_database
-				tl_bool(true), // use_message_database
-				tl_bool(false), // use_secret_chats
-				tl_int32(_config.apiId),
-				tl_string(_config.apiHash),
-				tl_string(_config.systemLanguageCode),
-				tl_string(_config.deviceModel),
-				tl_string(_config.systemVersion),
-				tl_string(_config.applicationVersion),
-				tl_bool(true), // enable_storage_optimizer
-				tl_bool(false))), // ignore_file_names
+			tl_bool(_config.testDc),
+			tl_string(_config.databaseDirectory),
+			tl_string(_config.filesDirectory), // files_directory
+			tl_bytes(_config.encryptionKey), // database_encryption_key
+			tl_bool(true), // use_file_database
+			tl_bool(true), // use_chat_info_database
+			tl_bool(true), // use_message_database
+			tl_bool(false), // use_secret_chats
+			tl_int32(_config.apiId),
+			tl_string(_config.apiHash),
+			tl_string(_config.systemLanguageCode),
+			tl_string(_config.deviceModel),
+			tl_string(_config.systemVersion),
+			tl_string(_config.applicationVersion),
+			tl_bool(true), // enable_storage_optimizer
+			tl_bool(false)), // ignore_file_names
 		nullptr,
 		fail,
 		true);
@@ -533,10 +520,6 @@ Instance::Instance(InstanceConfig &&config)
 }
 
 Instance::~Instance() = default;
-
-void Instance::checkEncryptionKey(bytes::const_span key) {
-	_impl->checkEncryptionKey(key);
-}
 
 RequestId Instance::allocateRequestId() const {
 	return _impl->allocateRequestId();

@@ -321,7 +321,14 @@ void NotifySettings::apply(
 		.id = DocumentId((soundId == -1) ? 0 : soundId),
 		.none = !soundId,
 	};
-	if (forType.change(data.vmute_for().v, std::nullopt, sound)) {
+	const auto mute = MuteValue{
+		.unmute = !data.vmute_for().v,
+		.period = data.vmute_for().v,
+	};
+	const auto muteStories = data.vuse_default_mute_stories().v
+		? std::optional<bool>()
+		: data.vmute_stories().v;
+	if (forType.change(mute, std::nullopt, sound, muteStories)) {
 		updateLocal(type);
 	}
 	Core::App().notifications().checkDelayed();

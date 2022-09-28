@@ -69,6 +69,7 @@ struct InstanceConfig {
 	QString applicationVersion;
 	QString databaseDirectory;
 	QString filesDirectory;
+	QByteArray encryptionKey;
 	bool testDc = false;
 };
 
@@ -77,8 +78,6 @@ public:
 	// Main thread.
 	explicit Instance(InstanceConfig &&config);
 	~Instance();
-
-	void checkEncryptionKey(bytes::const_span key);
 
 	// Thread safe.
 	[[nodiscard]] RequestId allocateRequestId() const;

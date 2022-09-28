@@ -42,6 +42,8 @@ class TLDupdateChatPhoto;
 class TLDupdateChatAccentColors;
 } // namespace Tdb
 
+enum class SimpleDocumentType;
+
 struct HistoryMessageMarkupData;
 
 class Image;
