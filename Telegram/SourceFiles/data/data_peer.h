@@ -39,6 +39,7 @@ class TLbotMenuButton;
 class TLchatNotificationSettings;
 class TLchatActionBar;
 class TLfile;
+class TLchatAvailableReactions;
 } // namespace Tdb
 
 namespace Data {
@@ -143,6 +144,7 @@ struct AllowedReactions {
 		const AllowedReactions &) = default;
 };
 
+#if 0 // mtp
 [[nodiscard]] AllowedReactions Parse(
 	const MTPChatReactions &value,
 	int maxCount,
@@ -153,6 +155,10 @@ struct AllowedReactions {
 [[nodiscard]] UserData *UserFromInputMTP(
 	not_null<Session*> owner,
 	const MTPInputUser &input);
+#endif
+[[nodiscard]] AllowedReactions Parse(
+	not_null<PeerData*> peer,
+	const Tdb::TLchatAvailableReactions &value);
 
 } // namespace Data
 

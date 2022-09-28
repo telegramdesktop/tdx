@@ -974,9 +974,17 @@ void SaveAllowedReactions(
 		Data::ReactionToTL
 	) | ranges::to<QVector>;
 
+	using Type = Data::AllowedReactionsType;
+	const auto max = Data::UniqueReactionsLimit(peer->session().user());
+	const auto allowedMax = allowed.maxCount ? allowed.maxCount : max;
+	const auto updated = (allowed.type != Type::Some)
+		? tl_chatAvailableReactionsAll(tl_int32(allowedMax))
+		: tl_chatAvailableReactionsSome(
+			MTP_vector<TLreactionType>(ids),
+			tl_int32(allowedMax));
 	peer->session().sender().request(TLsetChatAvailableReactions(
 		peerToTdbChat(peer->id),
-		tl_vector<TLstring>(std::move(ids))
+		updated
 	)).send();
 
 #if 0 // mtp

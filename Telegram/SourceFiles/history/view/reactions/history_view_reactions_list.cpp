@@ -293,12 +293,12 @@ void Controller::loadMore(const ReactionId &reaction) {
 	_loadRequestId = _api.request(TLgetMessageAddedReactions(
 		peerToTdbChat(_item->history()->peer->id),
 		tl_int53(_item->id.bare),
-		tl_string(reaction),
+		ReactionToMaybeTL(reaction),
 		tl_string(offset),
 		tl_int32(offset.isEmpty() ? kPerPageFirst : kPerPage)
 	)).done([=](const TLaddedReactions &result) {
 		_loadRequestId = 0;
-		const auto filtered = !reaction.isEmpty();
+		const auto filtered = !reaction.empty();
 		const auto shown = (reaction == _shownReaction);
 		const auto &data = result.data();
 		auto &owner = _item->history()->owner();
@@ -307,7 +307,7 @@ void Controller::loadMore(const ReactionId &reaction) {
 			const auto &data = tlReaction.data();
 			const auto peer = owner.peerLoaded(
 				peerFromSender(data.vsender_id()));
-			const auto reaction = data.vreaction().v;
+			const auto reaction = Data::ReactionFromTL(data.vtype());
 			if (peer && (!shown || appendRow(peer, reaction))) {
 				if (filtered) {
 					_filtered.emplace_back(peer);
