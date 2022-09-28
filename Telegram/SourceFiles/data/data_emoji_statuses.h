@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 
+namespace Tdb {
+class TLDemojiStatuses;
+} // namespace Tdb
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -55,7 +59,9 @@ public:
 	void set(DocumentId id, TimeId until = 0);
 	void set(not_null<PeerData*> peer, DocumentId id, TimeId until = 0);
 
+#if 0 // mtp
 	void registerAutomaticClear(not_null<PeerData*> peer, TimeId until);
+#endif
 
 	using Groups = std::vector<Ui::EmojiGroup>;
 	[[nodiscard]] rpl::producer<Groups> emojiGroupsValue() const;
@@ -80,6 +86,7 @@ private:
 	void requestChannelDefault();
 	void requestChannelColored();
 
+#if 0 // mtp
 	void updateRecent(const MTPDaccount_emojiStatuses &data);
 	void updateDefault(const MTPDaccount_emojiStatuses &data);
 	void updateColored(const MTPDmessages_stickerSet &data);
@@ -88,6 +95,11 @@ private:
 
 	void processClearingIn(TimeId wait);
 	void processClearing();
+#endif
+
+	void updateRecent(const Tdb::TLDemojiStatuses &data);
+	void updateDefault(const Tdb::TLDemojiStatuses &data);
+	void updateColored(const Tdb::TLDemojiStatuses &data);
 
 	template <typename Request>
 	void requestGroups(not_null<GroupsType*> type, Request &&request);
@@ -121,8 +133,10 @@ private:
 
 	base::flat_map<not_null<PeerData*>, mtpRequestId> _sentRequests;
 
+#if 0 // mtp
 	base::flat_map<not_null<PeerData*>, TimeId> _clearing;
 	base::Timer _clearingTimer;
+#endif
 
 	GroupsType _emojiGroups;
 	GroupsType _statusGroups;

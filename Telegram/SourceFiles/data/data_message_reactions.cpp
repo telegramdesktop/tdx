@@ -64,6 +64,7 @@ constexpr auto kPaidAccumulatePeriod = 5 * crl::time(1000) + 500;
 	return id.emoji();
 }
 
+#if 0 // mtp
 [[nodiscard]] std::vector<ReactionId> ListFromMTP(
 		const MTPDmessages_reactions &data) {
 	const auto &list = data.vreactions().v;
@@ -79,6 +80,7 @@ constexpr auto kPaidAccumulatePeriod = 5 * crl::time(1000) + 500;
 	}
 	return result;
 }
+#endif
 
 [[nodiscard]] std::vector<MyTagInfo> ListFromMTP(
 		const MTPDmessages_savedReactionTags &data) {
@@ -310,8 +312,8 @@ PossibleItemReactions::PossibleItemReactions(
 
 Reactions::Reactions(not_null<Session*> owner)
 : _owner(owner)
-, _topRefreshTimer([=] { refreshTop(); })
 #if 0 // mtp
+, _topRefreshTimer([=] { refreshTop(); })
 , _repaintTimer([=] { repaintCollected(); })
 #endif
 , _sendPaidTimer([=] { sendPaid(); }) {
@@ -395,7 +397,7 @@ void Reactions::refreshDefault() {
 }
 #endif
 
-void Reactions::refresh(const TLDupdateReactions &data) {
+void Reactions::refreshActive(const TLDupdateActiveEmojiReactions &data) {
 	updateFromData(data);
 }
 
@@ -424,6 +426,10 @@ void Reactions::refreshEffects() {
 	if (_effects.empty()) {
 		requestEffects();
 	}
+}
+
+void Reactions::refreshFavorite(const TLDupdateDefaultReactionType &data) {
+	applyFavorite(ReactionFromTL(data.vreaction_type()));
 }
 
 const std::vector<Reaction> &Reactions::list(Type type) const {
@@ -478,9 +484,8 @@ void Reactions::setFavorite(const ReactionId &id) {
 		_saveFaveRequestId = 0;
 	}).send();
 #endif
-	_owner->session().sender().request(TLsetOption(
-		tl_string("default_reaction"),
-		tl_optionValueString(tl_string(emoji))
+	_owner->session().sender().request(TLsetDefaultReactionType(
+		ReactionToTL(id)
 	)).send();
 
 	applyFavorite(id);
@@ -1104,7 +1109,19 @@ void Reactions::updateDefault(const MTPDmessages_availableReactions &data) {
 	_defaultHash = data.vhash().v;
 
 #endif
-void Reactions::updateFromData(const Tdb::TLDupdateReactions &data) {
+
+void Reactions::updateFromData(
+		const Tdb::TLDupdateActiveEmojiReactions &data) {
+	auto list = ranges::views::all(
+		data.vemojis().v
+	) | ranges::views::transform(
+		&TLstring::v
+	) | ranges::to_vector;
+	if (_activeEmojiList == list) {
+		return;
+	}
+	_activeEmojiList = std::move(list);
+#if 0 // todo
 	const auto &list = data.vreactions().v;
 	const auto oldCache = base::take(_iconsCache);
 	const auto toCache = [&](DocumentData *document) {
@@ -1134,8 +1151,44 @@ void Reactions::updateFromData(const Tdb::TLDupdateReactions &data) {
 		resolveReactionImages();
 	}
 	defaultUpdated();
+#endif
 }
 
+void Reactions::requestGeneric() {
+	if (_genericRequestId) {
+		return;
+	}
+	auto &api = _owner->session().sender();
+	_genericRequestId = api.request(TLgetCustomEmojiReactionAnimations(
+	)).done([=](const TLDfiles &result) {
+		_genericRequestId = 0;
+		updateGeneric(result);
+	}).fail([=] {
+		_genericRequestId = 0;
+	}).send();
+}
+
+void Reactions::updateGeneric(const TLDfiles &data) {
+	const auto oldCache = base::take(_genericCache);
+	const auto toCache = [&](not_null<DocumentData*> document) {
+		_genericAnimations.push_back(document);
+		_genericCache.emplace(document, document->createMediaView());
+	};
+	const auto &list = data.vfiles().v;
+	_genericAnimations.clear();
+	_genericAnimations.reserve(list.size());
+	_genericCache.reserve(list.size());
+	for (const auto &sticker : list) {
+		toCache(_owner->processPlainDocument(
+			sticker,
+			SimpleDocumentType::TgsSticker));
+	}
+	if (!_genericCache.empty()) {
+		_genericCache.front().second->checkStickerLarge();
+	}
+}
+
+#if 0 // mtp
 void Reactions::updateGeneric(const MTPDmessages_stickerSet &data) {
 	const auto oldCache = base::take(_genericCache);
 	const auto toCache = [&](not_null<DocumentData*> document) {
@@ -1217,10 +1270,13 @@ void Reactions::recentUpdated() {
 	_topRefreshTimer.callOnce(kTopRequestDelay);
 	_recentUpdated.fire({});
 }
+#endif
 
 void Reactions::defaultUpdated() {
+#if 0 // mtp
 	refreshTop();
 	refreshRecent();
+#endif
 	if (_genericAnimations.empty()) {
 		requestGeneric();
 	}
@@ -1381,7 +1437,9 @@ std::vector<Reaction> Reactions::resolveByInfos(
 
 void Reactions::resolve(const ReactionId &id) {
 	if (const auto emoji = id.emoji(); !emoji.isEmpty()) {
+#if 0 // todo
 		refreshDefault();
+#endif
 	} else if (const auto customId = id.custom()) {
 		_owner->customEmojiManager().resolve(
 			customId,
@@ -1463,9 +1521,9 @@ std::optional<Reaction> Reactions::parse(const MTPAvailableEffect &entry) {
 }
 #endif
 
-std::optional<Reaction> Reactions::parse(const TLreaction &entry) {
+std::optional<Reaction> Reactions::parse(const TLemojiReaction &entry) {
 	const auto &data = entry.data();
-	const auto emoji = data.vreaction().v;
+	const auto emoji = data.vemoji().v;
 	const auto known = (Ui::Emoji::Find(emoji) != nullptr);
 	if (!known) {
 		LOG(("API Error: Unknown emoji in reactions: %1").arg(emoji));
@@ -1474,9 +1532,9 @@ std::optional<Reaction> Reactions::parse(const TLreaction &entry) {
 		data.vselect_animation());
 	return known
 		? std::make_optional(Reaction{
-			.emoji = emoji,
+			.id = ReactionId{ emoji },
 			.title = data.vtitle().v,
-			.staticIcon = _owner->processDocument(data.vstatic_icon()),
+			//.staticIcon = _owner->processDocument(data.vstatic_icon()),
 			.appearAnimation = _owner->processDocument(
 				data.vappear_animation()),
 			.selectAnimation = selectAnimation,
@@ -1496,15 +1554,8 @@ std::optional<Reaction> Reactions::parse(const TLreaction &entry) {
 		: std::nullopt;
 }
 
-void Reactions::send(not_null<HistoryItem*> item, bool addToRecent) {
-	const auto id = item->fullId();
-	_owner->session().sender().request(TLsetMessageReaction(
-		peerToTdbChat(item->history()->peer->id),
-		tl_int53(id.msg.bare),
-		tl_string(chosen),
-		tl_bool(false) // is_big
-	)).send();
 #if 0 // mtp
+void Reactions::send(not_null<HistoryItem*> item, bool addToRecent) {
 	auto &api = _owner->session().api();
 	auto i = _sentRequests.find(id);
 	if (i != end(_sentRequests)) {
@@ -1532,10 +1583,8 @@ void Reactions::send(not_null<HistoryItem*> item, bool addToRecent) {
 	}).fail([=](const MTP::Error &error) {
 		_sentRequests.remove(id);
 	}).send();
-#endif
 }
 
-#if 0 // mtp
 void Reactions::poll(not_null<HistoryItem*> item, crl::time now) {
 	// Group them by one second.
 	const auto last = item->lastReactionsRefreshTime();
@@ -1566,6 +1615,7 @@ void Reactions::updateAllInHistory(not_null<PeerData*> peer, bool enabled) {
 		history->reactionsEnabledChanged(enabled);
 	}
 }
+#endif
 
 void Reactions::clearTemporary() {
 	_temporary.clear();
@@ -1683,6 +1733,7 @@ crl::time Reactions::ScheduledPaidDelay() {
 	return kPaidAccumulatePeriod;
 }
 
+#if 0 // mtp
 void Reactions::repaintCollected() {
 	const auto now = crl::now();
 	auto closest = crl::time();
@@ -1982,7 +2033,17 @@ void MessageReactions::add(const ReactionId &id, bool addToRecent) {
 		_list.push_back({ .id = id, .count = 1, .my = true });
 	}
 	auto &owner = history->owner();
+#if 0 // mtp
 	owner.reactions().send(_item, addToRecent);
+#endif
+	_item->history()->session().sender().request(TLaddMessageReaction(
+		peerToTdbChat(_item->history()->peer->id),
+		tl_int53(_item->id.bare),
+		ReactionToTL(id),
+		tl_bool(false), // is_big
+		tl_bool(addToRecent)
+	)).send();
+
 	owner.notifyItemDataChange(_item);
 }
 
@@ -2025,7 +2086,15 @@ void MessageReactions::remove(const ReactionId &id) {
 		history->owner().reactions().decrementMyTag(id, sublist);
 	}
 	auto &owner = history->owner();
+#if 0 // mtp
 	owner.reactions().send(_item, false);
+#endif
+	_item->history()->session().sender().request(TLremoveMessageReaction(
+		peerToTdbChat(_item->history()->peer->id),
+		tl_int53(_item->id.bare),
+		ReactionToTL(id)
+	)).send();
+
 	owner.notifyItemDataChange(_item);
 }
 
@@ -2245,53 +2314,54 @@ bool MessageReactions::change(
 bool MessageReactions::change(const QVector<TLmessageReaction> &list) {
 	auto &owner = _item->history()->owner();
 	auto changed = false;
-	auto existing = base::flat_set<QString>();
-	auto parsed = base::flat_map<QString, std::vector<RecentReaction>>();
+	auto existing = base::flat_set<ReactionId>();
+	auto parsed = base::flat_map<ReactionId, std::vector<RecentReaction>>();
 	for (const auto &tlReaction : list) {
 		const auto &data = tlReaction.data();
-		const auto reaction = data.vreaction().v;
-		if (data.vis_chosen().v && _chosen != reaction) {
-			_chosen = reaction;
-			changed = true;
-		} else if (!data.vis_chosen().v && _chosen == reaction) {
-			_chosen = QString();
-			changed = true;
-		}
+		const auto id = ReactionFromTL(data.vtype());
+		const auto chosen = data.vis_chosen().v;
+		const auto i = ranges::find(_list, id, &MessageReaction::id);
 		const auto nowCount = data.vtotal_count().v;
-		auto &wasCount = _list[reaction];
-		if (wasCount != nowCount) {
-			wasCount = nowCount;
+		if (i == end(_list)) {
 			changed = true;
+			_list.push_back({
+				.id = id,
+				.count = nowCount,
+				.my = chosen
+			});
+		} else {
+			if (i->count != nowCount || i->my != chosen) {
+				i->count = nowCount;
+				i->my = chosen;
+				changed = true;
+			}
 		}
-		existing.emplace(reaction);
-		const auto i = _recent.find(reaction);
+		existing.emplace(id);
+		const auto j = _recent.find(id);
 		for (const auto &sender : data.vrecent_sender_ids().v) {
 			const auto peer = owner.peer(peerFromSender(sender));
 			auto recent = RecentReaction{ .peer = peer };
-			if (i != end(_recent)) {
-				const auto j = ranges::find_if(i->second, [&](
+			if (j != end(_recent)) {
+				const auto k = ranges::find_if(j->second, [&](
 						const RecentReaction &existing) {
 					return (existing.peer == peer) && existing.unread;
 				});
-				if (j != end(i->second)) {
+				if (k != end(j->second)) {
 					recent.unread = true;
-					recent.big = j->big;
+					recent.big = k->big;
 				}
 			}
-			parsed[reaction].push_back(std::move(recent));
+			parsed[id].push_back(std::move(recent));
 		}
 	}
 	if (_list.size() != existing.size()) {
 		changed = true;
 		for (auto i = begin(_list); i != end(_list);) {
-			if (!existing.contains(i->first)) {
+			if (!existing.contains(i->id)) {
 				i = _list.erase(i);
 			} else {
 				++i;
 			}
-		}
-		if (!_chosen.isEmpty() && !_list.contains(_chosen)) {
-			_chosen = QString();
 		}
 	}
 	if (_recent != parsed) {

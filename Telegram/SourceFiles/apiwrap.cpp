@@ -4048,6 +4048,7 @@ void ApiWrap::forwardMessages(
 			tl_messageSendOptions(
 				tl_bool(silentPost),
 				tl_bool(false), // from_background
+				tl_bool(false), // update_order_of_installed_stickers_sets
 				Api::ScheduledToTL(action.options.scheduled)),
 			tl_bool(draft.options != Data::ForwardOptions::PreserveInfo),
 			tl_bool(

@@ -28,7 +28,9 @@ public:
 	void scheduleIncrement(not_null<HistoryItem*> item);
 	void removeIncremented(not_null<PeerData*> peer);
 
+#if 0 // mtp
 	void pollExtendedMedia(not_null<HistoryItem*> item, bool force = false);
+#endif
 
 private:
 	struct PollExtendedMediaRequest {
@@ -40,13 +42,14 @@ private:
 	};
 
 	void viewsIncrement();
+
+#if 0 // mtp
 	void sendPollRequests();
 	void sendPollRequests(
 		const base::flat_map<
 			not_null<PeerData*>,
 			QVector<MTPint>> &prepared);
 
-#if 0 // mtp
 	void done(
 		QVector<MTPint> ids,
 		const MTPmessages_MessageViews &result,
@@ -65,10 +68,12 @@ private:
 	base::flat_map<mtpRequestId, not_null<PeerData*>> _incrementByRequest;
 	base::Timer _incrementTimer;
 
+#if 0 // mtp
 	base::flat_map<
 		not_null<PeerData*>,
 		PollExtendedMediaRequest> _pollRequests;
 	base::Timer _pollTimer;
+#endif
 
 };
 

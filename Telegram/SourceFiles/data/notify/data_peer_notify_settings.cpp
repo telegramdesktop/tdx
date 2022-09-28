@@ -414,7 +414,9 @@ bool PeerNotifySettings::change(
 #endif
 	const auto muteUntilNow = muteUntil();
 	const auto muteFor = muteForSeconds
-		? (*muteForSeconds ? (*muteForSeconds) : 0)
+		? (muteForSeconds.forever
+			? std::numeric_limits<int>::max()
+			: muteForSeconds.period)
 		: muteUntilNow
 		? MuteTillToMuteFor(*muteUntilNow)
 		: std::optional<int>();

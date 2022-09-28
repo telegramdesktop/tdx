@@ -479,6 +479,8 @@ public:
 #if 0 // mtp
 	void updateReactionsUnknown();
 #endif
+	void updateReactions(const QVector<Tdb::TLmessageReaction> &list);
+	void updateUnreadReactions(const QVector<Tdb::TLunreadReaction> &list);
 	[[nodiscard]] auto reactions() const
 		-> const std::vector<Data::MessageReaction> &;
 	[[nodiscard]] auto reactionsWithLocal() const

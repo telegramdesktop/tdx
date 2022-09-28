@@ -416,7 +416,7 @@ struct State {
 				TLgetMessageAddedReactions(
 					peerToTdbChat(item->history()->peer->id),
 					tl_int53(item->id.bare),
-					tl_string(reaction),
+					ReactionToMaybeTL(reaction),
 					tl_string(), // offset
 					tl_int32(kContextReactionsLimit))
 			).done([=](const TLaddedReactions &result) {
@@ -430,9 +430,10 @@ struct State {
 				};
 				parsed.list.reserve(list.size());
 				for (const auto &reaction : list) {
+					const auto &type = reaction.data().vtype();
 					parsed.list.push_back(PeerWithReaction{
 						.peer = peerFromSender(reaction.data().vsender_id()),
-						.reaction = reaction.data().vreaction().v,
+						.reaction = Data::ReactionFromTL(type),
 					});
 				}
 				entry.data = std::move(parsed);

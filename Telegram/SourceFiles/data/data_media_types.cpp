@@ -292,8 +292,12 @@ template <typename MediaType>
 bool UpdateExtendedMedia(
 		std::unique_ptr<Media> &media,
 		not_null<HistoryItem*> item,
+		const TLpaidMedia &extended) {
+	return extended.match([&](const TLDpaidMediaPreview &data) {
+#if 0 // mtp
 		const MTPMessageExtendedMedia &extended) {
 	return extended.match([&](const MTPDmessageExtendedMediaPreview &data) {
+#endif
 		auto photo = (PhotoData*)nullptr;
 		if (!media) {
 			const auto id = base::RandomValue<PhotoId>();
@@ -309,24 +313,37 @@ bool UpdateExtendedMedia(
 		auto size = QSize();
 		auto thumbnail = QByteArray();
 		auto videoDuration = std::optional<TimeId>();
+#if 0 // mtp
 		if (const auto &w = data.vw()) {
 			const auto &h = data.vh();
 			Assert(h.has_value());
 			size = QSize(w->v, h->v);
+#endif
+		if (const auto &w = data.vwidth().v) {
+			size = QSize(w, data.vheight().v);
 			if (!changed && photo->size(PhotoSize::Large) != size) {
 				changed = true;
 			}
 		}
+#if 0 // mtp
 		if (const auto &thumb = data.vthumb()) {
 			if (thumb->type() == mtpc_photoStrippedSize) {
 				thumbnail = thumb->c_photoStrippedSize().vbytes().v;
+#endif
+		if (const auto &thumb = data.vminithumbnail()) {
+			thumbnail = thumb->data().vdata().v;
+			if (!thumbnail.isEmpty()) {
 				if (!changed && photo->inlineThumbnailBytes() != thumbnail) {
 					changed = true;
 				}
 			}
 		}
+#if 0 // mtp
 		if (const auto &duration = data.vvideo_duration()) {
 			videoDuration = duration->v;
+#endif
+		if (const auto duration = data.vduration().v) {
+			videoDuration = duration;
 			if (photo->extendedMediaVideoDuration() != videoDuration) {
 				changed = true;
 			}
@@ -340,8 +357,26 @@ bool UpdateExtendedMedia(
 			media = std::make_unique<MediaPhoto>(item, photo, true);
 		}
 		return changed;
+#if 0 // mtp
 	}, [&](const MTPDmessageExtendedMedia &data) {
 		media = HistoryItem::CreateMedia(item, data.vmedia());
+#endif
+	}, [&](const TLDpaidMediaPhoto &data) {
+		media = std::make_unique<Data::MediaPhoto>(
+			item,
+			item->history()->owner().processPhoto(data.vphoto()),
+			false); // spoiler
+		return true;
+	}, [&](const TLDpaidMediaVideo &data) {
+		media = std::make_unique<Data::MediaFile>(
+			item,
+			item->history()->owner().processDocument(data.vvideo()),
+			false, // skipPremiumEffect
+			false, // spoiler
+			0); // ttlSeconds
+		return true;
+	}, [&](const TLDpaidMediaUnsupported &) {
+		media = nullptr;
 		return true;
 	});
 }
@@ -349,7 +384,10 @@ bool UpdateExtendedMedia(
 bool UpdateExtendedMedia(
 		Invoice &invoice,
 		not_null<HistoryItem*> item,
+#if 0 // mtp
 		const QVector<MTPMessageExtendedMedia> &media) {
+#endif
+		const QVector<TLpaidMedia> &media) {
 	auto changed = false;
 	const auto count = int(media.size());
 	for (auto i = 0; i != count; ++i) {
@@ -529,18 +567,23 @@ GiveawayResults ComputeGiveawayResultsData(
 Invoice ComputeInvoiceData(
 		not_null<HistoryItem*> item,
 		const TLDmessageInvoice &data) {
-	return {
+	const auto &info = data.vproduct_info().data();
+	auto result = Invoice{
 		.receiptMsgId = data.vreceipt_message_id().v,
 		.amount = uint64(data.vtotal_amount().v),
 		.currency = data.vcurrency().v,
-		.title = TextUtilities::SingleLine(data.vtitle().v),
+		.title = TextUtilities::SingleLine(info.vtitle().v),
 		.description = Api::FormattedTextFromTdb(
-			data.vdescription()),
-		.photo = (data.vphoto()
-			? item->history()->owner().processPhoto(*data.vphoto()).get()
+			info.vdescription()),
+		.photo = (info.vphoto()
+			? item->history()->owner().processPhoto(*info.vphoto()).get()
 			: nullptr),
 		.isTest = data.vis_test().v,
 	};
+	if (const auto paid = data.vpaid_media()) {
+		UpdateExtendedMedia(result, item, { *paid });
+	}
+	return result;
 }
 
 Call ComputeCallData(const TLDmessageCall &call) {
@@ -2228,7 +2271,6 @@ bool MediaInvoice::updateInlineResultMedia(const MTPMessageMedia &media) {
 bool MediaInvoice::updateSentMedia(const MTPMessageMedia &media) {
 	return true;
 }
-#endif
 
 bool MediaInvoice::updateExtendedMedia(
 		not_null<HistoryItem*> item,
@@ -2237,6 +2279,7 @@ bool MediaInvoice::updateExtendedMedia(
 
 	return UpdateExtendedMedia(_invoice, item, media);
 }
+#endif
 
 std::unique_ptr<HistoryView::Media> MediaInvoice::createView(
 		not_null<HistoryView::Element*> message,

@@ -110,6 +110,11 @@ struct VoiceData : public DocumentAdditionalData {
 
 using RoundData = VoiceData;
 
+enum class SimpleDocumentType {
+	BotAttachSvgIcon,
+	TgsSticker,
+};
+
 namespace Serialize {
 class Document;
 } // namespace Serialize;
@@ -136,7 +141,7 @@ public:
 	[[nodiscard]] static DocumentId IdFromTdb(
 		const Tdb::TLnotificationSound &data);
 	void setFromTdb(const Tdb::TLnotificationSound &data);
-	void setSimpleFromTdb(const Tdb::TLfile &data);
+	void setSimpleFromTdb(const Tdb::TLfile &data, SimpleDocumentType type);
 
 	[[nodiscard]] FileId tdbFileId() const;
 

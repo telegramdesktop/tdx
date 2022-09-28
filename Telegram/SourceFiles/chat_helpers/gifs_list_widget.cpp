@@ -922,8 +922,7 @@ void GifsListWidget::searchForGifs(const QString &query) {
 			_searchBotRequestId = _api.request(TLsearchPublicChat(
 				tl_string(OptionValue<QString>(result))
 			)).done([=](const TLchat &result) {
-				const auto peer = controller()->session().data().processPeer(
-					result);
+				const auto peer = session().data().processPeer(result);
 				if (const auto user = peer ? peer->asUser() : nullptr) {
 					_searchBot = user;
 				}
