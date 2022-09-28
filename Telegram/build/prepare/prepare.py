@@ -1576,6 +1576,7 @@ win:
         -DOPENSSL_FOUND=1 ^
         -DOPENSSL_INCLUDE_DIR=%OPENSSL_DIR%\include ^
         -DOPENSSL_CRYPTO_LIBRARY="%OPENSSL_LIBS_DIR%.dbg\libcrypto.lib" ^
+        -DGPERF_EXECUTABLE=%ROOT_DIR%\\ThirdParty\\gperf\\bin\\gperf ^
         -DZLIB_FOUND=1 ^
         -DZLIB_INCLUDE_DIR=%ZLIB_DIR% ^
         -DZLIB_LIBRARIES="%ZLIB_LIBS_DIR%\ZlibStatDebug\zlibstat.lib" ^
@@ -1594,6 +1595,7 @@ release:
         -DOPENSSL_FOUND=1 ^
         -DOPENSSL_INCLUDE_DIR=%OPENSSL_DIR%\include ^
         -DOPENSSL_CRYPTO_LIBRARY="%OPENSSL_LIBS_DIR%\libcrypto.lib" ^
+        -DGPERF_EXECUTABLE=%ROOT_DIR%\\ThirdParty\\gperf\\bin\\gperf ^
         -DZLIB_FOUND=1 ^
         -DZLIB_INCLUDE_DIR=%ZLIB_DIR% ^
         -DZLIB_LIBRARIES="%ZLIB_LIBS_DIR%\ZlibStatDebug\zlibstat.lib" ^
