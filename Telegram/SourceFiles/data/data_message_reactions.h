@@ -12,10 +12,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_custom_emoji.h"
 
 namespace Tdb {
-class TLDupdateReactions;
-class TLreaction;
+class TLDupdateActiveEmojiReactions;
+class TLDupdateDefaultReactionType;
+class TLemojiReaction;
 class TLunreadReaction;
 class TLmessageReaction;
+class TLDfiles;
 } // namespace Tdb
 
 namespace Ui {
@@ -79,7 +81,8 @@ public:
 	void refreshRecentDelayed();
 	void refreshDefault();
 #endif
-	void refresh(const Tdb::TLDupdateReactions &data);
+	void refreshActive(const Tdb::TLDupdateActiveEmojiReactions &data);
+	void refreshFavorite(const Tdb::TLDupdateDefaultReactionType &data);
 
 	enum class Type {
 		Active,
@@ -109,17 +112,19 @@ public:
 		const ReactionId &emoji,
 		ImageSize size);
 
-	void send(not_null<HistoryItem*> item, bool addToRecent);
 #if 0 // mtp
+	void send(not_null<HistoryItem*> item, bool addToRecent);
 	[[nodiscard]] bool sending(not_null<HistoryItem*> item) const;
 
 	void poll(not_null<HistoryItem*> item, crl::time now);
 
 	void updateAllInHistory(not_null<PeerData*> peer, bool enabled);
+#endif
 
 	void clearTemporary();
 	[[nodiscard]] Reaction *lookupTemporary(const ReactionId &id);
 
+#if 0 // mtp
 	[[nodiscard]] static bool HasUnread(const MTPMessageReactions &data);
 	static void CheckUnknownForUnread(
 		not_null<Session*> owner,
@@ -142,15 +147,17 @@ private:
 	void requestTop();
 	void requestRecent();
 	void requestDefault();
+#endif
 	void requestGeneric();
 
+#if 0 // mtp
 	void updateTop(const MTPDmessages_reactions &data);
 	void updateRecent(const MTPDmessages_reactions &data);
 	void updateDefault(const MTPDmessages_availableReactions &data);
 	void updateGeneric(const MTPDmessages_stickerSet &data);
-#endif
 
 	void recentUpdated();
+#endif
 	void defaultUpdated();
 
 	[[nodiscard]] std::optional<Reaction> resolveById(const ReactionId &id);
@@ -164,9 +171,10 @@ private:
 	[[nodiscard]] std::optional<Reaction> parse(
 		const MTPAvailableReaction &entry);
 #endif
-	void updateFromData(const Tdb::TLDupdateReactions &data);
+	void updateFromData(const Tdb::TLDupdateActiveEmojiReactions &data);
 	[[nodiscard]] std::optional<Reaction> parse(
-		const Tdb::TLreaction &entry);
+		const Tdb::TLemojiReaction &entry);
+	void updateGeneric(const Tdb::TLDfiles &data);
 
 	void loadImage(
 		ImageSet &set,
@@ -211,6 +219,7 @@ private:
 	// Otherwise we could use flat_map<DocumentId, unique_ptr<Reaction>>.
 	std::map<DocumentId, Reaction> _temporary;
 
+#if 0 // mtp
 	base::Timer _topRefreshTimer;
 	mtpRequestId _topRequestId = 0;
 	uint64 _topHash = 0;
@@ -221,6 +230,8 @@ private:
 
 	mtpRequestId _defaultRequestId = 0;
 	int32 _defaultHash = 0;
+#endif
+	std::vector<QString> _activeEmojiList;
 
 	mtpRequestId _genericRequestId = 0;
 
