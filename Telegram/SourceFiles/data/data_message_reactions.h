@@ -13,8 +13,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Tdb {
 class TLDupdateActiveEmojiReactions;
+class TLDupdateAvailableMessageEffects;
 class TLDupdateDefaultReactionType;
+class TLDupdateSavedMessagesTags;
+class TLsavedMessagesTags;
 class TLemojiReaction;
+class TLmessageEffect;
 class TLunreadReaction;
 class TLmessageReaction;
 class TLDfiles;
@@ -98,13 +102,17 @@ public:
 	void refreshRecent();
 	void refreshRecentDelayed();
 	void refreshDefault();
+#endif
 	void refreshMyTags(SavedSublist *sublist = nullptr);
 	void refreshMyTagsDelayed();
+#if 0 // mtp
 	void refreshTags();
 	void refreshEffects();
 #endif
 	void refreshActive(const Tdb::TLDupdateActiveEmojiReactions &data);
+	void refreshEffects(const Tdb::TLDupdateAvailableMessageEffects &data);
 	void refreshFavorite(const Tdb::TLDupdateDefaultReactionType &data);
+	void refreshMyTags(const Tdb::TLDupdateSavedMessagesTags &data);
 
 	enum class Type {
 		Active,
@@ -202,6 +210,18 @@ private:
 		bool requestScheduled = false;
 		bool updateScheduled = false;
 	};
+	struct EmojiResolved {
+		QString emoji;
+		mtpRequestId requestId = 0;
+		bool resolved = false;
+		bool active = false;
+	};
+	struct EffectResolved {
+		uint64 id = 0;
+		mtpRequestId requestId = 0;
+		bool sticker = false;
+		bool resolved = false;
+	};
 
 	[[nodiscard]] not_null<CustomEmojiManager::Listener*> resolveListener();
 	void customEmojiResolveDone(not_null<DocumentData*> document) override;
@@ -213,10 +233,10 @@ private:
 #endif
 	void requestGeneric();
 	void requestMyTags(SavedSublist *sublist = nullptr);
+#if 0 // mtp
 	void requestTags();
 	void requestEffects();
 
-#if 0 // mtp
 	void updateTop(const MTPDmessages_reactions &data);
 	void updateRecent(const MTPDmessages_reactions &data);
 	void updateDefault(const MTPDmessages_availableReactions &data);
@@ -233,6 +253,9 @@ private:
 	void myTagsUpdated();
 	void tagsUpdated();
 	void effectsUpdated();
+	void updateMyTags(
+		SavedSublist *sublist,
+		const Tdb::TLsavedMessagesTags &tags);
 
 	[[nodiscard]] std::optional<Reaction> resolveById(const ReactionId &id);
 	[[nodiscard]] std::vector<Reaction> resolveByIds(
@@ -260,7 +283,20 @@ private:
 	void updateFromData(const Tdb::TLDupdateActiveEmojiReactions &data);
 	[[nodiscard]] std::optional<Reaction> parse(
 		const Tdb::TLemojiReaction &entry);
-	void updateGeneric(const Tdb::TLDfiles &data);
+	[[nodiscard]] std::optional<Reaction> parse(
+		const Tdb::TLmessageEffect &entry);
+	void updateGeneric(const Tdb::TLDstickers &data);
+	void resolveEmojiNext();
+	void resolveEmoji(const QString &emoji);
+	void resolveEmoji(not_null<EmojiResolved*> entry);
+	void checkAllActiveResolved();
+	[[nodiscard]] bool allActiveResolved() const;
+
+	void resolveEffectNext();
+	void resolveEffect(uint64 id);
+	void resolveEffect(not_null<EffectResolved*> entry);
+	void checkAllEffectsResolved();
+	[[nodiscard]] bool allEffectsResolved() const;
 
 	void preloadEffect(const Reaction &effect);
 	void preloadImageFor(const ReactionId &id);
@@ -358,7 +394,8 @@ private:
 	mtpRequestId _defaultRequestId = 0;
 	int32 _defaultHash = 0;
 #endif
-	std::vector<QString> _activeEmojiList;
+	std::vector<EmojiResolved> _emojiReactions;
+	std::vector<EffectResolved> _resolveEffects;
 
 	mtpRequestId _genericRequestId = 0;
 

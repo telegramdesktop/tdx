@@ -41,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "tdb/tdb_tl_scheme.h"
 #include "tdb/tdb_account.h"
+#include "data/data_saved_messages.h"
 
 namespace Data {
 namespace {
@@ -80,7 +81,6 @@ constexpr auto kPaidAccumulatePeriod = 5 * crl::time(1000) + 500;
 	}
 	return result;
 }
-#endif
 
 [[nodiscard]] std::vector<MyTagInfo> ListFromMTP(
 		const MTPDmessages_savedReactionTags &data) {
@@ -96,6 +96,27 @@ constexpr auto kPaidAccumulatePeriod = 5 * crl::time(1000) + 500;
 			result.push_back({
 				.id = id,
 				.title = qs(data.vtitle().value_or_empty()),
+				.count = data.vcount().v,
+			});
+		}
+	}
+	return result;
+}
+#endif
+
+[[nodiscard]] std::vector<MyTagInfo> ListFromTL(
+		const QVector<TLsavedMessagesTag> &list) {
+	auto result = std::vector<MyTagInfo>();
+	result.reserve(list.size());
+	for (const auto &reaction : list) {
+		const auto &data = reaction.data();
+		const auto id = ReactionFromTL(data.vtag());
+		if (id.empty()) {
+			LOG(("API Error: reactionEmpty in savedMessagesTag."));
+		} else {
+			result.push_back({
+				.id = id,
+				.title = data.vlabel().v,
 				.count = data.vcount().v,
 			});
 		}
@@ -401,6 +422,75 @@ void Reactions::refreshActive(const TLDupdateActiveEmojiReactions &data) {
 	updateFromData(data);
 }
 
+void Reactions::refreshEffects(
+		const TLDupdateAvailableMessageEffects &data) {
+	auto list = std::vector<EffectResolved>();
+	list.reserve(data.vreaction_effect_ids().v.size()
+		+ data.vsticker_effect_ids().v.size());
+	for (const auto &effectId : data.vreaction_effect_ids().v) {
+		const auto id = uint64(effectId.v);
+		const auto i = ranges::find(
+			_resolveEffects,
+			id,
+			&EffectResolved::id);
+		if (i == end(_resolveEffects)) {
+			list.push_back({ .id = id, .sticker = false });
+		} else {
+			list.push_back(*i);
+		}
+	}
+	for (const auto &effectId : data.vsticker_effect_ids().v) {
+		const auto id = uint64(effectId.v);
+		const auto i = ranges::find(
+			_resolveEffects,
+			id,
+			&EffectResolved::id);
+		if (i == end(_resolveEffects)) {
+			list.push_back({ .id = id, .sticker = true });
+		} else {
+			list.push_back(*i);
+		}
+	}
+	_resolveEffects = std::move(list);
+	resolveEffectNext();
+}
+
+void Reactions::refreshMyTags(const TLDupdateSavedMessagesTags &data) {
+	const auto sublist = _owner->savedMessages().sublistById(
+		data.vsaved_messages_topic_id().v);
+	if (!sublist) {
+		return;
+	}
+	auto &my = _myTags[sublist];
+	if (my.requestId) {
+		return;
+	}
+	updateMyTags(sublist, data.vtags());
+}
+
+void Reactions::updateMyTags(
+		SavedSublist *sublist,
+		const TLsavedMessagesTags &tags) {
+	auto &my = _myTags[sublist];
+	auto list = ListFromTL(tags.data().vtags().v);
+	auto renamed = base::flat_set<ReactionId>();
+	if (!sublist) {
+		for (const auto &info : list) {
+			const auto j = ranges::find(my.info, info.id, &MyTagInfo::id);
+			const auto was = (j != end(my.info)) ? j->title : QString();
+			if (info.title != was) {
+				renamed.emplace(info.id);
+			}
+		}
+	}
+	my.info = std::move(list);
+	my.tags = resolveByInfos(my.info, _unresolvedMyTags, sublist);
+	_myTagsUpdated.fire_copy(sublist);
+	for (const auto &id : renamed) {
+		_myTagRenamed.fire_copy(id);
+	}
+}
+
 void Reactions::refreshMyTags(SavedSublist *sublist) {
 	requestMyTags(sublist);
 }
@@ -418,6 +508,7 @@ void Reactions::refreshMyTagsDelayed() {
 	});
 }
 
+#if 0 // mtp
 void Reactions::refreshTags() {
 	requestTags();
 }
@@ -427,6 +518,7 @@ void Reactions::refreshEffects() {
 		requestEffects();
 	}
 }
+#endif
 
 void Reactions::refreshFavorite(const TLDupdateDefaultReactionType &data) {
 	applyFavorite(ReactionFromTL(data.vreaction_type()));
@@ -549,11 +641,17 @@ void Reactions::renameTag(const ReactionId &id, const QString &name) {
 	}
 	_myTagRenamed.fire_copy(id);
 
+#if 0 // mtp
 	using Flag = MTPmessages_UpdateSavedReactionTag::Flag;
 	_owner->session().api().request(MTPmessages_UpdateSavedReactionTag(
 		MTP_flags(name.isEmpty() ? Flag(0) : Flag::f_title),
 		ReactionToMTP(id),
 		MTP_string(name)
+	)).send();
+#endif
+	_owner->session().sender().request(TLsetSavedMessagesTagLabel(
+		ReactionToTL(id),
+		tl_string(name)
 	)).send();
 }
 
@@ -717,14 +815,14 @@ void Reactions::preloadImageFor(const ReactionId &id) {
 		if (set.effect) {
 			preloadEffect(*i);
 		}
+	} else {
+		resolveEmoji(id.emoji());
+#if 0 // mtp
 	} else if (set.effect && !_waitingForEffects) {
 		_waitingForEffects = true;
-#if 0 // mtp
 		refreshEffects();
-#endif
 	} else if (!set.effect && !_waitingForReactions) {
 		_waitingForReactions = true;
-#if 0 // mtp
 		refreshDefault();
 #endif
 	}
@@ -843,9 +941,6 @@ void Reactions::resolveReactionImages() {
 			: i->selectAnimation.get();
 		if (document) {
 			loadImage(set, document, !i->centerIcon);
-		} else {
-			LOG(("API Error: Reaction '%1' not found!"
-				).arg(ReactionIdToLog(id)));
 		}
 	}
 }
@@ -1025,12 +1120,14 @@ void Reactions::requestGeneric() {
 		_genericRequestId = 0;
 	}).send();
 }
+#endif
 
 void Reactions::requestMyTags(SavedSublist *sublist) {
 	auto &my = _myTags[sublist];
 	if (my.requestId) {
 		return;
 	}
+#if 0 // mtp
 	auto &api = _owner->session().api();
 	my.requestScheduled = false;
 	using Flag = MTPmessages_GetSavedReactionTags::Flag;
@@ -1045,6 +1142,15 @@ void Reactions::requestMyTags(SavedSublist *sublist) {
 			updateMyTags(sublist, data);
 		}, [](const MTPDmessages_savedReactionTagsNotModified&) {
 		});
+#endif
+	my.requestScheduled = false;
+	my.requestId = _owner->session().sender().request(
+		TLgetSavedMessagesTags(
+			tl_int53(_owner->savedMessages().sublistId(sublist)))
+	).done([=](const TLsavedMessagesTags &result) {
+		auto &my = _myTags[sublist];
+		my.requestId = 0;
+		updateMyTags(sublist, result);
 	}).fail([=] {
 		auto &my = _myTags[sublist];
 		my.requestId = 0;
@@ -1052,6 +1158,7 @@ void Reactions::requestMyTags(SavedSublist *sublist) {
 	}).send();
 }
 
+#if 0 // mtp
 void Reactions::requestTags() {
 	if (_tagsRequestId) {
 		return;
@@ -1112,46 +1219,225 @@ void Reactions::updateDefault(const MTPDmessages_availableReactions &data) {
 
 void Reactions::updateFromData(
 		const Tdb::TLDupdateActiveEmojiReactions &data) {
-	auto list = ranges::views::all(
-		data.vemojis().v
-	) | ranges::views::transform(
-		&TLstring::v
-	) | ranges::to_vector;
-	if (_activeEmojiList == list) {
+	auto list = std::vector<EmojiResolved>();
+	list.reserve(data.vemojis().v.size() + _emojiReactions.size());
+	for (const auto &entry : data.vemojis().v) {
+		const auto emoji = entry.v;
+		const auto i = ranges::find(
+			_emojiReactions,
+			emoji,
+			&EmojiResolved::emoji);
+		if (i == end(_emojiReactions)) {
+			list.push_back({ .emoji = emoji, .active = true });
+		} else {
+			list.push_back(*i);
+			list.back().active = true;
+		}
+	}
+	for (auto &entry : _emojiReactions) {
+		if (!ranges::contains(list, entry.emoji, &EmojiResolved::emoji)) {
+			list.push_back(entry);
+			list.back().active = false;
+		}
+	}
+	_emojiReactions = std::move(list);
+	resolveEmojiNext();
+}
+
+void Reactions::resolveEmojiNext() {
+	const auto sent = ranges::find_if(
+		_emojiReactions,
+		[](mtpRequestId id) { return id != 0; },
+		&EmojiResolved::requestId);
+	const auto resolving = (sent != end(_emojiReactions));
+	if (resolving) {
 		return;
 	}
-	_activeEmojiList = std::move(list);
-#if 0 // todo
-	const auto &list = data.vreactions().v;
-	const auto oldCache = base::take(_iconsCache);
-	const auto toCache = [&](DocumentData *document) {
-		if (document) {
-			_iconsCache.emplace(document, document->createMediaView());
-		}
-	};
-	_active.clear();
-	_available.clear();
-	_active.reserve(list.size());
-	_available.reserve(list.size());
-	_iconsCache.reserve(list.size() * 4);
-	for (const auto &reaction : list) {
-		if (const auto parsed = parse(reaction)) {
-			_available.push_back(*parsed);
-			if (parsed->active) {
-				_active.push_back(*parsed);
+	const auto unknown = ranges::find(
+		_emojiReactions,
+		false,
+		&EmojiResolved::resolved);
+	if (unknown == end(_emojiReactions)) {
+		return;
+	}
+	resolveEmoji(&*unknown);
+}
+
+void Reactions::resolveEmoji(const QString &emoji) {
+	const auto i = ranges::find(
+		_emojiReactions,
+		emoji,
+		&EmojiResolved::emoji);
+	if (i != end(_emojiReactions)) {
+		return;
+	}
+	_emojiReactions.push_back({ .emoji = emoji });
+	resolveEmoji(&_emojiReactions.back());
+}
+
+void Reactions::resolveEmoji(not_null<EmojiResolved*> entry) {
+	const auto emoji = entry->emoji;
+	const auto finish = [=](std::optional<Reaction> parsed) {
+		const auto i = ranges::find(
+			_emojiReactions,
+			emoji,
+			&EmojiResolved::emoji);
+		Assert(i != end(_emojiReactions));
+		i->resolved = true;
+		i->requestId = 0;
+		const auto active = i->active;
+		if (parsed) {
+			const auto id = ReactionId{ emoji };
+			const auto i = ranges::find(_available, id, &Reaction::id);
+			if (i != end(_available)) {
+				*i = std::move(*parsed);
+			} else {
+				_available.reserve(_emojiReactions.size());
+				_available.push_back(std::move(*parsed));
+			}
+			const auto toCache = [&](DocumentData *document) {
+				if (document) {
+					_iconsCache.emplace(document, document->createMediaView());
+				}
+			};
+			if (active) {
 				toCache(parsed->appearAnimation);
 				toCache(parsed->selectAnimation);
 				toCache(parsed->centerIcon);
 				toCache(parsed->aroundAnimation);
 			}
+			resolveReactionImages();
+		}
+		if (active) {
+			checkAllActiveResolved();
+		}
+		resolveEmojiNext();
+	};
+	auto &api = _owner->session().sender();
+	entry->requestId = api.request(TLgetEmojiReaction(
+		tl_string(emoji)
+	)).done([=](const TLemojiReaction &result) {
+		finish(parse(result));
+	}).fail([=](const Error &error) {
+		LOG(("API Error: Reaction '%1' not found!").arg(emoji));
+		finish(std::nullopt);
+	}).send();
+}
+
+void Reactions::checkAllActiveResolved() {
+	if (!allActiveResolved()) {
+		return;
+	}
+	_active.clear();
+	_active.reserve(_available.size());
+	for (const auto &entry : _emojiReactions) {
+		if (!entry.active) {
+			break;
+		}
+		const auto i = ranges::find(
+			_available,
+			ReactionId{ entry.emoji },
+			&Reaction::id);
+		if (i != end(_available)) {
+			_active.push_back(*i);
 		}
 	}
-	if (_waitingForReactions) {
-		_waitingForReactions = false;
-		resolveReactionImages();
-	}
+	resolveReactionImages();
 	defaultUpdated();
-#endif
+}
+
+bool Reactions::allActiveResolved() const {
+	for (const auto &entry : _emojiReactions) {
+		if (!entry.active) {
+			return true;
+		} else if (!entry.resolved) {
+			return false;
+		}
+	}
+	return true;
+}
+
+void Reactions::resolveEffectNext() {
+	const auto sent = ranges::find_if(
+		_resolveEffects,
+		[](mtpRequestId id) { return id != 0; },
+		&EffectResolved::requestId);
+	const auto resolving = (sent != end(_resolveEffects));
+	if (resolving) {
+		return;
+	}
+	const auto unknown = ranges::find(
+		_resolveEffects,
+		false,
+		&EffectResolved::resolved);
+	if (unknown == end(_resolveEffects)) {
+		return;
+	}
+	resolveEffect(&*unknown);
+}
+
+void Reactions::resolveEffect(uint64 id) {
+
+}
+
+void Reactions::resolveEffect(not_null<EffectResolved*> entry) {
+	const auto effectId = entry->id;
+	const auto finish = [=](std::optional<Reaction> parsed) {
+		const auto i = ranges::find(
+			_resolveEffects,
+			effectId,
+			&EffectResolved::id);
+		Assert(i != end(_resolveEffects));
+		i->resolved = true;
+		i->requestId = 0;
+		if (parsed) {
+			const auto id = ReactionId{ DocumentId(effectId) };
+			const auto i = ranges::find(_effects, id, &Reaction::id);
+			if (i != end(_effects)) {
+				*i = std::move(*parsed);
+			} else {
+				_effects.reserve(_resolveEffects.size());
+				_effects.push_back(std::move(*parsed));
+			}
+			const auto toCache = [&](DocumentData *document) {
+				if (document) {
+					_iconsCache.emplace(
+						document,
+						document->createMediaView());
+				}
+			};
+			toCache(parsed->appearAnimation);
+			toCache(parsed->selectAnimation);
+			toCache(parsed->centerIcon);
+			toCache(parsed->aroundAnimation);
+			resolveEffectImages();
+		}
+		checkAllEffectsResolved();
+		resolveEffectNext();
+	};
+	auto &api = _owner->session().sender();
+	entry->requestId = api.request(TLgetMessageEffect(
+		tl_int64(effectId)
+	)).done([=](const TLmessageEffect &result) {
+		finish(parse(result));
+	}).fail([=](const Error &error) {
+		LOG(("API Error: Effect '%1' not found!").arg(effectId));
+		finish(std::nullopt);
+	}).send();
+}
+
+void Reactions::checkAllEffectsResolved() {
+	if (!allEffectsResolved()) {
+		return;
+	}
+	effectsUpdated();
+}
+
+bool Reactions::allEffectsResolved() const {
+	return !ranges::contains(
+		_resolveEffects,
+		false,
+		&EffectResolved::resolved);
 }
 
 void Reactions::requestGeneric() {
@@ -1280,9 +1566,11 @@ void Reactions::defaultUpdated() {
 	if (_genericAnimations.empty()) {
 		requestGeneric();
 	}
+#if 0 // mtp
 	refreshMyTags();
 	refreshTags();
 	refreshEffects();
+#endif
 	_defaultUpdated.fire({});
 }
 
@@ -1437,9 +1725,7 @@ std::vector<Reaction> Reactions::resolveByInfos(
 
 void Reactions::resolve(const ReactionId &id) {
 	if (const auto emoji = id.emoji(); !emoji.isEmpty()) {
-#if 0 // todo
-		refreshDefault();
-#endif
+		resolveEmoji(emoji);
 	} else if (const auto customId = id.custom()) {
 		_owner->customEmojiManager().resolve(
 			customId,
@@ -1552,6 +1838,51 @@ std::optional<Reaction> Reactions::parse(const TLemojiReaction &entry) {
 			.active = data.vis_active().v,
 		})
 		: std::nullopt;
+}
+
+std::optional<Reaction> Reactions::parse(const TLmessageEffect &entry) {
+	const auto &data = entry.data();
+	const auto emoji = data.vemoji().v;
+	const auto known = (Ui::Emoji::Find(emoji) != nullptr);
+	if (!known) {
+		LOG(("API Error: Unknown emoji in effects: %1").arg(emoji));
+		return std::nullopt;
+	}
+	const auto id = DocumentId(data.vid().v);
+	auto around = (DocumentData*)nullptr;
+	auto document = (DocumentData*)nullptr;
+	data.vtype().match([&](const TLDmessageEffectTypeEmojiReaction &data) {
+		around = _owner->processDocument(data.veffect_animation());
+		document = _owner->processDocument(data.vselect_animation());
+	}, [&](const TLDmessageEffectTypePremiumSticker &data) {
+		document = _owner->processDocument(data.vsticker());
+	});
+	if (!document->sticker()) {
+		LOG(("API Error: Bad sticker in effects: %1").arg(document->id));
+		return std::nullopt;
+	}
+	if (around && !around->sticker()) {
+		LOG(("API Error: Bad sticker in around: %1").arg(around->id));
+		return std::nullopt;
+	}
+	const auto icon = data.vstatic_icon()
+		? _owner->processDocument(*data.vstatic_icon()).get()
+		: nullptr;
+	if (icon && !icon->sticker()) {
+		LOG(("API Error: Bad sticker in effects icon: %1").arg(icon->id));
+		return std::nullopt;
+	}
+	return std::make_optional(Reaction{
+		.id = ReactionId{ id },
+		.title = emoji,
+		.appearAnimation = document,
+		.selectAnimation = document,
+		.centerIcon = icon,
+		.aroundAnimation = around,
+		.active = true,
+		.effect = true,
+		.premium = data.vis_premium().v,
+	});
 }
 
 #if 0 // mtp
@@ -1682,7 +2013,9 @@ not_null<DocumentData*> Reactions::paidToastAnimation() {
 
 rpl::producer<std::vector<Reaction>> Reactions::myTagsValue(
 		SavedSublist *sublist) {
+#if 0 // mtp
 	refreshMyTags(sublist);
+#endif
 	const auto list = [=] {
 		return _myTags[sublist].tags;
 	};
