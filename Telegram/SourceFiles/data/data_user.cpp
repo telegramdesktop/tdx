@@ -85,17 +85,21 @@ void UserData::setPhoto(const TLprofilePhoto &photo) {
 	updateUserpic(photo);
 }
 
+#if 0 // mtp
 void UserData::setEmojiStatus(const MTPEmojiStatus &status) {
 	const auto parsed = Data::ParseEmojiStatus(status);
 	setEmojiStatus(parsed.id, parsed.until);
 }
+#endif
 
 void UserData::setEmojiStatus(DocumentId emojiStatusId, TimeId until) {
 	if (_emojiStatusId != emojiStatusId) {
 		_emojiStatusId = emojiStatusId;
 		session().changes().peerUpdated(this, UpdateFlag::EmojiStatus);
 	}
+#if 0 // mtp
 	owner().emojiStatuses().registerAutomaticClear(this, until);
+#endif
 }
 
 DocumentId UserData::emojiStatusId() const {

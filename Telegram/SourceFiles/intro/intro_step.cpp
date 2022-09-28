@@ -213,7 +213,6 @@ void Step::finish(const MTPUser &user, QImage &&photo) {
 
 void Step::jumpByState(const TLauthorizationState &state) {
 	state.match([&](const TLDauthorizationStateWaitTdlibParameters &) {
-	}, [&](const TLDauthorizationStateWaitEncryptionKey &) {
 	}, [&](const TLDauthorizationStateWaitPhoneNumber &) {
 		go(StepType::Qr);
 	}, [&](const TLDauthorizationStateWaitCode &) {
@@ -229,6 +228,10 @@ void Step::jumpByState(const TLauthorizationState &state) {
 	}, [&](const TLDauthorizationStateLoggingOut &) {
 	}, [&](const TLDauthorizationStateClosing &) {
 	}, [&](const TLDauthorizationStateClosed &) {
+	}, [](const TLDauthorizationStateWaitEmailAddress &) {
+		LOG(("Tdb Error: Should not StateWaitEmailAddress in TDesktop."));
+	}, [](const TLDauthorizationStateWaitEmailCode &) {
+		LOG(("Tdb Error: Should not StateWaitEmailCode in TDesktop."));
 	});
 }
 

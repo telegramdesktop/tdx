@@ -110,6 +110,7 @@ void Account::start(std::unique_ptr<MTP::Config> config) {
 }
 
 std::unique_ptr<Tdb::Account> Account::createTdb() {
+	const auto key = domain().tdbKey();
 	auto result = std::make_unique<Tdb::Account>(Tdb::AccountConfig{
 		.apiId = ApiId,
 		.apiHash = ApiHash,
@@ -119,6 +120,9 @@ std::unique_ptr<Tdb::Account> Account::createTdb() {
 		.applicationVersion = QString::fromLatin1(AppVersionStr),
 		.databaseDirectory = _local->libDatabasePath(),
 		.filesDirectory = _local->libFilesPath(),
+		.encryptionKey = QByteArray(
+			reinterpret_cast<const char*>(key.data()),
+			key.size()),
 		.testDc = _testMode,
 	});
 	using namespace Tdb;
@@ -127,8 +131,6 @@ std::unique_ptr<Tdb::Account> Account::createTdb() {
 		update.match([&](const TLDupdateAuthorizationState &data) {
 			data.vauthorization_state().match([&](
 					const TLDauthorizationStateWaitTdlibParameters &) {
-			}, [&](const TLDauthorizationStateWaitEncryptionKey &) {
-				_tdb->checkEncryptionKey(domain().tdbKey());
 			}, [&](const TLDauthorizationStateReady &) {
 			}, [&](const TLDauthorizationStateLoggingOut &) {
 			}, [&](const TLDauthorizationStateClosing &) {
@@ -254,7 +256,8 @@ void Account::createSession(
 			tl_string(), // username
 			tl_string(phone),
 			tl_userStatusEmpty(),
-			null,
+			null, // profile_photo
+			null, // emoji_status
 			tl_bool(true), // is_contact
 			tl_bool(true), // is_mutual_contact
 			tl_bool(false), // is_verified

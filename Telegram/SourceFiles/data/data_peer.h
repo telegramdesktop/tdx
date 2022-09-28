@@ -39,6 +39,7 @@ class TLbotMenuButton;
 class TLchatNotificationSettings;
 class TLchatActionBar;
 class TLfile;
+class TLchatAvailableReactions;
 } // namespace Tdb
 
 namespace Data {
@@ -131,7 +132,12 @@ struct AllowedReactions {
 bool operator<(const AllowedReactions &a, const AllowedReactions &b);
 bool operator==(const AllowedReactions &a, const AllowedReactions &b);
 
+#if 0 // mtp
 [[nodiscard]] AllowedReactions Parse(const MTPChatReactions &value);
+#endif
+[[nodiscard]] AllowedReactions Parse(
+	not_null<PeerData*> peer,
+	const Tdb::TLchatAvailableReactions &value);
 
 } // namespace Data
 
