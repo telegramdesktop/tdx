@@ -107,6 +107,7 @@ void Account::start(std::unique_ptr<MTP::Config> config) {
 }
 
 std::unique_ptr<Tdb::Account> Account::createTdb() {
+	const auto key = domain().tdbKey();
 	auto result = std::make_unique<Tdb::Account>(Tdb::AccountConfig{
 		.apiId = ApiId,
 		.apiHash = ApiHash,
@@ -116,6 +117,9 @@ std::unique_ptr<Tdb::Account> Account::createTdb() {
 		.applicationVersion = QString::fromLatin1(AppVersionStr),
 		.databaseDirectory = _local->libDatabasePath(),
 		.filesDirectory = _local->libFilesPath(),
+		.encryptionKey = QByteArray(
+			reinterpret_cast<const char*>(key.data()),
+			key.size()),
 		.testDc = _testMode,
 	});
 	using namespace Tdb;
@@ -124,8 +128,6 @@ std::unique_ptr<Tdb::Account> Account::createTdb() {
 		update.match([&](const TLDupdateAuthorizationState &data) {
 			data.vauthorization_state().match([&](
 					const TLDauthorizationStateWaitTdlibParameters &) {
-			}, [&](const TLDauthorizationStateWaitEncryptionKey &) {
-				_tdb->checkEncryptionKey(domain().tdbKey());
 			}, [&](const TLDauthorizationStateReady &) {
 			}, [&](const TLDauthorizationStateLoggingOut &) {
 			}, [&](const TLDauthorizationStateClosing &) {
@@ -253,7 +255,12 @@ void Account::createSession(
 			tl_string(), // username
 			tl_string(phone),
 			tl_userStatusEmpty(),
-			null,
+			null, // profile_photo
+			tl_int32(Data::DecideColorIndex(peerFromUser(id))),
+			tl_int64(0), // background_custom_emoji_id
+			tl_int32(0), // profile_accent_color_id_
+			tl_int64(0), // profile_background_custom_emoji_id_
+			null, // emoji_status
 			tl_bool(true), // is_contact
 			tl_bool(true), // is_mutual_contact
 			tl_bool(false), // is_verified
@@ -262,6 +269,9 @@ void Account::createSession(
 			tl_string(), // restriction_reason
 			tl_bool(false), // is_scam
 			tl_bool(false), // is_fake,
+			tl_bool(false), // has_active_stories
+			tl_bool(false), // has_unread_active_stories
+			tl_bool(false), // restricts_new_chats
 			tl_bool(true), // have_access
 			tl_userTypeRegular(),
 			tl_string(), // language_code

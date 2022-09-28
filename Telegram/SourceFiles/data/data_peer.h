@@ -39,6 +39,7 @@ class TLbotMenuButton;
 class TLchatNotificationSettings;
 class TLchatActionBar;
 class TLfile;
+class TLchatAvailableReactions;
 } // namespace Tdb
 
 namespace Data {
@@ -132,6 +133,7 @@ struct AllowedReactions {
 bool operator<(const AllowedReactions &a, const AllowedReactions &b);
 bool operator==(const AllowedReactions &a, const AllowedReactions &b);
 
+#if 0 // mtp
 [[nodiscard]] AllowedReactions Parse(const MTPChatReactions &value);
 [[nodiscard]] PeerData *PeerFromInputMTP(
 	not_null<Session*> owner,
@@ -139,6 +141,10 @@ bool operator==(const AllowedReactions &a, const AllowedReactions &b);
 [[nodiscard]] UserData *UserFromInputMTP(
 	not_null<Session*> owner,
 	const MTPInputUser &input);
+#endif
+[[nodiscard]] AllowedReactions Parse(
+	not_null<PeerData*> peer,
+	const Tdb::TLchatAvailableReactions &value);
 
 } // namespace Data
 

@@ -185,6 +185,7 @@ AdminLog::OwnedItem GenerateForwardedItem(
 		tl_bool(false), // can_get_read_date
 		tl_bool(false), // can_get_viewers
 		tl_bool(false), // can_get_media_timestamp_links
+		tl_bool(false), // can_report_reactions
 		tl_bool(false), // has_timestamped_media
 		tl_bool(false), // is_channel_post
 		tl_bool(false), // contains_unread_mention
