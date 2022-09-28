@@ -22,6 +22,7 @@ You will require **api_id** and **api_hash** to access the Telegram API servers.
 
 * Download **Python 3.10** installer from [https://www.python.org/downloads/](https://www.python.org/downloads/) and install it with adding to PATH.
 * Download **Git** installer from [https://git-scm.com/download/win](https://git-scm.com/download/win) and install it.
+* Download **gperf** from [http://gnuwin32.sourceforge.net/packages/gperf.htm](http://gnuwin32.sourceforge.net/packages/gperf.htm) and unpack to ***BuildPath*\\ThirdParty\\gperf**
 
 ## Clone source code and prepare libraries
 
