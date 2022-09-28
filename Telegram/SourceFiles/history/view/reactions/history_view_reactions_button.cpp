@@ -867,6 +867,11 @@ void SetupManagerList(
 				manager->applyList(Data::LookupPossibleReactions(item));
 			}
 		};
+		const auto schedule = [=] {
+			if (!state->timer.isActive()) {
+				state->timer.callOnce(kRefreshListDelay);
+			}
+		};
 		state->timer.setCallback(push);
 		if (sessionChanged) {
 			state->sessionLifetime.destroy();
@@ -875,7 +880,7 @@ void SetupManagerList(
 				session
 			) | rpl::skip(
 				1
-			) | rpl::start_with_next(push, state->sessionLifetime);
+			) | rpl::start_with_next(schedule, state->sessionLifetime);
 
 			session->changes().messageUpdates(
 				Data::MessageUpdate::Flag::Destroyed
@@ -889,7 +894,7 @@ void SetupManagerList(
 			session->data().itemDataChanges(
 			) | rpl::filter([=](not_null<HistoryItem*> item) {
 				return (item == state->item);
-			}) | rpl::start_with_next(push, state->sessionLifetime);
+			}) | rpl::start_with_next(schedule, state->sessionLifetime);
 
 			const auto &reactions = session->data().reactions();
 			rpl::merge(
@@ -897,20 +902,16 @@ void SetupManagerList(
 				reactions.recentUpdates(),
 				reactions.defaultUpdates(),
 				reactions.favoriteUpdates()
-			) | rpl::start_with_next([=] {
-				if (!state->timer.isActive()) {
-					state->timer.callOnce(kRefreshListDelay);
-				}
-			}, state->sessionLifetime);
+			) | rpl::start_with_next(schedule, state->sessionLifetime);
 		}
 		if (peerChanged) {
 			state->peer = peer;
 			state->peerLifetime = rpl::combine(
 				Data::PeerAllowedReactionsValue(peer),
 				Data::UniqueReactionsLimitValue(peer)
-			) | rpl::start_with_next(push);
+			) | rpl::start_with_next(schedule);
 		} else {
-			push();
+			schedule();
 		}
 	}, manager->lifetime());
 
