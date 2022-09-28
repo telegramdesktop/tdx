@@ -582,9 +582,11 @@ void Reactions::preloadImageFor(const ReactionId &id) {
 		: i->selectAnimation.get();
 	if (document) {
 		loadImage(set, document, !i->centerIcon);
+	} else {
+		resolveEmoji(id.emoji());
+#if 0 // mtp
 	} else if (!_waitingForList) {
 		_waitingForList = true;
-#if 0 // mtp
 		refreshDefault();
 #endif
 	}
@@ -678,9 +680,6 @@ void Reactions::resolveImages() {
 			: i->selectAnimation.get();
 		if (document) {
 			loadImage(set, document, !i->centerIcon);
-		} else {
-			LOG(("API Error: Reaction '%1' not found!"
-				).arg(ReactionIdToLog(id)));
 		}
 	}
 }
@@ -881,46 +880,142 @@ void Reactions::updateDefault(const MTPDmessages_availableReactions &data) {
 
 void Reactions::updateFromData(
 		const Tdb::TLDupdateActiveEmojiReactions &data) {
-	auto list = ranges::views::all(
-		data.vemojis().v
-	) | ranges::views::transform(
-		&TLstring::v
-	) | ranges::to_vector;
-	if (_activeEmojiList == list) {
+	auto list = std::vector<EmojiResolved>();
+	list.reserve(data.vemojis().v.size() + _emojiReactions.size());
+	for (const auto &entry : data.vemojis().v) {
+		const auto emoji = entry.v;
+		const auto i = ranges::find(
+			_emojiReactions,
+			emoji,
+			&EmojiResolved::emoji);
+		if (i == end(_emojiReactions)) {
+			list.push_back({ .emoji = emoji, .active = true });
+		} else {
+			list.push_back(*i);
+			list.back().active = true;
+		}
+	}
+	for (auto &entry : _emojiReactions) {
+		if (!ranges::contains(list, entry.emoji, &EmojiResolved::emoji)) {
+			list.push_back(entry);
+			list.back().active = false;
+		}
+	}
+	_emojiReactions = std::move(list);
+	resolveEmojiNext();
+}
+
+void Reactions::resolveEmojiNext() {
+	const auto sent = ranges::find_if(
+		_emojiReactions,
+		[](mtpRequestId id) { return id != 0; },
+		&EmojiResolved::requestId);
+	const auto resolving = (sent != end(_emojiReactions));
+	if (resolving) {
 		return;
 	}
-	_activeEmojiList = std::move(list);
-#if 0 // todo
-	const auto &list = data.vreactions().v;
-	const auto oldCache = base::take(_iconsCache);
-	const auto toCache = [&](DocumentData *document) {
-		if (document) {
-			_iconsCache.emplace(document, document->createMediaView());
-		}
-	};
-	_active.clear();
-	_available.clear();
-	_active.reserve(list.size());
-	_available.reserve(list.size());
-	_iconsCache.reserve(list.size() * 4);
-	for (const auto &reaction : list) {
-		if (const auto parsed = parse(reaction)) {
-			_available.push_back(*parsed);
-			if (parsed->active) {
-				_active.push_back(*parsed);
+	const auto unknown = ranges::find(
+		_emojiReactions,
+		false,
+		&EmojiResolved::resolved);
+	if (unknown == end(_emojiReactions)) {
+		return;
+	}
+	resolveEmoji(&*unknown);
+}
+
+void Reactions::resolveEmoji(const QString &emoji) {
+	const auto i = ranges::find(
+		_emojiReactions,
+		emoji,
+		&EmojiResolved::emoji);
+	if (i != end(_emojiReactions)) {
+		return;
+	}
+	_emojiReactions.push_back({ .emoji = emoji });
+	resolveEmoji(&_emojiReactions.back());
+}
+
+void Reactions::resolveEmoji(not_null<EmojiResolved*> entry) {
+	const auto emoji = entry->emoji;
+	const auto finish = [=](std::optional<Reaction> parsed) {
+		const auto i = ranges::find(
+			_emojiReactions,
+			emoji,
+			&EmojiResolved::emoji);
+		Assert(i != end(_emojiReactions));
+		i->resolved = true;
+		i->requestId = 0;
+		const auto active = i->active;
+		if (parsed) {
+			const auto id = ReactionId{ emoji };
+			const auto i = ranges::find(_available, id, &Reaction::id);
+			if (i != end(_available)) {
+				*i = std::move(*parsed);
+			} else {
+				_available.reserve(_emojiReactions.size());
+				_available.push_back(std::move(*parsed));
+			}
+			const auto toCache = [&](DocumentData *document) {
+				if (document) {
+					_iconsCache.emplace(document, document->createMediaView());
+				}
+			};
+			if (active) {
 				toCache(parsed->appearAnimation);
 				toCache(parsed->selectAnimation);
 				toCache(parsed->centerIcon);
 				toCache(parsed->aroundAnimation);
 			}
+			resolveImages();
+		}
+		if (active) {
+			checkAllActiveResolved();
+		}
+		resolveEmojiNext();
+	};
+	auto &api = _owner->session().sender();
+	entry->requestId = api.request(TLgetEmojiReaction(
+		tl_string(emoji)
+	)).done([=](const TLemojiReaction &result) {
+		finish(parse(result));
+	}).fail([=](const Error &error) {
+		LOG(("API Error: Reaction '%1' not found!").arg(emoji));
+		finish(std::nullopt);
+	}).send();
+}
+
+void Reactions::checkAllActiveResolved() {
+	if (!allActiveResolved()) {
+		return;
+	}
+	_active.clear();
+	_active.reserve(_available.size());
+	for (const auto &entry : _emojiReactions) {
+		if (!entry.active) {
+			break;
+		}
+		const auto i = ranges::find(
+			_available,
+			ReactionId{ entry.emoji },
+			&Reaction::id);
+		if (i != end(_available)) {
+			_active.push_back(*i);
 		}
 	}
-	if (_waitingForList) {
-		_waitingForList = false;
-		resolveImages();
-	}
+	resolveImages();
 	defaultUpdated();
-#endif
+}
+
+bool Reactions::allActiveResolved() const {
+	for (const auto &entry : _emojiReactions) {
+		if (!entry.active) {
+			return true;
+		} else if (!entry.resolved) {
+			return false;
+		}
+	}
+	return true;
 }
 
 void Reactions::requestGeneric() {
@@ -1175,9 +1270,7 @@ std::vector<Reaction> Reactions::resolveByInfos(
 
 void Reactions::resolve(const ReactionId &id) {
 	if (const auto emoji = id.emoji(); !emoji.isEmpty()) {
-#if 0 // todo
-		refreshDefault();
-#endif
+		resolveEmoji(emoji);
 	} else if (const auto customId = id.custom()) {
 		_owner->customEmojiManager().resolve(
 			customId,
