@@ -56,7 +56,8 @@ PeerId GenerateUser(not_null<History*> history, const QString &name) {
 		Tdb::TLstring(), // username_
 		Tdb::TLstring(), // phone_number_
 		Tdb::tl_userStatusEmpty(), // status_
-		std::nullopt, // profile_photo_
+		Tdb::null, // profile_photo_
+		Tdb::null, // emoji_status_
 		Tdb::tl_bool(false), // is_contact_
 		Tdb::tl_bool(false), // is_mutual_contact_
 		Tdb::tl_bool(false), // is_verified_

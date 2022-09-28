@@ -128,6 +128,7 @@ bool operator==(
 	return (a.type == b.type) && (a.some == b.some);
 }
 
+#if 0 // mtp
 AllowedReactions Parse(const MTPChatReactions &value) {
 	return value.match([&](const MTPDchatReactionsNone &) {
 		return AllowedReactions();
@@ -145,6 +146,28 @@ AllowedReactions Parse(const MTPChatReactions &value) {
 				ReactionFromMTP
 			) | ranges::to_vector,
 			.type = AllowedReactionsType::Some,
+		};
+	});
+}
+#endif
+
+AllowedReactions Parse(
+		not_null<PeerData*> peer,
+		const TLchatAvailableReactions &value) {
+	return value.match([&](const TLDchatAvailableReactionsSome &data) {
+		return AllowedReactions{
+			.some = ranges::views::all(
+				data.vreactions().v
+			) | ranges::views::transform(
+				ReactionFromTL
+			) | ranges::to_vector,
+			.type = AllowedReactionsType::Some,
+		};
+	}, [&](const TLDchatAvailableReactionsAll &data) {
+		return AllowedReactions{
+			.type = (peer->isBroadcast()
+				? AllowedReactionsType::Default
+				: AllowedReactionsType::All),
 		};
 	});
 }
@@ -1124,17 +1147,21 @@ bool PeerData::changeBackgroundEmojiId(DocumentId id) {
 	return true;
 }
 
+#if 0 // mtp
 void PeerData::setEmojiStatus(const MTPEmojiStatus &status) {
 	const auto parsed = Data::ParseEmojiStatus(status);
 	setEmojiStatus(parsed.id, parsed.until);
 }
+#endif
 
 void PeerData::setEmojiStatus(DocumentId emojiStatusId, TimeId until) {
 	if (_emojiStatusId != emojiStatusId) {
 		_emojiStatusId = emojiStatusId;
 		session().changes().peerUpdated(this, UpdateFlag::EmojiStatus);
 	}
+#if 0 // mtp
 	owner().emojiStatuses().registerAutomaticClear(this, until);
+#endif
 }
 
 DocumentId PeerData::emojiStatusId() const {

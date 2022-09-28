@@ -611,8 +611,24 @@ void DocumentData::setFromTdb(const TLvideoNote &data) {
 	_flags &= ~Flag::HasAttachedStickers;
 }
 
-void DocumentData::setSimpleFromTdb(const Tdb::TLfile &data) {
+void DocumentData::setSimpleFromTdb(
+		const TLfile &data,
+		SimpleDocumentType type) {
 	setTdbLocation(data);
+	switch (type) {
+	case SimpleDocumentType::BotAttachSvgIcon:
+		forceToCache(true);
+		break;
+	case SimpleDocumentType::TgsSticker:
+		forceToCache(true);
+		this->type = StickerDocument;
+		_additional = std::make_unique<StickerData>();
+		sticker()->setType = Data::StickersType::Stickers;
+		sticker()->type = StickerType::Tgs;
+		break;
+	default:
+		Unexpected("SimpleDocumentType in DocumentData::setSimpleFromTdb.");
+	}
 }
 
 Data::Session &DocumentData::owner() const {

@@ -37,6 +37,8 @@ class TLDupdateChatPosition;
 class TLDupdateChatLastMessage;
 } // namespace Tdb
 
+enum class SimpleDocumentType;
+
 struct HistoryMessageMarkupData;
 
 class Image;
@@ -718,7 +720,9 @@ public:
 		result->setFromTdb(data);
 		return result;
 	}
-	not_null<DocumentData*> processPlainDocument(const Tdb::TLfile &data);
+	not_null<DocumentData*> processPlainDocument(
+		const Tdb::TLfile &data,
+		SimpleDocumentType type);
 	not_null<WebPageData*> processWebpage(const Tdb::TLwebPage &data);
 	not_null<GameData*> processGame(const Tdb::TLgame &data);
 	not_null<PollData*> processPoll(const Tdb::TLpoll &data);

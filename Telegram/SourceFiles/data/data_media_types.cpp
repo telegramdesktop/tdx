@@ -265,6 +265,7 @@ template <typename MediaType>
 	return (i != end(*existing)) ? *i : ItemPreviewImage();
 }
 
+#if 0 // mtp
 bool UpdateExtendedMedia(
 		Invoice &invoice,
 		not_null<HistoryItem*> item,
@@ -307,6 +308,7 @@ bool UpdateExtendedMedia(
 		return true;
 	});
 }
+#endif
 
 TextForMimeData WithCaptionClipboardText(
 		const QString &attachType,
@@ -1896,7 +1898,6 @@ bool MediaInvoice::updateInlineResultMedia(const MTPMessageMedia &media) {
 bool MediaInvoice::updateSentMedia(const MTPMessageMedia &media) {
 	return true;
 }
-#endif
 
 bool MediaInvoice::updateExtendedMedia(
 		not_null<HistoryItem*> item,
@@ -1905,6 +1906,7 @@ bool MediaInvoice::updateExtendedMedia(
 
 	return UpdateExtendedMedia(_invoice, item, media);
 }
+#endif
 
 std::unique_ptr<HistoryView::Media> MediaInvoice::createView(
 		not_null<HistoryView::Element*> message,
