@@ -319,6 +319,40 @@ PossibleItemReactionsRef LookupPossibleReactions(
 	return result;
 }
 
+PossibleItemReactionsRef ParsePossibleReactions(
+		not_null<Main::Session*> session,
+		const TLavailableReactions &available) {
+	const auto &data = available.data();
+	const auto reactions = &session->data().reactions();
+	auto result = PossibleItemReactionsRef();
+	result.customAllowed = data.vallow_custom_emoji().v;
+	const auto &top = data.vtop_reactions().v;
+	const auto &recent = data.vrecent_reactions().v;
+	const auto &popular = data.vpopular_reactions().v;
+	auto added = base::flat_set<ReactionId>();
+	reactions->clearTemporary();
+	result.recent.reserve(top.size() + recent.size() + popular.size());
+
+	auto &&all = ranges::views::concat(top, recent, popular);
+	for (const auto &reaction : all) {
+		const auto id = ReactionFromTL(reaction.data().vtype());
+		if (added.emplace(id).second) {
+			if (const auto temp = reactions->lookupTemporary(id)) {
+				result.recent.push_back(temp);
+			}
+		}
+	}
+	const auto i = ranges::find(
+		result.recent,
+		reactions->favoriteId(),
+		&Reaction::id);
+	if (i != end(result.recent) && i != begin(result.recent)) {
+		std::rotate(begin(result.recent), i, i + 1);
+	}
+	return result;
+
+}
+
 PossibleItemReactions::PossibleItemReactions(
 	const PossibleItemReactionsRef &other)
 : recent(other.recent | ranges::views::transform([](const auto &value) {
