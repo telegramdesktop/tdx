@@ -18,6 +18,7 @@ class TLemojiReaction;
 class TLunreadReaction;
 class TLmessageReaction;
 class TLDfiles;
+class TLavailableReactions;
 } // namespace Tdb
 
 namespace Ui {
@@ -71,6 +72,10 @@ struct MyTagInfo {
 	QString title;
 	int count = 0;
 };
+
+[[nodiscard]] PossibleItemReactionsRef ParsePossibleReactions(
+	not_null<Main::Session*> session,
+	const Tdb::TLavailableReactions &available);
 
 class Reactions final : private CustomEmojiManager::Listener {
 public:
