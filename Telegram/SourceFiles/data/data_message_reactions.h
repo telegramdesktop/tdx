@@ -22,6 +22,7 @@ class TLmessageEffect;
 class TLunreadReaction;
 class TLmessageReaction;
 class TLDfiles;
+class TLavailableReactions;
 } // namespace Tdb
 
 namespace Ui {
@@ -86,6 +87,10 @@ struct PaidReactionSend {
 	bool valid = false;
 	std::optional<bool> anonymous = false;
 };
+
+[[nodiscard]] PossibleItemReactionsRef ParsePossibleReactions(
+	not_null<Main::Session*> session,
+	const Tdb::TLavailableReactions &available);
 
 class Reactions final : private CustomEmojiManager::Listener {
 public:

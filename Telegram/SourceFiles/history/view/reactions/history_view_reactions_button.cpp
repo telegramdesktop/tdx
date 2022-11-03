@@ -26,8 +26,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 #include "styles/style_menu_icons.h"
 
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
+
 namespace HistoryView::Reactions {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kToggleDuration = crl::time(120);
 constexpr auto kActivateDuration = crl::time(150);
@@ -39,6 +44,7 @@ constexpr auto kButtonHideDelay = crl::time(300);
 constexpr auto kButtonExpandedHideDelay = crl::time(0);
 constexpr auto kMaxReactionsScrollAtOnce = 2;
 constexpr auto kRefreshListDelay = crl::time(100);
+constexpr auto kReactionsRowSize = 16;
 
 [[nodiscard]] QPoint LocalPosition(not_null<QWheelEvent*> e) {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
@@ -841,8 +847,17 @@ void SetupManagerList(
 		rpl::lifetime sessionLifetime;
 		rpl::lifetime peerLifetime;
 		base::Timer timer;
+		mtpRequestId requestId = 0;
 	};
 	const auto state = manager->lifetime().make_state<State>();
+	const auto cancel = [=] {
+		state->timer.cancel();
+		if (state->requestId && state->session) {
+			state->session->sender().request(state->requestId).cancel();
+			state->requestId = 0;
+		}
+	};
+	manager->lifetime().add(cancel);
 
 	std::move(
 		items
@@ -851,6 +866,7 @@ void SetupManagerList(
 	}) | rpl::start_with_next([=](HistoryItem *item) {
 		state->item = item;
 		if (!item) {
+			cancel();
 			return;
 		}
 		const auto peer = item->history()->peer;
@@ -858,13 +874,35 @@ void SetupManagerList(
 		const auto peerChanged = (state->peer != peer);
 		const auto sessionChanged = (state->session != session);
 		const auto push = [=] {
+#if 0 // mtp
 			state->timer.cancel();
 			if (const auto item = state->item) {
 				manager->applyList(Data::LookupPossibleReactions(item));
 			}
+#endif
+			cancel();
+			if (const auto item = state->item) {
+				const auto peer = item->history()->peer;
+				auto &api = peer->session().sender();
+				state->requestId = api.request(
+					TLgetMessageAvailableReactions(
+						peerToTdbChat(peer->id),
+						tl_int53(item->id.bare),
+						tl_int32(kReactionsRowSize))
+				).done([=](const TLavailableReactions &result) {
+					if (const auto item = state->item) {
+						manager->applyList(Data::ParsePossibleReactions(
+							&item->history()->session(),
+							result));
+					}
+				}).send();
+			}
 		};
 		const auto schedule = [=] {
+#if 0 // mtp
 			if (!state->timer.isActive()) {
+#endif
+			if (!state->requestId && !state->timer.isActive()) {
 				state->timer.callOnce(kRefreshListDelay);
 			}
 		};
