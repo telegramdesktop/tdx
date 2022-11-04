@@ -10,6 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flags.h"
 #include "base/timer.h"
 
+namespace Tdb {
+class TLchatFilter;
+class TLDupdateChatFilters;
+} // namespace Tdb
+
 class History;
 
 namespace Dialogs {
@@ -70,6 +75,14 @@ public:
 		not_null<Session*> owner);
 	[[nodiscard]] MTPDialogFilter tl(FilterId replaceId = 0) const;
 #endif
+	[[nodiscard]] static ChatFilter FromTL(
+		FilterId id,
+		const Tdb::TLchatFilter &filter,
+		not_null<Session*> owner);
+	[[nodiscard]] Tdb::TLchatFilter tl() const;
+	[[nodiscard]] bool computeContains(not_null<History*> history) const;
+	[[nodiscard]] bool loaded() const;
+	void unload();
 
 	[[nodiscard]] FilterId id() const;
 	[[nodiscard]] QString title() const;
@@ -130,16 +143,15 @@ public:
 	explicit ChatFilters(not_null<Session*> owner);
 	~ChatFilters();
 
+	void apply(const Tdb::TLDupdateChatFilters &update);
 #if 0 // mtp
 	void setPreloaded(const QVector<MTPDialogFilter> &result);
-#endif
 
 	void load();
 	void reload();
-#if 0 // mtp
 	void apply(const MTPUpdate &update);
-#endif
 	void set(ChatFilter filter);
+#endif
 	void remove(FilterId id);
 	void moveAllToFront();
 	[[nodiscard]] const std::vector<ChatFilter> &list() const;
@@ -151,21 +163,28 @@ public:
 	[[nodiscard]] FilterId defaultId() const;
 	[[nodiscard]] FilterId lookupId(int index) const;
 
+#if 0 // mtp
 	bool loadNextExceptions(bool chatsListLoaded);
+#endif
+	void unloadDetails();
 
 	void refreshHistory(not_null<History*> history);
 
 	[[nodiscard]] not_null<Dialogs::MainList*> chatsList(FilterId filterId);
 	void clear();
 
+#if 0 // mtp
 	const ChatFilter &applyUpdatedPinned(
 		FilterId id,
 		const std::vector<Dialogs::Key> &dialogs);
+#endif
 	void saveOrder(
 		const std::vector<FilterId> &order,
 		mtpRequestId after = 0);
 
+#if 0 // mtp
 	[[nodiscard]] bool archiveNeeded() const;
+#endif
 
 	void requestSuggested();
 	[[nodiscard]] bool suggestedLoaded() const;
@@ -199,14 +218,14 @@ private:
 		std::weak_ptr<bool> watching;
 	};
 
-	void load(bool force);
 #if 0 // mtp
+	void load(bool force);
 	void received(const QVector<MTPDialogFilter> &list);
 	bool applyOrder(const QVector<MTPint> &order);
-#endif
 	bool applyChange(ChatFilter &filter, ChatFilter &&updated);
 	void applyInsert(ChatFilter filter, int position);
 	void applyRemove(int position);
+#endif
 
 	void checkLoadMoreChatsLists();
 	void loadMoreChatsList(FilterId id);

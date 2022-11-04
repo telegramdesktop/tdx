@@ -41,8 +41,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+
 namespace Settings {
 namespace {
+
+using namespace Tdb;
 
 using Flag = Data::ChatFilter::Flag;
 using Flags = Data::ChatFilter::Flags;
@@ -118,7 +123,12 @@ struct FilterRow {
 	const auto addList = [&](not_null<Dialogs::MainList*> list) {
 		for (const auto &entry : list->indexed()->all()) {
 			if (const auto history = entry->history()) {
+#if 0 // mtp
 				if (filter.contains(history)) {
+					++result;
+				}
+#endif
+				if (filter.computeContains(history)) {
 					++result;
 				}
 			}
@@ -143,7 +153,11 @@ struct FilterRow {
 		&& (!check
 			|| (i->flags() == filter.flags()
 				&& i->always() == filter.always()
+#if 0 // mtp
 				&& i->never() == filter.never()))) {
+#endif
+				&& i->never() == filter.never())
+			|| !i->loaded())) {
 		const auto chats = session->data().chatsFilters().chatsList(id);
 		return chats->indexed()->size();
 	}
@@ -353,6 +367,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 	};
 
 	const auto state = lifetime.make_state<State>();
+	const auto loading = std::make_shared<bool>();
 	const auto find = [=](not_null<FilterRowButton*> button) {
 		const auto i = ranges::find(state->rows, button, &FilterRow::button);
 		Assert(i != end(state->rows));
@@ -457,10 +472,11 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 			button->setRemoved(false);
 			find(button)->removed = false;
 		}, button->lifetime());
-		button->setClickedCallback([=] {
+
+		const auto show = [=](not_null<FilterRowButton*> button) {
 			const auto found = find(button);
-			if (found->removed) {
-				return;
+			if (found->removed || !found->filter.loaded()) {
+				return false;
 			}
 			const auto doneCallback = [=](const Data::ChatFilter &result) {
 				find(button)->filter = result;
@@ -478,6 +494,46 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 				found->filter,
 				crl::guard(button, doneCallback),
 				crl::guard(button, saveAnd)));
+			return true;
+		};
+		button->setClickedCallback([=] {
+			const auto found = find(button);
+			if (found->removed) {
+				return;
+			}
+#if 0 // mtp
+			const auto doneCallback = [=](const Data::ChatFilter &result) {
+				find(button)->filter = result;
+				button->updateData(result);
+			};
+			controller->window().show(Box(
+				EditFilterBox,
+				controller,
+				found->filter,
+				crl::guard(button, doneCallback)));
+#endif
+			if (found->filter.loaded()) {
+				show(button);
+			} else if (*loading) {
+				return;
+			}
+			*loading = true;
+			const auto weak = Ui::MakeWeak(button);
+			session->sender().request(TLgetChatFilter(
+				tl_int32(found->filter.id())
+			)).done([=](const TLchatFilter &result) {
+				*loading = false;
+				if (const auto button = weak.data()) {
+					const auto found = find(button);
+					found->filter = Data::ChatFilter::FromTL(
+						found->filter.id(),
+						result,
+						&session->data());
+					show(button);
+				}
+			}).fail([=] {
+				*loading = false;
+			}).send();
 		});
 		state->rows.push_back({ button, filter });
 		state->count = state->rows.size();
@@ -656,7 +712,151 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 
 		auto updated = Data::ChatFilter();
 
-#if 0 // todo
+		struct State {
+			not_null<Sender*> sender;
+			std::vector<FilterId> order;
+			FnMut<void()> sendReorder;
+			FnMut<void()> sendEdit;
+			int removing = 0;
+			int editing = 0;
+		};
+		const auto state = std::make_shared<State>(State{
+			.sender = &session->sender(),
+		});
+		auto addRequests = base::flat_map<FilterId, TLcreateChatFilter>();
+		auto editRequests = std::vector<TLeditChatFilter>();
+		auto removeRequests = std::vector<TLdeleteChatFilter>();
+
+		auto &realFilters = session->data().chatsFilters();
+		const auto &list = realFilters.list();
+		auto &order = state->order;
+		order.reserve(rows->size());
+		for (const auto &row : *rows) {
+			const auto id = row.filter.id();
+			const auto removed = row.removed;
+			const auto i = id
+				? ranges::find(list, id, &Data::ChatFilter::id)
+				: end(list);
+			const auto changed = (i != end(list))
+				&& i->loaded()
+				&& row.filter.loaded()
+				&& (*i != row.filter);
+			if (removed && i == end(list)) {
+				continue;
+			} else if (!removed && i != end(list) && !changed) {
+				order.push_back(id);
+				continue;
+			}
+			const auto newId = ids.take(row.button).value_or(id);
+			const auto tl = row.filter.tl();
+			if (removed) {
+				removeRequests.push_back(TLdeleteChatFilter(tl_int32(id)));
+			} else if (changed) {
+				editRequests.push_back(TLeditChatFilter(tl_int32(id), tl));
+				order.push_back(id);
+			} else {
+				addRequests.emplace(newId, TLcreateChatFilter(tl));
+				order.push_back(newId);
+			}
+		}
+		if (removeRequests.empty()
+			&& editRequests.empty()
+			&& addRequests.empty()) {
+			return;
+		}
+		if (!ranges::contains(order, FilterId(0))) {
+			auto position = 0;
+			for (const auto &filter : list) {
+				const auto id = filter.id();
+				if (!id) {
+					break;
+				} else if (const auto i = ranges::find(order, id)
+					; i != order.end()) {
+					position = int(i - order.begin()) + 1;
+				}
+			}
+			order.insert(order.begin() + position, FilterId(0));
+		}
+		state->sendReorder = [state] {
+			if (state->order.size() < 2) {
+				return;
+			}
+			auto ids = QVector<TLint32>();
+			auto position = 0;
+			for (const auto id : state->order) {
+				if (id) {
+					ids.push_back(tl_int32(id));
+				} else {
+					position = int(ids.size());
+				}
+			}
+			state->sender->request(TLreorderChatFilters(
+				tl_vector<TLint32>(std::move(ids)),
+				tl_int32(position)
+			)).send();
+		};
+		state->sendEdit = [
+				state,
+				addRequests = std::move(addRequests),
+				editRequests = std::move(editRequests)]() mutable {
+			const auto done = [state] {
+				if (!--state->editing) {
+					state->sendReorder();
+				}
+			};
+			for (auto &request : editRequests) {
+				state->sender->request(
+					std::move(request)
+				).done(done).fail([=](Error error) {
+					[[maybe_unused]] const auto code = error.code;
+				}).send();
+				++state->editing;
+			}
+			for (auto &[newId, request] : addRequests) {
+				state->sender->request(
+					std::move(request)
+				).done([=, newId = newId](const TLchatFilterInfo &info) {
+					const auto realId = info.data().vid().v;
+					for (auto &id : state->order) {
+						if (id == newId) {
+							id = realId;
+						}
+					}
+					done();
+				}).fail([=, newId = newId] {
+					state->order.erase(
+						ranges::remove(state->order, newId),
+						end(state->order));
+					done();
+				}).send();
+				++state->editing;
+			}
+			++state->editing;
+			done();
+		};
+		crl::on_main(session, [
+			state,
+			session,
+			removeRequests = std::move(removeRequests)
+		]() mutable {
+			session->data().chatsFilters().unloadDetails();
+			const auto done = [state] {
+				if (!--state->removing) {
+					state->sendEdit();
+				}
+			};
+			for (auto &request : removeRequests) {
+				state->sender->request(
+					std::move(request)
+				).done(done).fail([=](Error error) {
+					[[maybe_unused]] int code = error.code;
+				}).send();
+				++state->removing;
+			}
+			++state->removing;
+			done();
+		});
+#if 0 // mtp
 		auto order = std::vector<FilterId>();
 		auto updates = std::vector<MTPUpdate>();
 		auto addRequests = std::vector<MTPmessages_UpdateDialogFilter>();

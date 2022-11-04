@@ -213,12 +213,14 @@ ApiWrap::ApiWrap(not_null<Main::Session*> session)
 	crl::on_main(session, [=] {
 		// You can't use _session->lifetime() in the constructor,
 		// only queued, because it is not constructed yet.
+#if 0 // mtp
 		_session->data().chatsFilters().changed(
 		) | rpl::filter([=] {
 			return _session->data().chatsFilters().archiveNeeded();
 		}) | rpl::start_with_next([=] {
 			requestMoreDialogsIfNeeded();
 		}, _session->lifetime());
+#endif
 
 		setupSupportMode();
 
@@ -1131,6 +1133,7 @@ void ApiWrap::refreshDialogsLoadBlocked() {
 }
 
 void ApiWrap::requestMoreDialogsIfNeeded() {
+#if 0 // mtp
 	const auto dialogsReady = !_dialogsLoadState
 		|| _dialogsLoadState->listReceived;
 	if (_session->data().chatsFilters().loadNextExceptions(dialogsReady)) {
@@ -1145,6 +1148,13 @@ void ApiWrap::requestMoreDialogsIfNeeded() {
 		if (_session->data().chatsFilters().archiveNeeded()) {
 			requestMoreDialogs(folder);
 		}
+	}
+#endif
+	if (_dialogsLoadState && !_dialogsLoadState->listReceived) {
+		if (_dialogsLoadState->requestId) {
+			return;
+		}
+		requestDialogs(nullptr);
 	}
 	requestContacts();
 #if 0 // mtp
@@ -2529,7 +2539,9 @@ void ApiWrap::deleteHistory(
 			revoke);
 	}
 	if (!justClear) {
+#if 0 // mtp
 		_session->data().deleteConversationLocally(peer);
+#endif
 	} else if (history) {
 		history->clear(History::ClearType::ClearHistory);
 	}
