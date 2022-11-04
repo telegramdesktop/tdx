@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 namespace {
 
+#if 0 // mtp
 const auto kIcons = std::vector<FilterIcons>{
 	{
 		&st::foldersCat,
@@ -211,6 +212,205 @@ const auto kIcons = std::vector<FilterIcons>{
 		QString()
 	}
 };
+#endif
+
+const auto kIcons = std::vector<FilterIcons>{
+	{
+		&st::foldersCat,
+		&st::foldersCatActive,
+		u"Cat"_q,
+	},
+	{
+		&st::foldersBook,
+		&st::foldersBookActive,
+		u"Book"_q,
+	},
+	{
+		&st::foldersMoney,
+		&st::foldersMoneyActive,
+		u"Money"_q,
+	},
+	//{
+	//	&st::foldersCamera,
+	//	&st::foldersCameraActive,
+	//	u"Camera"_q,
+	//},
+	{
+		&st::foldersGame,
+		&st::foldersGameActive,
+		u"Game"_q,
+	},
+	//{
+	//	&st::foldersHouse,
+	//	&st::foldersHouseActive,
+	//	u"House"_q,
+	//},
+	{
+		&st::foldersLight,
+		&st::foldersLightActive,
+		u"Light"_q,
+	},
+	{
+		&st::foldersLike,
+		&st::foldersLikeActive,
+		u"Like"_q,
+	},
+	//{
+	//	&st::foldersPlus,
+	//	&st::foldersPlusActive,
+	//	u"Plus"_q
+	//},
+	{
+		&st::foldersNote,
+		&st::foldersNoteActive,
+		u"Note"_q,
+	},
+	{
+		&st::foldersPalette,
+		&st::foldersPaletteActive,
+		u"Palette"_q,
+	},
+	{
+		&st::foldersTravel,
+		&st::foldersTravelActive,
+		u"Travel"_q,
+	},
+	{
+		&st::foldersSport,
+		&st::foldersSportActive,
+		u"Sport"_q,
+	},
+	{
+		&st::foldersFavorite,
+		&st::foldersFavoriteActive,
+		u"Favorite"_q,
+	},
+	{
+		&st::foldersStudy,
+		&st::foldersStudyActive,
+		u"Study"_q,
+	},
+	{
+		&st::foldersAirplane,
+		&st::foldersAirplaneActive,
+		u"Airplane"_q,
+	},
+	//{
+	//	&st::foldersMicrobe,
+	//	&st::foldersMicrobeActive,
+	//	u"Microbe"_q,
+	//},
+	//{
+	//	&st::foldersWorker,
+	//	&st::foldersWorkerActive,
+	//	u"Worker"_q,
+	//},
+	{
+		&st::foldersPrivate,
+		&st::foldersPrivateActive,
+		u"Private"_q,
+	},
+	{
+		&st::foldersGroups,
+		&st::foldersGroupsActive,
+		u"Groups"_q,
+	},
+	{
+		&st::foldersAll,
+		&st::foldersAllActive,
+		u"All"_q,
+	},
+	{
+		&st::foldersUnread,
+		&st::foldersUnreadActive,
+		u"Unread"_q,
+	},
+	//{
+	//	&st::foldersCheck,
+	//	&st::foldersCheckActive,
+	//	u"Check"_q,
+	//},
+	{
+		&st::foldersBots,
+		&st::foldersBotsActive,
+		u"Bots"_q,
+	},
+	//{
+	//	&st::foldersFolders,
+	//	&st::foldersFoldersActive,
+	//	u"Folders"_q,
+	//},
+	{
+		&st::foldersCrown,
+		&st::foldersCrownActive,
+		u"Crown"_q,
+	},
+	{
+		&st::foldersFlower,
+		&st::foldersFlowerActive,
+		u"Flower"_q,
+	},
+	{
+		&st::foldersHome,
+		&st::foldersHomeActive,
+		u"Home"_q,
+	},
+	{
+		&st::foldersLove,
+		&st::foldersLoveActive,
+		u"Love"_q,
+	},
+	{
+		&st::foldersMask,
+		&st::foldersMaskActive,
+		u"Mask"_q,
+	},
+	{
+		&st::foldersParty,
+		&st::foldersPartyActive,
+		u"Party"_q,
+	},
+	{
+		&st::foldersTrade,
+		&st::foldersTradeActive,
+		u"Trade"_q,
+	},
+	{
+		&st::foldersWork,
+		&st::foldersWorkActive,
+		u"Work"_q,
+	},
+	{
+		&st::foldersUnmuted,
+		&st::foldersUnmutedActive,
+		u"Unmuted"_q,
+	},
+	{
+		&st::foldersChannels,
+		&st::foldersChannelsActive,
+		u"Channels"_q,
+	},
+	{
+		&st::foldersCustom,
+		&st::foldersCustomActive,
+		u"Custom"_q,
+	},
+	{
+		&st::foldersSetup,
+		&st::foldersSetupActive,
+		u"Setup"_q,
+	},
+	//{
+	//	&st::foldersPoo,
+	//	&st::foldersPooActive,
+	//	u"Poo"_q,
+	//},
+	{
+		&st::filtersEdit,
+		&st::filtersEdit,
+		QString()
+	}
+};
 
 } // namespace
 
@@ -221,6 +421,7 @@ const FilterIcons &LookupFilterIcon(FilterIcon icon) {
 }
 
 std::optional<FilterIcon> LookupFilterIconByEmoji(const QString &emoji) {
+#if 0 // mtp
 	static const auto kMap = [] {
 		auto result = base::flat_map<EmojiPtr, FilterIcon>();
 		auto index = 0;
@@ -235,6 +436,19 @@ std::optional<FilterIcon> LookupFilterIconByEmoji(const QString &emoji) {
 		return result;
 	}();
 	const auto i = kMap.find(Ui::Emoji::Find(emoji));
+#endif
+	static const auto kMap = [] {
+		auto result = base::flat_map<QString, FilterIcon>();
+		auto index = 0;
+		for (const auto &entry : kIcons) {
+			if (entry.emoji.isEmpty()) {
+				continue;
+			}
+			result.emplace(entry.emoji, static_cast<FilterIcon>(index++));
+		}
+		return result;
+	}();
+	const auto i = kMap.find(emoji);
 	return (i != end(kMap)) ? std::make_optional(i->second) : std::nullopt;
 }
 
