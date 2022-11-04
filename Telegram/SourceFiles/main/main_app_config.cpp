@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 
 #include "tdb/tdb_tl_scheme.h"
+#include "main/main_session.h"
 
 namespace Main {
 namespace {
@@ -27,6 +28,11 @@ AppConfig::AppConfig(not_null<Account*> account) : _account(account) {
 	) | rpl::filter([=](Session *session) {
 		return (session != nullptr);
 	}) | rpl::start_with_next([=] {
+		if (_api) {
+			_api->request(base::take(_requestId)).cancel();
+		}
+		_api.emplace(_account->session().sender());
+		_requestId = 0;
 		refresh();
 	}, _lifetime);
 }
