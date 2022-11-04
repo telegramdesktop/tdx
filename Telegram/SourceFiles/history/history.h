@@ -298,7 +298,9 @@ public:
 	void clearLastMessage();
 
 	void applyDialogFields(
+#if 0 // mtp
 		Data::Folder *folder,
+#endif
 		int unreadCount,
 		MsgId maxInboxRead,
 		MsgId maxOutboxRead);
@@ -446,10 +448,12 @@ public:
 
 	bool folderKnown() const override;
 	Data::Folder *folder() const override;
+#if 0 // mtp
 	void setFolder(
 		not_null<Data::Folder*> folder,
 		HistoryItem *folderDialogItem = nullptr);
 	void clearFolder();
+#endif
 
 	// Interface for Data::Histories.
 	void setInboxReadTill(MsgId upTo);
@@ -627,7 +631,10 @@ private:
 	[[nodiscard]] Dialogs::BadgesState adjustBadgesStateByFolder(
 		Dialogs::BadgesState state) const;
 	[[nodiscard]] Dialogs::UnreadState computeUnreadState() const;
+#if 0 // mtp
 	void setFolderPointer(Data::Folder *folder);
+#endif
+	void setFolderPointer(Data::Folder *folder, int64 order, bool pinned);
 
 	void hasUnreadMentionChanged(bool has) override;
 	void hasUnreadReactionChanged(bool has) override;
