@@ -32,8 +32,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+
 namespace Api {
 namespace {
+
+using namespace Tdb;
 
 enum class ToggleAction {
 	Adding,
@@ -672,9 +677,41 @@ void SaveNewFilterPinned(
 		not_null<Main::Session*> session,
 		FilterId filterId) {
 	const auto &order = session->data().pinnedChatsOrder(filterId);
+	session->sender().request(TLgetChatFilter(
+		tl_int32(filterId)
+	)).done([=](const TLchatFilter &result) {
+		const auto owner = &session->data();
+		auto filter = Data::ChatFilter::FromTL(filterId, result, owner);
+		const auto limit = owner->pinnedChatsLimit(nullptr, filterId);
+		auto always = filter.always();
+		auto pinned = std::vector<not_null<History*>>();
+		pinned.reserve(order.size());
+		for (const auto &row : order) {
+			if (const auto history = row.history()) {
+				if (always.contains(history)) {
+					pinned.push_back(history);
+				} else if (always.size() < limit) {
+					always.insert(history);
+					pinned.push_back(history);
+				}
+			}
+		}
+		session->sender().request(TLeditChatFilter(
+			tl_int32(filterId),
+			Data::ChatFilter(
+				filterId,
+				filter.title(),
+				filter.iconEmoji(),
+				filter.colorIndex(),
+				filter.flags(),
+				std::move(always),
+				std::move(pinned),
+				filter.never()).tl()
+		)).send();
+	}).send();
+#if 0 // mtp
 	auto &filters = session->data().chatsFilters();
 	const auto &filter = filters.applyUpdatedPinned(filterId, order);
-#if 0 // todo
 	session->api().request(MTPmessages_UpdateDialogFilter(
 		MTP_flags(MTPmessages_UpdateDialogFilter::Flag::f_filter),
 		MTP_int(filterId),

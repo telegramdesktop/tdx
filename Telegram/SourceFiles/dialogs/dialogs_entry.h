@@ -286,7 +286,9 @@ private:
 	void pinnedIndexChanged(FilterId filterId, int was, int now);
 	[[nodiscard]] uint64 computeSortPosition(FilterId filterId) const;
 
+#if 0 // mtp
 	void setChatListExistence(bool exists);
+#endif
 	not_null<Row*> mainChatListLink(FilterId filterId) const;
 	Row *maybeMainChatListLink(FilterId filterId) const;
 

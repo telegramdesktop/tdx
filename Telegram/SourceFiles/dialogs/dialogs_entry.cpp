@@ -272,8 +272,11 @@ void Entry::refreshChatListSortPositionFromTdb(
 	} else {
 		_sortKeyInChatList = sortKey;
 	}
-	if (!filterId || order != 0) {
-		setChatListExistence(order != 0);
+	if (sortKey) {
+		owner().refreshChatListEntry(this, filterId);
+		updateChatListEntry();
+	} else {
+		owner().removeChatListEntry(this, filterId);
 	}
 }
 
@@ -359,6 +362,7 @@ const Ui::Text::String &Entry::chatListNameText() const {
 	return _chatListNameText;
 }
 
+#if 0 // mtp
 void Entry::setChatListExistence(bool exists) {
 	if (exists && _sortKeyInChatList) {
 		owner().refreshChatListEntry(this);
@@ -368,7 +372,6 @@ void Entry::setChatListExistence(bool exists) {
 	}
 }
 
-#if 0 // mtp
 TimeId Entry::adjustedChatListTimeId() const {
 	return chatListTimeId();
 }

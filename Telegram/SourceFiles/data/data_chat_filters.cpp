@@ -24,9 +24,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_app_config.h"
 #include "apiwrap.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+
 namespace Data {
 namespace {
 
+using namespace Tdb;
+
+constexpr auto kSuggestedStartId = 77;
 constexpr auto kRefreshSuggestedTimeout = 7200 * crl::time(1000);
 constexpr auto kLoadExceptionsAfter = 100;
 constexpr auto kLoadExceptionsPerRequest = 100;
@@ -239,6 +245,87 @@ MTPDialogFilter ChatFilter::tl(FilterId replaceId) const {
 }
 #endif
 
+ChatFilter ChatFilter::FromTL(
+		FilterId id,
+		const TLchatFilter &filter,
+		not_null<Session*> owner) {
+	const auto &data = filter.data();
+	const auto flags = Flag(0)
+		| (data.vinclude_contacts().v ? Flag::Contacts : Flag(0))
+		| (data.vinclude_non_contacts().v ? Flag::NonContacts : Flag(0))
+		| (data.vinclude_groups().v ? Flag::Groups : Flag(0))
+		| (data.vinclude_channels().v ? Flag::Channels : Flag(0))
+		| (data.vinclude_bots().v ? Flag::Bots : Flag(0))
+		| (data.vexclude_muted().v ? Flag::NoMuted : Flag(0))
+		| (data.vexclude_read().v ? Flag::NoRead : Flag(0))
+		| (data.vexclude_archived().v ? Flag::NoArchived : Flag(0));
+	auto &&to_histories = ranges::views::transform([&](const TLint53 &id) {
+		const auto peer = peerFromTdbChat(id);
+		return peer ? owner->history(peer).get() : nullptr;
+	}) | ranges::views::filter([](History *history) {
+		return history != nullptr;
+	}) | ranges::views::transform([](History *history) {
+		return not_null<History*>(history);
+	});
+	auto &&always = ranges::views::concat(
+		data.vincluded_chat_ids().v
+	) | to_histories;
+	auto pinned = ranges::views::all(
+		data.vpinned_chat_ids().v
+	) | to_histories | ranges::to_vector;
+	auto &&never = ranges::views::all(
+		data.vexcluded_chat_ids().v
+	) | to_histories;
+	auto &&all = ranges::views::concat(always, pinned);
+	auto list = base::flat_set<not_null<History*>>{
+		all.begin(),
+		all.end()
+	};
+
+	return ChatFilter(
+		id,
+		data.vtitle().v,
+		data.vicon_name().v,
+		flags,
+		std::move(list),
+		std::move(pinned),
+		{ never.begin(), never.end() });
+}
+
+TLchatFilter ChatFilter::tl() const {
+	auto always = _always;
+	auto pinned = QVector<TLint53>();
+	pinned.reserve(_pinned.size());
+	for (const auto &history : _pinned) {
+		pinned.push_back(peerToTdbChat(history->peer->id));
+		always.remove(history);
+	}
+	auto include = QVector<TLint53>();
+	include.reserve(always.size());
+	for (const auto &history : always) {
+		include.push_back(peerToTdbChat(history->peer->id));
+	}
+	auto never = QVector<TLint53>();
+	never.reserve(_never.size());
+	for (const auto &history : _never) {
+		never.push_back(peerToTdbChat(history->peer->id));
+	}
+	return tl_chatFilter(
+		tl_string(_title),
+		tl_string(_iconEmoji),
+		tl_vector<TLint53>(pinned),
+		tl_vector<TLint53>(include),
+		tl_vector<TLint53>(never),
+		tl_bool(_flags & Flag::NoMuted),
+		tl_bool(_flags & Flag::NoRead),
+		tl_bool(_flags & Flag::NoArchived),
+		tl_bool(_flags & Flag::Contacts),
+		tl_bool(_flags & Flag::NonContacts),
+		tl_bool(_flags & Flag::Bots),
+		tl_bool(_flags & Flag::Groups),
+		tl_bool(_flags & Flag::Channels));
+}
+
 FilterId ChatFilter::id() const {
 	return _id;
 }
@@ -280,6 +367,21 @@ const base::flat_set<not_null<History*>> &ChatFilter::never() const {
 }
 
 bool ChatFilter::contains(not_null<History*> history) const {
+	return history->inChatList(_id);
+}
+
+bool ChatFilter::loaded() const {
+	return !_id || !_always.empty() || !_never.empty() || (_flags != 0);
+}
+
+void ChatFilter::unload() {
+	_always = {};
+	_pinned = {};
+	_never = {};
+	_flags = 0;
+}
+
+bool ChatFilter::computeContains(not_null<History*> history) const {
 	const auto flag = [&] {
 		const auto peer = history->peer;
 		if (const auto user = peer->asUser()) {
@@ -326,7 +428,9 @@ ChatFilters::ChatFilters(not_null<Session*> owner)
 : _owner(owner)
 , _moreChatsTimer([=] { checkLoadMoreChatsLists(); }) {
 	_list.emplace_back();
+#if 0 // mtp
 	crl::on_main(&owner->session(), [=] { load(); });
+#endif
 }
 
 ChatFilters::~ChatFilters() = default;
@@ -362,7 +466,6 @@ void ChatFilters::setPreloaded(const QVector<MTPDialogFilter> &result) {
 		}
 	});
 }
-#endif
 
 void ChatFilters::load() {
 	load(false);
@@ -377,7 +480,6 @@ void ChatFilters::load(bool force) {
 	if (_loadRequestId && !force) {
 		return;
 	}
-#if 0 // todo
 	auto &api = _owner->session().api();
 	api.request(_loadRequestId).cancel();
 	_loadRequestId = api.request(MTPmessages_GetDialogFilters(
@@ -391,10 +493,8 @@ void ChatFilters::load(bool force) {
 			_listChanged.fire({});
 		}
 	}).send();
-#endif
 }
 
-#if 0 // mtp
 void ChatFilters::received(const QVector<MTPDialogFilter> &list) {
 	auto position = 0;
 	auto changed = false;
@@ -559,6 +659,31 @@ void ChatFilters::reloadChatlistLinks(FilterId id) {
 	}).send();
 }
 
+void ChatFilters::apply(const TLDupdateChatFilters &update) {
+	_list.clear();
+	const auto maybePushMain = [&] {
+		if (_list.size() == update.vmain_chat_list_position().v) {
+			_list.push_back(ChatFilter());
+		}
+	};
+	for (const auto &filter : update.vchat_filters().v) {
+		const auto &data = filter.data();
+		maybePushMain();
+		_list.push_back(ChatFilter(
+			data.vid().v,
+			data.vtitle().v,
+			data.vicon_name().v,
+			{},
+			{},
+			{},
+			{}));
+	}
+	maybePushMain();
+	_loaded = true;
+	_listChanged.fire({});
+}
+
+#if 0 // mtp
 void ChatFilters::set(ChatFilter filter) {
 	if (!filter.id()) {
 		return;
@@ -580,14 +705,20 @@ void ChatFilters::applyInsert(ChatFilter filter, int position) {
 		ChatFilter(filter.id(), {}, {}, {}, {}, {}, {}, {}));
 	applyChange(*(begin(_list) + position), std::move(filter));
 }
+#endif
 
 void ChatFilters::remove(FilterId id) {
 	const auto i = ranges::find(_list, id, &ChatFilter::id);
 	if (i == end(_list)) {
 		return;
 	}
+#if 0 // mtp
 	applyRemove(i - begin(_list));
 	_listChanged.fire({});
+#endif
+	_owner->session().sender().request(TLdeleteChatFilter(
+		tl_int32(id)
+	)).send();
 }
 
 void ChatFilters::moveAllToFront() {
@@ -600,6 +731,7 @@ void ChatFilters::moveAllToFront() {
 	_list.insert(begin(_list), ChatFilter());
 }
 
+#if 0 // mtp
 void ChatFilters::applyRemove(int position) {
 	Expects(position >= 0 && position < _list.size());
 
@@ -671,7 +803,6 @@ bool ChatFilters::applyChange(ChatFilter &filter, ChatFilter &&updated) {
 	return listUpdated;
 }
 
-#if 0 // mtp
 bool ChatFilters::applyOrder(const QVector<MTPint> &order) {
 	if (order.size() != _list.size()) {
 		return false;
@@ -709,7 +840,6 @@ bool ChatFilters::applyOrder(const QVector<MTPint> &order) {
 	}
 	return true;
 }
-#endif
 
 const ChatFilter &ChatFilters::applyUpdatedPinned(
 		FilterId id,
@@ -742,14 +872,35 @@ const ChatFilter &ChatFilters::applyUpdatedPinned(
 		i->never()));
 	return *i;
 }
+#endif
 
 void ChatFilters::saveOrder(
 		const std::vector<FilterId> &order,
 		mtpRequestId after) {
+	if (order.size() < 2) {
+		return;
+	}
+
+	const auto sender = &_owner->session().sender();
+	sender->request(_saveOrderRequestId).cancel();
+
+	auto ids = QVector<TLint32>();
+	auto mainPosition = 0;
+	for (const auto id : order) {
+		if (id) {
+			ids.push_back(tl_int32(id));
+		} else {
+			mainPosition = ids.size();
+		}
+	}
+	sender->request(TLreorderChatFilters(
+		tl_vector<TLint32>(std::move(ids)),
+		tl_int32(mainPosition)
+	)).send();
+#if 0 // mtp
 	if (after) {
 		_saveOrderAfterId = after;
 	}
-#if 0 // todo
 	const auto api = &_owner->session().api();
 	api->request(_saveOrderRequestId).cancel();
 
@@ -767,6 +918,7 @@ void ChatFilters::saveOrder(
 #endif
 }
 
+#if 0 // mtp
 bool ChatFilters::archiveNeeded() const {
 	for (const auto &filter : _list) {
 		if (!(filter.flags() & ChatFilter::Flag::NoArchived)) {
@@ -775,6 +927,7 @@ bool ChatFilters::archiveNeeded() const {
 	}
 	return false;
 }
+#endif
 
 const std::vector<ChatFilter> &ChatFilters::list() const {
 	return _list;
@@ -814,6 +967,7 @@ rpl::producer<FilterId> ChatFilters::isChatlistChanged() const {
 	return _isChatlistChanged.events();
 }
 
+#if 0 // mtp
 bool ChatFilters::loadNextExceptions(bool chatsListLoaded) {
 	if (_exceptionsLoadRequestId) {
 		return true;
@@ -822,7 +976,6 @@ bool ChatFilters::loadNextExceptions(bool chatsListLoaded) {
 			< kLoadExceptionsAfter)) {
 		return false;
 	}
-#if 0 // todo
 	auto inputs = QVector<MTPInputDialogPeer>();
 	const auto collectExceptions = [&](FilterId id) {
 		auto result = QVector<MTPInputDialogPeer>();
@@ -862,14 +1015,22 @@ bool ChatFilters::loadNextExceptions(bool chatsListLoaded) {
 		_exceptionsLoadRequestId = 0;
 		_owner->session().api().requestMoreDialogsIfNeeded();
 	}).send();
-#endif
 	return true;
+}
+#endif
+
+void ChatFilters::unloadDetails() {
+	for (auto &filter : _list) {
+		filter.unload();
+	}
 }
 
 void ChatFilters::refreshHistory(not_null<History*> history) {
+#if 0 // mtp
 	if (history->inChatList() && !list().empty()) {
 		_owner->refreshChatListEntry(history);
 	}
+#endif
 }
 
 void ChatFilters::requestSuggested() {
@@ -880,7 +1041,23 @@ void ChatFilters::requestSuggested() {
 		&& crl::now() - _suggestedLastReceived < kRefreshSuggestedTimeout) {
 		return;
 	}
-#if 0 // todo
+	const auto sender = &_owner->session().sender();
+	_suggestedRequestId = sender->request(TLgetRecommendedChatFilters(
+	)).done([=](const TLDrecommendedChatFilters &result) {
+		_suggestedRequestId = 0;
+		_suggestedLastReceived = crl::now();
+
+		auto id = kSuggestedStartId;
+		_suggested = ranges::views::all(
+			result.vchat_filters().v
+		) | ranges::views::transform([&](const TLrecommendedChatFilter &f) {
+			const auto &data = f.data();
+			return SuggestedFilter{
+				Data::ChatFilter::FromTL(++id, data.vfilter(), _owner),
+				data.vdescription().v,
+			};
+		}) | ranges::to_vector;
+#if 0 // mtp
 	const auto api = &_owner->session().api();
 	_suggestedRequestId = api->request(MTPmessages_GetSuggestedDialogFilters(
 	)).done([=](const MTPVector<MTPDialogFilterSuggested> &data) {
@@ -897,6 +1074,7 @@ void ChatFilters::requestSuggested() {
 				};
 			});
 		}) | ranges::to_vector;
+#endif
 
 		_suggestedUpdated.fire({});
 	}).fail([=] {
@@ -905,7 +1083,6 @@ void ChatFilters::requestSuggested() {
 
 		_suggestedUpdated.fire({});
 	}).send();
-#endif
 }
 
 bool ChatFilters::suggestedLoaded() const {
