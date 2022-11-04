@@ -1762,6 +1762,7 @@ History *Session::historyLoaded(const PeerData *peer) {
 	return peer ? historyLoaded(peer->id) : nullptr;
 }
 
+#if 0 // mtp
 void Session::deleteConversationLocally(not_null<PeerData*> peer) {
 	const auto history = historyLoaded(peer);
 	if (history) {
@@ -1783,6 +1784,7 @@ void Session::deleteConversationLocally(not_null<PeerData*> peer) {
 		}
 	}
 }
+#endif
 
 bool Session::chatsListLoaded(Data::Folder *folder) {
 	return chatsList(folder)->loaded();
@@ -1894,6 +1896,7 @@ QString Session::nameSortKey(const QString &name) const {
 }
 
 void Session::setupMigrationViewer() {
+#if 0 // mtp
 	session().changes().peerUpdates(
 		PeerUpdate::Flag::Migration
 	) | rpl::map([](const PeerUpdate &update) {
@@ -1915,6 +1918,7 @@ void Session::setupMigrationViewer() {
 			}
 		}
 	}, _lifetime);
+#endif
 }
 
 void Session::setupChannelLeavingViewer() {
@@ -4877,6 +4881,7 @@ not_null<Dialogs::IndexedList*> Session::contactsNoChatsList() {
 	return &_contactsNoChatsList;
 }
 
+#if 0 // mtp
 void Session::refreshChatListEntry(Dialogs::Key key) {
 	Expects(key.entry()->folderKnown());
 
@@ -4972,6 +4977,48 @@ void Session::removeChatListEntry(Dialogs::Key key) {
 		Core::App().notifications().clearFromTopic(topic);
 	} else if (const auto history = key.history()) {
 		Core::App().notifications().clearFromHistory(history);
+	}
+}
+#endif
+
+void Session::refreshChatListEntry(Dialogs::Key key, FilterId filterId) {
+	Expects(filterId || key.entry()->folderKnown());
+
+	using namespace Dialogs;
+
+	const auto entry = key.entry();
+	const auto list = filterId
+		? chatsFilters().chatsList(filterId)
+		: chatsList(entry->folder());
+	auto event = ChatListEntryRefresh{ .key = key, .filterId = filterId };
+	event.existenceChanged = !entry->inChatList(filterId);
+	if (event.existenceChanged) {
+		const auto mainRow = entry->addToChatList(filterId, list);
+		if (!filterId) {
+			_contactsNoChatsList.del(key, mainRow);
+		}
+	} else {
+		event.moved = entry->adjustByPosInChatList(filterId, list);
+	}
+	if (event) {
+		_chatListEntryRefreshes.fire(std::move(event));
+	}
+}
+
+void Session::removeChatListEntry(Dialogs::Key key, FilterId filterId) {
+	Expects(filterId || key.entry()->folderKnown());
+
+	const auto entry = key.entry();
+	const auto list = filterId
+		? chatsFilters().chatsList(filterId)
+		: chatsList(entry->folder());
+	if (entry->inChatList(filterId)) {
+		entry->removeFromChatList(filterId, list);
+		_chatListEntryRefreshes.fire(ChatListEntryRefresh{
+			.key = key,
+			.filterId = filterId,
+			.existenceChanged = true
+		});
 	}
 }
 
