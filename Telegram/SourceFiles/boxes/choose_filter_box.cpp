@@ -22,18 +22,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "styles/style_media_player.h" // mediaPlayerMenuCheck
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+
 namespace {
+
+using namespace Tdb;
 
 Data::ChatFilter ChangedFilter(
 		const Data::ChatFilter &filter,
 		not_null<History*> history,
 		bool add) {
 	auto always = base::duplicate(filter.always());
+	auto pinned = base::duplicate(filter.pinned());
 	auto never = base::duplicate(filter.never());
 	if (add) {
 		never.remove(history);
 	} else {
 		always.remove(history);
+		pinned.erase(ranges::remove(pinned, history), end(pinned));
 	}
 	const auto result = Data::ChatFilter(
 		filter.id(),
@@ -42,10 +49,16 @@ Data::ChatFilter ChangedFilter(
 		filter.colorIndex(),
 		filter.flags(),
 		std::move(always),
+#if 0 // mtp
 		filter.pinned(),
+#endif
+		std::move(pinned),
 		std::move(never));
+#if 0 // mtp
 	const auto in = result.contains(history);
 	if (in == add) {
+#endif
+	if (add == result.computeContains(history)) {
 		return result;
 	}
 	always = base::duplicate(result.always());
@@ -75,10 +88,56 @@ void ChangeFilterById(
 	const auto list = history->owner().chatsFilters().list();
 	const auto i = ranges::find(list, filterId, &Data::ChatFilter::id);
 	if (i != end(list)) {
+		const auto sender = &history->session().sender();
+		sender->request(TLgetChatFilter(
+			tl_int32(filterId)
+		)).done([=](const TLchatFilter &result) {
+			const auto owner = &history->owner();
+			auto parsed = Data::ChatFilter::FromTL(filterId, result, owner);
+			const auto chat = history->peer->name();
+			const auto guard = base::make_weak(&history->session());
+			const auto account = &history->session().account();
+			const auto name = parsed.title();
+			const auto show = [=](TextWithEntities text) {
+				if (!guard) {
+					return;
+				}
+				if (const auto controller = Core::App().windowFor(account)) {
+					controller->showToast(std::move(text));
+				}
+			};
+			sender->request(TLeditChatFilter(
+				tl_int32(filterId),
+				ChangedFilter(std::move(parsed), history, add).tl()
+			)).done([=] {
+				// Since only the primary window has dialogs list,
+				// We can safely show toast there.
+				show((add
+					? tr::lng_filters_toast_add
+					: tr::lng_filters_toast_remove)(
+						tr::now,
+						lt_chat,
+						Ui::Text::Bold(chat),
+						lt_folder,
+						Ui::Text::Bold(name),
+						Ui::Text::WithEntities));
+			}).fail([=](const Error &error) {
+#if 0 // tdb errors
+				const auto &text = error.message;
+				if (text == u"The maximum number of excluded chats exceeded"_q) {
+				} else if (text == u"The maximum number of included chats exceeded"_q) {
+
+				} else if (text == u"Folder must contain at least 1 chat"_q) {
+				} else if (text == u"Folder must be different from the main chat list"_q) {
+				}
+#endif
+				show({ error.message });
+			}).send();
+		}).send();
+#if 0 // mtp
 		const auto was = *i;
 		const auto filter = ChangedFilter(was, history, add);
 		history->owner().chatsFilters().set(filter);
-#if 0 // todo
 		history->session().api().request(MTPmessages_UpdateDialogFilter(
 			MTP_flags(MTPmessages_UpdateDialogFilter::Flag::f_filter),
 			MTP_int(filter.id()),
@@ -111,17 +170,22 @@ ChooseFilterValidator::ChooseFilterValidator(not_null<History*> history)
 }
 
 bool ChooseFilterValidator::canAdd() const {
+	return true; // We'll show the error when we try and fail.
+#if 0 // mtp
 	for (const auto &filter : _history->owner().chatsFilters().list()) {
 		if (filter.id() && !filter.contains(_history)) {
 			return true;
 		}
 	}
 	return false;
+#endif
 }
 
 bool ChooseFilterValidator::canRemove(FilterId filterId) const {
 	Expects(filterId != 0);
 
+	return true; // We'll show the error when we try and fail.
+#if 0 // mtp
 	const auto list = _history->owner().chatsFilters().list();
 	const auto i = ranges::find(list, filterId, &Data::ChatFilter::id);
 	if (i != end(list)) {
@@ -130,6 +194,7 @@ bool ChooseFilterValidator::canRemove(FilterId filterId) const {
 			&& ((filter.always().size() > 1) || filter.flags());
 	}
 	return false;
+#endif
 }
 
 ChooseFilterValidator::LimitData ChooseFilterValidator::limitReached(
@@ -137,6 +202,8 @@ ChooseFilterValidator::LimitData ChooseFilterValidator::limitReached(
 		bool always) const {
 	Expects(filterId != 0);
 
+	return {}; // We'll show the error when we try and fail.
+#if 0 // mtp
 	const auto list = _history->owner().chatsFilters().list();
 	const auto i = ranges::find(list, filterId, &Data::ChatFilter::id);
 	const auto limit = _history->owner().pinnedChatsLimit(filterId);
@@ -147,6 +214,7 @@ ChooseFilterValidator::LimitData ChooseFilterValidator::limitReached(
 			&& (chatsList.size() >= limit),
 		.count = int(chatsList.size()),
 	};
+#endif
 }
 
 void ChooseFilterValidator::add(FilterId filterId) const {

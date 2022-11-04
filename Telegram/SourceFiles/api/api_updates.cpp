@@ -2949,6 +2949,7 @@ void Updates::applyUpdate(const TLupdate &update) {
 			}
 		}
 	}, [&](const TLDupdateChatFilters &data) {
+		owner.chatsFilters().apply(data);
 	}, [&](const TLDupdateChatOnlineMemberCount &data) {
 	}, [&](const TLDupdateNotification &data) {
 	}, [&](const TLDupdateNotificationGroup &data) {
