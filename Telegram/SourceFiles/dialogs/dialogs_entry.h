@@ -281,7 +281,9 @@ private:
 
 	[[nodiscard]] virtual int chatListNameVersion() const = 0;
 
+#if 0 // mtp
 	void setChatListExistence(bool exists);
+#endif
 	not_null<Row*> mainChatListLink(FilterId filterId) const;
 	Row *maybeMainChatListLink(FilterId filterId) const;
 
