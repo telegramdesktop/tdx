@@ -1971,7 +1971,9 @@ bool History::unreadCountKnown() const {
 }
 
 void History::setUnreadCount(int newUnreadCount) {
+#if 0 // mtp
 	Expects(folderKnown());
+#endif
 
 	if (_unreadCount == newUnreadCount) {
 		return;
@@ -2108,6 +2110,7 @@ Data::Folder *History::folder() const {
 	return _folder.value_or(nullptr);
 }
 
+#if 0 // mtp
 void History::setFolder(
 		not_null<Data::Folder*> folder,
 		HistoryItem *folderDialogItem) {
@@ -2125,6 +2128,15 @@ void History::setFolderPointer(Data::Folder *folder) {
 	if (_folder == folder) {
 		return;
 	}
+#endif
+void History::setFolderPointer(
+		Data::Folder *folder,
+		int64 order,
+		bool pinned) {
+	if (_folder == folder) {
+		updateChatListSortPosition(FilterId(), order, pinned);
+		return;
+	}
 	if (isPinnedDialog(FilterId())) {
 		owner().setChatPinned(this, FilterId(), false);
 	}
@@ -2138,6 +2150,7 @@ void History::setFolderPointer(Data::Folder *folder) {
 	if (was) {
 		was->unregisterOne(this);
 	}
+#if 0 // mtp
 	if (wasInList) {
 		addToChatList(0, owner().chatsList(folder));
 
@@ -2148,6 +2161,15 @@ void History::setFolderPointer(Data::Folder *folder) {
 		owner().chatsListChanged(folder);
 	} else if (!wasKnown) {
 		updateChatListSortPosition();
+	}
+#endif
+	updateChatListSortPosition(FilterId(), order, pinned);
+	const auto nowInList = inChatList();
+	if (wasInList) {
+		owner().chatsListChanged(was);
+	}
+	if (inChatList()) {
+		owner().chatsListChanged(folder);
 	}
 	if (folder) {
 		folder->registerOne(this);
@@ -3011,18 +3033,17 @@ void History::applyPosition(const TLDchatPosition &data) {
 		owner().setNotTopPromoted(this);
 	}
 	data.vlist().match([&](const TLDchatListMain &) {
-		if (order || (folderKnown() && !folder())) {
-			clearFolder();
-			updateChatListSortPosition(FilterId(), order, pinned);
+		if (order || !folder()) {
+			setFolderPointer(nullptr, order, pinned);
 		}
 	}, [&](const TLDchatListArchive &) {
-		if (order) {
-			setFolder(owner().folder(Data::Folder::kId));
-		} else {
-			clearFolder();
-		}
-		if (order || (folderKnown() && folder())) {
-			updateChatListSortPosition(FilterId(), order, pinned);
+		if (order || folder()) {
+			const auto value = !order
+				? nullptr
+				: (folderKnown() && folder())
+				? folder()
+				: owner().folder(Data::Folder::kId).get();
+			setFolderPointer(value, order, pinned);
 		}
 	}, [&](const TLDchatListFilter &data) {
 		if (folderKnown()) {
@@ -3138,15 +3159,19 @@ bool History::skipUnreadUpdate() const {
 }
 
 void History::applyDialogFields(
+#if 0 // mtp
 		Data::Folder *folder,
+#endif
 		int unreadCount,
 		MsgId maxInboxRead,
 		MsgId maxOutboxRead) {
+#if 0 // mtp
 	if (folder) {
 		setFolder(folder);
 	} else {
 		clearFolder();
 	}
+#endif
 	if (!skipUnreadUpdate()
 		&& maxInboxRead + 1 >= _inboxReadBefore.value_or(1)) {
 		setUnreadCount(unreadCount);
