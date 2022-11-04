@@ -47,8 +47,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
 
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
+
 namespace {
 
+using namespace Tdb;
 using namespace Settings;
 
 constexpr auto kMaxFilterTitleLength = 12;
@@ -668,7 +672,11 @@ void EditExistingFilter(
 	const auto doneCallback = [=](const Data::ChatFilter &result) {
 		Expects(id == result.id());
 
-#if 0 // todo
+		session->sender().request(TLeditChatFilter(
+			tl_int32(id),
+			result.tl()
+		)).send();
+#if 0 // mtp
 		const auto tl = result.tl();
 		session->data().chatsFilters().apply(MTP_updateDialogFilter(
 			MTP_flags(MTPDupdateDialogFilter::Flag::f_filter),

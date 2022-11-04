@@ -311,7 +311,9 @@ public:
 	[[nodiscard]] not_null<History*> history(not_null<const PeerData*> peer);
 	[[nodiscard]] History *historyLoaded(const PeerData *peer);
 
+#if 0 // mtp
 	void deleteConversationLocally(not_null<PeerData*> peer);
+#endif
 
 	[[nodiscard]] rpl::variable<bool> &contactsLoaded() {
 		return _contactsLoaded;
@@ -854,8 +856,10 @@ public:
 			return existenceChanged || (moved.from != moved.to);
 		}
 	};
+#if 0 // mtp
 	void refreshChatListEntry(Dialogs::Key key);
 	void removeChatListEntry(Dialogs::Key key);
+#endif
 	[[nodiscard]] auto chatListEntryRefreshes() const
 		-> rpl::producer<ChatListEntryRefresh>;
 
@@ -866,6 +870,8 @@ public:
 	void dialogsRowReplaced(DialogsRowReplacement replacement);
 	rpl::producer<DialogsRowReplacement> dialogsRowReplacements() const;
 
+	void refreshChatListEntry(Dialogs::Key key, FilterId filterId);
+	void removeChatListEntry(Dialogs::Key key, FilterId filterId);
 #if 0 // mtp
 	void serviceNotification(
 		const TextWithEntities &message,

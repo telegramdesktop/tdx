@@ -662,6 +662,9 @@ void Filler::addToggleFolder() {
 	if (_topic || !history || !history->owner().chatsFilters().has()) {
 		return;
 	}
+	if (!history->inChatList()) {
+		return;
+	}
 	_addAction(PeerMenuCallback::Args{
 		.text = tr::lng_filters_menu_add(tr::now),
 		.handler = nullptr,
