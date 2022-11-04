@@ -1281,7 +1281,6 @@ not_null<PeerData*> Session::processPeer(const TLchat &dialog) {
 		history->applyLastMessage(*message);
 	}
 	history->applyDialogFields(
-		history->folder(),
 		data.vunread_count().v,
 		data.vlast_read_inbox_message_id().v,
 		data.vlast_read_outbox_message_id().v);
