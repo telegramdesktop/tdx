@@ -431,6 +431,7 @@ void Histories::sendDialogRequests() {
 #endif
 }
 
+#if 0 // mtp
 void Histories::dialogEntryApplied(not_null<History*> history) {
 	const auto state = lookup(history);
 	if (state && state->postponedRequestEntry) {
@@ -453,7 +454,6 @@ void Histories::dialogEntryApplied(not_null<History*> history) {
 	}
 }
 
-#if 0 // mtp
 void Histories::applyPeerDialogs(const MTPmessages_PeerDialogs &dialogs) {
 	Expects(dialogs.type() == mtpc_messages_peerDialogs);
 
