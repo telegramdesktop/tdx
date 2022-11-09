@@ -1911,6 +1911,8 @@ void History::applyInboxReadUpdate(
 		}
 #endif
 		inboxRead(upTo, stillUnread);
+	} else if (inboxReadTillId() == upTo) {
+		setUnreadCount(stillUnread);
 	}
 }
 
@@ -3065,19 +3067,33 @@ void History::applyPosition(const TLDchatPosition &data) {
 	});
 }
 
+void History::applyUnreadInfo(
+		int unreadCount,
+		MsgId maxInboxRead,
+		MsgId maxOutboxRead) {
+	setOutboxReadTill(maxOutboxRead);
+	setInboxReadTill(maxInboxRead);
+	setUnreadCount(unreadCount);
+}
+
 void History::applyLastMessage(const TLmessage &data) {
 	const auto &message = data.data();
 	const auto id = message.vid().v;
 	addMessage(data, NewMessageType::Last);
 	applyDialogTopMessage(id);
-	owner().histories().dialogEntryApplied(this);
 }
 
 void History::clearLastMessage() {
-	applyDialogTopMessage(0);
-	owner().histories().dialogEntryApplied(this);
+	if (_lastServerMessage) {
+		if (lastMessage() == lastServerMessage()) {
+			_lastMessage = std::nullopt;
+		}
+		_lastServerMessage = std::nullopt;
+	}
+	setNotLoadedAtBottom();
 }
 
+#if 0 // mtp
 void History::dialogEntryApplied() {
 	if (!lastServerMessageKnown()) {
 		setLastServerMessage(nullptr);
@@ -3118,6 +3134,7 @@ void History::dialogEntryApplied() {
 		}
 	}
 }
+#endif
 
 void History::cacheTopPromotion(
 		bool promoted,
@@ -3170,20 +3187,17 @@ bool History::skipUnreadUpdate() const {
 	return clearUnreadOnClientSide();
 }
 
-void History::applyDialogFields(
 #if 0 // mtp
+void History::applyDialogFields(
 		Data::Folder *folder,
-#endif
 		int unreadCount,
 		MsgId maxInboxRead,
 		MsgId maxOutboxRead) {
-#if 0 // mtp
 	if (folder) {
 		setFolder(folder);
 	} else {
 		clearFolder();
 	}
-#endif
 	if (!skipUnreadUpdate()
 		&& maxInboxRead + 1 >= _inboxReadBefore.value_or(1)) {
 		setUnreadCount(unreadCount);
@@ -3191,6 +3205,7 @@ void History::applyDialogFields(
 	}
 	setOutboxReadTill(maxOutboxRead);
 }
+#endif
 
 void History::applyDialogTopMessage(MsgId topMessageId) {
 	if (topMessageId) {
