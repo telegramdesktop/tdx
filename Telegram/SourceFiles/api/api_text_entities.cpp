@@ -281,8 +281,10 @@ QVector<TLtextEntity> EntitiesToTdb(const EntitiesInText &entities) {
 			&& entity.type() != EntityType::StrikeOut
 			&& entity.type() != EntityType::Code // #TODO entities
 			&& entity.type() != EntityType::Pre
+			&& entity.type() != EntityType::Spoiler
 			&& entity.type() != EntityType::MentionName
-			&& entity.type() != EntityType::CustomUrl) {
+			&& entity.type() != EntityType::CustomUrl
+			&& entity.type() != EntityType::CustomEmoji) {
 			continue;
 		}
 
@@ -313,6 +315,7 @@ QVector<TLtextEntity> EntitiesToTdb(const EntitiesInText &entities) {
 				return entity.data().isEmpty()
 					? tl_textEntityTypePre()
 					: tl_textEntityTypePreCode(tl_string(entity.data()));
+			case EntityType::Spoiler: return tl_textEntityTypeSpoiler();
 			case EntityType::CustomEmoji:
 				return tl_textEntityTypeCustomEmoji(
 					tl_int64(entity.data().toULongLong()));
