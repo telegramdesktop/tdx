@@ -20,6 +20,12 @@ class TLDstickerSetInfo;
 class TLsticker;
 class TLtrendingStickerSets;
 class TLstickerType;
+class TLDupdateStickerSet;
+class TLDupdateInstalledStickerSets;
+class TLDupdateTrendingStickerSets;
+class TLDupdateRecentStickers;
+class TLDupdateFavoriteStickers;
+class TLDupdateSavedAnimations;
 } // namespace Tdb
 
 class HistoryItem;
@@ -236,6 +242,13 @@ public:
 	void setsReceived(const QVector<Tdb::TLstickerSetInfo> &data);
 	void masksReceived(const QVector<Tdb::TLstickerSetInfo> &data);
 	void emojiReceived(const QVector<Tdb::TLstickerSetInfo> &data);
+
+	void apply(const Tdb::TLDupdateStickerSet &data);
+	void apply(const Tdb::TLDupdateInstalledStickerSets &data);
+	void apply(const Tdb::TLDupdateTrendingStickerSets &data);
+	void apply(const Tdb::TLDupdateRecentStickers &data);
+	void apply(const Tdb::TLDupdateFavoriteStickers &data);
+	void apply(const Tdb::TLDupdateSavedAnimations &data);
 
 #if 0 // mtp
 	void setsReceived(const QVector<MTPStickerSet> &data, uint64 hash);

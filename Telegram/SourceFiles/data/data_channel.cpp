@@ -1334,8 +1334,6 @@ void ApplyChannelUpdate(
 
 	if (const auto photo = update.vphoto()) {
 		channel->setPhotoFull(*photo);
-	} else {
-		channel->clearPhoto();
 	}
 	if (const auto from = update.vupgraded_from_basic_group_id().v) {
 		channel->addFlags(ChannelDataFlag::Megagroup);

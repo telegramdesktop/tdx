@@ -707,8 +707,6 @@ void ApplyUserUpdate(
 		const TLDuserFullInfo &update) {
 	if (const auto photo = update.vphoto()) {
 		user->setPhotoFull(*photo);
-	} else {
-		user->clearPhoto();
 	}
 	//const auto settings = update.vsettings().match([&]( // todo
 	//	const MTPDpeerSettings &data) {
