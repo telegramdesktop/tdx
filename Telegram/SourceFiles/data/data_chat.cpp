@@ -657,8 +657,6 @@ void ApplyChatUpdate(
 	//chat->setFullFlags(update.vflags().v);
 	if (const auto photo = update.vphoto()) {
 		chat->setPhotoFull(*photo);
-	} else {
-		chat->clearPhoto();
 	}
 	//if (const auto invite = update.vinvite_link()) { // todo
 	//	chat->session().api().inviteLinks().setMyPermanent(chat, *invite);
