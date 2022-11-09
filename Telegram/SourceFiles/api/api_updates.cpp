@@ -3069,14 +3069,17 @@ void Updates::applyUpdate(const TLupdate &update) {
 			return;
 		}
 	}, [&](const TLDupdateStickerSet &data) {
+		session().data().stickers().apply(data);
 	}, [&](const TLDupdateInstalledStickerSets &data) {
+		session().data().stickers().apply(data);
 	}, [&](const TLDupdateTrendingStickerSets &data) {
-		session().data().stickers().featuredSetsReceived(data.vsticker_sets());
+		session().data().stickers().apply(data);
 	}, [&](const TLDupdateRecentStickers &data) {
+		session().data().stickers().apply(data);
 	}, [&](const TLDupdateFavoriteStickers &data) {
+		session().data().stickers().apply(data);
 	}, [&](const TLDupdateSavedAnimations &data) {
-		session().data().stickers().setLastSavedGifsUpdate(0);
-		session().api().updateStickers();
+		session().data().stickers().apply(data);
 	}, [&](const TLDupdateSavedNotificationSounds &data) {
 		session().api().ringtones().applyUpdate();
 	}, [&](const TLDupdateSelectedBackground &data) {

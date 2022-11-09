@@ -717,6 +717,81 @@ void Stickers::emojiReceived(const QVector<TLstickerSetInfo> &data) {
 	somethingReceived(data, StickersType::Emoji);
 }
 
+void Stickers::apply(const TLDupdateStickerSet &data) {
+	feedSetFull(data.vsticker_set());
+}
+
+void Stickers::apply(const TLDupdateInstalledStickerSets &data) {
+	// later todo optimize in case all sets are already known
+	const auto type = data.vsticker_type().match([&](
+			const TLDstickerTypeCustomEmoji &) {
+		//setLastEmojiUpdate(crl::now());
+		session().api().updateCustomEmoji();
+		return StickersType::Emoji;
+	}, [&](const TLDstickerTypeMask &) {
+		//setLastMasksUpdate(crl::now());
+		session().api().updateMasks();
+		return StickersType::Masks;
+	}, [&](const TLDstickerTypeRegular &) {
+		//setLastUpdate(crl::now());
+		session().api().updateStickers();
+		return StickersType::Stickers;
+	});
+	//somethingReceived(data.vsticker_set_ids().v, type);
+}
+
+void Stickers::apply(const TLDupdateTrendingStickerSets &data) {
+	const auto type = data.vsticker_type().match([&](
+			const TLDstickerTypeCustomEmoji &) {
+		setLastFeaturedEmojiUpdate(crl::now());
+		return StickersType::Emoji;
+	}, [&](const TLDstickerTypeMask &) {
+		return StickersType::Masks;
+	}, [&](const TLDstickerTypeRegular &) {
+		setLastEmojiUpdate(crl::now());
+		return StickersType::Stickers;
+	});
+	featuredReceived(data.vsticker_sets(), type);
+}
+
+void Stickers::apply(const TLDupdateRecentStickers &data) {
+	// later todo optimize in case all stickers are already known
+	//if (data.vis_attached().v) {
+	//	setLastRecentAttachedUpdate(crl::now());
+	//} else {
+	//	setLastRecentUpdate(crl::now());
+	//}
+	//specialSetReceived(
+	//	(data.vis_attached().v
+	//		? Data::Stickers::CloudRecentAttachedSetId
+	//		: Data::Stickers::CloudRecentSetId),
+	//	tr::lng_recent_stickers(tr::now),
+	//	data.vsticker_ids().v);
+	session().api().requestSpecialStickersForce(
+		false,
+		true,
+		data.vis_attached().v);
+}
+
+void Stickers::apply(const TLDupdateFavoriteStickers &data) {
+	// later todo optimize in case all stickers are already known
+	//setLastFavedUpdate(crl::now());
+	//specialSetReceived(
+	//	Data::Stickers::FavedSetId,
+	//	Lang::Hard::FavedSetTitle(),
+	//	data.vsticker_ids().v);
+	setLastFavedUpdate(0);
+	session().api().updateStickers();
+}
+
+void Stickers::apply(const TLDupdateSavedAnimations &data) {
+	// later todo optimize in case all gifs are already known
+	//setLastSavedGifsUpdate(crl::now());
+	//gifsReceived(data.vanimation_ids().v);
+	setLastSavedGifsUpdate(0);
+	session().api().updateSavedGifs();
+}
+
 #if 0 // mtp
 void Stickers::setsReceived(
 		const QVector<MTPStickerSet> &data,
@@ -971,6 +1046,9 @@ void Stickers::featuredEmojiSetsReceived(const TLtrendingStickerSets &data) {
 void Stickers::featuredReceived(
 		const TLtrendingStickerSets &data,
 		StickersType type) {
+	if (type == StickersType::Masks) {
+		return;
+	}
 	const auto isEmoji = (type == StickersType::Emoji);
 	auto &featuredOrder = isEmoji
 		? featuredEmojiSetsOrderRef()

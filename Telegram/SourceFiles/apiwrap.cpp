@@ -102,6 +102,7 @@ constexpr auto kSaveCloudDraftTimeout = 1000;
 constexpr auto kTopPromotionInterval = TimeId(60 * 60);
 constexpr auto kTopPromotionMinDelay = TimeId(10);
 #endif
+constexpr auto kStickersByEmojiCount = 100;
 constexpr auto kSmallDelayMs = 5;
 constexpr auto kReadFeaturedSetsTimeout = crl::time(1000);
 constexpr auto kFileLoaderQueueStopTimeout = crl::time(5000);
@@ -1376,7 +1377,7 @@ void ApiWrap::requestFullPeer(not_null<PeerData*> peer) {
 				_session->supportHelper().refreshInfo(user);
 			}
 			return sender().request(TLgetUserFullInfo(
-				tl_int53(user->id.value)
+				tl_int53(peerToUser(user->id).bare)
 			)).done([=](const TLDuserFullInfo &data) {
 				Data::ApplyUserUpdate(user, data);
 				finish();
@@ -1392,14 +1393,14 @@ void ApiWrap::requestFullPeer(not_null<PeerData*> peer) {
 			}).fail(failHandler).send();
 		} else if (const auto chat = peer->asChat()) {
 			return sender().request(TLgetBasicGroupFullInfo(
-				tl_int53(chat->id.value)
+				tl_int53(peerToChat(chat->id).bare)
 			)).done([=](const TLDbasicGroupFullInfo &data) {
 				Data::ApplyChatUpdate(chat, data);
 				finish();
 			}).fail(failHandler).send();
 		} else if (const auto channel = peer->asChannel()) {
 			return sender().request(TLgetSupergroupFullInfo(
-				tl_int53(channel->id.value)
+				tl_int53(peerToChannel(channel->id).bare)
 			)).done([=](const TLDsupergroupFullInfo &data) {
 				Data::ApplyChannelUpdate(channel, data);
 				finish();
@@ -1806,7 +1807,7 @@ void ApiWrap::saveStickerSets(
 			? _masksReorderRequestId
 			: _stickersReorderRequestId;
 	};
-#if 0 // todo
+#if 0 // mtp
 	for (auto requestId : base::take(setDisenableRequests)) {
 		request(requestId).cancel();
 	}
@@ -1814,12 +1815,31 @@ void ApiWrap::saveStickerSets(
 	request(base::take(_stickersClearRecentRequestId)).cancel();
 	request(base::take(_stickersClearRecentAttachedRequestId)).cancel();
 #endif
+	for (auto requestId : base::take(setDisenableRequests)) {
+		sender().request(requestId).cancel();
+	}
+	sender().request(base::take(reorderRequestId())).cancel();
+	sender().request(base::take(_stickersClearRecentRequestId)).cancel();
+	sender().request(
+		base::take(_stickersClearRecentAttachedRequestId)).cancel();
 
 	const auto stickersSaveOrder = [=] {
 		if (localOrder.size() < 2) {
 			return;
 		}
-#if 0 // todo
+		auto order = QVector<TLint53>();
+		order.reserve(localOrder.size());
+		for (const auto setId : std::as_const(localOrder)) {
+			order.push_back(tl_int53(setId));
+		}
+		reorderRequestId() = sender().request(TLreorderInstalledStickerSets(
+			((type == Data::StickersType::Emoji)
+				? tl_stickerTypeCustomEmoji()
+				: (type == Data::StickersType::Masks)
+				? tl_stickerTypeMask()
+				: tl_stickerTypeRegular()),
+			tl_vector<TLint53>(std::move(order))
+#if 0 // mtp
 		QVector<MTPlong> mtpOrder;
 		mtpOrder.reserve(localOrder.size());
 		for (const auto setId : std::as_const(localOrder)) {
@@ -1835,6 +1855,7 @@ void ApiWrap::saveStickerSets(
 		reorderRequestId() = request(MTPmessages_ReorderStickerSets(
 			MTP_flags(flags),
 			MTP_vector<MTPlong>(mtpOrder)
+#endif
 		)).done([=] {
 			reorderRequestId() = 0;
 		}).fail([=] {
@@ -1850,7 +1871,6 @@ void ApiWrap::saveStickerSets(
 				updateStickers();
 			}
 		}).send();
-#endif
 	};
 
 	const auto stickerSetDisenabled = [=](mtpRequestId requestId) {
@@ -1903,9 +1923,20 @@ void ApiWrap::saveStickerSets(
 				writeRecent = true;
 			}
 
-#if 0 // todo
 			const auto isAttached
 				= (removedSetId == Data::Stickers::CloudRecentAttachedSetId);
+			const auto clearRequestId = [=]() -> mtpRequestId & {
+				return isAttached
+					? _stickersClearRecentAttachedRequestId
+					: _stickersClearRecentRequestId;
+			};
+			const auto finish = [=] {
+				clearRequestId() = 0;
+			};
+			clearRequestId() = sender().request(TLclearRecentStickers(
+				tl_bool(isAttached)
+			)).done(finish).fail(finish).send();
+#if 0 // mtp
 			const auto flags = isAttached
 				? MTPmessages_ClearRecentStickers::Flag::f_attached
 				: MTPmessages_ClearRecentStickers::Flags(0);
@@ -1942,8 +1973,16 @@ void ApiWrap::saveStickerSets(
 				const auto emoji = !!(set->flags & Flag::Emoji);
 				const auto locked = (set->locked > 0);
 
-				const auto requestId = 0;
-#if 0 // todo
+				const auto requestId = sender().request(TLchangeStickerSet(
+					tl_int64(set->id),
+					tl_bool(false),
+					tl_bool(false)
+				)).done([=](const TLok &result, mtpRequestId requestId) {
+					stickerSetDisenabled(requestId);
+				}).fail([=](const Error &error, mtpRequestId requestId) {
+					stickerSetDisenabled(requestId);
+				}).send();
+#if 0 // mtp
 				const auto setId = set->mtpInput();
 
 				auto requestId = request(MTPmessages_UninstallStickerSet(
@@ -1996,8 +2035,16 @@ void ApiWrap::saveStickerSets(
 		const auto set = it->second.get();
 		const auto archived = !!(set->flags & Flag::Archived);
 		if (archived && !localRemoved.contains(set->id)) {
-			const auto requestId = 0;
-#if 0 // todo
+			const auto requestId = sender().request(TLchangeStickerSet(
+				tl_int64(set->id),
+				tl_bool(true),
+				tl_bool(false)
+			)).done([=](const TLok &result, mtpRequestId requestId) {
+				stickerSetDisenabled(requestId);
+			}).fail([=](const Error &error, mtpRequestId requestId) {
+				stickerSetDisenabled(requestId);
+			}).send();
+#if 0 // mtp
 			const auto mtpSetId = set->mtpInput();
 
 			const auto requestId = request(MTPmessages_InstallStickerSet(
@@ -2075,7 +2122,7 @@ void ApiWrap::saveStickerSets(
 	if (setDisenableRequests.empty()) {
 		stickersSaveOrder();
 	} else {
-#if 0 // todo
+#if 0 // mtp
 		requestSendDelayed();
 #endif
 	}
@@ -3243,7 +3290,26 @@ std::vector<not_null<DocumentData*>> *ApiWrap::stickersByEmoji(
 			&& (received + kStickersByEmojiInvalidateTimeout) <= now;
 	}();
 	if (sendRequest) {
-#if 0 // todo
+		sender().request(TLsearchStickers(
+			tl_stickerTypeRegular(),
+			tl_string(key),
+			tl_int32(kStickersByEmojiCount)
+		)).done([=](const TLDstickers &data) {
+			auto &entry = _stickersByEmoji[key];
+			entry.list.clear();
+			entry.list.reserve(data.vstickers().v.size());
+			for (const auto &sticker : data.vstickers().v) {
+				const auto document = _session->data().processDocument(
+					sticker);
+				if (document->sticker()) {
+					entry.list.push_back(document);
+				}
+			}
+			entry.received = crl::now();
+			_session->data().stickers().notifyUpdated(
+				Data::StickersType::Stickers);
+		}).send();
+#if 0 // mtp
 		const auto hash = (it != _stickersByEmoji.end())
 			? it->second.hash
 			: uint64(0);
@@ -3341,7 +3407,7 @@ void ApiWrap::requestMasks(TimeId now) {
 	_masksUpdateRequest = sender().request(TLgetInstalledStickerSets(
 		tl_stickerTypeMask()
 	)).done([=](const TLstickerSets &result) {
-		_session->data().stickers().setLastUpdate(crl::now());
+		_session->data().stickers().setLastMasksUpdate(crl::now());
 		_masksUpdateRequest = 0;
 		_session->data().stickers().masksReceived(result.data().vsets().v);
 	}).send();
@@ -3371,7 +3437,7 @@ void ApiWrap::requestCustomEmoji(TimeId now) {
 		done(MTP_messages_allStickersNotModified());
 	}).send();
 #endif
-	_masksUpdateRequest = sender().request(TLgetInstalledStickerSets(
+	_customEmojiUpdateRequest = sender().request(TLgetInstalledStickerSets(
 		tl_stickerTypeCustomEmoji()
 	)).done([=](const TLstickerSets &result) {
 		_session->data().stickers().setLastEmojiUpdate(crl::now());
