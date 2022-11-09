@@ -232,19 +232,17 @@ void Premium::reloadCloudSet() {
 			_cloudSetHash = data.vhash().v;
 #endif
 	_cloudSetRequestId = _api.request(TLgetPremiumStickers(
-	)).done([=](const TLstickers &result) {
+	)).done([=](const TLDstickers &data) {
 		_cloudSetRequestId = 0;
-		result.match([&](const TLDstickers &data) {
-			const auto owner = &_session->data();
-			_cloudSet.clear();
-			for (const auto &sticker : data.vstickers().v) {
-				const auto document = owner->processDocument(sticker);
-				if (document->isPremiumSticker()) {
-					_cloudSet.push_back(document);
-				}
+		const auto owner = &_session->data();
+		_cloudSet.clear();
+		for (const auto &sticker : data.vstickers().v) {
+			const auto document = owner->processDocument(sticker);
+			if (document->isPremiumSticker()) {
+				_cloudSet.push_back(document);
 			}
-			_cloudSetUpdated.fire({});
-		});
+		}
+		_cloudSetUpdated.fire({});
 	}).fail([=] {
 		_cloudSetRequestId = 0;
 	}).send();
