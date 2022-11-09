@@ -301,17 +301,20 @@ public:
 #endif
 
 	void applyPosition(const Tdb::TLDchatPosition &data);
+	void applyUnreadInfo(int unreadCount,
+		MsgId maxInboxRead,
+		MsgId maxOutboxRead);
 	void applyLastMessage(const Tdb::TLmessage &data);
 	void clearLastMessage();
 
-	void applyDialogFields(
 #if 0 // mtp
+	void applyDialogFields(
 		Data::Folder *folder,
-#endif
 		int unreadCount,
 		MsgId maxInboxRead,
 		MsgId maxOutboxRead);
 	void dialogEntryApplied();
+#endif
 
 	void cacheTopPromotion(
 		bool promoted,
