@@ -2398,6 +2398,17 @@ void ApiWrap::saveDraftToCloudDelayed(not_null<Data::Thread*> thread) {
 	}
 }
 
+void ApiWrap::saveDraftToCloudNow(not_null<History*> history) {
+	_draftsSaveRequestIds[history] = 0;
+	_draftsSaveTimer.cancel();
+	saveDraftsToCloud();
+}
+
+void ApiWrap::manualClearCloudDraft(not_null<History*> history) {
+	history->clearCloudDraft();
+	saveDraftToCloudNow(history);
+}
+
 void ApiWrap::updatePrivacyLastSeens() {
 	const auto now = base::unixtime::now();
 	_session->data().enumerateUsers([&](UserData *user) {
@@ -2705,14 +2716,6 @@ void ApiWrap::saveDraftsToCloud() {
 					tl_bool(true)));
 		}();
 
-		const auto finishDraft = [=] {
-			sender().request(TLgetOption(
-				tl_string("unix_time")
-			)).done([=](const TLoptionValue &value) {
-				history->finishSavingCloudDraft(OptionValue<int64>(value));
-			}).send();
-		};
-
 		history->startSavingCloudDraft(topicRootId);
 
 		cloudDraft->saveRequestId = sender().request(TLsetChatDraftMessage(
@@ -2720,7 +2723,7 @@ void ApiWrap::saveDraftsToCloud() {
 			tl_int53(0), // Thread. // todo topics
 			std::move(tlDraft)
 		)).done([=](const TLok &, Tdb::RequestId requestId) {
-			finishDraft();
+			history->finishSavingCloudDraftNow();
 
 			if (const auto cloudDraft = history->cloudDraft()) {
 				if (cloudDraft->saveRequestId == requestId) {
@@ -2735,7 +2738,7 @@ void ApiWrap::saveDraftsToCloud() {
 				checkQuitPreventFinished();
 			}
 		}).fail([=](const Tdb::Error &error, Tdb::RequestId requestId) {
-			finishDraft();
+			history->finishSavingCloudDraftNow();
 
 			if (const auto cloudDraft = history->cloudDraft()) {
 				if (cloudDraft->saveRequestId == requestId) {
@@ -4653,11 +4656,7 @@ void ApiWrap::sendInlineResult(
 		tl_string(data->getId()),
 		tl_bool(action.options.hideViaBot)
 	)).done([=](const TLmessage &result) {
-		//if (clearCloudDraft) {
-		//	// todo drafts - unnecessary?..
-		//	history->finishSavingCloudDraft(
-		//		UnixtimeFromMsgId(response.outerMsgId));
-		//}
+		history->finishSavingCloudDraftNow();
 		_session->data().processMessage(result, NewMessageType::Unread);
 	}).fail([=](const Error &error) {
 		const auto code = error.code;
@@ -4666,12 +4665,8 @@ void ApiWrap::sendInlineResult(
 		//} else {
 		//	sendMessageFail(error, peer, randomId, newId);
 		//}
-		//if (clearCloudDraft) {
-		//	// todo drafts - unnecessary?..
-		//	history->finishSavingCloudDraft(
-		//		UnixtimeFromMsgId(response.outerMsgId));
-		//}
 	}).send();
+	manualClearCloudDraft(history);
 #if 0 // mtp
 	const auto newId = FullMsgId(
 		peer->id,
