@@ -3075,11 +3075,13 @@ void InnerWidget::searchReceived(
 	refresh();
 }
 
-#if 0 // mtp
 void InnerWidget::peerSearchReceived(
 		const QString &query,
+		const std::vector<not_null<PeerData*>> &result) {
+#if 0 // mtp
 		const QVector<MTPPeer> &my,
 		const QVector<MTPPeer> &result) {
+#endif
 	if (_state != WidgetState::Filtered) {
 		return;
 	}
@@ -3087,6 +3089,7 @@ void InnerWidget::peerSearchReceived(
 	_peerSearchQuery = query.toLower().trimmed();
 	_peerSearchResults.clear();
 	_peerSearchResults.reserve(result.size());
+#if 0 // mtp
 	for	(const auto &mtpPeer : my) {
 		if (const auto peer = session().data().peerLoaded(peerFromMTP(mtpPeer))) {
 			appendToFiltered(peer->owner().history(peer));
@@ -3111,9 +3114,45 @@ void InnerWidget::peerSearchReceived(
 				).arg(peerFromMTP(mtpPeer).value));
 		}
 	}
+#endif
+	for (const auto &peer : result) {
+		if (const auto history = peer->owner().historyLoaded(peer)) {
+			if (history->inChatList()) {
+				continue; // skip existing chats
+			}
+		}
+		_peerSearchResults.push_back(std::make_unique<PeerSearchResult>(
+			peer));
+	}
 	refresh();
 }
-#endif
+
+void InnerWidget::cloudChatsReceived(
+		const QString &query,
+		const std::vector<not_null<History*>> &result) {
+	if (_state != WidgetState::Filtered) {
+		return;
+	}
+	const auto alreadyAdded = [&](not_null<History*> history) {
+		for (const auto &result : _filterResults) {
+			if (result.row->history() == history.get()) {
+				return true;
+			}
+		}
+		return false;
+	};
+	for (const auto &history : result) {
+		if (alreadyAdded(history)) {
+			continue;
+		}
+		auto row = std::make_unique<Row>(history, _filterResults.size());
+		const auto [i, ok] = _filterResultsGlobal.emplace(
+			history->peer,
+			std::move(row));
+		_filterResults.emplace_back(i->second.get());
+	}
+	refresh();
+}
 
 Data::Folder *InnerWidget::shownFolder() const {
 	return _openedFolder;

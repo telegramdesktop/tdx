@@ -114,6 +114,12 @@ public:
 		const QVector<MTPPeer> &my,
 		const QVector<MTPPeer> &result);
 #endif
+	void peerSearchReceived(
+		const QString &query,
+		const std::vector<not_null<PeerData*>> &result);
+	void cloudChatsReceived(
+		const QString &query,
+		const std::vector<not_null<History*>> &result);
 
 	[[nodiscard]] FilterId filterId() const;
 
