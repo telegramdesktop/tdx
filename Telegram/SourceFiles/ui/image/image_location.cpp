@@ -862,7 +862,6 @@ QByteArray DownloadLocation::serialize() const {
 	}, [&](const InMemoryLocation &data) {
 		stream << quint8(NonStorageLocationType::Memory) << data.bytes;
 	}, [&](const TdbFileLocation &data) {
-		// todo file.id is not persistent across relaunches.
 		stream << quint8(NonStorageLocationType::Tdb);
 	});
 	buffer.close();
@@ -967,7 +966,6 @@ std::optional<DownloadLocation> DownloadLocation::FromSerialized(
 	} break;
 
 	case NonStorageLocationType::Tdb: {
-		// todo file.id is not persistent across relaunches.
 		return (stream.status() == QDataStream::Ok)
 			? std::make_optional(DownloadLocation())
 			: std::nullopt;

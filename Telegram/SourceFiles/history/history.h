@@ -301,6 +301,7 @@ public:
 #endif
 
 	void applyPosition(const Tdb::TLDchatPosition &data);
+	void finishSavingCloudDraftNow();
 	void applyUnreadInfo(int unreadCount,
 		MsgId maxInboxRead,
 		MsgId maxOutboxRead);
