@@ -87,6 +87,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h"
 #include "base/qt/qt_common_adapters.h"
 
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
+
 #include <QtCore/QMimeData>
 #include <QtGui/QTextBlock>
 #include <QtWidgets/QScrollBar>
@@ -94,6 +97,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Dialogs {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kSearchPerPage = 50;
 constexpr auto kStoriesExpandDuration = crl::time(200);
@@ -1201,11 +1206,12 @@ void Widget::fullSearchRefreshOn(rpl::producer<> events) {
 		_searchTimer.cancel();
 		_searchCache.clear();
 		_singleMessageSearch.clear();
-#if 0 // todo
+#if 0 // mtp
 		for (const auto &[requestId, query] : base::take(_searchQueries)) {
 			session().api().request(requestId).cancel();
 		}
 #endif
+		clearSearchCache();
 		_searchQuery = QString();
 		_scroll->scrollToY(0);
 		cancelSearchRequest();
@@ -2122,8 +2128,8 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 		_peerSearchQuery = QString();
 		peerSearchApplyEmpty(0);
 		_api.request(base::take(_topicSearchRequest)).cancel();
+		cloudChatsApplyEmpty();
 		return true;
-#if 0 // todo
 	} else if (inCache) {
 		const auto success = _singleMessageSearch.lookup(query, [=] {
 			searchRequested(delay);
@@ -2137,7 +2143,9 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 			_searchQueryFrom = fromPeer;
 			_searchQueryTags = inTags;
 			_searchQueryTab = tab;
+#if 0 // mtp
 			_searchNextRate = 0;
+#endif
 			_searchFull = _searchFullMigrated = false;
 			cancelSearchRequest();
 			searchReceived(fromStartType, i->second, 0);
@@ -2151,11 +2159,33 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 		_searchQueryFrom = fromPeer;
 		_searchQueryTags = inTags;
 		_searchQueryTab = tab;
+#if 0 // mtp
 		_searchNextRate = 0;
+#endif
 		_searchFull = _searchFullMigrated = false;
 		cancelSearchRequest();
 		if (inPeer) {
 			const auto topic = searchInTopic();
+			const auto type = SearchRequestType::PeerFromStart;
+			_searchRequest = _api.request(TLsearchChatMessages(
+				peerToTdbChat(peer->id), // todo topics
+				tl_string(q),
+				(_searchQueryFrom
+					? peerToSender(_searchQueryFrom->id)
+					: std::optional<TLmessageSender>()),
+				tl_int53(0), // from_message_id
+				tl_int32(0), // offset
+				tl_int32(SearchPerPage),
+				std::nullopt, // filter
+				tl_int53(0) // message_thread_id
+			)).done([=](const TLmessages &result) {
+				_searchRequest = 0;
+				searchReceived(type, result);
+			}).fail([=] {
+				_searchRequest = 0;
+				_searchFull = true;
+			}).send();
+#if 0 // mtp
 			auto &histories = session().data().histories();
 			const auto type = Data::Histories::RequestType::History;
 			const auto history = session().data().history(inPeer);
@@ -2206,6 +2236,7 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 				_searchQueries.emplace(_searchRequest, _searchQuery);
 				return _searchRequest;
 			});
+#endif
 		} else if (_searchState.tab == ChatSearchTab::PublicPosts) {
 			const auto type = SearchRequestType::FromStart;
 			_searchRequest = session().api().request(MTPchannels_SearchPosts(
@@ -2222,6 +2253,26 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 			_searchQueries.emplace(_searchRequest, _searchQuery);
 		} else {
 			const auto type = SearchRequestType::FromStart;
+			_searchRequest = _api.request(TLsearchMessages(
+				(session().settings().skipArchiveInSearch()
+					? tl_chatListMain()
+					: std::optional<TLchatList>()),
+				tl_string(_searchQuery),
+				tl_int32(0), // offset_date
+				tl_int53(0), // offset_chat_id
+				tl_int53(0), // offset_message_id
+				tl_int32(SearchPerPage),
+				std::nullopt,
+				tl_int32(0), // min_date
+				tl_int32(0)
+			)).done([=](const TLmessages &result) {
+				_searchRequest = 0;
+				searchReceived(type, result);
+			}).fail([=] {
+				_searchRequest = 0;
+				_searchFull = true;
+			}).send();
+#if 0 // mtp
 			const auto flags = session().settings().skipArchiveInSearch()
 				? MTPmessages_SearchGlobal::Flag::f_folder_id
 				: MTPmessages_SearchGlobal::Flag(0);
@@ -2243,6 +2294,7 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 				searchFailed(type, error, _searchRequest);
 			}).send();
 			_searchQueries.emplace(_searchRequest, _searchQuery);
+#endif
 		}
 		_inner->searchRequested(true);
 	} else {
@@ -2261,6 +2313,12 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 		} else if (_peerSearchQuery != peerQuery) {
 			_peerSearchQuery = peerQuery;
 			_peerSearchFull = false;
+			_peerSearchRequest = _api.request(TLsearchPublicChats(
+				tl_string(_peerSearchQuery)
+			)).done([=](const TLchats &result) {
+				peerSearchReceived(query, result);
+			}).send();
+#if 0 // mtp
 			_peerSearchRequest = _api.request(MTPcontacts_Search(
 				MTP_string(_peerSearchQuery),
 				MTP_int(SearchPeopleLimit)
@@ -2269,12 +2327,33 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 			}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
 				peerSearchFailed(error, requestId);
 			}).send();
+#endif
 			_peerSearchQueries.emplace(_peerSearchRequest, _peerSearchQuery);
+		}
+		if (searchCache) {
+			auto i = _cloudChatsCache.find(query);
+			if (i != _cloudChatsCache.end()) {
+				_cloudChatsQuery = query;
+				cloudChatsReceived(i->second);
+				result = true;
+			}
+		} else if (_cloudChatsQuery != query) {
+			_cloudChatsQuery = query;
+			if (!_cloudChatsQueries.contains(query)) {
+				const auto requestId = _api.request(TLsearchChatsOnServer(
+					tl_string(_cloudChatsQuery),
+					tl_int32(SearchPerPage)
+				)).done([=](const TLchats &result) {
+					cloudChatsReceived(query, result);
+				}).send();
+				_cloudChatsQueries.emplace(query, requestId);
+			}
 		}
 	} else {
 		_api.request(base::take(_peerSearchRequest)).cancel();
 		_peerSearchQuery = peerQuery;
 		peerSearchApplyEmpty(0);
+		cloudChatsApplyEmpty();
 	}
 	if (searchForTopicsRequired(peerQuery)) {
 		if (inCache) {
@@ -2290,7 +2369,6 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 		_api.request(base::take(_topicSearchRequest)).cancel();
 		_topicSearchQuery = peerQuery;
 		_topicSearchFull = true;
-#endif
 	}
 	return result;
 }
@@ -2376,9 +2454,27 @@ void Widget::searchMore() {
 		|| _searchInHistoryRequest
 		|| _searchTimer.isActive()) {
 		return;
-#if 0 // todo
 	} else if (!_searchFull) {
 		if (const auto peer = searchInPeer()) {
+			_searchRequest = _api.request(TLsearchChatMessages(
+				peerToTdbChat(peer->id),
+				tl_string(_searchQuery),
+				(_searchQueryFrom
+					? peerToSender(_searchQueryFrom->id)
+					: std::optional<TLmessageSender>()),
+				tl_int53(_lastSearchId.bare),
+				tl_int32(0), // offset
+				tl_int32(kSearchPerPage),
+				std::nullopt, // filter
+				tl_int53(0) // message_thread_id
+			)).done([=](const TLmessages &result) {
+				_searchRequest = 0;
+				searchReceived(SearchRequestType::PeerFromOffset, result);
+			}).fail([=] {
+				_searchRequest = 0;
+				_searchFull = true;
+			}).send();
+#if 0 // mtp
 			auto &histories = session().data().histories();
 			const auto topic = searchInTopic();
 			const auto type = Data::Histories::RequestType::History;
@@ -2434,7 +2530,26 @@ void Widget::searchMore() {
 				}
 				return _searchRequest;
 			});
+#endif
 		} else {
+			const auto requestId = _api.request(TLsearchMessages(
+				(session().settings().skipArchiveInSearch()
+					? tl_chatListMain()
+					: std::optional<TLchatList>()),
+				tl_string(_searchQuery),
+				tl_int32(0), // offset_date
+				tl_int53(0), // offset_chat_id
+				tl_int53(0), // offset_message_id
+				tl_int32(kSearchPerPage),
+				std::nullopt,
+				tl_int32(0), // min_date
+				tl_int32(0)
+			)).done([=](const TLmessages &result) {
+				searchReceived(SearchRequestType::FromOffset, result);
+			}).fail([=] {
+				_searchFull = true;
+			}).send();
+#if 0 // mtp
 			const auto type = _lastSearchId
 				? SearchRequestType::FromOffset
 				: SearchRequestType::FromStart;
@@ -2463,8 +2578,32 @@ void Widget::searchMore() {
 			if (!_lastSearchId) {
 				_searchQueries.emplace(_searchRequest, _searchQuery);
 			}
+#endif
 		}
 	} else if (_searchInMigrated && !_searchFullMigrated) {
+		auto offsetMigratedId = _lastSearchMigratedId;
+		const auto type = offsetMigratedId
+			? SearchRequestType::MigratedFromOffset
+			: SearchRequestType::MigratedFromStart;
+		_searchRequest = _api.request(TLsearchChatMessages(
+			peerToTdbChat(_searchInMigrated->peer->id),
+			tl_string(_searchQuery),
+			(_searchQueryFrom
+				? peerToSender(_searchQueryFrom->id)
+				: std::optional<TLmessageSender>()),
+			tl_int53(offsetMigratedId.bare),
+			tl_int32(0), // offset
+			tl_int32(kSearchPerPage),
+			std::nullopt, // filter
+			tl_int53(0) // message_thread_id
+		)).done([=](const TLmessages &result) {
+			_searchRequest = 0;
+			searchReceived(type, result);
+		}).fail([=] {
+			_searchRequest = 0;
+			_searchFullMigrated = true;
+		}).send();
+#if 0 // mtp
 		auto &histories = session().data().histories();
 		const auto type = Data::Histories::RequestType::History;
 		const auto history = _searchInMigrated;
@@ -2677,29 +2816,41 @@ void Widget::peerSearchReceived(
 		listScrollUpdated();
 	}
 }
+#endif
 
 void Widget::searchApplyEmpty(SearchRequestType type, mtpRequestId id) {
 	_searchFull = _searchFullMigrated = true;
 	searchReceived(
 		type,
+#if 0 // mtp
 		MTP_messages_messages(
 			MTP_vector<MTPMessage>(),
 			MTP_vector<MTPChat>(),
 			MTP_vector<MTPUser>()),
+#endif
+		{},
 		id);
 }
 
 void Widget::peerSearchApplyEmpty(mtpRequestId id) {
 	_peerSearchFull = true;
 	peerSearchReceived(
+#if 0 // mtp
 		MTP_contacts_found(
 			MTP_vector<MTPPeer>(0),
 			MTP_vector<MTPPeer>(0),
 			MTP_vector<MTPChat>(0),
 			MTP_vector<MTPUser>(0)),
+#endif
+		{},
 		id);
 }
 
+void Widget::cloudChatsApplyEmpty() {
+	cloudChatsReceived({});
+}
+
+#if 0 // mtp
 void Widget::searchFailed(
 		SearchRequestType type,
 		const MTP::Error &error,
@@ -2723,6 +2874,113 @@ void Widget::peerSearchFailed(const MTP::Error &error, mtpRequestId id) {
 	}
 }
 #endif
+
+void Widget::searchReceived(
+		SearchRequestType type,
+		const Tdb::TLmessages &result) {
+	const auto &data = result.data();
+	auto slice = SearchSlice{
+		.fullCount = data.vtotal_count().v,
+	};
+	for (const auto &message : data.vmessages().v) {
+		if (message) {
+			slice.messages.push_back(
+				session().data().processMessage(*message, NewMessageType::Existing));
+		}
+	}
+	const auto state = _inner->state();
+	if (state == WidgetState::Filtered) {
+		if (type == SearchRequestType::FromStart || type == SearchRequestType::PeerFromStart) {
+			auto &entry = _searchCache[_searchQuery];
+			entry = std::move(slice);
+			searchReceived(type, entry, 0);
+			return;
+		}
+	}
+	searchReceived(type, slice, 0);
+}
+
+void Widget::searchReceived(
+		SearchRequestType type,
+		const SearchSlice &result,
+		int) {
+	if (result.messages.empty()) {
+		if (type == SearchRequestType::MigratedFromStart
+			|| type == SearchRequestType::MigratedFromOffset) {
+			_searchFullMigrated = true;
+		} else {
+			_searchFull = true;
+		}
+	}
+	const auto inject = (type == SearchRequestType::FromStart
+		|| type == SearchRequestType::PeerFromStart)
+		? *_singleMessageSearch.lookup(_searchQuery)
+		: nullptr;
+	_inner->searchReceived(result.messages, inject, type, result.fullCount);
+	listScrollUpdated();
+	update();
+}
+
+void Widget::peerSearchReceived(
+		const QString &query,
+		const TLchats &result) {
+	auto &owner = session().data();
+	auto parsed = std::vector<not_null<PeerData*>>();
+	for (const auto &id : result.data().vchat_ids().v) {
+		const auto peerId = peerFromTdbChat(id);
+		if (const auto peer = owner.peerLoaded(peerId)) {
+			parsed.push_back(peer);
+		}
+	}
+	const auto state = _inner->state();
+	if (state == WidgetState::Filtered) {
+		auto &entry = _peerSearchCache[query];
+		entry = std::move(parsed);
+		if (_peerSearchQuery == query) {
+			peerSearchReceived(entry, 0);
+		}
+	} else if (_peerSearchQuery == query) {
+		peerSearchReceived(parsed, 0);
+	}
+}
+
+void Widget::peerSearchReceived(
+		const std::vector<not_null<PeerData*>> &result,
+		int) {
+	_inner->peerSearchReceived(_peerSearchQuery, result);
+	listScrollUpdated();
+	update();
+}
+
+void Widget::cloudChatsReceived(
+		const QString &query,
+		const TLchats &result) {
+	auto &owner = session().data();
+	auto parsed = std::vector<not_null<History*>>();
+	for (const auto &id : result.data().vchat_ids().v) {
+		const auto peerId = peerFromTdbChat(id);
+		if (const auto peer = owner.peerLoaded(peerId)) {
+			parsed.push_back(owner.history(peer));
+		}
+	}
+	const auto state = _inner->state();
+	if (state == WidgetState::Filtered) {
+		auto &entry = _cloudChatsCache[query];
+		entry = std::move(parsed);
+		if (_cloudChatsQuery == query) {
+			cloudChatsReceived(entry);
+		}
+	} else if (_cloudChatsQuery == query) {
+		cloudChatsReceived(parsed);
+	}
+}
+
+void Widget::cloudChatsReceived(
+		const std::vector<not_null<History*>> &result) {
+	_inner->cloudChatsReceived(_cloudChatsQuery, result);
+	listScrollUpdated();
+	update();
+}
 
 void Widget::dragEnterEvent(QDragEnterEvent *e) {
 	using namespace Storage;
@@ -3132,6 +3390,12 @@ bool Widget::applySearchState(SearchState state) {
 			_api.request(requestId).cancel();
 		}
 		_peerSearchQuery = QString();
+
+		_cloudChatsCache.clear();
+		for (const auto &[query, requestId] : base::take(_cloudChatsQueries)) {
+			_api.request(requestId).cancel();
+		}
+		_cloudChatsQuery = QString();
 	}
 
 	if (_searchState.query != currentSearchQuery()) {
@@ -3169,7 +3433,7 @@ bool Widget::applySearchState(SearchState state) {
 void Widget::clearSearchCache() {
 	_searchCache.clear();
 	_singleMessageSearch.clear();
-#if 0 // todo
+#if 0 // mtp
 	for (const auto &[requestId, query] : base::take(_searchQueries)) {
 		session().api().request(requestId).cancel();
 	}
@@ -3701,7 +3965,8 @@ void Widget::scrollToEntry(const RowDescriptor &entry) {
 }
 
 void Widget::cancelSearchRequest() {
-#if 0 // todo
+	_api.request(base::take(_searchRequest)).cancel();
+#if 0 // mtp
 	session().api().request(base::take(_searchRequest)).cancel();
 	session().data().histories().cancelRequest(
 		base::take(_searchInHistoryRequest));
