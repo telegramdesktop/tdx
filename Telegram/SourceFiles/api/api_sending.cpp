@@ -404,12 +404,6 @@ void SendPreparedAlbumIfReady(
 	const auto history = action.history;
 	const auto peer = history->peer;
 	const auto silentPost = ShouldSendSilent(peer, action.options);
-	const auto clearCloudDraft = action.clearDraft;
-	//if (clearCloudDraft) {
-	//	// todo drafts - unnecessary?..
-	//	history->clearCloudDraft();
-	//	history->startSavingCloudDraft();
-	//}
 	const auto session = &peer->session();
 	session->sender().request(TLsendMessageAlbum(
 		peerToTdbChat(peer->id),
@@ -423,11 +417,6 @@ void SendPreparedAlbumIfReady(
 		tl_vector(std::move(contents)),
 		tl_bool(false) // only_preview
 	)).done([=](const TLmessages &result) {
-		//if (clearCloudDraft) {
-		//	// todo drafts - unnecessary?..
-		//	history->finishSavingCloudDraft(
-		//		UnixtimeFromMsgId(response.outerMsgId));
-		//}
 		const auto type = NewMessageType::Unread;
 		for (const auto &message : result.data().vmessages().v) {
 			if (message) {
@@ -440,11 +429,6 @@ void SendPreparedAlbumIfReady(
 		//	lastMessage->destroy();
 		//} else {
 		//	sendMessageFail(error, peer, randomId, newId);
-		//}
-		//if (clearCloudDraft) {
-		//	// todo drafts - unnecessary?..
-		//	history->finishSavingCloudDraft(
-		//		UnixtimeFromMsgId(response.outerMsgId));
 		//}
 	}).send();
 }
@@ -549,11 +533,6 @@ bool SendDice(MessageToSend &message) {
 		MessageSendOptions(peer, action),
 		tl_inputMessageDice(tl_string(emoji), tl_bool(action.clearDraft))
 	)).done([=](const TLmessage &result) {
-		//if (clearCloudDraft) {
-		//	// todo drafts - unnecessary?..
-		//	history->finishSavingCloudDraft(
-		//		UnixtimeFromMsgId(response.outerMsgId));
-		//}
 		session->data().processMessage(result, NewMessageType::Unread);
 	}).fail([=](const Error &error) {
 		const auto code = error.code;
@@ -561,11 +540,6 @@ bool SendDice(MessageToSend &message) {
 		//	lastMessage->destroy();
 		//} else {
 		//	sendMessageFail(error, peer, randomId, newId);
-		//}
-		//if (clearCloudDraft) {
-		//	// todo drafts - unnecessary?..
-		//	history->finishSavingCloudDraft(
-		//		UnixtimeFromMsgId(response.outerMsgId));
 		//}
 	}).send();
 
@@ -865,12 +839,12 @@ void SendPreparedMessage(
 		TLinputMessageContent content) {
 	const auto history = action.history;
 	const auto peer = history->peer;
-	const auto clearCloudDraft = action.clearDraft;
-	//if (clearCloudDraft) {
-	//	// todo drafts - unnecessary?..
-	//	history->clearCloudDraft();
-	//	history->startSavingCloudDraft();
-	//}
+	const auto clearCloudDraft = (content.type() == id_inputMessageText)
+		&& content.c_inputMessageText().vclear_draft().v;
+	if (clearCloudDraft) {
+		history->clearCloudDraft();
+		history->startSavingCloudDraft();
+	}
 	const auto session = &peer->session();
 	session->sender().request(TLsendMessage(
 		peerToTdbChat(peer->id),
@@ -879,11 +853,9 @@ void SendPreparedMessage(
 		MessageSendOptions(peer, action),
 		std::move(content)
 	)).done([=](const TLmessage &result) {
-		//if (clearCloudDraft) {
-		//	// todo drafts - unnecessary?..
-		//	history->finishSavingCloudDraft(
-		//		UnixtimeFromMsgId(response.outerMsgId));
-		//}
+		if (clearCloudDraft) {
+			history->finishSavingCloudDraftNow();
+		}
 		session->data().processMessage(result, NewMessageType::Unread);
 	}).fail([=](const Error &error) {
 		const auto code = error.code;
@@ -892,11 +864,9 @@ void SendPreparedMessage(
 		//} else {
 		//	sendMessageFail(error, peer, randomId, newId);
 		//}
-		//if (clearCloudDraft) {
-		//	// todo drafts - unnecessary?..
-		//	history->finishSavingCloudDraft(
-		//		UnixtimeFromMsgId(response.outerMsgId));
-		//}
+		if (clearCloudDraft) {
+			history->finishSavingCloudDraftNow();
+		}
 	}).send();
 }
 
