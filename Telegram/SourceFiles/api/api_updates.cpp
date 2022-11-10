@@ -2896,18 +2896,12 @@ void Updates::applyUpdate(const TLupdate &update) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
 		if (const auto history = owner.historyLoaded(peerId)) {
 			history->outboxRead(data.vlast_read_outbox_message_id().v);
-			//if (!requestingDifference()) { // todo
-			//	if (const auto user = history->peer->asUser()) {
-			//		user->madeAction(base::unixtime::now());
-			//	}
-			//}
 		}
 	}, [&](const TLDupdateChatUnreadMentionCount &data) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
 		if (const auto history = owner.historyLoaded(peerId)) {
 			history->unreadMentions().setCount(
 				data.vunread_mention_count().v);
-
 		}
 	}, [&](const TLDupdateChatUnreadReactionCount &data) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());

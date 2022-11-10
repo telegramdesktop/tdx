@@ -69,6 +69,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 
 #include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_option.h"
 
 namespace {
 
@@ -3053,6 +3055,16 @@ void History::applyPosition(const TLDchatPosition &data) {
 			updateChatListSortPosition(filterId, order, pinned);
 		}
 	});
+}
+
+void History::finishSavingCloudDraftNow() {
+	session().sender().request(TLgetOption(
+		tl_string("unix_time")
+	)).done([=](const TLoptionValue &value) {
+		finishSavingCloudDraft(TimeId(OptionValue<int64>(value)));
+	}).fail([=] {
+		finishSavingCloudDraft(TimeId());
+	}).send();
 }
 
 void History::applyUnreadInfo(
