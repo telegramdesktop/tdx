@@ -17,6 +17,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "tdb/tdb_sender.h"
 
+namespace Tdb {
+class TLchats;
+class TLmessages;
+} // namespace Tdb
+
 namespace MTP {
 class Error;
 } // namespace MTP
@@ -166,6 +171,27 @@ private:
 		const MTPcontacts_Found &result,
 		mtpRequestId requestId);
 #endif
+	struct SearchSlice {
+		std::vector<not_null<HistoryItem*>> messages;
+		int fullCount = 0;
+	};
+	void searchReceived(
+		SearchRequestType type,
+		const Tdb::TLmessages &result);
+	void searchReceived(
+		SearchRequestType type,
+		const SearchSlice &result,
+		int);
+	void peerSearchReceived(
+		const QString &query,
+		const Tdb::TLchats &result);
+	void peerSearchReceived(
+		const std::vector<not_null<PeerData*>> &result,
+		int);
+	void cloudChatsReceived(
+		const QString &query,
+		const Tdb::TLchats &result);
+	void cloudChatsReceived(const std::vector<not_null<History*>> &result);
 
 	void escape();
 	void submit();
@@ -334,7 +360,9 @@ private:
 	QString _searchQuery;
 	PeerData *_searchQueryFrom = nullptr;
 	std::vector<Data::ReactionId> _searchQueryTags;
+#if 0 // mtp
 	int32 _searchNextRate = 0;
+#endif
 	bool _searchFull = false;
 	bool _searchFullMigrated = false;
 	int _searchInHistoryRequest = 0; // Not real mtpRequestId.
@@ -344,11 +372,25 @@ private:
 	MsgId _lastSearchId = 0;
 	MsgId _lastSearchMigratedId = 0;
 
+#if 0 // mtp
 	base::flat_map<QString, MTPmessages_Messages> _searchCache;
+#endif
+	base::flat_map<QString, SearchSlice> _searchCache;
 	Api::SingleMessageSearch _singleMessageSearch;
+#if 0 // mtp
 	base::flat_map<mtpRequestId, QString> _searchQueries;
 	base::flat_map<QString, MTPcontacts_Found> _peerSearchCache;
+#endif
+	base::flat_map<
+		QString,
+		std::vector<not_null<PeerData*>>> _peerSearchCache;
 	base::flat_map<mtpRequestId, QString> _peerSearchQueries;
+
+	base::flat_map<
+		QString,
+		std::vector<not_null<History*>>> _cloudChatsCache;
+	base::flat_map<QString, mtpRequestId> _cloudChatsQueries;
+	QString _cloudChatsQuery;
 
 	QPixmap _widthAnimationCache;
 
