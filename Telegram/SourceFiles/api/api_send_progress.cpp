@@ -15,8 +15,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "apiwrap.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+
 namespace Api {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kCancelTypingActionTimeout = crl::time(5000);
 constexpr auto kSendMySpeakingInterval = 3 * crl::time(1000);
@@ -42,9 +47,10 @@ void SendProgressManager::cancel(
 		SendProgressType type) {
 	const auto i = _requests.find(Key{ history, topMsgId, type });
 	if (i != _requests.end()) {
-#if 0 // todo
+#if 0 // mtp
 		_session->api().request(i->second).cancel();
 #endif
+		_session->sender().request(i->second).cancel();
 		_requests.erase(i);
 	}
 }
@@ -115,7 +121,7 @@ void SendProgressManager::send(const Key &key, int progress) {
 		return;
 	}
 	using Type = SendProgressType;
-#if 0 // todo
+#if 0 // mtp
 	const auto action = [&]() -> MTPsendMessageAction {
 		const auto p = MTP_int(progress);
 		switch (key.type) {
@@ -146,8 +152,35 @@ void SendProgressManager::send(const Key &key, int progress) {
 	)).done([=](const MTPBool &result, mtpRequestId requestId) {
 		done(requestId);
 	}).send();
-	_requests.emplace(key, requestId);
 #endif
+	const auto action = [&]() -> TLchatAction {
+		const auto p = tl_int32(progress);
+		switch (key.type) {
+		case Type::Typing: return tl_chatActionTyping();
+		case Type::RecordVideo: return tl_chatActionRecordingVideo();
+		case Type::UploadVideo: return tl_chatActionUploadingVideo(p);
+		case Type::RecordVoice: return tl_chatActionRecordingVoiceNote();
+		case Type::UploadVoice: return tl_chatActionUploadingVoiceNote(p);
+		case Type::RecordRound: return tl_chatActionRecordingVideoNote();
+		case Type::UploadRound: return tl_chatActionUploadingVideoNote(p);
+		case Type::UploadPhoto: return tl_chatActionUploadingPhoto(p);
+		case Type::UploadFile: return tl_chatActionUploadingDocument(p);
+		case Type::ChooseLocation: return tl_chatActionChoosingLocation();
+		case Type::ChooseContact: return tl_chatActionChoosingContact();
+		case Type::PlayGame: return tl_chatActionStartPlayingGame();
+		//case Type::Speaking: ... // todo
+		case Type::ChooseSticker: return tl_chatActionChoosingSticker();
+		default: return tl_chatActionTyping();
+		}
+	}();
+	const auto requestId = _session->sender().request(TLsendChatAction(
+		peerToTdbChat(key.history->peer->id),
+		tl_int53(key.topMsgId.bare),
+		action
+	)).done([=](TLok, mtpRequestId requestId) {
+		done(requestId);
+	}).send();
+	_requests.emplace(key, requestId);
 
 	if (key.type == Type::Typing) {
 		_stopTypingHistory = key.history;
