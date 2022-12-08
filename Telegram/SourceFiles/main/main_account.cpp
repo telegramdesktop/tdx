@@ -31,6 +31,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "tdb/tdb_account.h"
 #include "tdb/tdb_tl_scheme.h"
+#include "api/api_text_entities.h"
+#include "lang/lang_cloud_manager.h"
+#include "ui/boxes/confirm_box.h"
 
 namespace Main {
 namespace {
@@ -141,6 +144,33 @@ std::unique_ptr<Tdb::Account> Account::createTdb() {
 					loggedOut();
 				}
 			});
+		}, [&](const TLDupdateConnectionState &data) {
+			setConnectionState(data.vstate().match([](
+				const TLDconnectionStateWaitingForNetwork &) {
+				return ConnectionState::WaitingForNetwork;
+			}, [](const TLDconnectionStateConnectingToProxy &) {
+				return ConnectionState::ConnectingToProxy;
+			}, [](const TLDconnectionStateConnecting &) {
+				return ConnectionState::Connecting;
+			}, [](const TLDconnectionStateUpdating &) {
+				return ConnectionState::Updating;
+			}, [](const TLDconnectionStateReady &) {
+				return ConnectionState::Ready;
+			}));
+		}, [&](const TLDupdateServiceNotification &data) {
+			const auto text = data.vcontent().match([&](
+					const TLDmessageText &data) {
+				return Api::FormattedTextFromTdb(data.vtext());
+			}, [](const auto &) {
+				return TextWithEntities();
+			});
+			if (data.vtype().v.startsWith("AUTH_KEY_DROP_")) {
+				Core::App().forceLogOut(this, text);
+			} else {
+				Core::App().activeWindow()->show(Ui::MakeInformBox(text));
+			}
+		}, [&](const TLDupdateOption &data) {
+			Lang::CurrentCloudManager().apply(data);
 		}, [](const auto &) {
 		});
 	}, _lifetime);
@@ -800,6 +830,18 @@ void Account::handleLoginCode(const QString &code) const {
 	if (_handleLoginCode) {
 		_handleLoginCode(code);
 	}
+}
+
+void Account::setConnectionState(ConnectionState state) {
+	if (_connectionState == state) {
+		return;
+	}
+	_connectionState = state;
+	Core::App().settings().proxy().connectionTypeChangesNotify();
+}
+
+Account::ConnectionState Account::connectionState() const {
+	return _connectionState;
 }
 
 void Account::resetAuthorizationKeys() {

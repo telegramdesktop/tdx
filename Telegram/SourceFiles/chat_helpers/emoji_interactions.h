@@ -56,11 +56,17 @@ public:
 	using PlayRequest = EmojiInteractionPlayRequest;
 
 	void startOutgoing(not_null<const HistoryView::Element*> view);
+#if 0 // mtp
 	void startIncoming(
 		not_null<PeerData*> peer,
 		MsgId messageId,
 		const QString &emoticon,
 		EmojiInteractionsBunch &&bunch);
+#endif
+	void startIncoming(
+		not_null<PeerData*> peer,
+		MsgId messageId,
+		not_null<DocumentData*> document);
 
 	void seenOutgoing(not_null<PeerData*> peer, const QString &emoticon);
 	[[nodiscard]] rpl::producer<EmojiInteractionSeen> seen() const {

@@ -122,6 +122,7 @@ void EmojiInteractions::startOutgoing(
 	check(now);
 }
 
+#if 0 // mtp
 void EmojiInteractions::startIncoming(
 		not_null<PeerData*> peer,
 		MsgId messageId,
@@ -170,6 +171,44 @@ void EmojiInteractions::startIncoming(
 				.index = index,
 			});
 		}
+	}
+	if (animations.empty()) {
+		_incoming.remove(item);
+	} else {
+		check(now);
+	}
+}
+#endif
+void EmojiInteractions::startIncoming(
+		not_null<PeerData*> peer,
+		MsgId messageId,
+		not_null<DocumentData*> document) {
+	if (!peer->isUser() || !document->sticker()) {
+		return;
+	}
+	const auto item = _session->data().message(peer->id, messageId);
+	if (!item || !item->isRegular()) {
+		return;
+	}
+	const auto emoticon = document->sticker()->alt;
+	const auto emoji = Ui::Emoji::Find(emoticon);
+	auto &animations = _incoming[item];
+	if (!animations.empty() && animations.front().emoji != emoji) {
+		// The message was edited, forget the old emoji.
+		animations.clear();
+	}
+	const auto now = crl::now();
+	if (animations.empty() || animations.back().scheduledAt < now) {
+		const auto media = document->createMediaView();
+		media->checkStickerLarge();
+		animations.push_back({
+			.emoticon = emoticon,
+			.emoji = emoji,
+			.document = document,
+			.media = media,
+			.scheduledAt = now,
+			.incoming = true,
+		});
 	}
 	if (animations.empty()) {
 		_incoming.remove(item);

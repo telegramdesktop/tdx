@@ -307,8 +307,8 @@ void ConnectionState::refreshState() {
 		const auto under = _widget && _widget->isOver();
 		const auto ready = (Checker().state() == Checker::State::Ready);
 		const auto proxy = Core::App().settings().proxy().isEnabled();
-		using Now = Core::ConnectionState;
-		switch (Core::App().settings().proxy().connectionState()) {
+		using Now = Main::Account::ConnectionState;
+		switch (_account->connectionState()) {
 		case Now::WaitingForNetwork:
 		case Now::Connecting:
 			return { State::Type::Connecting, proxy, under, ready };

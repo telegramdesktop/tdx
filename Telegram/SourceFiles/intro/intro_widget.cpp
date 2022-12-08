@@ -271,24 +271,8 @@ void Widget::handleUpdate(const MTPUpdate &update) {
 #endif
 
 void Widget::handleUpdate(const TLupdate &update) {
-	update.match([&](const TLDupdateServiceNotification &data) {
-		const auto text = data.vcontent().match([&](
-				const TLDmessageText &data) {
-			return Api::FormattedTextFromTdb(data.vtext());
-		}, [](const auto &) {
-			return TextWithEntities();
-		});
-		if (data.vtype().v.startsWith("AUTH_KEY_DROP_")) {
-			Core::App().forceLogOut(_account, text);
-		} else {
-			Ui::show(Ui::MakeInformBox(text));
-		}
-	}, [&](const TLDupdateAuthorizationState &data) {
+	update.match([&](const TLDupdateAuthorizationState &data) {
 		handleAuthorizationState(data.vauthorization_state());
-	}, [&](const TLDupdateOption &data) {
-		if (Lang::CurrentCloudManager().apply(data)) {
-			return;
-		}
 	}, [](const auto &) {
 	});
 }
