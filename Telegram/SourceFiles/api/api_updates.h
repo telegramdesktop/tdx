@@ -16,6 +16,7 @@ class History;
 namespace Tdb {
 class TLupdate;
 class TLchatAction;
+class TLDupdateAnimatedEmojiMessageClicked;
 } // namespace Tdb
 
 namespace MTP {
@@ -172,16 +173,20 @@ private:
 		MsgId rootId,
 		PeerId fromId,
 		const Tdb::TLchatAction &action);
+	void handleEmojiInteraction(
+		const Tdb::TLDupdateAnimatedEmojiMessageClicked &data);
 
 	void handleSpeakingInCall(
 		not_null<PeerData*> peer,
 		PeerId participantPeerId,
 		PeerData *participantPeerLoaded);
+#if 0 // mtp
 	void handleEmojiInteraction(
 		not_null<PeerData*> peer,
 		MsgId messageId,
 		const QString &emoticon,
 		ChatHelpers::EmojiInteractionsBunch bunch);
+#endif
 	void handleEmojiInteraction(
 		not_null<PeerData*> peer,
 		const QString &emoticon);
