@@ -2482,6 +2482,24 @@ int ApiWrap::OnlineTillFromStatus(
 }
 #endif
 
+TimeId ApiWrap::OnlineTillFromStatus(
+		const TLuserStatus &status,
+		TimeId currentOnlineTill) {
+	return status.match([&](const TLDuserStatusEmpty &) {
+		return 0;
+	}, [&](const TLDuserStatusRecently &) {
+		return (currentOnlineTill > -10) ? -2 : currentOnlineTill;
+	}, [&](const TLDuserStatusLastWeek &) {
+		return -3;
+	}, [&](const TLDuserStatusLastMonth &) {
+		return -4;
+	}, [&](const TLDuserStatusOffline &data) {
+		return data.vwas_online().v;
+	}, [&](const TLDuserStatusOnline &data) {
+		return data.vexpires().v;
+	});
+}
+
 void ApiWrap::clearHistory(not_null<PeerData*> peer, bool revoke) {
 	deleteHistory(peer, true, revoke);
 }

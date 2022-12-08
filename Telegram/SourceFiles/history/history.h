@@ -112,6 +112,7 @@ public:
 #if 0 // mtp
 	void reactionsEnabledChanged(bool enabled);
 #endif
+	void setLastKeyboardId(MsgId id);
 
 	bool isEmpty() const;
 	bool isDisplayedEmpty() const;
