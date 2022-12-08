@@ -67,8 +67,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h" // Ui::FormatPhone
 
 #include "tdb/tdb_account.h"
-#include "history/history_item_reply_markup.h"
 #include "tdb/tdb_tl_scheme.h"
+#include "history/history_item_reply_markup.h"
+#include "data/data_document.h"
 
 namespace Api {
 namespace {
@@ -1146,6 +1147,23 @@ void Updates::handleEmojiInteraction(
 }
 #endif
 
+void Updates::handleEmojiInteraction(
+		const TLDupdateAnimatedEmojiMessageClicked &data) {
+	if (session().windows().empty()) {
+		return;
+	}
+	const auto window = session().windows().front();
+	const auto peerId = peerFromTdbChat(data.vchat_id());
+	const auto peer = session().data().peerLoaded(peerId);
+	if (!peer) {
+		return;
+	}
+	window->emojiInteractions().startIncoming(
+		peer,
+		data.vmessage_id().v,
+		session().data().processDocument(data.vsticker()));
+}
+
 void Updates::handleSendActionUpdate(
 		PeerId peerId,
 		MsgId rootId,
@@ -1200,6 +1218,7 @@ void Updates::handleSpeakingInCall(
 	}
 }
 
+#if 0 // mtp
 void Updates::handleEmojiInteraction(
 		not_null<PeerData*> peer,
 		MsgId messageId,
@@ -1215,6 +1234,7 @@ void Updates::handleEmojiInteraction(
 		emoticon,
 		std::move(bunch));
 }
+#endif
 
 void Updates::handleEmojiInteraction(
 		not_null<PeerData*> peer,
@@ -2854,8 +2874,8 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateChatPosition &data) {
 		owner.applyDialogPosition(data);
 	}, [&](const TLDupdateChatMessageSender &data) {
-		const auto peer = owner.peerLoaded(peerFromTdbChat(data.vchat_id()));
-		if (peer) {
+		const auto peerId = peerFromTdbChat(data.vchat_id());
+		if (const auto peer = owner.peerLoaded(peerId)) {
 			auto &sendAsPeers = session().sendAsPeers();
 			if (const auto sender = data.vmessage_sender_id()) {
 				sendAsPeers.setChosen(peer, peerFromSender(*sender));
@@ -2955,8 +2975,8 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateDefaultReactionType &data) {
 		owner.reactions().refreshFavorite(data);
 	}, [&](const TLDupdateChatNotificationSettings &data) {
-		const auto peer = owner.peerLoaded(peerFromTdbChat(data.vchat_id()));
-		if (peer) {
+		const auto peerId = peerFromTdbChat(data.vchat_id());
+		if (const auto peer = owner.peerLoaded(peerId)) {
 			owner.notifySettings().apply(
 				peer,
 				data.vnotification_settings());
@@ -3063,7 +3083,6 @@ void Updates::applyUpdate(const TLupdate &update) {
 		::Data::ApplyChannelUpdate(
 			owner.channel(ChannelId(data.vsupergroup_id())),
 			data.vsupergroup_full_info().data());
-	}, [&](const TLDupdateServiceNotification &data) {
 	}, [&](const TLDupdateFile &data) {
 	}, [&](const TLDupdateFileGenerationStart &data) {
 	}, [&](const TLDupdateFileGenerationStop &data) {
@@ -3123,8 +3142,6 @@ void Updates::applyUpdate(const TLupdate &update) {
 		// todo
 	}, [&](const TLDupdateLanguagePackStrings &data) {
 		Lang::CurrentCloudManager().apply(data);
-	}, [&](const TLDupdateConnectionState &data) {
-		// todo
 	}, [&](const TLDupdateTermsOfService &data) {
 		// todo
 	}, [&](const TLDupdateUsersNearby &data) {
@@ -3137,15 +3154,38 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateDiceEmojis &data) {
 		session().diceStickersPacks().apply(data);
 	}, [&](const TLDupdateAnimatedEmojiMessageClicked &data) {
-		// todo
+		handleEmojiInteraction(data);
 	}, [&](const TLDupdateAnimationSearchParameters &data) {
 	}, [&](const TLDupdateSuggestedActions &data) {
 	}, [&](const TLDupdateChatPendingJoinRequests &data) {
+		const auto peerId = peerFromTdbChat(data.vchat_id());
+		if (const auto peer = owner.peerLoaded(peerId)) {
+			auto count = 0;
+			auto recent = std::vector<UserId>();
+			if (const auto requests = data.vpending_join_requests()) {
+				const auto &data = requests->data();
+				count = data.vtotal_count().v;
+				const auto &list = data.vuser_ids().v;
+				recent.reserve(list.size());
+				for (const auto &id : list) {
+					recent.push_back(UserId(id));
+				}
+			}
+			if (const auto chat = peer->asChat()) {
+				chat->setPendingRequestsCount(count, std::move(recent));
+			} else if (const auto channel = peer->asChannel()) {
+				channel->setPendingRequestsCount(count, std::move(recent));
+			}
+		}
 	}, [&](const TLDupdateAnimatedEmojiMessageClicked &data) {
 	}, [&](const TLDupdateFileDownloads &data) {
 	}, [&](const TLDupdateFileAddedToDownloads &data) {
 	}, [&](const TLDupdateFileDownload &data) {
 	}, [&](const TLDupdateFileRemovedFromDownloads &data) {
+
+		// Updates below are handled in a different place.
+	}, [&](const TLDupdateConnectionState &data) {
+	}, [&](const TLDupdateServiceNotification &data) {
 	});
 	session().data().sendHistoryChangeNotifications();
 }

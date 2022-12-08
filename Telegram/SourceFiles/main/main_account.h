@@ -133,6 +133,15 @@ public:
 	void suggestMainDcId(MTP::DcId mainDcId);
 	void destroyStaleAuthorizationKeys();
 #endif
+	enum class ConnectionState {
+		WaitingForNetwork,
+		ConnectingToProxy,
+		Connecting,
+		Updating,
+		Ready,
+	};
+	void setConnectionState(ConnectionState state);
+	[[nodiscard]] ConnectionState connectionState() const;
 
 	void setHandleLoginCode(Fn<void(QString)> callback);
 	void handleLoginCode(const QString &code) const;
@@ -203,6 +212,8 @@ private:
 	MTP::AuthKeysList _mtpKeysToDestroy;
 	bool _loggingOut = false;
 	bool _testMode = false;
+
+	ConnectionState _connectionState = ConnectionState::WaitingForNetwork;
 
 	rpl::lifetime _lifetime;
 
