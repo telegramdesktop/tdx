@@ -1132,6 +1132,30 @@ void Updates::handleEmojiInteraction(
 }
 #endif
 
+void Updates::handleSendActionUpdate(
+		PeerId peerId,
+		MsgId rootId,
+		PeerId fromId,
+		const TLchatAction &action) {
+	const auto history = session().data().historyLoaded(peerId);
+	if (!history) {
+		return;
+	}
+	const auto peer = history->peer;
+	const auto from = (fromId == session().userPeerId())
+		? session().user().get()
+		: session().data().peerLoaded(fromId);
+	if (!from || !from->isUser() || from->isSelf()) {
+		return;
+	}
+	session().data().sendActionManager().registerFor(
+		history,
+		rootId,
+		from->asUser(),
+		action,
+		0);
+}
+
 void Updates::handleSpeakingInCall(
 		not_null<PeerData*> peer,
 		PeerId participantPeerId,
@@ -2769,8 +2793,11 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateNewChat &data) {
 		owner.processPeer(data.vchat());
 	}, [&](const TLDupdateChatTitle &data) {
+		owner.applyChatTitle(data);
 	}, [&](const TLDupdateChatPhoto &data) {
+		owner.applyChatPhoto(data);
 	}, [&](const TLDupdateChatPermissions &data) {
+		owner.applyChatPermissions(data);
 	}, [&](const TLDupdateChatLastMessage &data) {
 		owner.applyLastMessage(data);
 	}, [&](const TLDupdateChatPosition &data) {
@@ -2810,6 +2837,7 @@ void Updates::applyUpdate(const TLupdate &update) {
 			peer->setIsBlocked(data.vis_blocked().v);
 		}
 	}, [&](const TLDupdateChatHasScheduledMessages &data) {
+		// later-todo optimization
 	}, [&](const TLDupdateChatVideoChat &data) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
 		const auto callId = data.vvideo_chat().data().vgroup_call_id().v;
@@ -2903,7 +2931,15 @@ void Updates::applyUpdate(const TLupdate &update) {
 			peer->setActionBar(data.vaction_bar());
 		}
 	}, [&](const TLDupdateChatTheme &data) {
+		const auto peerId = peerFromTdbChat(data.vchat_id());
+		if (const auto peer = owner.peerLoaded(peerId)) {
+			peer->setThemeEmoji(data.vtheme_name().v);
+		}
 	}, [&](const TLDupdateChatReplyMarkup &data) {
+		const auto peerId = peerFromTdbChat(data.vchat_id());
+		if (const auto history = owner.historyLoaded(peerId)) {
+			history->setLastKeyboardId(data.vreply_markup_message_id().v);
+		}
 	}, [&](const TLDupdateChatDraftMessage &data) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
 		if (const auto draft = data.vdraft_message()) {
@@ -2922,6 +2958,7 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateChatFilters &data) {
 		owner.chatsFilters().apply(data);
 	}, [&](const TLDupdateChatOnlineMemberCount &data) {
+		// later-todo online count for all chats
 	}, [&](const TLDupdateNotification &data) {
 	}, [&](const TLDupdateNotificationGroup &data) {
 	}, [&](const TLDupdateActiveNotifications &data) {
@@ -2940,7 +2977,24 @@ void Updates::applyUpdate(const TLupdate &update) {
 			owner.notifyHistoryChangeDelayed(history);
 		}
 	}, [&](const TLDupdateChatAction &data) {
+		handleSendActionUpdate(
+			peerFromTdbChat(data.vchat_id()),
+			data.vmessage_thread_id().v,
+			peerFromSender(data.vsender_id()),
+			data.vaction());
 	}, [&](const TLDupdateUserStatus &data) {
+		if (const auto user = owner.userLoaded(UserId(data.vuser_id()))) {
+			const auto oldOnlineTill = user->onlineTill;
+			const auto newOnlineTill = ApiWrap::OnlineTillFromStatus(
+				data.vstatus(),
+				oldOnlineTill);
+			if (oldOnlineTill != newOnlineTill) {
+				user->onlineTill = newOnlineTill;
+				session().changes().peerUpdated(
+					user,
+					Data::PeerUpdate::Flag::OnlineStatus);
+			}
+		}
 	}, [&](const TLDupdateUser &data) {
 		owner.processUser(data.vuser());
 	}, [&](const TLDupdateBasicGroup &data) {
@@ -2985,7 +3039,7 @@ void Updates::applyUpdate(const TLupdate &update) {
 			const auto list = owner.folder(Data::Folder::kId)->chatsList();
 			list->updateCloudUnread(data);
 		}, [&](const TLDchatListFilter &data) {
-			// todo
+			// later-todo use tdlib counters
 		});
 	}, [&](const TLDupdateUnreadChatCount &data) {
 		data.vchat_list().match([&](const TLDchatListMain &) {
@@ -2993,7 +3047,7 @@ void Updates::applyUpdate(const TLupdate &update) {
 		}, [&](const TLDchatListArchive &) {
 			owner.folder(Data::Folder::kId)->applyDialog(data);
 		}, [&](const TLDchatListFilter &data) {
-			// todo
+			// later-todo use tdlib counters
 		});
 	}, [&](const TLDupdateOption &data) {
 		if (session().apply(data)) {
@@ -3017,10 +3071,13 @@ void Updates::applyUpdate(const TLupdate &update) {
 		session().api().ringtones().applyUpdate();
 	}, [&](const TLDupdateSelectedBackground &data) {
 	}, [&](const TLDupdateChatThemes &data) {
+		// todo
 	}, [&](const TLDupdateLanguagePackStrings &data) {
 		Lang::CurrentCloudManager().apply(data);
 	}, [&](const TLDupdateConnectionState &data) {
+		// todo
 	}, [&](const TLDupdateTermsOfService &data) {
+		// todo
 	}, [&](const TLDupdateUsersNearby &data) {
 	}, [&](const TLDupdateAttachmentMenuBots &data) {
 		session().attachWebView().apply(data);
@@ -3031,6 +3088,7 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateDiceEmojis &data) {
 		session().diceStickersPacks().apply(data);
 	}, [&](const TLDupdateAnimatedEmojiMessageClicked &data) {
+		// todo
 	}, [&](const TLDupdateAnimationSearchParameters &data) {
 	}, [&](const TLDupdateSuggestedActions &data) {
 	}, [&](const TLDupdateChatPendingJoinRequests &data) {
