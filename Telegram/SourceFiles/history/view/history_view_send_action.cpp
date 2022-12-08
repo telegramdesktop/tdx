@@ -38,6 +38,26 @@ constexpr auto kStatusShowClientsideChooseSticker = 6 * crl::time(1000);
 constexpr auto kStatusShowClientsidePlayGame = 10 * crl::time(1000);
 constexpr auto kStatusShowClientsideSpeaking = 6 * crl::time(1000);
 
+constexpr auto kSendActionCancelId = mtpc_sendMessageCancelAction;
+using TLSendActionTyping = MTPDsendMessageTypingAction;
+using TLSendActionRecordVideo = MTPDsendMessageRecordVideoAction;
+using TLSendActionRecordAudio = MTPDsendMessageRecordAudioAction;
+using TLSendActionRecordRound = MTPDsendMessageRecordRoundAction;
+using TLSendActionChooseLocation = MTPDsendMessageGeoLocationAction;
+using TLSendActionChooseContact = MTPDsendMessageChooseContactAction;
+using TLSendActionUploadVideo = MTPDsendMessageUploadVideoAction;
+using TLSendActionUploadAudio = MTPDsendMessageUploadAudioAction;
+using TLSendActionUploadRound = MTPDsendMessageUploadRoundAction;
+using TLSendActionUploadPhoto = MTPDsendMessageUploadPhotoAction;
+using TLSendActionUploadDocument = MTPDsendMessageUploadDocumentAction;
+using TLSendActionPlayGame = MTPDsendMessageGamePlayAction;
+using TLSendActionSpeaking = MTPDspeakingInGroupCallAction;
+using TLSendActionHistoryImport = MTPDsendMessageHistoryImportAction;
+using TLSendActionChooseSticker = MTPDsendMessageChooseStickerAction;
+using TLSendActionEmojiInteraction = MTPDsendMessageEmojiInteraction;
+using TLSendActionEmojiInteractionSeen = MTPDsendMessageEmojiInteractionSeen;
+using TLSendActionCancel = MTPDsendMessageCancelAction;
+
 } // namespace
 
 SendActionPainter::SendActionPainter(
@@ -56,9 +76,9 @@ void SendActionPainter::setTopic(Data::ForumTopic *topic) {
 
 bool SendActionPainter::updateNeedsAnimating(
 		not_null<UserData*> user,
-		const MTPSendMessageAction &action) {
+		const TLSendAction &action) {
 	using Type = Api::SendProgressType;
-	if (action.type() == mtpc_sendMessageCancelAction) {
+	if (action.type() == kSendActionCancelId) {
 		clear(user);
 		return false;
 	}
@@ -70,68 +90,68 @@ bool SendActionPainter::updateNeedsAnimating(
 			int progress = 0) {
 		_sendActions.emplace_or_assign(user, type, now + duration, progress);
 	};
-	action.match([&](const MTPDsendMessageTypingAction &) {
+	action.match([&](const TLSendActionTyping &) {
 		_typing.emplace_or_assign(user, now + kStatusShowClientsideTyping);
-	}, [&](const MTPDsendMessageRecordVideoAction &) {
+	}, [&](const TLSendActionRecordVideo &) {
 		emplaceAction(Type::RecordVideo, kStatusShowClientsideRecordVideo);
-	}, [&](const MTPDsendMessageRecordAudioAction &) {
+	}, [&](const TLSendActionRecordAudio &) {
 		emplaceAction(Type::RecordVoice, kStatusShowClientsideRecordVoice);
-	}, [&](const MTPDsendMessageRecordRoundAction &) {
+	}, [&](const TLSendActionRecordRound &) {
 		emplaceAction(Type::RecordRound, kStatusShowClientsideRecordRound);
-	}, [&](const MTPDsendMessageGeoLocationAction &) {
+	}, [&](const TLSendActionChooseLocation &) {
 		emplaceAction(
 			Type::ChooseLocation,
 			kStatusShowClientsideChooseLocation);
-	}, [&](const MTPDsendMessageChooseContactAction &) {
+	}, [&](const TLSendActionChooseContact &) {
 		emplaceAction(
 			Type::ChooseContact,
 			kStatusShowClientsideChooseContact);
-	}, [&](const MTPDsendMessageUploadVideoAction &data) {
+	}, [&](const TLSendActionUploadVideo &data) {
 		emplaceAction(
 			Type::UploadVideo,
 			kStatusShowClientsideUploadVideo,
 			data.vprogress().v);
-	}, [&](const MTPDsendMessageUploadAudioAction &data) {
+	}, [&](const TLSendActionUploadAudio &data) {
 		emplaceAction(
 			Type::UploadVoice,
 			kStatusShowClientsideUploadVoice,
 			data.vprogress().v);
-	}, [&](const MTPDsendMessageUploadRoundAction &data) {
+	}, [&](const TLSendActionUploadRound &data) {
 		emplaceAction(
 			Type::UploadRound,
 			kStatusShowClientsideUploadRound,
 			data.vprogress().v);
-	}, [&](const MTPDsendMessageUploadPhotoAction &data) {
+	}, [&](const TLSendActionUploadPhoto &data) {
 		emplaceAction(
 			Type::UploadPhoto,
 			kStatusShowClientsideUploadPhoto,
 			data.vprogress().v);
-	}, [&](const MTPDsendMessageUploadDocumentAction &data) {
+	}, [&](const TLSendActionUploadDocument &data) {
 		emplaceAction(
 			Type::UploadFile,
 			kStatusShowClientsideUploadFile,
 			data.vprogress().v);
-	}, [&](const MTPDsendMessageGamePlayAction &) {
+	}, [&](const TLSendActionPlayGame &) {
 		const auto i = _sendActions.find(user);
 		if ((i == end(_sendActions))
 			|| (i->second.type == Type::PlayGame)
 			|| (i->second.until <= now)) {
 			emplaceAction(Type::PlayGame, kStatusShowClientsidePlayGame);
 		}
-	}, [&](const MTPDspeakingInGroupCallAction &) {
+	}, [&](const TLSendActionSpeaking &) {
 		_speaking.emplace_or_assign(
 			user,
 			now + kStatusShowClientsideSpeaking);
-	}, [&](const MTPDsendMessageHistoryImportAction &) {
-	}, [&](const MTPDsendMessageChooseStickerAction &) {
+	}, [&](const TLSendActionHistoryImport &) {
+	}, [&](const TLSendActionChooseSticker &) {
 		emplaceAction(
 			Type::ChooseSticker,
 			kStatusShowClientsideChooseSticker);
-	}, [&](const MTPDsendMessageEmojiInteraction &) {
+	}, [&](const TLSendActionEmojiInteraction &) {
 		Unexpected("EmojiInteraction here.");
-	}, [&](const MTPDsendMessageEmojiInteractionSeen &) {
+	}, [&](const TLSendActionEmojiInteractionSeen &) {
 		// #TODO interaction
-	}, [&](const MTPDsendMessageCancelAction &) {
+	}, [&](const TLSendActionCancel &) {
 		Unexpected("CancelAction here.");
 	});
 	return updateNeedsAnimating(now, true);
