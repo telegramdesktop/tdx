@@ -11,6 +11,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Core {
 
+enum class ConnectionState {
+	WaitingForNetwork,
+	ConnectingToProxy,
+	Connecting,
+	Updating,
+	Ready,
+};
+
 class SettingsProxy final {
 public:
 	SettingsProxy();
@@ -41,6 +49,9 @@ public:
 	[[nodiscard]] QByteArray serialize() const;
 	bool setFromSerialized(const QByteArray &serialized);
 
+	void setConnectionState(ConnectionState state);
+	[[nodiscard]] ConnectionState connectionState() const;
+
 private:
 	bool _tryIPv6 = false;
 	bool _useProxyForCalls = false;
@@ -49,6 +60,8 @@ private:
 	std::vector<MTP::ProxyData> _list;
 
 	rpl::event_stream<> _connectionTypeChanges;
+
+	ConnectionState _state = {};
 
 };
 
