@@ -306,9 +306,18 @@ void ConnectionState::refreshState() {
 			&& _parent->window()->windowHandle()->isExposed();
 		const auto under = _widget && _widget->isOver();
 		const auto ready = (Checker().state() == Checker::State::Ready);
+		const auto proxy = Core::App().settings().proxy().isEnabled();
+		using Now = Core::ConnectionState;
+		switch (Core::App().settings().proxy().connectionState()) {
+		case Now::WaitingForNetwork:
+		case Now::Connecting:
+			return { State::Type::Connecting, proxy, under, ready };
+		case Now::ConnectingToProxy:
+			return { State::Type::Connecting, true, under, ready };
+		}
+#if 0 // mtp
 		const auto state = _account->mtp().dcstate();
 		const auto proxy = Core::App().settings().proxy().isEnabled();
-#if 0 // todo
 		if (state == MTP::ConnectingState
 			|| state == MTP::DisconnectedState
 			|| (state < 0 && state > -600)) {
