@@ -1210,20 +1210,9 @@ not_null<UserData*> Session::processUser(const TLuser &user) {
 	}
 
 	const auto oldOnlineTill = result->onlineTill;
-	const auto newOnlineTill = data.vstatus().match([&](
-		const TLDuserStatusEmpty &) {
-		return 0;
-	}, [&](const TLDuserStatusRecently &) {
-		return (oldOnlineTill > -10) ? -2 : oldOnlineTill;
-	}, [&](const TLDuserStatusLastWeek &) {
-		return -3;
-	}, [&](const TLDuserStatusLastMonth &) {
-		return -4;
-	}, [&](const TLDuserStatusOffline &data) {
-		return data.vwas_online().v;
-	}, [&](const TLDuserStatusOnline &data) {
-		return data.vexpires().v;
-	});
+	const auto newOnlineTill = ApiWrap::OnlineTillFromStatus(
+		data.vstatus(),
+		oldOnlineTill);
 	if (oldOnlineTill != newOnlineTill) {
 		result->onlineTill = newOnlineTill;
 		flags |= UpdateFlag::OnlineStatus;
@@ -2642,6 +2631,52 @@ void Session::applyDialogPosition(const TLDupdateChatPosition &data) {
 		: this->historyLoaded(peerId);
 	if (history) {
 		history->applyPosition(position);
+	}
+}
+
+void Session::applyChatPermissions(const TLDupdateChatPermissions &data) {
+	if (const auto peer = peerLoaded(peerFromTdbChat(data.vchat_id()))) {
+		if (const auto chat = peer->asChat()) {
+			chat->setDefaultRestrictions(
+				RestrictionsFromPermissions(data.vpermissions()));
+		} else if (const auto channel = peer->asChannel()) {
+			channel->setDefaultRestrictions(
+				RestrictionsFromPermissions(data.vpermissions()));
+		} else {
+			Unexpected("updateChatPermissions for a user.");
+		}
+	}
+}
+
+void Session::applyChatTitle(const TLDupdateChatTitle &data) {
+	if (const auto peer = peerLoaded(peerFromTdbChat(data.vchat_id()))) {
+		if (const auto chat = peer->asChat()) {
+			chat->setName(data.vtitle().v);
+		} else if (const auto channel = peer->asChannel()) {
+			channel->setName(data.vtitle().v, channel->username);
+		} else {
+			// Process in updateUser.
+		}
+	}
+}
+
+void Session::applyChatPhoto(const TLDupdateChatPhoto &data) {
+	if (const auto peer = peerLoaded(peerFromTdbChat(data.vchat_id()))) {
+		if (const auto chat = peer->asChat()) {
+			if (const auto photo = data.vphoto()) {
+				chat->setPhoto(*photo);
+			} else {
+				chat->clearPhoto();
+			}
+		} else if (const auto channel = peer->asChannel()) {
+			if (const auto photo = data.vphoto()) {
+				channel->setPhoto(*photo);
+			} else {
+				channel->clearPhoto();
+			}
+		} else {
+			// Process in updateUser.
+		}
 	}
 }
 
