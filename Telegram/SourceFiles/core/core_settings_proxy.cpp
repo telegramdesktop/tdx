@@ -228,4 +228,16 @@ void SettingsProxy::connectionTypeChangesNotify() {
 	_connectionTypeChanges.fire({});
 }
 
+void SettingsProxy::setConnectionState(ConnectionState state) {
+	if (_state == state) {
+		return;
+	}
+	_state = state;
+	_connectionTypeChanges.fire({});
+}
+
+ConnectionState SettingsProxy::connectionState() const {
+	return _state;
+}
+
 } // namespace Core
