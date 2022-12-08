@@ -48,7 +48,10 @@ void SendActionManager::registerFor(
 		not_null<History*> history,
 		MsgId rootId,
 		not_null<UserData*> user,
+		const Tdb::TLchatAction &action,
+#if 0 // mtp
 		const MTPSendMessageAction &action,
+#endif
 		TimeId when) {
 	if (history->peer->isSelf()) {
 		return;

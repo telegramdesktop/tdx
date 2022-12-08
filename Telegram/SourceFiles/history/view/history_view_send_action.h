@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class UserData;
 
+namespace Tdb {
+class TLchatAction;
+} // namespace Tdb
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -49,7 +53,10 @@ public:
 		style::color color,
 		crl::time now);
 
+#if 0 // mtp
 	using TLSendAction = MTPSendMessageAction;
+#endif
+	using TLSendAction = Tdb::TLchatAction;
 
 	bool updateNeedsAnimating(
 		crl::time now,

@@ -29,6 +29,7 @@ class TLstickerSet;
 class TLscopeNotificationSettings;
 class TLchatInviteLinkInfo;
 class TLDupdateOption;
+class TLuserStatus;
 } // namespace Tdb
 
 namespace Main {
