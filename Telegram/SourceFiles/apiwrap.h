@@ -31,6 +31,7 @@ class TLstickerSet;
 class TLscopeNotificationSettings;
 class TLchatInviteLinkInfo;
 class TLDupdateOption;
+class TLuserStatus;
 } // namespace Tdb
 
 namespace Main {
@@ -302,6 +303,9 @@ public:
 		const MTPUserStatus &status,
 		int currentOnlineTill);
 #endif
+	[[nodiscard]] static TimeId OnlineTillFromStatus(
+		const Tdb::TLuserStatus &status,
+		TimeId currentOnlineTill);
 	void saveDraftToCloudNow(not_null<History*> history);
 	void manualClearCloudDraft(not_null<History*> history);
 

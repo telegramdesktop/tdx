@@ -15,6 +15,7 @@ class History;
 
 namespace Tdb {
 class TLupdate;
+class TLchatAction;
 } // namespace Tdb
 
 namespace MTP {
@@ -165,6 +166,11 @@ private:
 		not_null<PeerData*> peer,
 		const MTPDsendMessageEmojiInteraction &data);
 #endif
+	void handleSendActionUpdate(
+		PeerId peerId,
+		MsgId rootId,
+		PeerId fromId,
+		const Tdb::TLchatAction &action);
 
 	void handleSpeakingInCall(
 		not_null<PeerData*> peer,
