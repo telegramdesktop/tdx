@@ -919,6 +919,9 @@ public:
 
 	void applyLastMessage(const Tdb::TLDupdateChatLastMessage &data);
 	void applyDialogPosition(const Tdb::TLDupdateChatPosition &data);
+	void applyChatPermissions(const Tdb::TLDupdateChatPermissions &data);
+	void applyChatTitle(const Tdb::TLDupdateChatTitle &data);
+	void applyChatPhoto(const Tdb::TLDupdateChatPhoto &data);
 
 private:
 	using Messages = std::unordered_map<MsgId, not_null<HistoryItem*>>;

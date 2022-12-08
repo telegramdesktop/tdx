@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class History;
 
+namespace Tdb {
+class TLchatAction;
+} // namespace Tdb
+
 namespace HistoryView {
 class SendActionPainter;
 } // namespace HistoryView
@@ -34,7 +38,10 @@ public:
 		not_null<History*> history,
 		MsgId rootId,
 		not_null<UserData*> user,
+		const Tdb::TLchatAction &action,
+#if 0 // mtp
 		const MTPSendMessageAction &action,
+#endif
 		TimeId when);
 
 	[[nodiscard]] auto animationUpdated() const
