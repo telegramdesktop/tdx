@@ -49,12 +49,14 @@ public:
 		style::color color,
 		crl::time now);
 
+	using TLSendAction = MTPSendMessageAction;
+
 	bool updateNeedsAnimating(
 		crl::time now,
 		bool force = false);
 	bool updateNeedsAnimating(
 		not_null<UserData*> user,
-		const MTPSendMessageAction &action);
+		const TLSendAction &action);
 	void clear(not_null<UserData*> from);
 
 private:
