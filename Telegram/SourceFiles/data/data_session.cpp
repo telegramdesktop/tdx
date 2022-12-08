@@ -2734,6 +2734,52 @@ void Session::applyDialogPosition(const TLDupdateChatPosition &data) {
 	}
 }
 
+void Session::applyChatPermissions(const TLDupdateChatPermissions &data) {
+	if (const auto peer = peerLoaded(peerFromTdbChat(data.vchat_id()))) {
+		if (const auto chat = peer->asChat()) {
+			chat->setDefaultRestrictions(
+				RestrictionsFromPermissions(data.vpermissions()));
+		} else if (const auto channel = peer->asChannel()) {
+			channel->setDefaultRestrictions(
+				RestrictionsFromPermissions(data.vpermissions()));
+		} else {
+			Unexpected("updateChatPermissions for a user.");
+		}
+	}
+}
+
+void Session::applyChatTitle(const TLDupdateChatTitle &data) {
+	if (const auto peer = peerLoaded(peerFromTdbChat(data.vchat_id()))) {
+		if (const auto chat = peer->asChat()) {
+			chat->setName(data.vtitle().v);
+		} else if (const auto channel = peer->asChannel()) {
+			channel->setName(data.vtitle().v, channel->username);
+		} else {
+			// Process in updateUser.
+		}
+	}
+}
+
+void Session::applyChatPhoto(const TLDupdateChatPhoto &data) {
+	if (const auto peer = peerLoaded(peerFromTdbChat(data.vchat_id()))) {
+		if (const auto chat = peer->asChat()) {
+			if (const auto photo = data.vphoto()) {
+				chat->setPhoto(*photo);
+			} else {
+				chat->clearPhoto();
+			}
+		} else if (const auto channel = peer->asChannel()) {
+			if (const auto photo = data.vphoto()) {
+				channel->setPhoto(*photo);
+			} else {
+				channel->clearPhoto();
+			}
+		} else {
+			// Process in updateUser.
+		}
+	}
+}
+
 bool Session::pinnedCanPin(not_null<Dialogs::Entry*> entry) const {
 	if (const auto sublist = entry->asSublist()) {
 		const auto saved = &savedMessages();

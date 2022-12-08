@@ -2181,6 +2181,13 @@ void History::setFolderPointer(
 	session().changes().historyUpdated(this, UpdateFlag::Folder);
 }
 
+void History::setLastKeyboardId(MsgId id) {
+	if (lastKeyboardId != id) {
+		lastKeyboardId = id;
+		session().changes().historyUpdated(this, UpdateFlag::BotKeyboard);
+	}
+}
+
 int History::chatListNameVersion() const {
 	return peer->nameVersion();
 }
