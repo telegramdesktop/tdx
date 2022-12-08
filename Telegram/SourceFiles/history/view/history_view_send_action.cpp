@@ -20,8 +20,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "styles/style_dialogs.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace HistoryView {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kStatusShowClientsideTyping = 6 * crl::time(1000);
 constexpr auto kStatusShowClientsideRecordVideo = 6 * crl::time(1000);
@@ -38,6 +42,7 @@ constexpr auto kStatusShowClientsideChooseSticker = 6 * crl::time(1000);
 constexpr auto kStatusShowClientsidePlayGame = 10 * crl::time(1000);
 constexpr auto kStatusShowClientsideSpeaking = 6 * crl::time(1000);
 
+#if 0 // mtp
 constexpr auto kSendActionCancelId = mtpc_sendMessageCancelAction;
 using TLSendActionTyping = MTPDsendMessageTypingAction;
 using TLSendActionRecordVideo = MTPDsendMessageRecordVideoAction;
@@ -57,6 +62,23 @@ using TLSendActionChooseSticker = MTPDsendMessageChooseStickerAction;
 using TLSendActionEmojiInteraction = MTPDsendMessageEmojiInteraction;
 using TLSendActionEmojiInteractionSeen = MTPDsendMessageEmojiInteractionSeen;
 using TLSendActionCancel = MTPDsendMessageCancelAction;
+#endif
+constexpr auto kSendActionCancelId = id_chatActionCancel;
+using TLSendActionTyping = TLDchatActionTyping;
+using TLSendActionRecordVideo = TLDchatActionRecordingVideo;
+using TLSendActionRecordAudio = TLDchatActionRecordingVoiceNote;
+using TLSendActionRecordRound = TLDchatActionRecordingVideoNote;
+using TLSendActionChooseLocation = TLDchatActionChoosingLocation;
+using TLSendActionChooseContact = TLDchatActionChoosingContact;
+using TLSendActionUploadVideo = TLDchatActionUploadingVideo;
+using TLSendActionUploadAudio = TLDchatActionUploadingVoiceNote;
+using TLSendActionUploadRound = TLDchatActionUploadingVideoNote;
+using TLSendActionUploadPhoto = TLDchatActionUploadingPhoto;
+using TLSendActionUploadDocument = TLDchatActionUploadingDocument;
+using TLSendActionPlayGame = TLDchatActionStartPlayingGame;
+using TLSendActionChooseSticker = TLDchatActionChoosingSticker;
+using TLSendActionEmojiInteractionSeen = TLDchatActionWatchingAnimations;
+using TLSendActionCancel = TLDchatActionCancel;
 
 } // namespace
 
@@ -138,17 +160,21 @@ bool SendActionPainter::updateNeedsAnimating(
 			|| (i->second.until <= now)) {
 			emplaceAction(Type::PlayGame, kStatusShowClientsidePlayGame);
 		}
+#if 0 // mtp
 	}, [&](const TLSendActionSpeaking &) {
 		_speaking.emplace_or_assign(
 			user,
 			now + kStatusShowClientsideSpeaking);
 	}, [&](const TLSendActionHistoryImport &) {
+#endif
 	}, [&](const TLSendActionChooseSticker &) {
 		emplaceAction(
 			Type::ChooseSticker,
 			kStatusShowClientsideChooseSticker);
+#if 0 // mtp
 	}, [&](const TLSendActionEmojiInteraction &) {
 		Unexpected("EmojiInteraction here.");
+#endif
 	}, [&](const TLSendActionEmojiInteractionSeen &) {
 		// #TODO interaction
 	}, [&](const TLSendActionCancel &) {

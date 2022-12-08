@@ -117,6 +117,7 @@ public:
 #if 0 // mtp
 	void reactionsEnabledChanged(bool enabled);
 #endif
+	void setLastKeyboardId(MsgId id);
 
 	[[nodiscard]] bool isEmpty() const;
 	[[nodiscard]] bool isDisplayedEmpty() const;
