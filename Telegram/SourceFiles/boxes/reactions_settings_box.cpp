@@ -53,7 +53,7 @@ PeerId GenerateUser(not_null<History*> history, const QString &name) {
 		peerToTdbChat(peerId),
 		Tdb::tl_string(tr::lng_settings_chat_message_reply_from(tr::now)),
 		Tdb::TLstring(), // last_name_
-		Tdb::TLstring(), // username_
+		std::nullopt, // usernames_
 		Tdb::TLstring(), // phone_number_
 		Tdb::tl_userStatusEmpty(), // status_
 		Tdb::null, // profile_photo_
@@ -63,6 +63,7 @@ PeerId GenerateUser(not_null<History*> history, const QString &name) {
 		Tdb::tl_bool(false), // is_verified_
 		Tdb::tl_bool(false), // is_premium_
 		Tdb::tl_bool(false), // is_support_
+		Tdb::tl_bool(false), // has_anonymous_phone_number
 		Tdb::TLstring(), // restriction_reason_
 		Tdb::tl_bool(false), // is_scam_
 		Tdb::tl_bool(false), // is_fake_
@@ -113,7 +114,9 @@ AdminLog::OwnedItem GenerateItem(
 		from,
 		QString(), // postAuthor
 		TextWithEntities{ .text = text },
+#if 0 // mtp
 		MTP_messageMediaEmpty(),
+#endif
 		HistoryMessageMarkupData(),
 		uint64(0)); // groupedId
 

@@ -17,7 +17,7 @@ class TLDupdateDefaultReactionType;
 class TLemojiReaction;
 class TLunreadReaction;
 class TLmessageReaction;
-class TLDfiles;
+class TLDstickers;
 class TLavailableReactions;
 } // namespace Tdb
 
@@ -185,7 +185,7 @@ private:
 	void updateFromData(const Tdb::TLDupdateActiveEmojiReactions &data);
 	[[nodiscard]] std::optional<Reaction> parse(
 		const Tdb::TLemojiReaction &entry);
-	void updateGeneric(const Tdb::TLDfiles &data);
+	void updateGeneric(const Tdb::TLDstickers &data);
 	void resolveEmojiNext();
 	void resolveEmoji(const QString &emoji);
 	void resolveEmoji(not_null<EmojiResolved*> entry);

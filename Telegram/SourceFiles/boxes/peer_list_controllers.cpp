@@ -752,7 +752,10 @@ auto ChooseRecipientBoxController::createRow(
 ChooseTopicSearchController::ChooseTopicSearchController(
 	not_null<Data::Forum*> forum)
 : _forum(forum)
+, _api(&forum->session().sender())
+#if 0 // mtp
 , _api(&forum->session().mtp())
+#endif
 , _timer([=] { searchOnServer(); }) {
 }
 
@@ -773,6 +776,24 @@ void ChooseTopicSearchController::searchQuery(const QString &query) {
 }
 
 void ChooseTopicSearchController::searchOnServer() {
+	_requestId = _api.request(TLgetForumTopics(
+		peerToTdbChat(_forum->channel()->id),
+		tl_string(_query),
+		tl_int32(_offsetDate),
+		tl_int53(_offsetId.bare),
+		tl_int53(_offsetTopicId.bare),
+		tl_int32(kSearchPerPage)
+	)).done([=](const TLDforumTopics &result) {
+		_requestId = 0;
+		const auto savedTopicId = _offsetTopicId;
+		_forum->applyReceivedTopics(result.vtopics().v, [&](
+				not_null<Data::ForumTopic*> topic) {
+			delegate()->peerListSearchAddRow(topic->rootId().bare);
+		});
+		_offsetDate = result.vnext_offset_date().v;
+		_offsetId = result.vnext_offset_message_id().v;
+		_offsetTopicId = result.vnext_offset_message_thread_id().v;
+#if 0 // mtp
 	_requestId = _api.request(MTPchannels_GetForumTopics(
 		MTP_flags(MTPchannels_GetForumTopics::Flag::f_q),
 		_forum->channel()->inputChannel,
@@ -799,6 +820,7 @@ void ChooseTopicSearchController::searchOnServer() {
 			}
 			delegate()->peerListSearchAddRow(topic->rootId().bare);
 		});
+#endif
 		if (_offsetTopicId == savedTopicId) {
 			_allLoaded = true;
 		}

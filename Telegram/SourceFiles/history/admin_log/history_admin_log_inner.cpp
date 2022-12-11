@@ -751,7 +751,8 @@ void InnerWidget::preloadMore(Direction direction) {
 		tl_bool(_filter.flags & FilterValue::Flag::Info),
 		tl_bool(_filter.flags & FilterValue::Flag::Settings),
 		tl_bool(_filter.flags & FilterValue::Flag::Invite),
-		tl_bool(_filter.flags & FilterValue::Flag::GroupCall));
+		tl_bool(_filter.flags & FilterValue::Flag::GroupCall),
+		tl_bool(_filter.flags & FilterValue::Flag::Topics));
 
 	auto admins = _filter.allUsers
 		? QVector<TLint53>()
@@ -883,7 +884,7 @@ void InnerWidget::addEvents(
 			return;
 		}
 		const auto rememberRealMsgId = (antiSpamUserId
-			== peerToUser(peerFromUser(data.vuser_id())));
+			== peerToUser(peerFromSender(data.vmember_id())));
 
 		auto count = 0;
 		const auto addOne = [&](

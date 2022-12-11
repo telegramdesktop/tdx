@@ -3387,7 +3387,7 @@ void HistoryWidget::messagesReceived(
 		_preloadDownRequest = 0;
 		preloadHistoryIfNeeded();
 		if (_history->loadedAtBottom()) {
-			checkHistoryActivation();
+			checkActivation();
 		}
 	} else if (_firstLoadRequest == requestId) {
 		if (toMigrated) {
@@ -3424,18 +3424,14 @@ void HistoryWidget::messagesReceived(
 			firstLoadMessages();
 			return;
 		}
-		while (_replyReturn) {
-			if (_replyReturn->history() == _history
-				&& _replyReturn->id == _delayedShowAtMsgId) {
-				calcNextReplyReturn();
-			} else if (_replyReturn->history() == _migrated
-				&& -_replyReturn->id == _delayedShowAtMsgId) {
-				calcNextReplyReturn();
-			} else {
-				break;
-			}
+		const auto skipId = (_migrated && _delayedShowAtMsgId < 0)
+			? FullMsgId(_migrated->peer->id, -_delayedShowAtMsgId)
+			: (_delayedShowAtMsgId > 0)
+			? FullMsgId(_history->peer->id, _delayedShowAtMsgId)
+			: FullMsgId();
+		if (skipId) {
+			_cornerButtons.skipReplyReturn(skipId);
 		}
-
 		_delayedShowAtRequest = 0;
 		setMsgId(_delayedShowAtMsgId);
 		historyLoaded();

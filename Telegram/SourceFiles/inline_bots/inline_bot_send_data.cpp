@@ -52,7 +52,9 @@ void SendDataCommon::addToHistory(
 		fromId,
 		postAuthor,
 		std::move(fields.text),
+#if 0 // todo
 		std::move(fields.media),
+#endif
 		std::move(markup));
 }
 
