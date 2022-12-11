@@ -105,7 +105,10 @@ constexpr auto kMaxWallPaperSlugLength = 255;
 			? history->session().userId()
 			: peerToUser(history->peer->id)),
 		.date = base::unixtime::now(),
+	}, TextWithEntities{ text });
+#if 0 // mtp
 	}, TextWithEntities{ text }, MTP_messageMediaEmpty());
+#endif
 	return AdminLog::OwnedItem(delegate, item);
 }
 

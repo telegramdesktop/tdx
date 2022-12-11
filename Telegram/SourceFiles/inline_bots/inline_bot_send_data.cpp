@@ -38,8 +38,11 @@ void SendDataCommon::addToHistory(
 	}
 	history->addNewLocalMessage(
 		std::move(fields),
+		std::move(distinct.text));
+#if 0 // todo
 		std::move(distinct.text),
 		std::move(distinct.media));
+#endif
 }
 
 QString SendDataCommon::getErrorOnSend(

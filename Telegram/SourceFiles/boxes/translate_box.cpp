@@ -38,6 +38,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QLocale>
 
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Ui {
 namespace {
 
@@ -232,6 +235,7 @@ void TranslateBox(
 	const auto send = [=](LanguageId to) {
 		loading->show(anim::type::instant);
 		translated->hide(anim::type::instant);
+#if 0 // todo
 		state->api.request(MTPmessages_TranslateText(
 			MTP_flags(flags),
 			msgId ? peer->input : MTP_inputPeerEmpty(),
@@ -265,6 +269,7 @@ void TranslateBox(
 			showText(
 				Ui::Text::Italic(tr::lng_translate_box_error(tr::now)));
 		}).send();
+#endif
 	};
 	state->to.value() | rpl::start_with_next(send, box->lifetime());
 

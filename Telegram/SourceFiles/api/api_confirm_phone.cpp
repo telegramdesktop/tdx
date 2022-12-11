@@ -180,6 +180,8 @@ void ConfirmPhone::resolve(
 			return data.vlength().v;
 		}, [](const Tdb::TLDauthenticationCodeTypeCall &data) {
 			return data.vlength().v;
+		}, [](const Tdb::TLDauthenticationCodeTypeFragment &data) {
+			return data.vlength().v;
 		}, [](const Tdb::TLDauthenticationCodeTypeMissedCall &data) {
 			LOG(("Error: should not be missedcall!"));
 			return 0;

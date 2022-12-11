@@ -176,8 +176,11 @@ public:
 
 	not_null<HistoryItem*> addNewLocalMessage(
 		HistoryItemCommonFields &&fields,
+		const TextWithEntities &text);
+#if 0 // mtp
 		const TextWithEntities &text,
 		const MTPMessageMedia &media);
+#endif
 	not_null<HistoryItem*> addNewLocalMessage(
 		HistoryItemCommonFields &&fields,
 		not_null<HistoryItem*> forwardOriginal);
@@ -221,8 +224,8 @@ public:
 		MsgId id,
 		const Tdb::TLmessage &message,
 		MessageFlags localFlags,
-		bool detachExistingItem);
-
+		bool detachExistingItem,
+		HistoryItem *replacing = nullptr);
 
 #if 0 // mtp
 	void addOlderSlice(const QVector<MTPMessage> &slice);
@@ -295,7 +298,7 @@ public:
 #endif
 
 	void applyPosition(const Tdb::TLDchatPosition &data);
-	void finishSavingCloudDraftNow();
+	void finishSavingCloudDraftNow(MsgId topicRootId);
 	void applyUnreadInfo(int unreadCount,
 		MsgId maxInboxRead,
 		MsgId maxOutboxRead);

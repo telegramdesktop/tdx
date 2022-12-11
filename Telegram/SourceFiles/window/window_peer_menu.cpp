@@ -93,12 +93,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 
 #include "tdb/tdb_tl_scheme.h"
+#include "api/api_sending.h"
 
 #include <QAction>
 #include <QtGui/QGuiApplication>
 
 namespace Window {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kTopicsSearchMinCount = 1;
 
@@ -111,11 +114,12 @@ void ShareBotGame(
 	const auto randomId = base::RandomValue<uint64>();
 	const auto replyTo = thread->topicRootId();
 	const auto topicRootId = replyTo;
-	const auto api = &chat->session().api();
+	const auto action = Api::SendAction(thread);
+	const auto api = &history->session().api();
 	history->session().sender().request(TLsendMessage(
-		peerToTdbChat(chat->id), // todo topics
-		tl_int53(0), // Message thread id.
-		tl_int53(0), // Reply to message id.
+		peerToTdbChat(history->peer->id),
+		tl_int53(action.replyTo.topicRootId.bare),
+		MessageReplyTo(action),
 		std::nullopt, // Options.
 		tl_inputMessageGame(
 			peerToTdbChat(bot->id),
@@ -123,7 +127,9 @@ void ShareBotGame(
 	)).done([=](const TLmessage &result) {
 		history->owner().processMessage(result, NewMessageType::Unread);
 	}).fail([=](const Error &error) {
-		history->session().api().sendMessageFail(error.message, chat);
+		history->session().api().sendMessageFail(
+			error.message,
+			history->peer);
 	}).send();
 #if 0 // goodToRemove
 	auto flags = MTPmessages_SendMedia::Flags(0);
@@ -1517,6 +1523,15 @@ void PeerMenuDeleteTopic(
 		not_null<ChannelData*> channel,
 		MsgId rootId) {
 	const auto api = &channel->session().api();
+	api->sender().request(TLdeleteForumTopic(
+		peerToTdbChat(channel->id),
+		tl_int53(rootId.bare)
+	)).done([=] {
+		if (const auto forum = channel->forum()) {
+			forum->applyTopicDeleted(rootId);
+		}
+	}).send();
+#if 0 // mtp
 	api->request(MTPchannels_DeleteTopicHistory(
 		channel->inputChannel,
 		MTP_int(rootId)
@@ -1528,6 +1543,7 @@ void PeerMenuDeleteTopic(
 			forum->applyTopicDeleted(rootId);
 		}
 	}).send();
+#endif
 }
 
 void PeerMenuDeleteTopic(
@@ -1754,7 +1770,7 @@ void PeerMenuBlockUserBox(
 				peer->session().sender().request(TLreportChat(
 					peerToTdbChat(peer->id),
 					tl_vector<TLint53>(),
-					tl_chatReportReasonSpam(),
+					tl_reportReasonSpam(),
 					tl_string()
 				)).send();
 			}
@@ -2477,11 +2493,22 @@ void UnpinAllMessages(
 		if (!strong) {
 			return;
 		}
-		strong->session().sender().request(TLunpinAllChatMessages(
-			peerToTdbChat(history->peer->id) // todo topics
-		)).done([=] {
-			history->unpinAllMessages();
-		}).send();
+		const auto history = strong->owningHistory();
+		const auto topicRootId = strong->topicRootId();
+		const auto sender = &strong->session().sender();
+		const auto done = [=] {
+			history->unpinMessagesFor(topicRootId);
+		};
+		if (topicRootId) {
+			sender->request(TLunpinAllMessageThreadMessages(
+				peerToTdbChat(history->peer->id),
+				tl_int53(topicRootId.bare)
+			)).done(done).send();
+		} else {
+			sender->request(TLunpinAllChatMessages(
+				peerToTdbChat(history->peer->id)
+			)).done(done).send();
+		}
 #if 0 // mtp
 		const auto api = &strong->session().api();
 		const auto sendRequest = [=](auto self) -> void {

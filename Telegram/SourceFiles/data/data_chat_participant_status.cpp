@@ -68,7 +68,7 @@ ChatAdminRightsInfo::ChatAdminRightsInfo(
 			| (rights.vcan_edit_messages().v ? Flag::EditMessages : empty)
 			| (rights.vcan_delete_messages().v ? Flag::DeleteMessages : empty)
 			| (rights.vcan_restrict_members().v ? Flag::BanUsers : empty)
-			| (rights.vcan_invite_users().v ? Flag::InviteUsers : empty)
+			| (rights.vcan_invite_users().v ? Flag::InviteByLinkOrAdd : empty)
 			| (rights.vcan_pin_messages().v ? Flag::PinMessages : empty)
 			| (rights.vcan_promote_members().v ? Flag::AddAdmins : empty)
 			| (rights.vis_anonymous().v ? Flag::Anonymous : empty)
@@ -81,7 +81,7 @@ ChatAdminRightsInfo::ChatAdminRightsInfo(
 			| ChatAdminRight::EditMessages
 			| ChatAdminRight::DeleteMessages
 			| ChatAdminRight::BanUsers
-			| ChatAdminRight::InviteUsers
+			| ChatAdminRight::InviteByLinkOrAdd
 			| ChatAdminRight::PinMessages
 			| ChatAdminRight::AddAdmins
 			| (data.vis_anonymous().v ? ChatAdminRight::Anonymous : empty)
@@ -103,9 +103,10 @@ Tdb::TLchatMemberStatus ChatAdminRightsInfo::ToTL(
 			Tdb::tl_bool(rights.flags & ChatAdminRight::PostMessages),
 			Tdb::tl_bool(rights.flags & ChatAdminRight::EditMessages),
 			Tdb::tl_bool(rights.flags & ChatAdminRight::DeleteMessages),
-			Tdb::tl_bool(rights.flags & ChatAdminRight::InviteUsers),
+			Tdb::tl_bool(rights.flags & ChatAdminRight::InviteByLinkOrAdd),
 			Tdb::tl_bool(rights.flags & ChatAdminRight::BanUsers),
 			Tdb::tl_bool(rights.flags & ChatAdminRight::PinMessages),
+			Tdb::tl_bool(rights.flags & ChatAdminRight::ManageTopics),
 			Tdb::tl_bool(rights.flags & ChatAdminRight::AddAdmins),
 			Tdb::tl_bool(rights.flags & ChatAdminRight::ManageCall),
 			Tdb::tl_bool(rights.flags & ChatAdminRight::Anonymous)));
@@ -130,7 +131,7 @@ ChatRestrictionsInfo::ChatRestrictionsInfo(
 			| (data.vcan_add_web_page_previews().v ? Flag::EmbedLinks : empty)
 			| (data.vcan_send_polls().v ? Flag::SendPolls : empty)
 			| (data.vcan_change_info().v ? Flag::ChangeInfo : empty)
-			| (data.vcan_invite_users().v ? Flag::InviteUsers : empty)
+			| (data.vcan_invite_users().v ? Flag::AddParticipants : empty)
 			| (data.vcan_pin_messages().v ? Flag::PinMessages : empty);
 	}, [&](const Tdb::TLDchatMemberStatusBanned &data) {
 #if 0 // doLater Check if it's an user.
@@ -153,8 +154,9 @@ Tdb::TLchatPermissions ChatRestrictionsInfo::ToTLPermissions(
 			|| (!(flags & ChatRestriction::SendGames))),
 		Tdb::tl_bool(!(flags & ChatRestriction::EmbedLinks)),
 		Tdb::tl_bool(!(flags & ChatRestriction::ChangeInfo)),
-		Tdb::tl_bool(!(flags & ChatRestriction::InviteUsers)),
-		Tdb::tl_bool(!(flags & ChatRestriction::PinMessages)));
+		Tdb::tl_bool(!(flags & ChatRestriction::AddParticipants)),
+		Tdb::tl_bool(!(flags & ChatRestriction::PinMessages)),
+		Tdb::tl_bool(!(flags & ChatRestriction::CreateTopics)));
 }
 
 Tdb::TLchatMemberStatus ChatRestrictionsInfo::ToTL(

@@ -71,6 +71,9 @@ public:
 		not_null<PeerData*> peer,
 		const Tdb::TLchatNotificationSettings &settings);
 	void apply(
+		not_null<Data::ForumTopic*> topic,
+		const Tdb::TLchatNotificationSettings &settings);
+	void apply(
 		DefaultNotify type,
 		const Tdb::TLscopeNotificationSettings &settings);
 

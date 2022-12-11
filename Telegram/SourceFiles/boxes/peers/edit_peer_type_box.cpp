@@ -578,7 +578,7 @@ void Controller::checkUsernameAvailability() {
 			if (checking != username) {
 				showUsernameError(tr::lng_create_channel_link_occupied());
 			}
-		}, [&](const TLDcheckChatUsernameResultPublicChatsTooMuch &) {
+		}, [&](const TLDcheckChatUsernameResultPublicChatsTooMany &) {
 			_usernameState = UsernameState::TooMany;
 			if (_controls.privacy->value() == Privacy::HasUsername) {
 				askUsernameRevoke();
@@ -586,6 +586,11 @@ void Controller::checkUsernameAvailability() {
 		}, [&](const TLDcheckChatUsernameResultPublicGroupsUnavailable &) {
 			_usernameState = UsernameState::NotAvailable;
 			_controls.privacy->setValue(Privacy::NoUsername);
+		}, [&](const TLDcheckChatUsernameResultUsernamePurchasable &) {
+			_goodUsername = false;
+			_usernameCheckInfo.fire({
+				.type = UsernameCheckInfo::Type::PurchaseAvailable,
+			});
 		});
 	}).fail([=](const Error &error) {
 		_checkUsernameRequestId = 0;
@@ -593,7 +598,7 @@ void Controller::checkUsernameAvailability() {
 		const auto &type = error.message;
 		if (initial) {
 			if (_controls.privacy->value() == Privacy::HasUsername) {
-				_controls.usernameResult = nullptr;
+				showUsernameEmpty();
 				setFocusUsername();
 			}
 		} else if (type == u"USERNAME_OCCUPIED"_q && (checking != username)) {

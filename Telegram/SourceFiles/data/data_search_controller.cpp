@@ -145,7 +145,7 @@ std::optional<SearchRequest> PrepareSearchRequest(
 			? (limit + 1) // Must be more than -addOffset.
 			: limit),
 		filter,
-		Tdb::tl_int53(0)); // Thread.
+		Tdb::tl_int53(topicRootId.bare));
 #if 0 // goodToRemove
 	const auto hash = uint64(0);
 

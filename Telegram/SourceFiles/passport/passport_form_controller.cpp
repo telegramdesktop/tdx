@@ -3192,6 +3192,10 @@ void FormController::startPhoneVerification(not_null<Value*> value) {
 			if (data.vnext_type()) {
 				LOG(("API Error: next_type is not supported for calls."));
 			}
+		}, [&](const TLDauthenticationCodeTypeFragment &type) {
+			value->verification.codeLength = (type.vlength().v > 0)
+				? type.vlength().v
+				: -1;
 		}, [&](const TLDauthenticationCodeTypeMissedCall &data) {
 			LOG(("API Error: sentCodeTypeMissedCall not expected "
 				"in FormController::startPhoneVerification."));
