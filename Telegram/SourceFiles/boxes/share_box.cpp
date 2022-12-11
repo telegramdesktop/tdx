@@ -1627,7 +1627,7 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 			state->requests.insert(threadHistory->sendRequestId);
 #endif
 			const auto requestDone = [=] {
-				if (data->requests.empty()) {
+				if (state->requests.empty()) {
 					if (show->valid()) {
 						show->showToast(tr::lng_share_done(tr::now));
 						show->hideLayer();
@@ -1643,6 +1643,8 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 
 			// If we have only one message to send
 			// Then there is a chance we should send a game score.
+			const auto dropNames = (forwardOptions != Data::ForwardOptions::PreserveInfo);
+			const auto dropCaptions = (forwardOptions == Data::ForwardOptions::NoNamesAndCaptions);
 			if (msgIds.size() == 1) {
 				auto tlCopyOptions = [&](
 					) -> std::optional<Tdb::TLmessageCopyOptions> {
@@ -1658,15 +1660,15 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 						Tdb::tl_bool(false)); // new_show_caption_above_media
 				}();
 
-				data->requests.insert(api.request(
+				state->requests.insert(api.request(
 					Tdb::TLsendMessage(
 						peerToTdbChat(peer->id),
-						Tdb::tl_int53(0), // Message thread id.
-						Tdb::tl_int53(0), // Reply to message id.
+						Tdb::tl_int53(topicRootId.bare),
+						std::nullopt, // replyTo
 						std::move(tlOptions),
 						Tdb::tl_inputMessageForwarded(
-							peerToTdbChat(data->peer->id),
-							msgIds.front(),
+							peerToTdbChat(msgIds.front().peer),
+							tl_int53(msgIds.front().msg.bare),
 							Tdb::tl_bool(true), // In game share.
 							std::move(tlCopyOptions))
 					)).done([=](
@@ -1675,22 +1677,27 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 					peer->owner().processMessage(
 						message,
 						NewMessageType::Unread);
-					data->requests.remove(reqId);
+					state->requests.remove(reqId);
 					requestDone();
 				}).send());
 			} else {
-				data->requests.insert(api.request(
+				state->requests.insert(api.request(
 					Tdb::TLforwardMessages(
 						peerToTdbChat(peer->id),
-						peerToTdbChat(data->peer->id),
-						Tdb::tl_vector<Tdb::TLint53>(msgIds),
+						tl_int53(topicRootId.bare),
+						peerToTdbChat(history->peer->id),
+						Tdb::tl_vector<Tdb::TLint53>(ranges::views::all(
+							msgIds
+						) | ranges::views::transform([](FullMsgId id) {
+							return tl_int53(id.msg.bare);
+						}) | ranges::to<QVector>),
 						std::move(tlOptions),
 						Tdb::tl_bool(dropNames),
 						Tdb::tl_bool(dropCaptions)
 					)).done([=](
 						const Tdb::TLmessages &messages,
 						Tdb::RequestId reqId) {
-					data->requests.remove(reqId);
+					state->requests.remove(reqId);
 					requestDone();
 				}).send());
 			}

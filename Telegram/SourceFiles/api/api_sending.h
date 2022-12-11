@@ -24,6 +24,7 @@ namespace Tdb {
 class TLinputMessageContent;
 class TLmessageSchedulingState;
 class TLmessageSendOptions;
+class TLmessageReplyTo;
 } // namespace Tdb
 
 namespace Api {
@@ -61,6 +62,9 @@ void SendConfirmedFile(
 
 [[nodiscard]] Tdb::TLmessageSendOptions MessageSendOptions(
 	not_null<PeerData*> peer,
+	const SendAction &action,
+	int32 sendingId = 0);
+[[nodiscard]] std::optional<Tdb::TLmessageReplyTo> MessageReplyTo(
 	const SendAction &action);
 
 void SendPreparedMessage(

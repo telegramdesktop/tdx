@@ -146,7 +146,8 @@ std::optional<SearchRequest> PrepareSearchRequest(
 			? (limit + 1) // Must be more than -addOffset.
 			: limit),
 		filter,
-		Tdb::tl_int53(0)); // Thread.
+		Tdb::tl_int53(topicRootId.bare),
+		Tdb::tl_int53(0)); // saved_messages_topic_id
 #if 0 // goodToRemove
 	const auto hash = uint64(0);
 

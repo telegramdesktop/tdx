@@ -17,6 +17,7 @@ namespace Tdb {
 class TLmessage;
 class TLDmessage;
 class TLmessageContent;
+class TLDmessageForwardInfo;
 class TLmessageInteractionInfo;
 class TLmessageReaction;
 class TLunreadReaction;
@@ -128,6 +129,10 @@ class HistoryItem final : public RuntimeComposer<HistoryItem> {
 public:
 	[[nodiscard]] static std::unique_ptr<Data::Media> CreateMedia(
 		not_null<HistoryItem*> item,
+		const Tdb::TLmessageContent &content);
+#if 0 // mtp
+	[[nodiscard]] static std::unique_ptr<Data::Media> CreateMedia(
+		not_null<HistoryItem*> item,
 		const MTPMessageMedia &media);
 
 	HistoryItem(
@@ -145,6 +150,7 @@ public:
 		MsgId id,
 		const MTPDmessageEmpty &data,
 		MessageFlags localFlags);
+#endif
 
 	HistoryItem( // Sponsored message.
 		not_null<History*> history,
@@ -160,8 +166,11 @@ public:
 	HistoryItem( // Local message.
 		not_null<History*> history,
 		HistoryItemCommonFields &&fields,
+		const TextWithEntities &textWithEntities);
+#if 0 // mtp
 		const TextWithEntities &textWithEntities,
 		const MTPMessageMedia &media);
+#endif
 	HistoryItem( // Local service message.
 		not_null<History*> history,
 		HistoryItemCommonFields &&fields,
@@ -191,7 +200,8 @@ public:
 		not_null<History*> history,
 		MsgId id,
 		const Tdb::TLDmessage &data,
-		MessageFlags localFlags);
+		MessageFlags localFlags,
+		HistoryItem *replacing);
 
 	struct Destroyer {
 		void operator()(HistoryItem *value);
@@ -370,7 +380,10 @@ public:
 	[[nodiscard]] bool needCheck() const;
 
 	[[nodiscard]] bool isService() const;
+
+#if 0 // mtp
 	void applyEdition(HistoryMessageEdition &&edition);
+#endif
 	void applyChanges(not_null<Data::Story*> story);
 
 #if 0 // mtp
@@ -436,7 +449,9 @@ public:
 		MsgId replyToTop,
 		bool isForumPost);
 	void setPostAuthor(const QString &author);
+#if 0 // mtp
 	void setRealId(MsgId newId);
+#endif
 	void incrementReplyToTopCounter();
 	void applyEffectWatchedOnUnreadKnown();
 
@@ -479,7 +494,9 @@ public:
 #if 0 // mtp
 	void updateReactionsUnknown();
 #endif
-	void updateReactions(const QVector<Tdb::TLmessageReaction> &list);
+	void updateReactions(
+		const QVector<Tdb::TLmessageReaction> &list,
+		bool areTags);
 	void updateUnreadReactions(const QVector<Tdb::TLunreadReaction> &list);
 	[[nodiscard]] auto reactions() const
 		-> const std::vector<Data::MessageReaction> &;
@@ -499,6 +516,7 @@ public:
 #if 0 // mtp
 	[[nodiscard]] crl::time lastReactionsRefreshTime() const;
 #endif
+	[[nodiscard]] bool selfDestructImmediate() const;
 
 	[[nodiscard]] bool reactionsAreTags() const;
 	[[nodiscard]] bool hasDirectLink() const;
@@ -609,10 +627,13 @@ private:
 	[[nodiscard]] TextWithEntities withLocalEntities(
 		const TextWithEntities &textWithEntities) const;
 	void setTextValue(TextWithEntities text, bool force = false);
+
+#if 0 // mtp
 	[[nodiscard]] bool isTooOldForEdit(TimeId now) const;
 	[[nodiscard]] bool isLegacyMessage() const {
 		return _flags & MessageFlag::Legacy;
 	}
+#endif
 
 	[[nodiscard]] bool checkCommentsLinkedChat(ChannelId id) const;
 
@@ -655,7 +676,25 @@ private:
 	[[nodiscard]] ClickHandlerPtr fromLink() const;
 
 	void setGroupId(MessageGroupId groupId);
+	void clearGroupId();
 
+	static void FillForwardedInfo(
+		CreateConfig &config,
+		const Tdb::TLDmessageForwardInfo &data);
+	void createServiceFromTdb(const Tdb::TLmessageContent &content);
+	void setServiceMessageByContent(const Tdb::TLmessageContent &content);
+	void applyContent(const Tdb::TLmessageContent &content);
+	void setReactions(
+		const QVector<Tdb::TLmessageReaction> &list,
+		const QVector<Tdb::TLunreadReaction> &unread,
+		bool areTags);
+	[[nodiscard]] bool changeReactions(
+		const QVector<Tdb::TLmessageReaction> &list,
+		bool areTags);
+	[[nodiscard]] bool changeUnreadReactions(
+		const QVector<Tdb::TLunreadReaction> &list);
+	void setMedia(const Tdb::TLmessageContent &content);
+	void setContent(const Tdb::TLmessageContent &content);
 #if 0 // mtp
 	static void FillForwardedInfo(
 		CreateConfig &config,
@@ -684,6 +723,7 @@ private:
 	[[nodiscard]] PreparedServiceText preparePinnedText();
 	[[nodiscard]] PreparedServiceText prepareGameScoreText();
 	[[nodiscard]] PreparedServiceText preparePaymentSentText();
+	[[nodiscard]] PreparedServiceText preparePaymentRefundText();
 	[[nodiscard]] PreparedServiceText prepareStoryMentionText();
 	[[nodiscard]] PreparedServiceText prepareInvitedToCallText(
 		const std::vector<not_null<UserData*>> &users,

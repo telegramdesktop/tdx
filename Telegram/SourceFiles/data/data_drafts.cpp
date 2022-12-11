@@ -23,6 +23,48 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tdb/tdb_tl_scheme.h"
 
 namespace Data {
+namespace {
+
+using namespace Tdb;
+
+[[nodiscard]] FullReplyTo ReplyToFromTL(
+		not_null<History*> history,
+		const TLinputMessageReplyTo *reply) {
+	if (!reply) {
+		return {};
+	}
+	return reply->match([&](const TLDinputMessageReplyToMessage &data) {
+		auto result = FullReplyTo{
+			.messageId = { history->peer->id, data.vmessage_id().v },
+		};
+		if (const auto quote = data.vquote()) {
+			result.quote = Api::FormattedTextFromTdb(quote->data().vtext());
+			result.quoteOffset = quote->data().vposition().v;
+		}
+		return result;
+	}, [&](const TLDinputMessageReplyToExternalMessage &data) {
+		auto result = FullReplyTo{
+			.messageId = {
+				peerFromTdbChat(data.vchat_id()),
+				data.vmessage_id().v,
+			},
+		};
+		if (const auto quote = data.vquote()) {
+			result.quote = Api::FormattedTextFromTdb(quote->data().vtext());
+			result.quoteOffset = quote->data().vposition().v;
+		}
+		return result;
+	}, [&](const TLDinputMessageReplyToStory &data) {
+		if (const auto id = peerFromTdbChat(data.vstory_sender_chat_id())) {
+			return FullReplyTo{
+				.storyId = { id, data.vstory_id().v },
+			};
+		}
+		return FullReplyTo();
+	});
+}
+
+} // namespace
 
 WebPageDraft WebPageDraft::FromItem(not_null<HistoryItem*> item) {
 	const auto previewMedia = item->media();
@@ -122,11 +164,12 @@ void ApplyPeerCloudDraft(
 void ApplyPeerCloudDraft(
 		not_null<Main::Session*> session,
 		PeerId peerId,
+		MsgId topicRootId,
 		const Tdb::TLDdraftMessage &draft) {
 	draft.vinput_message_text().match([&](const Tdb::TLDinputMessageText &d) {
 		const auto history = session->data().history(peerId);
 		const auto date = draft.vdate().v;
-		if (history->skipCloudDraftUpdate(date)) {
+		if (history->skipCloudDraftUpdate(topicRootId, date)) {
 			return;
 		}
 		const auto text = Api::FormattedTextFromTdb(d.vtext());
@@ -134,18 +177,27 @@ void ApplyPeerCloudDraft(
 			text.text,
 			TextUtilities::ConvertEntitiesToTextTags(text.entities)
 		};
-		const auto replyTo = draft.vreply_to_message_id().v;
+		auto replyTo = ReplyToFromTL(history, draft.vreply_to());
+		replyTo.topicRootId = topicRootId;
+		auto webpage = WebPageDraft();
+		if (const auto options = d.vlink_preview_options()) {
+			const auto &fields = options->data();
+			webpage.removed = fields.vis_disabled().v;
+			webpage.invert = fields.vshow_above_text().v;
+			webpage.forceLargeMedia = fields.vforce_large_media().v;
+			webpage.forceSmallMedia = fields.vforce_small_media().v;
+			webpage.url = fields.vurl().v;
+		};
 		auto cloudDraft = std::make_unique<Draft>(
 			textWithTags,
 			replyTo,
-			MessageCursor(QFIXED_MAX, QFIXED_MAX, QFIXED_MAX),
-			(d.vdisable_web_page_preview().v
-				? Data::PreviewState::Cancelled
-				: Data::PreviewState::Allowed));
+			topicRootId,
+			MessageCursor(Ui::kQFixedMax, Ui::kQFixedMax, Ui::kQFixedMax),
+			std::move(webpage));
 		cloudDraft->date = date;
 
 		history->setCloudDraft(std::move(cloudDraft));
-		history->applyCloudDraft();
+		history->applyCloudDraft(topicRootId);
 	}, [](const auto &) {
 		Unexpected("Unsupported draft content type.");
 	});

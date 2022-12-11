@@ -2293,10 +2293,12 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 				_highlighter.enqueue({ item });
 			}
 		}
+#if 0 // mtp
 		session->data().reactions().poll(item, context.now);
 		if (item->hasUnpaidContent()) {
 			session->api().views().pollExtendedMedia(item);
 		}
+#endif
 		if (_reactionsManager) {
 			_reactionsManager->recordCurrentReactionEffect(
 				item->fullId(),

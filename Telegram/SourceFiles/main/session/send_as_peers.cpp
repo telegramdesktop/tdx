@@ -169,15 +169,16 @@ void SendAsPeers::request(not_null<PeerData*> peer) {
 #endif
 	peer->session().sender().request(TLgetChatAvailableMessageSenders(
 		peerToTdbChat(peer->id)
-	)).done([=](const TLDmessageSenders &result) {
+	)).done([=](const TLDchatMessageSenders &result) {
 		auto parsed = std::vector<SendAsPeer>();
 		auto &owner = peer->owner();
 		for (const auto &id : result.vsenders().v) {
-			if (const auto peer = owner.peerLoaded(peerFromSender(id))) {
+			const auto &data = id.data();
+			const auto &sender = data.vsender();
+			if (const auto peer = owner.peerLoaded(peerFromSender(sender))) {
 				parsed.push_back({
 					.peer = peer,
-					.premiumRequired = (peer->isBroadcast()
-						&& !peer->isVerified()),
+					.premiumRequired = data.vneeds_premium().v,
 				});
 			}
 		}

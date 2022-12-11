@@ -526,6 +526,7 @@ void ApiWrap::savePinnedOrder(not_null<Data::Forum*> forum) {
 		}
 		Unexpected("Key type in pinnedDialogsOrder().");
 	};
+#if 0 // later-todo
 	auto topics = QVector<MTPint>();
 	topics.reserve(order.size());
 	ranges::transform(
@@ -539,6 +540,7 @@ void ApiWrap::savePinnedOrder(not_null<Data::Forum*> forum) {
 	)).done([=](const MTPUpdates &result) {
 		applyUpdates(result);
 	}).send();
+#endif
 }
 
 void ApiWrap::savePinnedOrder(not_null<Data::SavedMessages*> saved) {
@@ -2230,7 +2232,7 @@ void ApiWrap::leaveChannel(not_null<ChannelData*> channel) {
 		}).fail([=] {
 			_channelAmInRequests.remove(channel);
 		}).send();
-		_channelAmInRequests.insert(channel, requestId);
+		_channelAmInRequests.emplace(channel, requestId);
 	}
 #if 0 // mtp
 	if (!channel->amIn()) {
@@ -2343,11 +2345,11 @@ void ApiWrap::requestDefaultNotifySettings() {
 }
 
 void ApiWrap::requestDefaultNotifySettings(Data::DefaultNotify type) {
-	const auto key = [&] {
+	const auto key = [&]() -> NotifySettingsKey {
 		switch (type) {
-		case Data::DefaultNotify::User: return peerFromUser(0);
-		case Data::DefaultNotify::Group: return peerFromChat(0);
-		case Data::DefaultNotify::Broadcast: return peerFromChannel(0);
+		case Data::DefaultNotify::User: return { peerFromUser(1) };
+		case Data::DefaultNotify::Group: return { peerFromChat(1) };
+		case Data::DefaultNotify::Broadcast: return { peerFromChannel(1) };
 		}
 		Unexpected("Type in requestDefaultNotifySettings.");
 	}();
@@ -2399,7 +2401,7 @@ void ApiWrap::updateNotifySettingsDelayed(Data::DefaultNotify type) {
 void ApiWrap::sendNotifySettingsUpdates() {
 	_updateNotifyQueueLifetime.destroy();
 	for (const auto topic : base::take(_updateNotifyTopics)) {
-#if 0 // todo topics
+#if 0 // mtp
 		request(MTPaccount_UpdateNotifySettings(
 			MTP_inputNotifyForumTopic(
 				topic->channel()->input,
@@ -2407,6 +2409,11 @@ void ApiWrap::sendNotifySettingsUpdates() {
 			topic->notify().serialize()
 		)).afterDelay(kSmallDelayMs).send();
 #endif
+		sender().request(TLsetForumTopicNotificationSettings(
+			peerToTdbChat(topic->channel()->id),
+			tl_int53(topic->rootId().bare),
+			topic->notify().serialize()
+		)).send();
 	}
 	for (const auto peer : base::take(_updateNotifyPeers)) {
 		sender().request(TLsetChatNotificationSettings(
@@ -2445,15 +2452,15 @@ void ApiWrap::saveDraftToCloudDelayed(not_null<Data::Thread*> thread) {
 	}
 }
 
-void ApiWrap::saveDraftToCloudNow(not_null<History*> history) {
-	_draftsSaveRequestIds[history] = 0;
+void ApiWrap::saveDraftToCloudNow(not_null<Data::Thread*> thread) {
+	_draftsSaveRequestIds.emplace(base::make_weak(thread), 0);
 	_draftsSaveTimer.cancel();
 	saveDraftsToCloud();
 }
 
-void ApiWrap::manualClearCloudDraft(not_null<History*> history) {
-	history->clearCloudDraft();
-	saveDraftToCloudNow(history);
+void ApiWrap::manualClearCloudDraft(not_null<Data::Thread*> thread) {
+	thread->owningHistory()->clearCloudDraft(thread->topicRootId());
+	saveDraftToCloudNow(thread);
 }
 
 void ApiWrap::updatePrivacyLastSeens() {
@@ -2745,35 +2752,35 @@ void ApiWrap::saveDraftsToCloud() {
 
 		cloudDraft->saveRequestId = sender().request(TLsetChatDraftMessage(
 			peerToTdbChat(history->peer->id),
-			tl_int53(0), // Thread. // todo topics
+			tl_int53(topicRootId.bare),
 			std::move(tlDraft)
 		)).done([=](const TLok &, Tdb::RequestId requestId) {
-			history->finishSavingCloudDraftNow();
+			history->finishSavingCloudDraftNow(topicRootId);
 
-			if (const auto cloudDraft = history->cloudDraft()) {
+			if (const auto cloudDraft = history->cloudDraft(topicRootId)) {
 				if (cloudDraft->saveRequestId == requestId) {
 					cloudDraft->saveRequestId = 0;
-					history->draftSavedToCloud();
+					history->draftSavedToCloud(topicRootId);
 				}
 			}
-			auto i = _draftsSaveRequestIds.find(history);
+			auto i = _draftsSaveRequestIds.find(weak);
 			if (i != _draftsSaveRequestIds.cend()
 				&& i->second == requestId) {
-				_draftsSaveRequestIds.erase(history);
+				_draftsSaveRequestIds.erase(weak);
 				checkQuitPreventFinished();
 			}
 		}).fail([=](const Tdb::Error &error, Tdb::RequestId requestId) {
-			history->finishSavingCloudDraftNow();
+			history->finishSavingCloudDraftNow(topicRootId);
 
-			if (const auto cloudDraft = history->cloudDraft()) {
+			if (const auto cloudDraft = history->cloudDraft(topicRootId)) {
 				if (cloudDraft->saveRequestId == requestId) {
-					history->clearCloudDraft();
+					history->clearCloudDraft(topicRootId);
 				}
 			}
-			auto i = _draftsSaveRequestIds.find(history);
+			auto i = _draftsSaveRequestIds.find(weak);
 			if (i != _draftsSaveRequestIds.cend()
 				&& i->second == requestId) {
-				_draftsSaveRequestIds.erase(history);
+				_draftsSaveRequestIds.erase(weak);
 				checkQuitPreventFinished();
 			}
 		}).send();
@@ -4124,6 +4131,7 @@ void ApiWrap::forwardMessages(
 		}
 		return sender().request(TLforwardMessages(
 			peerToTdbChat(peer->id),
+			tl_int53(action.topicRootId.bare),
 			peerToTdbChat(forwardFrom->id),
 			tl_vector<TLint53>(ids),
 			tl_messageSendOptions(
@@ -4818,17 +4826,18 @@ void ApiWrap::sendInlineResult(
 
 	const auto history = action.history;
 	const auto peer = history->peer;
+	const auto topicRootId = action.replyTo ? action.topicRootId : 0;
 
 	sender().request(TLsendInlineQueryResultMessage(
 		peerToTdbChat(peer->id),
-		tl_int53(0),
+		tl_int53(topicRootId.bare),
 		tl_int53(action.replyTo.bare),
 		MessageSendOptions(peer, action),
 		tl_int64(data->getQueryId()),
 		tl_string(data->getId()),
 		tl_bool(action.options.hideViaBot)
 	)).done([=](const TLmessage &result) {
-		history->finishSavingCloudDraftNow();
+		history->finishSavingCloudDraftNow(topicRootId);
 		_session->data().processMessage(result, NewMessageType::Unread);
 	}).fail([=](const Error &error) {
 		const auto code = error.code;

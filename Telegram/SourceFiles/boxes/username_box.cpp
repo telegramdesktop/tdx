@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 
 #include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
@@ -199,15 +200,17 @@ void UsernameEditor::check() {
 		result.match([&](const TLDcheckChatUsernameResultOk &data) {
 			_errorText = QString();
 			_goodText = tr::lng_username_available(tr::now);
-			update();
+			checkInfoChange();
 		}, [&](const TLDcheckChatUsernameResultUsernameInvalid &data) {
 			_errorText = tr::lng_username_invalid(tr::now);
-			update();
+			checkInfoChange();
 		}, [&](const TLDcheckChatUsernameResultUsernameOccupied &data) {
 			_errorText = tr::lng_username_occupied(tr::now);
-			update();
-		}, [](const TLDcheckChatUsernameResultPublicChatsTooMuch &data) {
+			checkInfoChange();
+		}, [](const TLDcheckChatUsernameResultPublicChatsTooMany &data) {
 		}, [](const TLDcheckChatUsernameResultPublicGroupsUnavailable &data) {
+		}, [&](const TLDcheckChatUsernameResultUsernamePurchasable &) {
+			checkInfoPurchaseAvailable();
 		});
 	}).fail([=] {
 		_checkRequestId = 0;

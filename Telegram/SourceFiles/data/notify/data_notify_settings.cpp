@@ -119,6 +119,7 @@ void NotifySettings::request(not_null<PeerData*> peer) {
 }
 
 void NotifySettings::request(not_null<Thread*> thread) {
+#if 0 // mtp
 	if (const auto topic = thread->asTopic()) {
 		if (topic->notify().settingsUnknown()) {
 			topic->session().api().requestNotifySettings(
@@ -127,6 +128,7 @@ void NotifySettings::request(not_null<Thread*> thread) {
 					MTP_int(topic->rootId())));
 		}
 	}
+#endif
 	request(thread->peer());
 }
 
@@ -226,6 +228,7 @@ void NotifySettings::apply(
 		Core::App().notifications().checkDelayed();
 	}
 }
+#endif
 
 void NotifySettings::update(
 		not_null<Thread*> thread,
@@ -246,6 +249,7 @@ void NotifySettings::update(
 	}
 }
 
+#if 0 // mtp
 void NotifySettings::resetToDefault(not_null<Thread*> thread) {
 	// Duplicated in clearExceptions(type) and resetToDefault(peer).
 	if (thread->notify().resetToDefault()) {
