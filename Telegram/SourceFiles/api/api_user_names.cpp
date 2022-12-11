@@ -13,9 +13,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "main/main_session.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Api {
 namespace {
 
+using namespace Tdb;
+
+Data::Usernames SkipSingleNormalUsername(Data::Usernames list) {
+	if (list.size() == 1 && list.front().editable && list.front().active) {
+		return {};
+	}
+	return list;
+}
+
+#if 0 // mtp
 [[nodiscard]] Data::Username UsernameFromTL(const MTPUsername &username) {
 	return {
 		.username = qs(username.data().vusername()),
@@ -23,6 +35,7 @@ namespace {
 		.editable = username.data().is_editable(),
 	};
 }
+#endif
 
 [[nodiscard]] std::optional<MTPInputUser> BotUserInput(
 		not_null<PeerData*> peer) {
@@ -44,6 +57,7 @@ rpl::producer<Data::Usernames> Usernames::loadUsernames(
 	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
 
+#if 0 // mtp
 		const auto push = [consumer](
 				const auto &usernames,
 				const auto &username) {
@@ -102,6 +116,30 @@ rpl::producer<Data::Usernames> Usernames::loadUsernames(
 		} else if (const auto channel = peer->asChannel()) {
 			requestChannel(channel->inputChannel);
 		}
+#endif
+		const auto requestUser = [&](UserId userId) {
+			_session->sender().request(TLgetUser(
+				tl_int53(userId.bare)
+			)).done([=](const TLDuser &result) {
+				consumer.put_next(
+					SkipSingleNormalUsername(FromTL(result.vusernames())));
+				consumer.put_done();
+			}).send();
+		};
+		const auto requestChannel = [&](ChannelId channelId) {
+			_session->sender().request(TLgetSupergroup(
+				tl_int53(channelId.bare)
+			)).done([=](const TLDsupergroup &result) {
+				consumer.put_next(
+					SkipSingleNormalUsername(FromTL(result.vusernames())));
+				consumer.put_done();
+			}).send();
+		};
+		if (const auto user = peer->asUser()) {
+			requestUser(peerToUser(user->id));
+		} else if (const auto channel = peer->asChannel()) {
+			requestChannel(peerToChannel(channel->id));
+		}
 		return lifetime;
 	};
 }
@@ -145,8 +183,12 @@ rpl::producer<rpl::no_value, Usernames::Error> Usernames::toggle(
 	const auto done = [=] {
 		pop(Error::Unknown);
 	};
+	const auto fail = [=](const Tdb::Error &error) {
+		const auto type = error.message;
+#if 0 // mtp
 	const auto fail = [=](const MTP::Error &error) {
 		const auto type = error.type();
+#endif
 		if (type == u"USERNAMES_ACTIVE_TOO_MUCH"_q) {
 			pop(Error::TooMuch);
 		} else {
@@ -155,22 +197,37 @@ rpl::producer<rpl::no_value, Usernames::Error> Usernames::toggle(
 	};
 
 	if (peer->isSelf()) {
+		_api.request(TLtoggleUsernameIsActive(
+			tl_string(username),
+			tl_bool(active)
+		)).done(done).fail(fail).send();
+#if 0 // mtp
 		_api.request(MTPaccount_ToggleUsername(
 			MTP_string(username),
 			MTP_bool(active)
 		)).done(done).fail(fail).send();
+#endif
 	} else if (const auto channel = peer->asChannel()) {
+		_api.request(TLtoggleSupergroupUsernameIsActive(
+			tl_int53(peerToChannel(channel->id).bare),
+			tl_string(username),
+			tl_bool(active)
+		)).done(done).fail(fail).send();
+#if 0 // mtp
 		_api.request(MTPchannels_ToggleUsername(
 			channel->inputChannel,
 			MTP_string(username),
 			MTP_bool(active)
 		)).done(done).fail(fail).send();
+#endif
 	} else if (const auto botUserInput = BotUserInput(peer)) {
+#if 0 // todo
 		_api.request(MTPbots_ToggleUsername(
 			*botUserInput,
 			MTP_string(username),
 			MTP_bool(active)
 		)).done(done).fail(fail).send();
+#endif
 	} else {
 		return rpl::never<rpl::no_value, Error>();
 	}
@@ -193,8 +250,15 @@ rpl::producer<> Usernames::reorder(
 		auto tlUsernames = ranges::views::all(
 			usernames
 		) | ranges::views::transform([](const QString &username) {
+			return tl_string(username);
+		}) | ranges::to<QVector<TLstring>>;
+#if 0 // mtp
+		auto tlUsernames = ranges::views::all(
+			usernames
+		) | ranges::views::transform([](const QString &username) {
 			return MTP_string(username);
 		}) | ranges::to<QVector<MTPstring>>;
+#endif
 
 		const auto finish = [=] {
 			if (_reorderRequests.contains(peerId)) {
@@ -208,15 +272,26 @@ rpl::producer<> Usernames::reorder(
 		}
 
 		if (peer->isSelf()) {
+			const auto requestId = _api.request(TLreorderActiveUsernames(
+				tl_vector<TLstring>(std::move(tlUsernames))
+			)).done(finish).fail(finish).send();
+#if 0 // mtp
 			const auto requestId = _api.request(MTPaccount_ReorderUsernames(
 				MTP_vector<MTPstring>(std::move(tlUsernames))
 			)).done(finish).fail(finish).send();
+#endif
 			_reorderRequests.emplace(peerId, requestId);
 		} else if (const auto channel = peer->asChannel()) {
+			const auto requestId = _api.request(TLreorderSupergroupActiveUsernames(
+				tl_int53(peerToChannel(channel->id).bare),
+				tl_vector<TLstring>(std::move(tlUsernames))
+			)).done(finish).fail(finish).send();
+#if 0 // mtp
 			const auto requestId = _api.request(MTPchannels_ReorderUsernames(
 				channel->inputChannel,
 				MTP_vector<MTPstring>(std::move(tlUsernames))
 			)).done(finish).fail(finish).send();
+#endif
 			_reorderRequests.emplace(peerId, requestId);
 		} else if (const auto botUserInput = BotUserInput(peer)) {
 			const auto requestId = _api.request(MTPbots_ReorderUsernames(
@@ -229,10 +304,34 @@ rpl::producer<> Usernames::reorder(
 	};
 }
 
+#if 0 // mtp
 Data::Usernames Usernames::FromTL(const MTPVector<MTPUsername> &usernames) {
 	return ranges::views::all(
 		usernames.v
 	) | ranges::views::transform(UsernameFromTL) | ranges::to_vector;
+}
+#endif
+
+Data::Usernames Usernames::FromTL(const Tdb::TLusernames *usernames) {
+	auto result = Data::Usernames();
+	if (const auto data = usernames ? &usernames->data() : nullptr) {
+		const auto editable = data->veditable_username().v;
+		for (const auto &active : data->vactive_usernames().v) {
+			result.push_back({
+				.username = active.v,
+				.active = true,
+				.editable = (active.v == editable),
+			});
+		}
+		for (const auto &inactive : data->vactive_usernames().v) {
+			result.push_back({
+				.username = inactive.v,
+				.active = false,
+				.editable = (inactive.v == editable),
+			});
+		}
+	}
+	return result;
 }
 
 void Usernames::requestToCache(not_null<PeerData*> peer) {

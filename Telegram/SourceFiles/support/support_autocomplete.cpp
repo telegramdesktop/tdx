@@ -30,8 +30,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h"
 #include "styles/style_layers.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Support {
 namespace {
+
+using namespace Tdb;
 
 class Inner : public Ui::RpWidget {
 public:
@@ -280,7 +284,10 @@ AdminLog::OwnedItem GenerateCommentItem(
 			| MessageFlag::FakeHistoryItem),
 		.from = history->session().userPeerId(),
 		.date = base::unixtime::now(),
+	}, TextWithEntities{ data.comment });
+#if 0 // mtp
 	}, TextWithEntities{ data.comment }, MTP_messageMediaEmpty());
+#endif
 	return AdminLog::OwnedItem(delegate, item);
 }
 
@@ -288,6 +295,7 @@ AdminLog::OwnedItem GenerateContactItem(
 		not_null<HistoryView::ElementDelegate*> delegate,
 		not_null<History*> history,
 		const Contact &data) {
+#if 0 // mtp
 	const auto item = history->makeMessage({
 		.id = history->nextNonHistoryEntryId(),
 		.flags = (MessageFlag::HasFromId
@@ -301,6 +309,71 @@ AdminLog::OwnedItem GenerateContactItem(
 		MTP_string(data.lastName),
 		MTP_string(), // vcard
 		MTP_long(0))); // user_id
+#endif
+	const auto id = history->nextNonHistoryEntryId();
+	const auto fake = tl_message(
+		tl_int53(id.bare),
+		peerToSender(history->peer->id),
+		peerToTdbChat(history->peer->id),
+		std::nullopt, // sending_state
+		std::nullopt, // scheduling_state
+		tl_bool(true), // is_outgoing
+		tl_bool(false), // is_pinned
+		tl_bool(false), // is_from_offline
+		tl_bool(false), // can_be_edited
+		tl_bool(false), // can_be_forwarded
+		tl_bool(true), // can_be_saved
+		tl_bool(true), // can_be_deleted_only_for_self
+		tl_bool(false), // can_be_deleted_for_all_users
+		tl_bool(false), // can_get_added_reactions
+		tl_bool(false), // can_get_statistics
+		tl_bool(false), // can_get_message_thread
+		tl_bool(false), // can_get_read_date
+		tl_bool(false), // can_get_viewers
+		tl_bool(false), // can_get_media_timestamp_links
+		tl_bool(false), // can_report_reactions
+		tl_bool(false), // has_timestamped_media
+		tl_bool(false), // is_channel_post
+		tl_bool(false), // is_topic_message
+		tl_bool(false), // contains_unread_mention
+		tl_int32(base::unixtime::now()), // date
+		tl_int32(0), // edit_date
+		tl_messageForwardInfo(
+			tl_messageForwardOriginUser(
+				tl_int53(history->session().userId().bare)),
+			tl_int32(base::unixtime::now()), // date
+			null, // source
+			tl_string()), // public_service_announcement_type
+		std::nullopt, // import_info
+		std::nullopt, // interaction_info
+		tl_vector<TLunreadReaction>(), // unread_reactions
+		std::nullopt, // fact_check
+		std::nullopt, // reply_to
+		tl_int53(0), // message_thread_id
+		tl_int53(0), // saved_messages_topic_id
+		std::nullopt, // self_destruct_type
+		tl_double(0), // self_destruct_in
+		tl_double(0), // auto_delete_in
+		tl_int53(0), // via_bot_user_id
+		tl_int53(0), // sender_business_bot_user_id
+		tl_int32(0), // sender_boost_count
+		tl_string(), // author_signature
+		tl_int64(0), // media_album_id
+		tl_int64(0), // effect_id
+		tl_string(), // restriction_reason
+		tl_messageContact(
+			tl_contact(
+				tl_string(data.phone),
+				tl_string(data.firstName),
+				tl_string(data.lastName),
+				tl_string(), // vcard
+				tl_int53(0))), // user_id
+		std::nullopt); // reply_markup
+	const auto item = history->makeMessage(
+		id,
+		fake.data(),
+		(MessageFlag::HasFromId | MessageFlag::FakeHistoryItem),
+		nullptr); // replacing
 	return AdminLog::OwnedItem(delegate, item);
 }
 

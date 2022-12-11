@@ -42,17 +42,25 @@ void SelfDestruct::reload() {
 #endif
 
 void SelfDestruct::reload() {
-	if (_requestId) {
-		return;
-	}
 	using namespace Tdb;
-	_requestId = _api.request(TLgetAccountTtl(
-	)).done([=](const TLDaccountTtl &data) {
-		_requestId = 0;
-		_days = data.vdays().v;
-	}).fail([=](const Error &error) {
-		_requestId = 0;
-	}).send();
+	if (!_accountTTL.requestId) {
+		_accountTTL.requestId = _api.request(TLgetAccountTtl(
+		)).done([=](const TLDaccountTtl &data) {
+			_accountTTL.requestId = 0;
+			_accountTTL.days = data.vdays().v;
+		}).fail([=](const Error &error) {
+			_accountTTL.requestId = 0;
+		}).send();
+	}
+	if (!_defaultHistoryTTL.requestId) {
+		_defaultHistoryTTL.requestId = _api.request(TLgetDefaultMessageTtl(
+		)).done([=](const TLDmessageTtl &data) {
+			_defaultHistoryTTL.requestId = 0;
+			_defaultHistoryTTL.period = data.vttl().v;
+		}).fail([=](const Error &error) {
+			_defaultHistoryTTL.requestId = 0;
+		}).send();
+	}
 }
 
 rpl::producer<int> SelfDestruct::daysAccountTTL() const {
@@ -93,16 +101,28 @@ void SelfDestruct::updateDefaultHistoryTTL(TimeId period) {
 }
 #endif
 
-void SelfDestruct::update(int days) {
+void SelfDestruct::updateAccountTTL(int days) {
 	using namespace Tdb;
-	_requestId = _api.request(TLsetAccountTtl(
+	_accountTTL.requestId = _api.request(TLsetAccountTtl(
 		tl_accountTtl(tl_int32(days))
 	)).done([=](const TLok &result) {
-		_requestId = 0;
+		_accountTTL.requestId = 0;
 	}).fail([=](const Error &result) {
-		_requestId = 0;
+		_accountTTL.requestId = 0;
 	}).send();
-	_days = days;
+	_accountTTL.days = days;
+}
+
+void SelfDestruct::updateDefaultHistoryTTL(TimeId period) {
+	using namespace Tdb;
+	_defaultHistoryTTL.requestId = _api.request(TLsetDefaultMessageTtl(
+		tl_messageTtl(tl_int32(period))
+	)).done([=](const TLok &result) {
+		_defaultHistoryTTL.requestId = 0;
+	}).fail([=](const Error &result) {
+		_defaultHistoryTTL.requestId = 0;
+	}).send();
+	_defaultHistoryTTL.period = period;
 }
 
 } // namespace Api

@@ -249,6 +249,20 @@ void SaveBoostsUnrestrict(
 		Fn<void()> done) {
 	const auto api = &channel->session().api();
 	const auto key = Api::RequestKey("boosts_unrestrict", channel->id);
+	const auto requestId = channel->session().sender().request(
+		TLsetSupergroupUnrestrictBoostCount(
+			tl_int53(peerToChannel(channel->id).bare),
+			tl_int32(boostsUnrestrict))
+	).done([=] {
+		api->clearModifyRequest(key);
+		channel->setBoostsUnrestrict(
+			channel->boostsApplied(),
+			boostsUnrestrict);
+		done();
+	}).fail([=] {
+		api->clearModifyRequest(key);
+	}).send();
+#if 0 // mtp
 	const auto requestId = api->request(
 		MTPchannels_SetBoostsToUnblockRestrictions(
 			channel->inputChannel,
@@ -270,6 +284,7 @@ void SaveBoostsUnrestrict(
 			boostsUnrestrict);
 		done();
 	}).send();
+#endif
 
 	api->registerModifyRequest(key, requestId);
 }
@@ -1480,9 +1495,14 @@ void Controller::editReactions() {
 		return;
 	}
 	_controls.levelRequested = true;
+#if 0 // mtp
 	_api.request(MTPpremium_GetBoostsStatus(
 		_peer->input
 	)).done([=](const MTPpremium_BoostsStatus &result) {
+#endif
+	_api.request(TLgetChatBoostStatus(
+		peerToTdbChat(_peer->id)
+	)).done([=](const TLchatBoostStatus &result) {
 		_controls.levelRequested = false;
 		if (const auto channel = _peer->asChannel()) {
 			channel->updateLevelHint(result.data().vlevel().v);
@@ -1912,8 +1932,12 @@ void Controller::saveUsernamesOrder() {
 		return continueSave();
 	}
 	if (_savingData.usernamesOrder->empty()) {
+		_api.request(TLdisableAllSupergroupUsernames(
+			tl_int53(peerToChannel(channel->id).bare)
+#if 0 // mtp
 		_api.request(MTPchannels_DeactivateAllUsernames(
 			channel->inputChannel
+#endif
 		)).done([=] {
 			channel->setUsernames(channel->editableUsername().isEmpty()
 				? Data::Usernames()
@@ -2134,7 +2158,7 @@ void Controller::saveTitle() {
 	)).done([=] {
 		// CHAT_NOT_MODIFIED is processed as TLok.
 		if (const auto channel = _peer->asChannel()) {
-			channel->setName(*_savingData.title, channel->username);
+			channel->setName(*_savingData.title, channel->username());
 		} else if (const auto chat = _peer->asChat()) {
 			chat->setName(*_savingData.title);
 		}
@@ -2245,6 +2269,17 @@ void Controller::saveHistoryVisibility() {
 
 void Controller::toggleBotManager(const QString &command) {
 	const auto controller = _navigation->parentController();
+	_api.request(TLsearchPublicChat(
+		tl_string(kBotManagerUsername.utf16())
+	)).done([=](const TLchat &result) {
+		const auto botPeer = _peer->owner().processPeer(result);
+		if (const auto bot = botPeer ? botPeer->asUser() : nullptr) {
+			const auto show = controller->uiShow();
+			_peer->session().api().sendBotStart(show, bot, bot, command);
+			controller->showPeerHistory(bot);
+		}
+	}).send();
+#if 0 // mtp
 	_api.request(MTPcontacts_ResolveUsername(
 		MTP_string(kBotManagerUsername.utf16())
 	)).done([=](const MTPcontacts_ResolvedPeer &result) {
@@ -2258,6 +2293,7 @@ void Controller::toggleBotManager(const QString &command) {
 			controller->showPeerHistory(bot);
 		}
 	}).send();
+#endif
 }
 
 void Controller::togglePreHistoryHidden(
@@ -2315,6 +2351,7 @@ void Controller::saveForum() {
 			crl::guard(this, saveForChannel));
 		return;
 	}
+#if 0 // mtp
 	_api.request(MTPchannels_ToggleForum(
 		channel->inputChannel,
 		MTP_bool(*_savingData.forum)
@@ -2330,6 +2367,15 @@ void Controller::saveForum() {
 		} else {
 			cancelSave();
 		}
+	}).send();
+#endif
+	_api.request(TLtoggleSupergroupIsForum(
+		tl_int53(peerToChannel(channel->id).bare),
+		tl_bool(*_savingData.forum)
+	)).done([=] {
+		continueSave();
+	}).fail([=] {
+		cancelSave();
 	}).send();
 }
 

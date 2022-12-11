@@ -31,8 +31,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_manager.h"
 #include "styles/style_boxes.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Data {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kTopicsFirstLoad = 20;
 constexpr auto kLoadedTopicsMinCount = 20;
@@ -58,6 +62,7 @@ Forum::Forum(not_null<History*> history)
 }
 
 Forum::~Forum() {
+#if 0 // mtp
 	for (const auto &request : _topicRequests) {
 		if (request.second.id != _staleRequestId) {
 			owner().histories().cancelRequest(request.second.id);
@@ -68,6 +73,18 @@ Forum::~Forum() {
 	}
 	if (_requestId) {
 		session().api().request(_requestId).cancel();
+	}
+#endif
+	for (const auto &request : _topicRequests) {
+		if (request.second.id != _staleRequestId) {
+			session().sender().request(request.second.id).cancel();
+		}
+	}
+	if (_staleRequestId) {
+		session().sender().request(_staleRequestId).cancel();
+	}
+	if (_requestId) {
+		session().sender().request(_requestId).cancel();
 	}
 	auto &storage = session().storage();
 	auto &changes = session().changes();
@@ -122,7 +139,10 @@ void Forum::preloadTopics() {
 
 void Forum::reloadTopics() {
 	_topicsList.setLoaded(false);
+#if 0 // mtp
 	session().api().request(base::take(_requestId)).cancel();
+#endif
+	session().sender().request(base::take(_requestId)).cancel();
 	_offset = {};
 	for (const auto &[rootId, topic] : _topics) {
 		if (!topic->creating()) {
@@ -138,6 +158,41 @@ void Forum::requestTopics() {
 	}
 	const auto firstLoad = !_offset.date;
 	const auto loadCount = firstLoad ? kTopicsFirstLoad : kTopicsPerPage;
+	_requestId = session().sender().request(TLgetForumTopics(
+		peerToTdbChat(channel()->id),
+		tl_string(), // query
+		tl_int32(_offset.date),
+		tl_int53(_offset.id.bare),
+		tl_int53(_offset.topicId.bare),
+		tl_int32(loadCount)
+	)).done([=](const TLDforumTopics &result) {
+		const auto previousOffset = _offset;
+		const auto &list = result.vtopics().v;
+		applyReceivedTopics(list);
+		_offset.date = result.vnext_offset_date().v;
+		_offset.id = result.vnext_offset_message_id().v;
+		_offset.topicId = result.vnext_offset_message_thread_id().v;
+		if (list.isEmpty()
+			|| list.size() == result.vtotal_count().v
+			|| (_offset == previousOffset)) {
+			_topicsList.setLoaded();
+		}
+		_requestId = 0;
+		_chatsListChanges.fire({});
+		if (_topicsList.loaded()) {
+			_chatsListLoadedEvents.fire({});
+		}
+		reorderLastTopics();
+		requestSomeStale();
+	}).fail([=](const Error &error) {
+		_requestId = 0;
+		_topicsList.setLoaded();
+		if (error.message == u"CHANNEL_FORUM_MISSING"_q) {
+			const auto flags = channel()->flags() & ~ChannelDataFlag::Forum;
+			channel()->setFlags(flags);
+		}
+	}).send();
+#if 0 // mtp
 	_requestId = session().api().request(MTPchannels_GetForumTopics(
 		MTP_flags(0),
 		channel()->inputChannel,
@@ -170,6 +225,7 @@ void Forum::requestTopics() {
 			channel()->setFlags(flags);
 		}
 	}).send();
+#endif
 }
 
 void Forum::applyTopicDeleted(MsgId rootId) {
@@ -179,7 +235,7 @@ void Forum::applyTopicDeleted(MsgId rootId) {
 	if (i != end(_topics)) {
 		const auto raw = i->second.get();
 		Core::App().notifications().clearFromTopic(raw);
-		owner().removeChatListEntry(raw);
+		owner().removeChatListEntry(raw, FilterId());
 
 		if (ranges::contains(_lastTopics, not_null(raw))) {
 			reorderLastTopics();
@@ -262,6 +318,37 @@ void Forum::listMessageChanged(HistoryItem *from, HistoryItem *to) {
 }
 
 void Forum::applyReceivedTopics(
+		const QVector<TLforumTopic> &topics,
+		Fn<void(not_null<ForumTopic*>)> callback) {
+	for (const auto &topic : topics) {
+		const auto &data = topic.data();
+		const auto rootId = data.vinfo().data().vmessage_thread_id().v;
+		_staleRootIds.remove(rootId);
+		_topicsDeleted.remove(rootId);
+		const auto i = _topics.find(rootId);
+		const auto creating = (i == end(_topics));
+		const auto raw = creating
+			? _topics.emplace(
+				rootId,
+				std::make_unique<ForumTopic>(this, rootId)
+			).first->second.get()
+			: i->second.get();
+		raw->applyTopic(topic);
+		if (creating) {
+			if (const auto last = _history->chatListMessage()
+				; last && last->topicRootId() == rootId) {
+				_history->lastItemDialogsView().itemInvalidated(last);
+				_history->updateChatListEntry();
+			}
+		}
+		if (callback) {
+			callback(raw);
+		}
+	}
+}
+
+#if 0 // mtp
+void Forum::applyReceivedTopics(
 		const MTPmessages_ForumTopics &topics,
 		ForumOffsets &updateOffsets) {
 	applyReceivedTopics(topics, [&](not_null<ForumTopic*> topic) {
@@ -322,6 +409,7 @@ void Forum::applyReceivedTopics(
 		});
 	}
 }
+#endif
 
 void Forum::requestSomeStale() {
 	if (_staleRequestId
@@ -330,13 +418,19 @@ void Forum::requestSomeStale() {
 		return;
 	}
 	const auto type = Histories::RequestType::History;
+#if 0 // mtp
 	auto rootIds = QVector<MTPint>();
+#endif
+	auto rootIds = QVector<MsgId>();
 	rootIds.reserve(std::min(int(_staleRootIds.size()), kStalePerRequest));
 	for (auto i = begin(_staleRootIds); i != end(_staleRootIds);) {
 		const auto rootId = *i;
 		i = _staleRootIds.erase(i);
 
+#if 0 // mtp
 		rootIds.push_back(MTP_int(rootId));
+#endif
+		rootIds.push_back(rootId);
 		if (rootIds.size() == kStalePerRequest) {
 			break;
 		}
@@ -344,6 +438,7 @@ void Forum::requestSomeStale() {
 	if (rootIds.empty()) {
 		return;
 	}
+#if 0 // mtp
 	const auto call = [=] {
 		for (const auto &id : rootIds) {
 			finishTopicRequest(id.v);
@@ -369,6 +464,28 @@ void Forum::requestSomeStale() {
 	});
 	for (const auto &id : rootIds) {
 		_topicRequests[id.v].id = _staleRequestId;
+	}
+#endif
+	auto ids = std::make_shared<base::flat_set<RequestId>>();
+	ids->reserve(rootIds.size());
+	for (const auto &id : rootIds) {
+		_staleRequestId = session().sender().request(TLgetForumTopic(
+			peerToTdbChat(channel()->id),
+			tl_int53(id.bare)
+		)).done([=](const TLforumTopic &result, RequestId id) {
+			if (ids->remove(id) && ids->empty()) {
+				_staleRequestId = 0;
+			}
+			applyReceivedTopics({ 1, result });
+			finishTopicRequest(id);
+		}).fail([=](const Error &error, RequestId id) {
+			if (ids->remove(id) && ids->empty()) {
+				_staleRequestId = 0;
+			}
+			finishTopicRequest(id);
+		}).send();
+		_topicRequests[id].id = _staleRequestId;
+		ids->emplace(_staleRequestId);
 	}
 }
 

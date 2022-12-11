@@ -501,7 +501,9 @@ public:
 		return mgInfo ? mgInfo->forum() : nullptr;
 	}
 
+#if 0 // mtp
 	void processTopics(const MTPVector<MTPForumTopic> &topics);
+#endif
 
 	[[nodiscard]] int levelHint() const;
 	void updateLevelHint(int levelHint);

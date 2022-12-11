@@ -21,7 +21,7 @@ class TLemojiReaction;
 class TLmessageEffect;
 class TLunreadReaction;
 class TLmessageReaction;
-class TLDfiles;
+class TLDstickers;
 class TLavailableReactions;
 } // namespace Tdb
 
