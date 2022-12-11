@@ -476,7 +476,9 @@ public:
 		return mgInfo ? mgInfo->forum() : nullptr;
 	}
 
+#if 0 // mtp
 	void processTopics(const MTPVector<MTPForumTopic> &topics);
+#endif
 
 	// Still public data members.
 	uint64 access = 0;
