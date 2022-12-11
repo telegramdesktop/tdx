@@ -231,10 +231,21 @@ void RequestDependentMessageItem(
 			item->updateDependencyItem();
 		}
 	};
+#if 0 // mtp
 	history->session().api().requestMessageData(
 		(peerId ? history->owner().peer(peerId) : history->peer),
 		msgId,
 		done);
+#endif
+	session->sender().request(TLgetRepliedMessage(
+		peerToTdbChat(history->peer->id),
+		tl_int53(item->id.bare)
+		//peerToTdbChat(peerId),
+		//tl_int53(msgId.bare)
+	)).done([=](const TLmessage &result) {
+		session->data().processMessage(result, NewMessageType::Existing);
+		done();
+	}).fail(done).send();
 }
 
 void RequestDependentMessageStory(
@@ -484,6 +495,17 @@ ClickHandlerPtr ReportSponsoredClickHandler(not_null<HistoryItem*> item) {
 				item);
 		}
 	});
+}
+
+std::vector<not_null<UserData*>> ParseInvitedToCallUsers(
+		not_null<HistoryItem*> item,
+		const QVector<TLint53> &users) {
+	auto &owner = item->history()->owner();
+	return ranges::views::all(
+		users
+	) | ranges::views::transform([&](const TLint53 &id) {
+		return owner.user(id.v);
+	}) | ranges::to_vector;
 }
 
 #if 0 // mtp

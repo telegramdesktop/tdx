@@ -284,7 +284,7 @@ void Account::createSession(
 			tl_int53(base::take(_sessionUserId).bare),
 			tl_string(), // first_name
 			tl_string(), // last_name
-			tl_string(), // username
+			std::nullopt, // username
 			tl_string(phone),
 			tl_userStatusEmpty(),
 			null, // profile_photo
@@ -298,6 +298,7 @@ void Account::createSession(
 			tl_bool(false), // is_verified
 			tl_bool(false), // is_premium
 			tl_bool(false), // is_support
+			tl_bool(false), // has_anonymous_phone_number
 			tl_string(), // restriction_reason
 			tl_bool(false), // is_scam
 			tl_bool(false), // is_fake,

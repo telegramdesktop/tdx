@@ -312,8 +312,8 @@ public:
 	void updateNotifySettingsDelayed(Data::DefaultNotify type);
 	void saveDraftToCloudDelayed(not_null<Data::Thread*> thread);
 
-	void saveDraftToCloudNow(not_null<History*> history);
-	void manualClearCloudDraft(not_null<History*> history);
+	void saveDraftToCloudNow(not_null<Data::Thread*> thread);
+	void manualClearCloudDraft(not_null<Data::Thread*> thread);
 
 	void clearHistory(not_null<PeerData*> peer, bool revoke);
 	void deleteConversation(not_null<PeerData*> peer, bool revoke);

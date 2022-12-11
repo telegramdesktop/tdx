@@ -2175,9 +2175,9 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 					: std::optional<TLmessageSender>()),
 				tl_int53(0), // from_message_id
 				tl_int32(0), // offset
-				tl_int32(SearchPerPage),
+				tl_int32(kSearchPerPage),
 				std::nullopt, // filter
-				tl_int53(0) // message_thread_id
+				tl_int53(topic ? topic->rootId().bare : 0)
 			)).done([=](const TLmessages &result) {
 				_searchRequest = 0;
 				searchReceived(type, result);
@@ -2261,7 +2261,7 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 				tl_int32(0), // offset_date
 				tl_int53(0), // offset_chat_id
 				tl_int53(0), // offset_message_id
-				tl_int32(SearchPerPage),
+				tl_int32(kSearchPerPage),
 				std::nullopt,
 				tl_int32(0), // min_date
 				tl_int32(0)
@@ -2342,7 +2342,7 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 			if (!_cloudChatsQueries.contains(query)) {
 				const auto requestId = _api.request(TLsearchChatsOnServer(
 					tl_string(_cloudChatsQuery),
-					tl_int32(SearchPerPage)
+					tl_int32(kSearchPerPage)
 				)).done([=](const TLchats &result) {
 					cloudChatsReceived(query, result);
 				}).send();
@@ -2413,6 +2413,15 @@ void Widget::searchTopics() {
 		return;
 	}
 	_api.request(base::take(_topicSearchRequest)).cancel();
+	_topicSearchRequest = _api.request(TLgetForumTopics(
+		peerToTdbChat(_openedForum->channel()->id),
+		tl_string(_topicSearchQuery),
+		tl_int32(_topicSearchOffsetDate),
+		tl_int64(_topicSearchOffsetId.bare),
+		tl_int53(_topicSearchOffsetTopicId.bare),
+		tl_int32(kSearchPerPage)
+	)).done([=](const TLDforumTopics &result) {
+#if 0 // mtp
 	_topicSearchRequest = _api.request(MTPchannels_GetForumTopics(
 		MTP_flags(MTPchannels_GetForumTopics::Flag::f_q),
 		_openedForum->channel()->inputChannel,
@@ -2439,6 +2448,12 @@ void Widget::searchTopics() {
 			}
 			_inner->appendToFiltered(topic);
 		});
+#endif
+		const auto savedTopicId = _topicSearchOffsetTopicId;
+		_openedForum->applyReceivedTopics(result.vtopics().v);
+		_topicSearchOffsetDate = result.vnext_offset_date().v;
+		_topicSearchOffsetId = result.vnext_offset_message_id().v;
+		_topicSearchOffsetTopicId = result.vnext_offset_message_thread_id().v;
 		if (_topicSearchOffsetTopicId != savedTopicId) {
 			_inner->refresh();
 		} else {

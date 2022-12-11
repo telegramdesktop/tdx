@@ -221,6 +221,30 @@ void Entry::updateChatListSortPosition() {
 			? 0
 			: FixedOnTopDialogPos(kArchiveFixOnTopIndex);
 		updateChatListSortPosition(FilterId(), order, false);
+	} else if (const auto topic = asTopic()) {
+		// later-todo won't be needed when tdlib manages topics
+		auto sortKeyByDate = DialogPosFromDate(
+			topic->adjustedChatListTimeId());
+		const auto pinnedIndex = lookupPinnedIndex(FilterId());
+		if (inChatList()
+			|| (pinnedIndex != 0)
+			|| !topic->lastMessageKnown()
+			|| (topic->lastMessage() != nullptr)) {
+			const auto fixedIndex = fixedOnTopIndex();
+			_sortKeyInChatList = fixedIndex
+				? FixedOnTopDialogPos(fixedIndex)
+				: pinnedIndex
+				? PinnedDialogPos(pinnedIndex)
+				: sortKeyByDate;
+		} else {
+			_sortKeyInChatList = 0;
+		}
+		if (_sortKeyInChatList) {
+			owner().refreshChatListEntry(this, FilterId());
+			updateChatListEntry();
+		} else {
+			owner().removeChatListEntry(this, FilterId());
+		}
 	}
 }
 
@@ -420,6 +444,11 @@ void Entry::setChatListTimeId(TimeId date) {
 		folder->updateChatListSortPosition();
 	}
 #endif
+	if (const auto topic = asTopic()) {
+		// later-todo won't be needed when tdlib manages topics
+		_timeId = date;
+		updateChatListSortPosition();
+	}
 }
 
 int Entry::posInChatList(FilterId filterId) const {

@@ -35,8 +35,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 #include "styles/style_calls.h"
 
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Settings {
 namespace {
+
+using namespace Tdb;
 
 class TTLRow : public ChatsListBoxController::Row {
 public:
@@ -387,12 +392,18 @@ void GlobalTTL::setupContent() {
 				const auto &apiTTL = session->api().selfDestruct();
 				const auto ttl = apiTTL.periodDefaultHistoryTTLCurrent();
 				for (const auto &peer : peers) {
+#if 0 // mtp
 					peer->session().api().request(MTPmessages_SetHistoryTTL(
 						peer->input,
 						MTP_int(ttl)
 					)).done([=](const MTPUpdates &result) {
 						peer->session().api().applyUpdates(result);
 					}).send();
+#endif
+					peer->session().sender().request(TLsetChatMessageTtl(
+						peerToTdbChat(peer->id),
+						tl_int32(ttl)
+					)).send();
 				}
 				box->showToast(ttl
 					? tr::lng_settings_ttl_select_chats_toast(

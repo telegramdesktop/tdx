@@ -504,8 +504,8 @@ void SendPreparedAlbumIfReady(
 	const auto session = &peer->session();
 	session->sender().request(TLsendMessageAlbum(
 		peerToTdbChat(peer->id),
-		tl_int53(0), // message_thread_id
-		tl_int53(action.replyTo.bare),
+		tl_int53(action.replyTo.topicRootId.bare),
+		MessageReplyTo(action),
 		tl_messageSendOptions(
 			tl_bool(silentPost),
 			tl_bool(false), // from_background
@@ -628,8 +628,8 @@ bool SendDice(MessageToSend &message) {
 
 	session->sender().request(TLsendMessage(
 		peerToTdbChat(peer->id),
-		tl_int53(0), // message_thread_id
-		tl_int53(action.replyTo.bare),
+		tl_int53(action.replyTo.topicRootId.bare),
+		MessageReplyTo(action),
 		MessageSendOptions(peer, action),
 		tl_inputMessageDice(tl_string(emoji), tl_bool(action.clearDraft))
 	)).done([=](const TLmessage &result) {
@@ -1037,22 +1037,23 @@ void SendPreparedMessage(
 		TLinputMessageContent content) {
 	const auto history = action.history;
 	const auto peer = history->peer;
+	const auto topicRootId = action.replyTo ? action.topicRootId : 0;
 	const auto clearCloudDraft = (content.type() == id_inputMessageText)
 		&& content.c_inputMessageText().vclear_draft().v;
 	if (clearCloudDraft) {
-		history->clearCloudDraft();
-		history->startSavingCloudDraft();
+		history->clearCloudDraft(topicRootId);
+		history->startSavingCloudDraft(topicRootId);
 	}
 	const auto session = &peer->session();
 	session->sender().request(TLsendMessage(
 		peerToTdbChat(peer->id),
-		tl_int53(0), // message_thread_id
+		tl_int53(topicRootId.bare),
 		tl_int53(action.replyTo.bare),
 		MessageSendOptions(peer, action),
 		std::move(content)
 	)).done([=](const TLmessage &result) {
 		if (clearCloudDraft) {
-			history->finishSavingCloudDraftNow();
+			history->finishSavingCloudDraftNow(topicRootId);
 		}
 		session->data().processMessage(result, NewMessageType::Unread);
 	}).fail([=](const Error &error) {
@@ -1063,7 +1064,7 @@ void SendPreparedMessage(
 		//	sendMessageFail(error, peer, randomId, newId);
 		//}
 		if (clearCloudDraft) {
-			history->finishSavingCloudDraftNow();
+			history->finishSavingCloudDraftNow(topicRootId);
 		}
 	}).send();
 }

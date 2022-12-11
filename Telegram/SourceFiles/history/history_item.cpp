@@ -73,6 +73,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 
 #include "tdb/tdb_tl_scheme.h"
+#include "data/data_document.h"
 
 namespace {
 
@@ -200,6 +201,7 @@ struct HistoryItem::CreateConfig {
 	std::vector<Data::UnavailableReason> restrictions;
 };
 
+#if 0 // mtp
 void HistoryItem::FillForwardedInfo(
 		CreateConfig &config,
 		const MTPDmessageFwdHeader &data) {
@@ -488,6 +490,110 @@ HistoryItem::HistoryItem(
 		tr::now,
 		Ui::Text::WithEntities) }) {
 }
+#endif
+
+void HistoryItem::FillForwardedInfo(
+		CreateConfig &config,
+		const TLDmessageForwardInfo &data) {
+	config.originalDate = data.vdate().v;
+	config.forwardPsaType = data.vpublic_service_announcement_type().v;
+	data.vorigin().match([&](const TLDmessageForwardOriginUser &data) {
+		config.senderOriginal = peerFromUser(data.vsender_user_id());
+	}, [&](const TLDmessageForwardOriginChat &data) {
+		config.senderOriginal = peerFromTdbChat(data.vsender_chat_id());
+	}, [&](const TLDmessageForwardOriginHiddenUser &data) {
+		config.senderNameOriginal = data.vsender_name().v;
+	}, [&](const TLDmessageForwardOriginChannel &data) {
+		config.senderOriginal = peerFromTdbChat(data.vchat_id());
+		config.originalId = data.vmessage_id().v;
+		config.authorOriginal = data.vauthor_signature().v;
+	}, [&](const TLDmessageForwardOriginMessageImport &data) {
+		config.senderNameOriginal = data.vsender_name().v;
+		config.imported = true;
+	});
+	if (const auto source = data.vsource()) {
+		const auto &data = source->data();
+		config.savedFromPeer = peerFromTdbChat(data.vchat_id());
+		config.savedFromMsgId = data.vmessage_id().v;
+	}
+}
+
+HistoryItem::HistoryItem(
+	not_null<History*> history,
+	MsgId id,
+	const TLDmessage &data,
+	MessageFlags localFlags,
+	HistoryItem *replacing)
+: HistoryItem(history, {
+	.id = id,
+	.flags = FlagsFromTdb(data) | localFlags,
+	.from = peerFromSender(data.vsender_id()),
+	.date = MessageDateFromTdb(data),
+}) {
+	auto config = CreateConfig();
+	if (const auto forwarded = data.vforward_info()) {
+		FillForwardedInfo(config, forwarded->data());
+	}
+	if (const auto replyTo = data.vreply_to()) {
+		config.replyToTop = data.vmessage_thread_id().v;
+		config.replyIsTopicPost = data.vis_topic_message().v;
+		replyTo->match([&](const TLDmessageReplyToMessage &data) {
+			config.replyToPeer = peerFromTdbChat(data.vchat_id());
+			config.replyTo = data.vmessage_id().v;
+		}, [&](const TLDmessageReplyToStory &data) {
+			config.replyToPeer = peerFromTdbChat(
+				data.vstory_sender_chat_id());
+			config.replyToStory = data.vstory_id().v;
+		});
+	} else if (data.vis_topic_message().v) {
+		const auto threadId = data.vmessage_thread_id().v;
+		config.replyTo = config.replyToTop = threadId;
+		config.replyIsTopicPost = true;
+	}
+	config.viaBotId = data.vvia_bot_user_id().v;
+	const auto interaction = data.vinteraction_info();
+	if (interaction) {
+		config.viewsCount = interaction->data().vview_count().v;
+		if (!config.viewsCount) {
+			config.viewsCount = -1;
+		}
+		config.forwardsCount = interaction->data().vforward_count().v;
+		if (!config.forwardsCount) {
+			config.forwardsCount = -1;
+		}
+		config.replies = isScheduled()
+			? HistoryMessageRepliesData()
+			: HistoryMessageRepliesData(interaction->data().vreply_info());
+	}
+	config.markup = HistoryMessageMarkupData(data.vreply_markup());
+	config.editDate = data.vedit_date().v;
+	config.author = data.vauthor_signature().v;
+
+	createComponents(std::move(config));
+
+	setContent(data.vcontent());
+	if (const auto groupId = data.vmedia_album_id().v) {
+		if (replacing && replacing->groupId()) {
+			_history->owner().groups().unregisterMessage(replacing);
+		}
+		setGroupId(
+			MessageGroupId::FromRaw(
+				history->peer->id,
+				groupId,
+				(_flags & MessageFlag::IsOrWasScheduled)));
+	}
+	const auto emptyReactions = !interaction
+		|| !interaction->data().vreactions();
+	if (!emptyReactions) {
+		setReactions(
+			interaction->data().vreactions()->data().vreactions().v,
+			data.vunread_reactions().v,
+			interaction->data().vreactions()->data().vare_tags().v);
+	} else if (_history->peer->isSelf()) {
+		_flags |= MessageFlag::ReactionsAreTags;
+	}
+	applyTTL(data);
+}
 
 HistoryItem::HistoryItem(
 	not_null<History*> history,
@@ -610,11 +716,16 @@ HistoryItem::HistoryItem(
 HistoryItem::HistoryItem(
 	not_null<History*> history,
 	HistoryItemCommonFields &&fields,
+#if 0 // mtp
 	const TextWithEntities &textWithEntities,
 	const MTPMessageMedia &media)
+#endif
+	const TextWithEntities &textWithEntities)
 : HistoryItem(history, fields) {
 	createComponentsHelper(std::move(fields));
+#if 0 // mtp
 	setMedia(media);
+#endif
 	setText(textWithEntities);
 	if (fields.groupedId) {
 		setGroupId(MessageGroupId::FromRaw(
@@ -1690,6 +1801,7 @@ void HistoryItem::clearMainView() {
 	_mainView = nullptr;
 }
 
+#if 0 // mtp
 void HistoryItem::applyEdition(HistoryMessageEdition &&edition) {
 	int keyboardTop = -1;
 	//if (!pendingResize()) {// #TODO edit bot message
@@ -1774,6 +1886,7 @@ void HistoryItem::applyEdition(HistoryMessageEdition &&edition) {
 
 	finishEdition(keyboardTop);
 }
+#endif
 
 void HistoryItem::applyChanges(not_null<Data::Story*> story) {
 	Expects(_flags & MessageFlag::StoryItem);
@@ -2049,6 +2162,7 @@ void HistoryItem::addToUnreadThings(HistoryUnreadThings::AddType type) {
 }
 
 void HistoryItem::destroyHistoryEntry() {
+#if 0 // mtp
 	if (isUnreadMention()) {
 		history()->unreadMentions().erase(id);
 		if (const auto topic = this->topic()) {
@@ -2061,6 +2175,7 @@ void HistoryItem::destroyHistoryEntry() {
 			topic->unreadReactions().erase(id);
 		}
 	}
+#endif
 	if (isRegular() && _history->peer->isMegagroup()) {
 		if (const auto reply = Get<HistoryMessageReply>()) {
 			changeReplyToTopCounter(reply, -1);
@@ -2083,7 +2198,6 @@ Storage::SharedMediaTypesMask HistoryItem::sharedMediaTypes() const {
 	}
 	return result;
 }
-#endif
 
 void HistoryItem::indexAsNewItem() {
 	if (isRegular()) {
@@ -2171,6 +2285,7 @@ QString HistoryItem::notificationHeader() const {
 	return QString();
 }
 
+#if 0 // mtp
 void HistoryItem::setRealId(MsgId newId) {
 	Expects(_flags & MessageFlag::BeingSent);
 	Expects(IsClientMsgId(id));
@@ -2202,6 +2317,7 @@ void HistoryItem::setRealId(MsgId newId) {
 		incrementReplyToTopCounter();
 	}
 }
+#endif
 
 bool HistoryItem::canPin() const {
 	if (!isRegular() || isService()) {
@@ -2228,18 +2344,23 @@ bool HistoryItem::allowsForward() const {
 		&& (!_media || _media->allowsForward());
 }
 
+#if 0 // mtp
 bool HistoryItem::isTooOldForEdit(TimeId now) const {
 	return !_history->peer->canEditMessagesIndefinitely()
 		&& !isScheduled()
 		&& (now - date() >= _history->session().serverConfig().editTimeLimit);
 }
+#endif
 
 bool HistoryItem::allowsEdit(TimeId now) const {
+#if 0 // mtp
 	return !isService()
 		&& canBeEdited()
 		&& !isTooOldForEdit(now)
 		&& (!_media || _media->allowsEdit())
 		&& !isLegacyMessage()
+#endif
+	return (_flags & MessageFlag::CanEdit)
 		&& !isEditingMedia();
 }
 
@@ -2595,6 +2716,9 @@ void HistoryItem::toggleReaction(
 		if (_reactions->empty() && !_reactions->localPaidData()) {
 			_reactions = nullptr;
 			_flags &= ~MessageFlag::CanViewReactions;
+			if (_history->peer->isSelf()) {
+				_flags |= MessageFlag::ReactionsAreTags;
+			}
 		}
 	} else {
 		_reactions->add(reaction, addToRecent);
@@ -2604,22 +2728,32 @@ void HistoryItem::toggleReaction(
 
 void HistoryItem::setReactions(
 		const QVector<TLmessageReaction> &list,
-		const QVector<TLunreadReaction> &unread) {
+		const QVector<TLunreadReaction> &unread,
+		bool areTags) {
 	Expects(!_reactions);
 	Expects(unread.empty() || !list.empty());
 
-	if (changeReactions(list) && changeUnreadReactions(unread)) {
+	if (changeReactions(list, areTags) && changeUnreadReactions(unread)) {
 		_flags |= MessageFlag::HasUnreadReaction;
 	}
 }
 
 bool HistoryItem::changeReactions(
-		const QVector<TLmessageReaction> &list) {
+		const QVector<TLmessageReaction> &list,
+		bool areTags) {
 	if (list.empty()) {
 		_flags &= ~MessageFlag::CanViewReactions;
+		if (_history->peer->isSelf()) {
+			_flags |= MessageFlag::ReactionsAreTags;
+		}
 		return (base::take(_reactions) != nullptr);
 	} else if (!_reactions) {
 		_reactions = std::make_unique<Data::MessageReactions>(this);
+	}
+	if (areTags) {
+		_flags |= MessageFlag::ReactionsAreTags;
+	} else {
+		_flags &= ~MessageFlag::ReactionsAreTags;
 	}
 	const auto result = _reactions->change(list);
 	if (!_reactions->recent().empty()) {
@@ -2635,9 +2769,11 @@ bool HistoryItem::changeUnreadReactions(
 	return _reactions && _reactions->change(list);
 }
 
-void HistoryItem::updateReactions(const QVector<TLmessageReaction> &list) {
+void HistoryItem::updateReactions(
+		const QVector<TLmessageReaction> &list,
+		bool areTags) {
 	const auto hadUnread = hasUnreadReaction();
-	const auto changed = changeReactions(list);
+	const auto changed = changeReactions(list, areTags);
 	if (!changed) {
 		return;
 	}
@@ -3795,11 +3931,14 @@ void HistoryItem::flagSensitiveContent() {
 
 bool HistoryItem::checkRepliesPts(
 		const HistoryMessageRepliesData &data) const {
+#if 0 // mtp
 	const auto channel = _history->peer->asChannel();
 	const auto pts = channel
 		? channel->pts()
 		: _history->session().updates().pts();
 	return (data.pts >= pts);
+#endif
+	return true;
 }
 
 void HistoryItem::setupForwardedComponent(const CreateConfig &config) {
@@ -3980,6 +4119,1442 @@ void HistoryItem::createComponentsHelper(HistoryItemCommonFields &&fields) {
 	}
 
 	createComponents(std::move(config));
+}
+
+void HistoryItem::createServiceFromTdb(const TLmessageContent &content) {
+	clearDependencyMessage();
+	UpdateComponents(0);
+
+	auto replyToMsgId = MsgId();
+	auto replyInPeerId = PeerId();
+	content.match([&](const TLDmessageGameScore &data) {
+		replyToMsgId = data.vgame_message_id().v;
+
+		UpdateComponents(HistoryServiceGameScore::Bit());
+		Get<HistoryServiceGameScore>()->score = data.vscore().v;
+	}, [&](const TLDmessagePaymentSuccessful &data) {
+		replyToMsgId = data.vinvoice_message_id().v;
+		replyInPeerId = peerFromTdbChat(data.vinvoice_chat_id());
+
+		UpdateComponents(HistoryServicePayment::Bit());
+		const auto amount = data.vtotal_amount().v;
+		const auto currency = data.vcurrency().v;
+		const auto payment = Get<HistoryServicePayment>();
+		const auto id = fullId();
+		const auto owner = &history()->owner();
+		payment->amount = AmountAndStarCurrency(
+			&_history->session(),
+			amount,
+			currency);
+		payment->invoiceLink = std::make_shared<LambdaClickHandler>([=](
+				ClickContext context) {
+			using namespace Payments;
+			const auto my = context.other.value<ClickHandlerContext>();
+			const auto weak = my.sessionWindow;
+			if (const auto item = owner->message(id)) {
+				CheckoutProcess::Start(
+					item,
+					Mode::Receipt,
+					crl::guard(
+						weak,
+						[=](auto) { weak->window().activate(); }),
+					Payments::ProcessNonPanelPaymentFormFactory(
+						weak.get(),
+						item));
+			}
+		});
+	}, [&](const TLDmessagePaymentRefunded &data) {
+		UpdateComponents(HistoryServicePaymentRefund::Bit());
+		const auto refund = Get<HistoryServicePaymentRefund>();
+		refund->peer = _history->owner().peer(peerFromSender(data.vowner_id()));
+		refund->amount = data.vtotal_amount().v;
+		refund->currency = qs(data.vcurrency());
+		refund->transactionId = data.vtelegram_payment_charge_id().v;
+		const auto id = fullId();
+		refund->link = std::make_shared<LambdaClickHandler>([=](
+			ClickContext context) {
+			const auto my = context.other.value<ClickHandlerContext>();
+			if (const auto window = my.sessionWindow.get()) {
+				Settings::ShowRefundInfoBox(window, id);
+			}
+		});
+	}, [&](const TLDmessageVideoChatStarted &data) {
+		UpdateComponents(HistoryServiceOngoingCall::Bit());
+		const auto call = Get<HistoryServiceOngoingCall>();
+		call->id = uint32(data.vgroup_call_id().v);
+		call->link = GroupCallClickHandler(history()->peer, call->id);
+	}, [&](const TLDmessageVideoChatEnded &data) {
+		const auto duration = data.vduration().v;
+		RemoveComponents(HistoryServiceOngoingCall::Bit());
+	}, [&](const TLDmessageVideoChatScheduled &data) {
+		UpdateComponents(HistoryServiceOngoingCall::Bit());
+		const auto call = Get<HistoryServiceOngoingCall>();
+		call->id = uint32(data.vgroup_call_id().v);
+		call->link = GroupCallClickHandler(history()->peer, call->id);
+	}, [&](const TLDmessageInviteVideoChatParticipants &data) {
+		const auto id = uint32(data.vgroup_call_id().v);
+		const auto peer = history()->peer;
+		const auto has = PeerHasThisCall(peer, id);
+		auto hasLink = !has.has_value()
+			? PeerHasThisCallValue(peer, id)
+			: (*has)
+			? PeerHasThisCallValue(
+				peer,
+				id) | rpl::skip(1) | rpl::type_erased()
+			: rpl::producer<bool>();
+		if (!hasLink) {
+			RemoveComponents(HistoryServiceOngoingCall::Bit());
+		} else {
+			UpdateComponents(HistoryServiceOngoingCall::Bit());
+			const auto call = Get<HistoryServiceOngoingCall>();
+			call->id = id;
+			call->lifetime.destroy();
+
+			const auto users = data.vuser_ids().v;
+			std::move(hasLink) | rpl::start_with_next([=](bool has) {
+				updateServiceText(prepareInvitedToCallText(
+					ParseInvitedToCallUsers(this, users),
+					has ? id : 0));
+				if (!has) {
+					RemoveComponents(HistoryServiceOngoingCall::Bit());
+				}
+			}, call->lifetime);
+		}
+	}, [&](const TLDmessagePinMessage &data) {
+		replyToMsgId = data.vmessage_id().v;
+
+		UpdateComponents(HistoryServicePinned::Bit());
+	}, [&](const TLDmessageForumTopicCreated &data) {
+		UpdateComponents(HistoryServiceTopicInfo::Bit());
+		const auto info = Get<HistoryServiceTopicInfo>();
+		info->topicPost = true;
+		info->title = data.vname().v;
+		info->iconId = data.vicon().data().vcustom_emoji_id().v;
+	}, [&](const TLDmessageForumTopicEdited &data) {
+		UpdateComponents(HistoryServiceTopicInfo::Bit());
+		const auto info = Get<HistoryServiceTopicInfo>();
+		info->topicPost = true;
+		if (const auto name = data.vname().v; !name.isEmpty()) {
+			info->title = name;
+			info->renamed = true;
+		}
+		if (data.vedit_icon_custom_emoji_id().v) {
+			info->iconId = data.vicon_custom_emoji_id().v;
+			info->reiconed = true;
+		}
+	}, [&](const TLDmessageForumTopicIsClosedToggled &data) {
+		UpdateComponents(HistoryServiceTopicInfo::Bit());
+		const auto info = Get<HistoryServiceTopicInfo>();
+		info->topicPost = true;
+		info->closed = data.vis_closed().v;
+		info->reopened = !info->closed;
+	}, [&](const TLDmessageForumTopicIsHiddenToggled &data) {
+		UpdateComponents(HistoryServiceTopicInfo::Bit());
+		const auto info = Get<HistoryServiceTopicInfo>();
+		info->topicPost = true;
+		info->hidden = data.vis_hidden().v;
+		info->unhidden = !info->hidden;
+	}, [](const auto &) {});
+
+	if (const auto dependent = replyToMsgId ? GetServiceDependentData() : nullptr) {
+		dependent->peerId = (replyInPeerId != history()->peer->id)
+			? replyInPeerId
+			: 0;
+		dependent->msgId = replyToMsgId;
+		if (dependent->topicPost
+			&& topicId != Data::ForumTopic::kGeneralId) {
+			dependent->topId = topicId;
+		}
+		updateServiceDependent();
+	}
+
+	setServiceMessageByContent(content);
+}
+
+void HistoryItem::setServiceMessageByContent(
+		const TLmessageContent &content) {
+	applyContent(content);
+
+	const auto prepareServiceTextForSharedPeers = [&](
+			const std::vector<PeerId> &ids) {
+		auto result = PreparedServiceText{};
+		result.links.push_back(history()->peer->createOpenLink());
+
+		for (auto i = 0, count = int(ids.size()); i != count; ++i) {
+			auto user = _history->owner().peer(ids[i]);
+			result.links.push_back(user->createOpenLink());
+
+			auto linkText = Ui::Text::Link(user->name(), 2 + i);
+			if (i == 0) {
+				result.text = linkText;
+			} else if (i + 1 == count) {
+				result.text = tr::lng_action_add_users_and_last(
+					tr::now,
+					lt_accumulated,
+					result.text,
+					lt_user,
+					linkText,
+					Ui::Text::WithEntities);
+			} else {
+				result.text = tr::lng_action_add_users_and_one(
+					tr::now,
+					lt_accumulated,
+					result.text,
+					lt_user,
+					linkText,
+					Ui::Text::WithEntities);
+			}
+		}
+		result.text = tr::lng_action_shared_chat_with_bot(
+			tr::now,
+			lt_chat,
+			result.text,
+			lt_bot,
+			Ui::Text::Link(history()->peer->name(), 1),
+			Ui::Text::WithEntities);
+		return result;
+	};
+
+	auto prepared = PreparedServiceText();
+	content.match([&](const TLDmessageAnimation &data) {
+		Expects(data.vis_secret().v);
+
+		// todo
+		//setSelfDestruct(HistoryServiceSelfDestruct::Type::Video, ttl->v);
+		if (out()) {
+			prepared.text = { tr::lng_ttl_video_sent(tr::now) };
+		} else {
+			prepared.links.push_back(fromLink());
+			prepared.text = tr::lng_ttl_video_received(
+				tr::now,
+				lt_from,
+				fromLinkText(),
+				Ui::Text::WithEntities);
+		}
+	}, [&](const TLDmessagePhoto &data) {
+		Expects(data.vis_secret().v);
+
+		// todo
+		//setSelfDestruct(HistoryServiceSelfDestruct::Type::Photo, ttl->v);
+		if (out()) {
+			prepared.text = { tr::lng_ttl_photo_sent(tr::now) };
+		} else {
+			prepared.links.push_back(fromLink());
+			prepared.text = tr::lng_ttl_photo_received(
+				tr::now,
+				lt_from,
+				fromLinkText(),
+				Ui::Text::WithEntities);
+		}
+	}, [&](const TLDmessageVideo &data) {
+		Expects(data.vis_secret().v);
+
+		// todo
+		//setSelfDestruct(HistoryServiceSelfDestruct::Type::Video, ttl->v);
+		if (out()) {
+			prepared.text = { tr::lng_ttl_video_sent(tr::now) };
+		} else {
+			prepared.links.push_back(fromLink());
+			prepared.text = tr::lng_ttl_video_received(
+				tr::now,
+				lt_from,
+				fromLinkText(),
+				Ui::Text::WithEntities);
+		}
+	}, [&](const TLDmessageVideoNote &data) {
+		Expects(data.vis_secret().v);
+
+		// todo
+		//setSelfDestruct(HistoryServiceSelfDestruct::Type::Video, ttl->v);
+		if (out()) {
+			prepared.text = { tr::lng_ttl_video_sent(tr::now) };
+		} else {
+			prepared.links.push_back(fromLink());
+			prepared.text = tr::lng_ttl_video_received(
+				tr::now,
+				lt_from,
+				fromLinkText(),
+				Ui::Text::WithEntities);
+		}
+	}, [&](const TLDmessageExpiredPhoto &data) {
+		prepared.text = { tr::lng_ttl_photo_expired(tr::now) };
+	}, [&](const TLDmessageExpiredVideo &data) {
+		prepared.text = { tr::lng_ttl_video_expired(tr::now) };
+	}, [&](const TLDmessageExpiredVoiceNote &data) {
+		prepared.text = { tr::lng_ttl_voice_expired(tr::now) };
+	}, [&](const TLDmessageExpiredVideoNote &data) {
+		prepared.text = { tr::lng_ttl_round_expired(tr::now) };
+	}, [&](const TLDmessageVideoChatScheduled &data) {
+		prepared = prepareCallScheduledText(data.vstart_date().v);
+	}, [&](const TLDmessageVideoChatStarted &data) {
+		if (history()->peer->isBroadcast()) {
+			prepared.text = {
+				tr::lng_action_group_call_started_channel(tr::now)
+			};
+		} else {
+			prepared.links.push_back(fromLink());
+			prepared.text = tr::lng_action_group_call_started_group(
+				tr::now,
+				lt_from,
+				fromLinkText(),
+				Ui::Text::WithEntities);
+		}
+	}, [&](const TLDmessageVideoChatEnded &data) {
+		const auto seconds = data.vduration().v;
+		const auto days = seconds / 86400;
+		const auto hours = seconds / 3600;
+		const auto minutes = seconds / 60;
+		auto text = (days > 1)
+			? tr::lng_days(tr::now, lt_count, days)
+			: (hours > 1)
+			? tr::lng_hours(tr::now, lt_count, hours)
+			: (minutes > 1)
+			? tr::lng_minutes(tr::now, lt_count, minutes)
+			: tr::lng_seconds(tr::now, lt_count, seconds);
+		if (history()->peer->isBroadcast()) {
+			prepared.text = tr::lng_action_group_call_finished(
+				tr::now,
+				lt_duration,
+				{ .text = text },
+				Ui::Text::WithEntities);
+		} else {
+			prepared.links.push_back(fromLink());
+			prepared.text = tr::lng_action_group_call_finished_group(
+				tr::now,
+				lt_from,
+				fromLinkText(),
+				lt_duration,
+				{ .text = text },
+				Ui::Text::WithEntities);
+		}
+	}, [&](const TLDmessageInviteVideoChatParticipants &data) {
+		const auto callId = uint32(data.vgroup_call_id().v);
+		const auto owner = &history()->owner();
+		const auto peer = history()->peer;
+		for (const auto &id : data.vuser_ids().v) {
+			const auto user = owner->user(id.v);
+			if (callId) {
+				owner->registerInvitedToCallUser(callId, peer, user);
+			}
+		};
+		const auto linkCallId = PeerHasThisCall(peer, callId).value_or(false)
+			? callId
+			: 0;
+		prepared = prepareInvitedToCallText(
+			ParseInvitedToCallUsers(this, data.vuser_ids().v),
+			linkCallId);
+	}, [&](const TLDmessageBasicGroupChatCreate &data) {
+		prepared.links.push_back(fromLink());
+		prepared.text = tr::lng_action_created_chat(
+			tr::now,
+			lt_from,
+			fromLinkText(),
+			lt_title,
+			{ .text = data.vtitle().v },
+			Ui::Text::WithEntities);
+	}, [&](const TLDmessageSupergroupChatCreate &data) {
+		if (isPost()) {
+			prepared.text = { tr::lng_action_created_channel(tr::now) };
+		} else {
+			prepared.links.push_back(fromLink());
+			prepared.text = tr::lng_action_created_chat(
+				tr::now,
+				lt_from,
+				fromLinkText(),
+				lt_title,
+				{ .text = data.vtitle().v },
+				Ui::Text::WithEntities);
+		}
+	}, [&](const TLDmessageChatChangeTitle &data) {
+		if (isPost()) {
+			prepared.text = tr::lng_action_changed_title_channel(
+				tr::now,
+				lt_title,
+				{ .text = data.vtitle().v },
+				Ui::Text::WithEntities);
+		} else {
+			prepared.links.push_back(fromLink());
+			prepared.text = tr::lng_action_changed_title(
+				tr::now,
+				lt_from,
+				fromLinkText(),
+				lt_title,
+				{ .text = data.vtitle().v },
+				Ui::Text::WithEntities);
+		}
+	}, [&](const TLDmessageChatChangePhoto &data) {
+		if (isPost()) {
+			prepared.text = { tr::lng_action_changed_photo_channel(tr::now) };
+		} else {
+			prepared.links.push_back(fromLink());
+			prepared.text = tr::lng_action_changed_photo(
+				tr::now,
+				lt_from,
+				fromLinkText(),
+				Ui::Text::WithEntities);
+		}
+	}, [&](const TLDmessageChatDeletePhoto &data) {
+		if (isPost()) {
+			prepared.text = { tr::lng_action_removed_photo_channel(tr::now) };
+		} else {
+			prepared.links.push_back(fromLink());
+			prepared.text = tr::lng_action_removed_photo(
+				tr::now,
+				lt_from,
+				fromLinkText(),
+				Ui::Text::WithEntities);
+		}
+	}, [&](const TLDmessageChatAddMembers &data) {
+		const auto &users = data.vmember_user_ids().v;
+		if (users.size() == 1) {
+			const auto u = history()->owner().user(users[0].v);
+			if (u == _from) {
+				prepared.links.push_back(fromLink());
+				prepared.text = tr::lng_action_user_joined(
+					tr::now,
+					lt_from,
+					fromLinkText(),
+					Ui::Text::WithEntities);
+			} else {
+				prepared.links.push_back(fromLink());
+				prepared.links.push_back(u->createOpenLink());
+				prepared.text = tr::lng_action_add_user(
+					tr::now,
+					lt_from,
+					fromLinkText(),
+					lt_user,
+					Ui::Text::Link(u->name(), 2),
+					Ui::Text::WithEntities);
+			}
+		} else if (users.isEmpty()) {
+			prepared.links.push_back(fromLink());
+			prepared.text = tr::lng_action_add_user(
+				tr::now,
+				lt_from,
+				fromLinkText(),
+				lt_user,
+				{ .text = "somebody" },
+				Ui::Text::WithEntities);
+		} else {
+			prepared.links.push_back(fromLink());
+			for (auto i = 0, l = int(users.size()); i != l; ++i) {
+				auto user = history()->owner().user(users[i].v);
+				prepared.links.push_back(user->createOpenLink());
+
+				auto linkText = Ui::Text::Link(user->name(), 2 + i);
+				if (i == 0) {
+					prepared.text = linkText;
+				} else if (i + 1 == l) {
+					prepared.text = tr::lng_action_add_users_and_last(
+						tr::now,
+						lt_accumulated,
+						prepared.text,
+						lt_user,
+						linkText,
+						Ui::Text::WithEntities);
+				} else {
+					prepared.text = tr::lng_action_add_users_and_one(
+						tr::now,
+						lt_accumulated,
+						prepared.text,
+						lt_user,
+						linkText,
+						Ui::Text::WithEntities);
+				}
+			}
+			prepared.text = tr::lng_action_add_users_many(
+				tr::now,
+				lt_from,
+				fromLinkText(),
+				lt_users,
+				prepared.text,
+				Ui::Text::WithEntities);
+		}
+	}, [&](const TLDmessageChatJoinByLink &data) {
+		prepared.links.push_back(fromLink());
+		prepared.text = tr::lng_action_user_joined_by_link(
+			tr::now,
+			lt_from,
+			fromLinkText(),
+			Ui::Text::WithEntities);
+	}, [&](const TLDmessageChatDeleteMember &data) {
+		if (peerFromUser(data.vuser_id()) == _from->id) {
+			prepared.links.push_back(fromLink());
+			prepared.text = tr::lng_action_user_left(
+				tr::now,
+				lt_from,
+				fromLinkText(),
+				Ui::Text::WithEntities);
+		} else {
+			auto user = history()->owner().user(data.vuser_id());
+			prepared.links.push_back(fromLink());
+			prepared.links.push_back(user->createOpenLink());
+			prepared.text = tr::lng_action_kick_user(
+				tr::now,
+				lt_from,
+				fromLinkText(),
+				lt_user,
+				Ui::Text::Link(user->name(), 2),
+				Ui::Text::WithEntities);
+		}
+	}, [&](const TLDmessageChatUpgradeTo &data) {
+	}, [&](const TLDmessageChatUpgradeFrom &data) {
+	}, [&](const TLDmessagePinMessage &data) {
+		prepared = preparePinnedText();
+	}, [&](const TLDmessageScreenshotTaken &data) {
+		if (out()) {
+			prepared.text = { tr::lng_action_you_took_screenshot(tr::now) };
+		} else {
+			prepared.links.push_back(fromLink());
+			prepared.text = tr::lng_action_took_screenshot(
+				tr::now,
+				lt_from,
+				fromLinkText(),
+				Ui::Text::WithEntities);
+		}
+	}, [&](const TLDmessageChatSetTheme &data) {
+		const auto text = data.vtheme_name().v;
+		if (!text.isEmpty()) {
+			if (_from->isSelf()) {
+				prepared.text = tr::lng_action_you_theme_changed(
+					tr::now,
+					lt_emoji,
+					{ .text = text },
+					Ui::Text::WithEntities);
+			} else {
+				prepared.links.push_back(fromLink());
+				prepared.text = tr::lng_action_theme_changed(
+					tr::now,
+					lt_from,
+					fromLinkText(),
+					lt_emoji,
+					{ .text = text },
+					Ui::Text::WithEntities);
+			}
+		} else {
+			if (_from->isSelf()) {
+				prepared.text = { tr::lng_action_you_theme_disabled(tr::now) };
+			} else {
+				prepared.links.push_back(fromLink());
+				prepared.text = tr::lng_action_theme_disabled(
+					tr::now,
+					lt_from,
+					fromLinkText(),
+					Ui::Text::WithEntities);
+			}
+		}
+
+	}, [&](const TLDmessageChatBoost &data) {
+		const auto boosts = data.vboost_count().v;
+		prepared.links.push_back(fromLink());
+		prepared.text = tr::lng_action_boost_apply(
+			tr::now,
+			lt_count,
+			boosts,
+			lt_from,
+			fromLinkText(), // Link 1.
+			Ui::Text::WithEntities);
+	}, [&](const TLDmessageChatSetMessageAutoDeleteTime &data) {
+		const auto period = data.vmessage_auto_delete_time().v;
+		const auto duration = (period == 5)
+			? u"5 seconds"_q
+			: Ui::FormatTTL(period);
+		if (isPost()) {
+			if (!period) {
+				prepared.text = { tr::lng_action_ttl_removed_channel(tr::now) };
+			} else {
+				prepared.text = tr::lng_action_ttl_changed_channel(
+					tr::now,
+					lt_duration,
+					{ .text = duration },
+					Ui::Text::WithEntities);
+			}
+		} else if (_from->isSelf()) {
+			if (!period) {
+				prepared.text = { tr::lng_action_ttl_removed_you(tr::now) };
+			} else {
+				prepared.text = tr::lng_action_ttl_changed_you(
+					tr::now,
+					lt_duration,
+					{ .text = duration },
+					Ui::Text::WithEntities);
+			}
+		} else {
+			prepared.links.push_back(fromLink());
+			if (!period) {
+				prepared.text = tr::lng_action_ttl_removed(
+					tr::now,
+					lt_from,
+					fromLinkText(),
+					Ui::Text::WithEntities);
+			} else {
+				prepared.text = tr::lng_action_ttl_changed(
+					tr::now,
+					lt_from,
+					fromLinkText(),
+					lt_duration,
+					{ .text = duration },
+					Ui::Text::WithEntities);
+			}
+		}
+	}, [&](const TLDmessageCustomServiceAction &data) {
+		prepared.text = { data.vtext().v };
+	}, [&](const TLDmessageGameScore &data) {
+		prepared = prepareGameScoreText();
+	}, [&](const TLDmessagePaymentSuccessful &data) {
+		prepared = preparePaymentSentText();
+	}, [&](const TLDmessagePaymentRefunded &data) {
+		prepared = preparePaymentRefundText();
+	}, [&](const TLDmessageContactRegistered &data) {
+		prepared.links.push_back(fromLink());
+		prepared.text = tr::lng_action_user_registered(
+			tr::now,
+			lt_from,
+			fromLinkText(),
+			Ui::Text::WithEntities);
+	}, [&](const TLDmessageWebAppDataSent &data) {
+		prepared.text = tr::lng_action_webview_data_done(
+			tr::now,
+			lt_text,
+			{ .text = data.vbutton_text().v },
+			Ui::Text::WithEntities);
+	}, [&](const TLDmessagePassportDataSent &data) {
+		auto documents = QStringList();
+		for (const auto &type : data.vtypes().v) {
+			documents.push_back([&] {
+				switch (type.type()) {
+				case id_passportElementTypePersonalDetails:
+					return tr::lng_action_secure_personal_details(tr::now);
+				case id_passportElementTypePassport:
+				case id_passportElementTypeDriverLicense:
+				case id_passportElementTypeIdentityCard:
+				case id_passportElementTypeInternalPassport:
+					return tr::lng_action_secure_proof_of_identity(tr::now);
+				case id_passportElementTypeAddress:
+					return tr::lng_action_secure_address(tr::now);
+				case id_passportElementTypeUtilityBill:
+				case id_passportElementTypeBankStatement:
+				case id_passportElementTypeRentalAgreement:
+				case id_passportElementTypePassportRegistration:
+				case id_passportElementTypeTemporaryRegistration:
+					return tr::lng_action_secure_proof_of_address(tr::now);
+				case id_passportElementTypePhoneNumber:
+					return tr::lng_action_secure_phone(tr::now);
+				case id_passportElementTypeEmailAddress:
+					return tr::lng_action_secure_email(tr::now);
+				}
+				Unexpected("Type in passportElementType.");
+			}());
+		};
+		prepared.links.push_back(history()->peer->createOpenLink());
+		prepared.text = tr::lng_action_secure_values_sent(
+			tr::now,
+			lt_user,
+			Ui::Text::Link(history()->peer->name(), 1),
+			lt_documents,
+			{ .text = documents.join(", ") },
+			Ui::Text::WithEntities);
+	}, [&](const TLDmessageProximityAlertTriggered &data) {
+		const auto fromId = peerFromSender(data.vtraveler_id());
+		const auto fromPeer = history()->owner().peer(fromId);
+		const auto toId = peerFromSender(data.vwatcher_id());
+		const auto toPeer = history()->owner().peer(toId);
+		const auto selfId = _from->session().userPeerId();
+		const auto distanceMeters = data.vdistance().v;
+		const auto distance = [&] {
+			if (distanceMeters >= 1000) {
+				const auto km = (10 * (distanceMeters / 10)) / 1000.;
+				return tr::lng_action_proximity_distance_km(
+					tr::now,
+					lt_count,
+					km,
+					Ui::Text::WithEntities);
+			} else {
+				return tr::lng_action_proximity_distance_m(
+					tr::now,
+					lt_count,
+					distanceMeters,
+					Ui::Text::WithEntities);
+			}
+		}();
+		prepared.text = [&] {
+			if (fromId == selfId) {
+				prepared.links.push_back(toPeer->createOpenLink());
+				return tr::lng_action_you_proximity_reached(
+					tr::now,
+					lt_distance,
+					distance,
+					lt_user,
+					Ui::Text::Link(toPeer->name(), 1),
+					Ui::Text::WithEntities);
+			} else if (toId == selfId) {
+				prepared.links.push_back(fromPeer->createOpenLink());
+				return tr::lng_action_proximity_reached_you(
+					tr::now,
+					lt_from,
+					Ui::Text::Link(fromPeer->name(), 1),
+					lt_distance,
+					distance,
+					Ui::Text::WithEntities);
+			} else {
+				prepared.links.push_back(fromPeer->createOpenLink());
+				prepared.links.push_back(toPeer->createOpenLink());
+				return tr::lng_action_proximity_reached(
+					tr::now,
+					lt_from,
+					Ui::Text::Link(fromPeer->name(), 1),
+					lt_distance,
+					distance,
+					lt_user,
+					Ui::Text::Link(toPeer->name(), 2),
+					Ui::Text::WithEntities);
+			}
+		}();
+	}, [&](const TLDmessageChatJoinByRequest &data) {
+		prepared.links.push_back(fromLink());
+		prepared.text = tr::lng_action_user_joined_by_request(
+			tr::now,
+			lt_from,
+			fromLinkText(),
+			Ui::Text::WithEntities);
+	}, [&](const TLDmessageGiftedPremium &data) {
+		const auto isSelf = (_from->id == _from->session().userPeerId());
+		const auto peer = isSelf ? history()->peer : _from;
+		const auto amount = data.vamount().v;
+		const auto currency = data.vcurrency().v;
+		const auto session = &history()->session();
+		const auto cost = AmountAndStarCurrency(session, amount, currency);
+		prepared.links.push_back(peer->createOpenLink());
+		prepared.text = isSelf
+			? tr::lng_action_gift_sent(
+				tr::now,
+				lt_cost,
+				cost,
+				Ui::Text::WithEntities)
+			: tr::lng_action_gift_received(
+				tr::now,
+				lt_user,
+				Ui::Text::Link(peer->shortName(), 1), // Link 1.
+				lt_cost,
+				cost,
+				Ui::Text::WithEntities);
+	}, [&](const TLDmessageGiftedStars &data) {
+		const auto isSelf = (_from->id == _from->session().userPeerId());
+		const auto peer = isSelf ? history()->peer : _from;
+		const auto amount = data.vamount().v;
+		const auto currency = data.vcurrency().v;
+		const auto session = &history()->session();
+		const auto cost = AmountAndStarCurrency(session, amount, currency);
+		prepared.links.push_back(peer->createOpenLink());
+		prepared.text = isSelf
+			? tr::lng_action_gift_sent(
+				tr::now,
+				lt_cost,
+				cost,
+				Ui::Text::WithEntities)
+			: tr::lng_action_gift_received(
+				tr::now,
+				lt_user,
+				Ui::Text::Link(peer->shortName(), 1), // Link 1.
+				lt_cost,
+				cost,
+				Ui::Text::WithEntities);
+	}, [&](const TLDmessageGiveawayPrizeStars &action) {
+		prepared.text = {
+			(action.vis_unclaimed().v
+				? tr::lng_prize_unclaimed_about
+				: tr::lng_prize_about)(
+					tr::now,
+					lt_channel,
+					_from->owner().peer(
+						peerFromChat(action.vboosted_chat_id()))->name()),
+		};
+	}, [&](const TLDmessageGift &action) {
+		const auto isSelf = _from->isSelf();
+		const auto peer = isSelf ? _history->peer : _from;
+		const auto stars = action.vgift().data().vstar_count().v;
+		const auto cost = TextWithEntities{
+			tr::lng_action_gift_for_stars(tr::now, lt_count, stars),
+		};
+		const auto anonymous = _from->isServiceUser();
+		if (anonymous) {
+			prepared.text = tr::lng_action_gift_received_anonymous(
+				tr::now,
+				lt_cost,
+				cost,
+				Ui::Text::WithEntities);
+		} else {
+			prepared.links.push_back(peer->createOpenLink());
+			prepared.text = isSelf
+				? tr::lng_action_gift_sent(tr::now,
+					lt_cost,
+					cost,
+					Ui::Text::WithEntities)
+				: tr::lng_action_gift_received(
+					tr::now,
+					lt_user,
+					Ui::Text::Link(peer->shortName(), 1), // Link 1.
+					lt_cost,
+					cost,
+					Ui::Text::WithEntities);
+		}
+	}, [&](const TLDmessagePremiumGiftCode &action) {
+		if (const auto creator = action.vcreator_id()) {
+			prepared.text = {
+				(action.vis_unclaimed().v
+					? tr::lng_prize_unclaimed_about
+					: action.vis_from_giveaway().v
+					? tr::lng_prize_about
+					: tr::lng_prize_gift_about)(
+						tr::now,
+						lt_channel,
+						_from->owner().peer(
+							peerFromSender(*creator))->name()),
+			};
+		} else {
+			const auto isSelf = (_from->id == _from->session().userPeerId());
+			const auto peer = isSelf ? _history->peer : _from;
+			const auto session = &history()->session();
+			const auto cost = AmountAndStarCurrency(
+				session,
+				action.vamount().v,
+				action.vcurrency().v);
+			prepared.links.push_back(peer->createOpenLink());
+			prepared.text = isSelf
+				? tr::lng_action_gift_sent(
+					tr::now,
+					lt_cost,
+					cost,
+					Ui::Text::WithEntities)
+				: tr::lng_action_gift_received(
+					tr::now,
+					lt_user,
+					Ui::Text::Link(peer->shortName(), 1), // Link 1.
+					lt_cost,
+					cost,
+					Ui::Text::WithEntities);
+		}
+	}, [&](const TLDmessageGiveawayCreated &data) {
+		prepared.links.push_back(fromLink());
+		prepared.text = tr::lng_action_giveaway_started(
+			tr::now,
+			lt_from,
+			fromLinkText(), // Link 1.
+			Ui::Text::WithEntities);
+	}, [&](const TLDmessageForumTopicCreated &data) {
+		const auto topicUrl = u"internal:url:https://t.me/c/%1/%2"_q
+			.arg(peerToChannel(history()->peer->id).bare)
+			.arg(id.bare);
+		prepared.text = tr::lng_action_topic_created(
+			tr::now,
+			lt_topic,
+			Ui::Text::Link(
+				Data::ForumTopicIconWithTitle(
+					id,
+					data.vicon().data().vcustom_emoji_id().v,
+					data.vname().v),
+				topicUrl),
+			Ui::Text::WithEntities);
+	}, [&](const TLDmessageForumTopicEdited &data) {
+		if (data.vname().v.isEmpty()) {
+			if (data.vedit_icon_custom_emoji_id().v) {
+				if (const auto iconId = data.vicon_custom_emoji_id().v) {
+					prepared.links.push_back(fromLink());
+					prepared.text = tr::lng_action_topic_icon_changed(
+						tr::now,
+						lt_from,
+						fromLinkText(), // Link 1.
+						lt_link,
+						{ tr::lng_action_topic_placeholder(tr::now) },
+						lt_emoji,
+						Data::SingleCustomEmoji(iconId),
+						Ui::Text::WithEntities);
+				} else {
+					prepared.links.push_back(fromLink());
+					prepared.text = tr::lng_action_topic_icon_removed(
+						tr::now,
+						lt_from,
+						fromLinkText(), // Link 1.
+						lt_link,
+						{ tr::lng_action_topic_placeholder(tr::now) },
+						Ui::Text::WithEntities);
+				}
+			}
+		} else {
+			prepared.links.push_back(fromLink());
+			prepared.text = tr::lng_action_topic_renamed(
+				tr::now,
+				lt_from,
+				fromLinkText(), // Link 1.
+				lt_link,
+				{ tr::lng_action_topic_placeholder(tr::now) },
+				lt_title,
+				Data::ForumTopicIconWithTitle(
+					topicRootId(),
+					data.vicon_custom_emoji_id().v,
+					data.vname().v),
+				Ui::Text::WithEntities);
+		}
+	}, [&](const TLDmessageForumTopicIsClosedToggled &data) {
+		prepared.text = { data.vis_closed().v
+			? tr::lng_action_topic_closed_inside(tr::now)
+			: tr::lng_action_topic_reopened_inside(tr::now) };
+	}, [&](const TLDmessageForumTopicIsHiddenToggled &data) {
+		prepared.text = { data.vis_hidden().v
+			? tr::lng_action_topic_hidden_inside(tr::now)
+			: tr::lng_action_topic_unhidden_inside(tr::now) };
+	}, [&](const TLDmessageSuggestProfilePhoto &data) {
+		const auto isSelf = (_from->id == _from->session().userPeerId());
+		const auto isVideo = data.vphoto().data().vanimation().has_value();
+		const auto peer = isSelf ? history()->peer : _from;
+		const auto user = peer->asUser();
+		const auto name = (user && !user->firstName.isEmpty())
+			? user->firstName
+			: peer->name();
+		prepared.links.push_back(peer->createOpenLink());
+		prepared.text = (isSelf
+			? (isVideo
+				? tr::lng_action_suggested_video_me
+				: tr::lng_action_suggested_photo_me)
+			: (isVideo
+				? tr::lng_action_suggested_video
+				: tr::lng_action_suggested_photo))(
+				tr::now,
+				lt_user,
+				Ui::Text::Link(name, 1), // Link 1.
+				Ui::Text::WithEntities);
+	}, [&](const TLDmessageBotWriteAccessAllowed &data) {
+		data.vreason().match([&](
+				const TLDbotWriteAccessAllowReasonAcceptedRequest &) {
+			prepared.text = {
+				tr::lng_action_webapp_bot_allowed(tr::now)
+			};
+		}, [&](const TLDbotWriteAccessAllowReasonAddedToAttachmentMenu &) {
+			prepared.text = {
+				tr::lng_action_attach_menu_bot_allowed(tr::now),
+			};
+		}, [&](const TLDbotWriteAccessAllowReasonConnectedWebsite &data) {
+			const auto domain = data.vdomain_name().v;
+			prepared.text = tr::lng_action_bot_allowed_from_domain(
+				tr::now,
+				lt_domain,
+				Ui::Text::Link(domain, qstr("http://") + domain),
+				Ui::Text::WithEntities);
+		}, [&](const TLDbotWriteAccessAllowReasonLaunchedWebApp &data) {
+			const auto &app = data.vweb_app().data();
+			const auto bot = history()->peer->asUser();
+			const auto appName = app.vshort_name().v;
+			const auto url = (bot && !appName.isEmpty())
+				? history()->session().createInternalLinkFull(
+					bot->username() + '/' + appName)
+				: QString();
+			prepared.text = tr::lng_action_bot_allowed_from_app(
+				tr::now,
+				lt_app,
+				(url.isEmpty()
+					? TextWithEntities{ u"App"_q }
+					: Ui::Text::Link(app.vtitle().v, url)),
+				Ui::Text::WithEntities);
+		});
+	}, [&](const TLDmessageUsersShared &data) {
+		auto peers = ranges::views::all(
+			data.vusers().v
+		) | ranges::views::transform([](const TLsharedUser &user) {
+			return peerFromUser(user.data().vuser_id());
+		}) | ranges::to_vector;
+		prepared = prepareServiceTextForSharedPeers(std::move(peers));
+	}, [&](const TLDmessageChatShared &data) {
+		prepared = prepareServiceTextForSharedPeers(
+			{ peerFromTdbChat(data.vchat().data().vchat_id()) });
+	}, [&](const TLDmessageStory &data) {
+		prepared = prepareStoryMentionText();
+	}, [](const auto &) {
+		Unexpected("Type in TLDmessage.content.");
+	});
+	setServiceText(std::move(prepared));
+	applyContent(content);
+}
+
+void HistoryItem::applyContent(const TLmessageContent &content) {
+	content.match([&](const TLDmessageChatAddMembers &data) {
+		if (const auto channel = _history->peer->asMegagroup()) {
+			const auto selfUserId = _history->session().userId();
+			for (const auto &item : data.vmember_user_ids().v) {
+				if (peerFromUser(item) == selfUserId) {
+					channel->mgInfo->joinedMessageFound = true;
+					break;
+				}
+			}
+		}
+	}, [&](const TLDmessageChatJoinByLink &data) {
+		if (_from->isSelf()) {
+			if (const auto channel = _history->peer->asMegagroup()) {
+				channel->mgInfo->joinedMessageFound = true;
+			}
+		}
+	}, [&](const TLDmessageChatChangePhoto &data) {
+		_media = std::make_unique<Data::MediaPhoto>(
+			this,
+			_history->peer,
+			_history->owner().processPhoto(data.vphoto()));
+	}, [&](const TLDmessageGiftedPremium &data) {
+		_media = std::make_unique<Data::MediaGiftBox>(
+			this,
+			_from,
+			Data::GiftCode{
+				.message = Api::FormattedTextFromTdb(data.vtext()),
+				.count = data.vmonth_count().v,
+				.type = Data::GiftType::Premium,
+			},
+			(data.vsticker()
+				? _history->owner().processDocument(*data.vsticker()).get()
+				: nullptr));
+	}, [&](const TLDmessageGiftedStars &data) {
+		_media = std::make_unique<Data::MediaGiftBox>(
+			this,
+			_from,
+			Data::GiftType::Credits,
+			data.vstar_count().v,
+			(data.vsticker()
+				? _history->owner().processDocument(*data.vsticker()).get()
+				: nullptr));
+	}, [&](const TLDmessageGiveawayPrizeStars &data) {
+		_media = std::make_unique<Data::MediaGiftBox>(
+			this,
+			_from,
+			Data::GiftCode{
+				.slug = data.vtransaction_id().v,
+				.channel = history()->owner().channel(
+					peerToChannel(peerFromTdbChat(data.vboosted_chat_id()))),
+				.giveawayMsgId = data.vgiveaway_message_id().v,
+				.count = int(data.vstar_count().v),
+				.type = Data::GiftType::Credits,
+				.viaGiveaway = true,
+				.unclaimed = data.vis_unclaimed().v,
+			},
+			(data.vsticker()
+				? _history->owner().processDocument(*data.vsticker()).get()
+				: nullptr));
+	}, [&](const TLDmessageGift &data) {
+		const auto &gift = data.vgift().data();
+		const auto document = history()->owner().processDocument(
+			gift.vsticker());
+		using Fields = Data::GiftCode;
+		_media = std::make_unique<Data::MediaGiftBox>(this, _from, Fields{
+			.document = document->sticker() ? document.get() : nullptr,
+			.message = Api::FormattedTextFromTdb(data.vtext()),
+			.convertStars = int(data.vsell_star_count().v),
+			.limitedCount = gift.vtotal_count().v,
+			.limitedLeft = gift.vremaining_count().v,
+			.count = int(gift.vstar_count().v),
+			.type = Data::GiftType::StarGift,
+			.anonymous = data.vis_private().v,
+			.converted = data.vwas_converted().v,
+			.saved = data.vis_saved().v,
+		}, _history->owner().processDocument(gift.vsticker()));
+	}, [&](const TLDmessagePremiumGiftCode &data) {
+		const auto boostedId = data.vcreator_id()
+			? peerToChannel(peerFromSender(*data.vcreator_id()))
+			: ChannelId();
+		_media = std::make_unique<Data::MediaGiftBox>(
+			this,
+			_from,
+			Data::GiftCode{
+				.slug = data.vcode().v,
+				.message = Api::FormattedTextFromTdb(data.vtext()),
+				.channel = (boostedId
+					? _history->owner().channel(boostedId).get()
+					: nullptr),
+				.count = data.vmonth_count().v,
+				.type = Data::GiftType::Premium,
+				.viaGiveaway = data.vis_from_giveaway().v,
+				.unclaimed = data.vis_unclaimed().v,
+			},
+			(data.vsticker()
+				? _history->owner().processDocument(*data.vsticker()).get()
+				: nullptr));
+	}, [&](const TLDmessageBasicGroupChatCreate &) {
+		_flags |= MessageFlag::IsGroupEssential;
+	}, [&](const TLDmessageSupergroupChatCreate &) {
+		_flags |= MessageFlag::IsGroupEssential;
+	}, [&](const TLDmessageChatUpgradeTo &) {
+		_flags |= MessageFlag::IsGroupEssential;
+	}, [&](const TLDmessageChatUpgradeFrom &) {
+		_flags |= MessageFlag::IsGroupEssential;
+	}, [&](const TLDmessageContactRegistered &) {
+		_flags |= MessageFlag::IsContactSignUp;
+	}, [&](const TLDmessageSuggestProfilePhoto &data) {
+		_flags |= MessageFlag::IsUserpicSuggestion;
+		_media = std::make_unique<Data::MediaPhoto>(
+			this,
+			_history->peer,
+			_history->owner().processPhoto(data.vphoto()));
+	}, [&](const TLDmessageChatSetBackground &data) {
+		const auto session = &history()->session();
+		const auto &attached = data.vbackground();
+		if (const auto paper = Data::WallPaper::Create(session, attached)) {
+			_media = std::make_unique<Data::MediaWallPaper>(
+				this,
+				*paper,
+				!data.vonly_for_self().v);
+		}
+	}, [&](const TLDmessageStory &data) {
+		setMedia(content);
+	}, [](const auto &) {
+	});
+}
+
+void HistoryItem::setMedia(const TLmessageContent &content) {
+	if (!_media || !_media->updateContent(content)) {
+		_media = CreateMedia(this, content);
+	}
+	checkBuyButton();
+}
+
+void HistoryItem::setContent(const TLmessageContent &content) {
+	_flags &= ~(MessageFlag::IsGroupEssential
+		| MessageFlag::IsContactSignUp
+		| MessageFlag::InvertMedia);
+
+	const auto setFormattedText = [&](const TLformattedText &text) {
+		setText(Api::FormattedTextFromTdb(text));
+	};
+	content.match([&](const auto &data) {
+		using T = decltype(data);
+		if constexpr (TLDmessageAnimation::Is<T>()
+			|| TLDmessagePhoto::Is<T>()
+			|| TLDmessageVideo::Is<T>()
+			|| TLDmessageVideoNote::Is<T>()) {
+			if (data.vis_secret().v) {
+				createServiceFromTdb(content);
+				return;
+			}
+		}
+		if constexpr (TLDmessageText::Is<T>()) {
+			setMedia(content);
+			setFormattedText(data.vtext());
+			if (const auto options = data.vlink_preview_options()) {
+				if (options->data().vshow_above_text().v) {
+					_flags |= MessageFlag::InvertMedia;
+				}
+			}
+		} else if constexpr (TLDmessageAnimatedEmoji::Is<T>()) {
+			setMedia(content);
+			setAnimatedEmojiText(data);
+		} else if constexpr (TLDmessageGame::Is<T>()) {
+			setMedia(content);
+			setFormattedText(data.vgame().data().vtext());
+		} else if constexpr (TLDmessageAnimation::Is<T>()
+			|| TLDmessageAudio::Is<T>()
+			|| TLDmessageDocument::Is<T>()
+			|| TLDmessagePhoto::Is<T>()
+			|| TLDmessageVideo::Is<T>()
+			|| TLDmessageVoiceNote::Is<T>()
+			|| TLDmessagePaidMedia::Is<T>()) {
+			setMedia(content);
+			setFormattedText(data.vcaption());
+		} else if constexpr (TLDmessageSticker::Is<T>()
+			|| TLDmessageVideoNote::Is<T>()
+			|| TLDmessageLocation::Is<T>()
+			|| TLDmessageVenue::Is<T>()
+			|| TLDmessageContact::Is<T>()
+			|| TLDmessageDice::Is<T>()
+			|| TLDmessageGame::Is<T>()
+			|| TLDmessagePoll::Is<T>()
+			|| TLDmessageCall::Is<T>()
+			|| TLDmessageGiveaway::Is<T>()
+			|| TLDmessageGiveawayWinners::Is<T>()) {
+			setMedia(content);
+		} else if constexpr (TLDmessageInvoice::Is<T>()) {
+			setMedia(content);
+			if (data.vpaid_media()) {
+				if (const auto caption = data.vpaid_media_caption()) {
+					setFormattedText(*caption);
+				}
+			}
+		} else if constexpr (TLDmessageExpiredPhoto::Is<T>()
+			|| TLDmessageExpiredVideo::Is<T>()
+			|| TLDmessageExpiredVoiceNote::Is<T>()
+			|| TLDmessageExpiredVideoNote::Is<T>()
+			|| TLDmessageVideoChatScheduled::Is<T>()
+			|| TLDmessageVideoChatStarted::Is<T>()
+			|| TLDmessageVideoChatEnded::Is<T>()
+			|| TLDmessageInviteVideoChatParticipants::Is<T>()
+			|| TLDmessageBasicGroupChatCreate::Is<T>()
+			|| TLDmessageSupergroupChatCreate::Is<T>()
+			|| TLDmessageChatChangeTitle::Is<T>()
+			|| TLDmessageChatChangePhoto::Is<T>()
+			|| TLDmessageChatDeletePhoto::Is<T>()
+			|| TLDmessageChatAddMembers::Is<T>()
+			|| TLDmessageChatJoinByLink::Is<T>()
+			|| TLDmessageChatDeleteMember::Is<T>()
+			|| TLDmessageChatUpgradeTo::Is<T>()
+			|| TLDmessageChatUpgradeFrom::Is<T>()
+			|| TLDmessagePinMessage::Is<T>()
+			|| TLDmessageScreenshotTaken::Is<T>()
+			|| TLDmessageChatSetTheme::Is<T>()
+			|| TLDmessageChatSetMessageAutoDeleteTime::Is<T>()
+			|| TLDmessageChatBoost::Is<T>()
+			|| TLDmessageCustomServiceAction::Is<T>()
+			|| TLDmessageGameScore::Is<T>()
+			|| TLDmessagePaymentSuccessful::Is<T>()
+			|| TLDmessagePaymentRefunded::Is<T>()
+			|| TLDmessageContactRegistered::Is<T>()
+			|| TLDmessageWebAppDataSent::Is<T>()
+			|| TLDmessagePassportDataSent::Is<T>()
+			|| TLDmessageProximityAlertTriggered::Is<T>()
+			|| TLDmessageChatJoinByRequest::Is<T>()
+			|| TLDmessageGiftedPremium::Is<T>()
+			|| TLDmessageGiftedStars::Is<T>()
+			|| TLDmessageGiveawayPrizeStars::Is<T>()
+			|| TLDmessageGift::Is<T>()
+			|| TLDmessageGiveawayCreated::Is<T>()
+			|| TLDmessageGiveawayCompleted::Is<T>()
+			|| TLDmessagePremiumGiftCode::Is<T>()
+			|| TLDmessageForumTopicCreated::Is<T>()
+			|| TLDmessageForumTopicEdited::Is<T>()
+			|| TLDmessageForumTopicIsClosedToggled::Is<T>()
+			|| TLDmessageForumTopicIsHiddenToggled::Is<T>()
+			|| TLDmessageSuggestProfilePhoto::Is<T>()
+			|| TLDmessageBotWriteAccessAllowed::Is<T>()
+			|| TLDmessageUsersShared::Is<T>()
+			|| TLDmessageChatShared::Is<T>()) {
+			createServiceFromTdb(content);
+		} else if constexpr (TLDmessageUnsupported::Is<T>()) {
+			setText(UnsupportedMessageText());
+		} else {
+			not_implemented(T());
+		}
+	});
+}
+
+std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
+		not_null<HistoryItem*> item,
+		const TLmessageContent &content) {
+	using Result = std::unique_ptr<Data::Media>;
+	auto &owner = item->history()->owner();
+
+	return content.match([&](const TLDmessageText &data) -> Result {
+		auto flags = MediaWebPageFlags();
+		const auto options = data.vlink_preview()
+			? data.vlink_preview_options()
+			: nullptr;
+		if (options) {
+			using Flag = MediaWebPageFlag;
+			const auto &data = options->data();
+			Assert(!data.vis_disabled().v);
+			flags |= Flag()
+				| (data.vforce_large_media().v
+					? Flag::ForceLargeMedia
+					: Flag())
+				| (data.vforce_small_media().v
+					? Flag::ForceSmallMedia
+					: Flag());
+		}
+		return data.vlink_preview()
+			? std::make_unique<Data::MediaWebPage>(
+				item,
+				owner.processWebpage(*data.vlink_preview()),
+				flags)
+			: nullptr;
+	}, [&](const TLDmessageAnimation &data) -> Result {
+		return std::make_unique<Data::MediaFile>(
+			item,
+			owner.processDocument(data.vanimation()),
+			skipPremiumEffectDefault,
+			data.vhas_spoiler().v,
+			0); // ttlSeconds
+	}, [&](const TLDmessageAudio &data) -> Result {
+		return std::make_unique<Data::MediaFile>(
+			item,
+			owner.processDocument(data.vaudio()),
+			skipPremiumEffectDefault,
+			hasSpoilerDefault,
+			0); // ttlSeconds
+	}, [&](const TLDmessageDocument &data) -> Result {
+		return std::make_unique<Data::MediaFile>(
+			item,
+			owner.processDocument(data.vdocument()),
+			skipPremiumEffectDefault,
+			hasSpoilerDefault,
+			0); // ttlSeconds
+	}, [&](const TLDmessagePhoto &data) -> Result {
+		return std::make_unique<Data::MediaPhoto>(
+			item,
+			owner.processPhoto(data.vphoto()));
+	}, [&](const TLDmessageSticker &data) -> Result {
+		return std::make_unique<Data::MediaFile>(
+			item,
+			owner.processDocument(data.vsticker()),
+			!data.vis_premium().v,
+			hasSpoilerDefault,
+			0); // ttlSeconds
+	}, [&](const TLDmessageVideo &data) -> Result {
+		return std::make_unique<Data::MediaFile>(
+			item,
+			owner.processDocument(data.vvideo()),
+			skipPremiumEffectDefault,
+			data.vhas_spoiler().v,
+			0); // ttlSeconds
+	}, [&](const TLDmessageVideoNote &data) -> Result {
+		ApplyTranscribe(
+			item,
+			data.vvideo_note().data().vspeech_recognition_result(),
+			true);
+		const auto ttlSeconds = item->selfDestructImmediate()
+			? std::numeric_limits<int>::max()
+			: 0;
+		return std::make_unique<Data::MediaFile>(
+			item,
+			owner.processDocument(data.vvideo_note()),
+			skipPremiumEffectDefault,
+			hasSpoilerDefault,
+			ttlSeconds);
+	}, [&](const TLDmessageVoiceNote &data) -> Result {
+		ApplyTranscribe(
+			item,
+			data.vvoice_note().data().vspeech_recognition_result(),
+			false);
+		const auto ttlSeconds = item->selfDestructImmediate()
+			? std::numeric_limits<int>::max()
+			: 0;
+		return std::make_unique<Data::MediaFile>(
+			item,
+			owner.processDocument(data.vvoice_note()),
+			skipPremiumEffectDefault,
+			hasSpoilerDefault,
+			ttlSeconds);
+	}, [&](const TLDmessageLocation &data) -> Result {
+		return std::make_unique<Data::MediaLocation>(
+			item,
+			Data::LocationPoint(data.vlocation()));
+	}, [&](const TLDmessageVenue &data) -> Result {
+		const auto &fields = data.vvenue().data();
+		return std::make_unique<Data::MediaLocation>(
+			item,
+			Data::LocationPoint(fields.vlocation()),
+			fields.vtitle().v,
+			fields.vaddress().v);
+	}, [&](const TLDmessageContact &data) -> Result {
+		const auto &fields = data.vcontact().data();
+		return std::make_unique<Data::MediaContact>(
+			item,
+			UserId(fields.vuser_id()),
+			fields.vfirst_name().v,
+			fields.vlast_name().v,
+			fields.vphone_number().v,
+			Data::SharedContact::ParseVcard(fields.vvcard().v));
+	}, [&](const TLDmessageDice &data) -> Result {
+		return std::make_unique<Data::MediaDice>(item, data);
+	}, [&](const TLDmessageGame &data) -> Result {
+		return std::make_unique<Data::MediaGame>(
+			item,
+			owner.processGame(data.vgame()));
+	}, [&](const TLDmessagePoll &data) -> Result {
+		return std::make_unique<Data::MediaPoll>(
+			item,
+			owner.processPoll(data.vpoll()));
+	}, [&](const TLDmessageInvoice &data) -> Result {
+		return std::make_unique<Data::MediaInvoice>(
+			item,
+			Data::ComputeInvoiceData(item, data));
+	}, [&](const TLDmessageCall &data) -> Result {
+		return std::make_unique<Data::MediaCall>(
+			item,
+			Data::ComputeCallData(data));
+	}, [&](const TLDmessageAnimatedEmoji &data) -> Result {
+		// todo
+		if (const auto sticker = data.vanimated_emoji().data().vsticker()) {
+			return std::make_unique<Data::MediaFile>(
+				item,
+				owner.processDocument(*sticker),
+				false);
+		}
+		return nullptr;
+	}, [&](const TLDmessageStory &data) -> Result {
+		return std::make_unique<Data::MediaStory>(item, FullStoryId{
+			peerFromTdbChat(data.vstory_sender_chat_id()),
+			data.vstory_id().v,
+		}, data.vvia_mention().v);
+	}, [&](const TLDmessageGiveawayCreated &data) -> Result {
+		return Result();
+	}, [&](const TLDmessageGiveaway &data) -> Result {
+		return std::make_unique<Data::MediaGiveawayStart>(
+			item,
+			Data::ComputeGiveawayStartData(item, data),
+			(data.vsticker()
+				? owner.processDocument(*data.vsticker()).get()
+				: nullptr));
+	}, [&](const TLDmessageGiveawayCompleted &data) -> Result {
+		return Result();
+	}, [&](const TLDmessageGiveawayWinners &data) -> Result {
+		return std::make_unique<Data::MediaGiveawayResults>(
+			item,
+			Data::ComputeGiveawayResultsData(item, data));
+	}, [](const auto &) -> Result {
+		return nullptr;
+	});
+}
+
+void HistoryItem::updateContent(const TLmessageContent &content) {
+	int keyboardTop = -1;
+	//if (!pendingResize()) {// #TODO edit bot message
+	//	if (auto keyboard = inlineReplyKeyboard()) {
+	//		int h = st::msgBotKbButton.margin + keyboard->naturalHeight();
+	//		keyboardTop = _height - h + st::msgBotKbButton.margin - marginBottom();
+	//	}
+	//}
+
+	setContent(content);
+
+	if (const auto views = Get<HistoryMessageViews>()) {
+		refreshRepliesText(views);
+	}
+
+	finishEdition(keyboardTop);
+}
+
+void HistoryItem::updateInteractionInfo(
+		const TLmessageInteractionInfo *info) {
+	const auto fields = info ? &info->data() : nullptr;
+	if (fields) {
+		const auto viewsCount = fields->vview_count().v;
+		if (changeViewsCount(viewsCount > 0 ? viewsCount : -1)) {
+			history()->owner().notifyItemDataChange(this);
+		}
+		setForwardsCount(fields->vforward_count().v);
+		if (const auto &info = fields->vreply_info()) {
+			setReplies(HistoryMessageRepliesData(info));
+		} else {
+			clearReplies();
+		}
+		if (const auto reactions = fields->vreactions()) {
+			updateReactions(
+				reactions->data().vreactions().v,
+				reactions->data().vare_tags().v);
+		} else if (_history->peer->isSelf()) {
+			_flags |= MessageFlag::ReactionsAreTags;
+		}
+	} else {
+		setForwardsCount(0);
+		clearReplies();
+		if (_history->peer->isSelf()) {
+			_flags |= MessageFlag::ReactionsAreTags;
+		}
+	}
+}
+
+void HistoryItem::updateEditedInfo(
+		TimeId editDate,
+		HistoryMessageMarkupData &&markup) {
+	setReplyMarkup(std::move(markup));
+
+	if (!Has<HistoryMessageEdited>()) {
+		AddComponents(HistoryMessageEdited::Bit());
+	}
+	auto edited = Get<HistoryMessageEdited>();
+	edited->date = editDate;
+	finishEdition(-1);
 }
 
 #if 0 // mtp
@@ -5916,6 +7491,25 @@ PreparedServiceText HistoryItem::preparePaymentSentText() {
 			result.links.push_back(payment->lnk);
 		}
 	}
+	return result;
+}
+
+PreparedServiceText HistoryItem::preparePaymentRefundText() {
+	auto result = PreparedServiceText();
+	const auto refund = Get<HistoryServicePaymentRefund>();
+	Assert(refund != nullptr);
+	Assert(refund->peer != nullptr);
+
+	const auto amount = refund->amount;
+	const auto currency = refund->currency;
+	result.links.push_back(refund->peer->createOpenLink());
+	result.text = tr::lng_action_payment_refunded(
+		tr::now,
+		lt_peer,
+		Ui::Text::Link(refund->peer->name(), 1), // Link 1.
+		lt_amount,
+		{ Ui::FillAmountAndCurrency(amount, currency) },
+		Ui::Text::WithEntities);
 	return result;
 }
 

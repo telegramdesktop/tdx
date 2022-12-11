@@ -11,6 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/notify/data_peer_notify_settings.h"
 #include "base/flags.h"
 
+namespace Tdb {
+class TLforumTopic;
+class TLforumTopicInfo;
+} // namespace Tdb
+
 class ChannelData;
 enum class ChatRestriction;
 
@@ -77,7 +82,10 @@ struct TopicIconDescriptor {
 
 class ForumTopic final : public Thread {
 public:
+#if 0 // mtp
 	static constexpr auto kGeneralId = 1;
+#endif
+	static constexpr auto kGeneralId = (1 << 20);
 
 	ForumTopic(not_null<Forum*> forum, MsgId rootId);
 	~ForumTopic();
@@ -121,12 +129,20 @@ public:
 	void readTillEnd();
 	void requestChatListMessage();
 
+	void applyTopic(const Tdb::TLforumTopic &topic);
+	void applyInfo(const Tdb::TLforumTopicInfo &info);
+#if 0 // mtp
 	void applyTopic(const MTPDforumTopic &data);
 
 	TimeId adjustedChatListTimeId() const override;
+#endif
+	// later-todo won't be needed when tdlib manages topics
+	TimeId adjustedChatListTimeId() const;
 
 	int fixedOnTopIndex() const override;
+#if 0 // mtp
 	bool shouldBeInChatList() const override;
+#endif
 	Dialogs::UnreadState chatListUnreadState() const override;
 	Dialogs::BadgesState chatListBadgesState() const override;
 	HistoryItem *chatListMessage() const override;

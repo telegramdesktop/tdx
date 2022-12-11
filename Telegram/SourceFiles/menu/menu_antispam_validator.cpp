@@ -30,20 +30,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+
 namespace AntiSpamMenu {
 namespace {
 
+using namespace Tdb;
+
 [[nodiscard]] int EnableAntiSpamMinMembers(not_null<ChannelData*> channel) {
+#if 0 // todo
 	return channel->session().appConfig().get<int>(
 		u"telegram_antispam_group_size_min"_q,
 		100);
+#endif
+	return 100;
 }
 
 [[nodiscard]] UserId AntiSpamUserId(not_null<ChannelData*> channel) {
+#if 0 // todo
 	const auto id = channel->session().appConfig().get<QString>(
 		u"telegram_antispam_user_id"_q,
 		QString());
 	return UserId(id.toULongLong());
+#endif
+	return 0;
 }
 
 } // namespace
@@ -105,12 +116,20 @@ object_ptr<Ui::RpWidget> AntiSpamValidator::createButton() const {
 				EnableAntiSpamMinMembers(channel),
 				Ui::Text::RichLangValue));
 		} else {
+			channel->session().sender().request(
+				TLtoggleSupergroupIsAggressiveAntiSpamEnabled(
+					tl_int53(peerToChannel(channel->id).bare),
+					tl_bool(toggled)
+				)
+			).send();
+#if 0 // mtp
 			channel->session().api().request(MTPchannels_ToggleAntiSpam(
 				channel->inputChannel,
 				MTP_bool(toggled)
 			)).done([=](const MTPUpdates &result) {
 				channel->session().api().applyUpdates(result);
 			}).send();
+#endif
 		}
 	}, button->lifetime());
 
@@ -119,6 +138,7 @@ object_ptr<Ui::RpWidget> AntiSpamValidator::createButton() const {
 
 void AntiSpamValidator::resolveUser(Fn<void()> finish) const {
 	if (_channel->antiSpamMode()) {
+#if 0 // todo
 		const auto mtpUserId = peerToBareMTPInt(AntiSpamUserId(_channel));
 		_channel->session().api().request(MTPusers_GetUsers(
 			MTP_vector<MTPInputUser>(1, MTP_inputUser(mtpUserId, MTPlong()))
@@ -128,6 +148,7 @@ void AntiSpamValidator::resolveUser(Fn<void()> finish) const {
 		}).fail([=] {
 			finish();
 		}).send();
+#endif
 	} else {
 		finish();
 	}
@@ -182,11 +203,19 @@ void AntiSpamValidator::addAction(
 		menu->addAction(
 			tr::lng_admin_log_antispam_menu_report(tr::now),
 			[=, channel = _channel] {
+				channel->session().sender().request(
+					TLreportSupergroupAntiSpamFalsePositive(
+						tl_int53(peerToChannel(channel->id).bare),
+						tl_int53(eventId.bare)
+					)
+				).done(showToast).send();
+#if 0 // mtp
 				_channel->session().api().request(
 					MTPchannels_ReportAntiSpamFalsePositive(
 						channel->inputChannel,
 						MTP_int(eventId)
 				)).done(showToast).send();
+#endif
 			},
 			&st::menuIconReportAntiSpam);
 	};

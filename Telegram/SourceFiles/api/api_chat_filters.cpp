@@ -682,7 +682,7 @@ void SaveNewFilterPinned(
 	)).done([=](const TLchatFilter &result) {
 		const auto owner = &session->data();
 		auto filter = Data::ChatFilter::FromTL(filterId, result, owner);
-		const auto limit = owner->pinnedChatsLimit(nullptr, filterId);
+		const auto limit = owner->pinnedChatsLimit(filterId);
 		auto always = filter.always();
 		auto pinned = std::vector<not_null<History*>>();
 		pinned.reserve(order.size());

@@ -209,10 +209,11 @@ void Proxy::addSlice(const TLDmessages &result, int alreadyLoaded) {
 		createData();
 	}
 	auto added = false;
+	const auto history = _thread->owningHistory();
 	const auto list = _data ? &resolveList() : nullptr;
 	for (const auto &message : result.vmessages().v) {
 		if (message) {
-			const auto item = _history->addMessage(*message);
+			const auto item = history->addMessage(*message);
 			const auto is = [&] {
 				switch (_type) {
 				case Type::Mentions: return item->isUnreadMention();
@@ -230,14 +231,13 @@ void Proxy::addSlice(const TLDmessages &result, int alreadyLoaded) {
 		fullCount = loadedCount();
 	}
 	setCount(fullCount);
-	_history->session().changes().historyUpdated(
-		_history,
-		UpdateFlag(_type));
+	notifyUpdated();
 }
 
 void Proxy::markAsRead(const TLDupdateMessageMentionRead &update) {
+	const auto history = _thread->owningHistory();
 	const auto id = update.vmessage_id().v;
-	if (const auto item = _history->owner().message(_history->peer, id)) {
+	if (const auto item = history->owner().message(history->peer, id)) {
 		item->markContentsRead();
 	}
 	const auto fullCount = update.vunread_mention_count().v;
@@ -250,9 +250,7 @@ void Proxy::markAsRead(const TLDupdateMessageMentionRead &update) {
 		setCount(fullCount);
 	}
 	if (changed || removed) {
-		_history->session().changes().historyUpdated(
-			_history,
-			UpdateFlag(_type));
+		notifyUpdated();
 	}
 }
 

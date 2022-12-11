@@ -141,7 +141,7 @@ void CheckForSwitchInlineButton(not_null<HistoryItem*> item) {
 	return Flag(0)
 		| bit(data.vcan_add_web_page_previews(), Flag::EmbedLinks)
 		| bit(data.vcan_change_info(), Flag::ChangeInfo)
-		| bit(data.vcan_invite_users(), Flag::InviteUsers)
+		| bit(data.vcan_invite_users(), Flag::AddParticipants)
 		| bit(data.vcan_pin_messages(), Flag::PinMessages)
 		| bit(data.vcan_send_media_messages(), Flag::SendMedia)
 		| bit(data.vcan_send_messages(), Flag::SendMessages)
@@ -163,7 +163,7 @@ void CheckForSwitchInlineButton(not_null<HistoryItem*> item) {
 		| bit(data.vcan_change_info(), Flag::ChangeInfo)
 		| bit(data.vcan_delete_messages(), Flag::DeleteMessages)
 		| bit(data.vcan_edit_messages(), Flag::EditMessages)
-		| bit(data.vcan_invite_users(), Flag::InviteUsers)
+		| bit(data.vcan_invite_users(), Flag::InviteByLinkOrAdd)
 		| bit(data.vcan_manage_video_chats(), Flag::ManageCall)
 		| bit(data.vcan_pin_messages(), Flag::PinMessages)
 		| bit(data.vcan_post_messages(), Flag::PostMessages)
@@ -1137,7 +1137,6 @@ not_null<UserData*> Session::processUser(const TLuser &user) {
 		return TextUtilities::SingleLine(data.vfirst_name().v);
 	});
 	const auto lastName = TextUtilities::SingleLine(data.vlast_name().v);
-	const auto userName = data.vusername().v;
 	const auto phone = data.vphone_number().v;
 	const auto nameChanged = (result->firstName != firstName)
 		|| (result->lastName != lastName);
@@ -1164,7 +1163,12 @@ not_null<UserData*> Session::processUser(const TLuser &user) {
 			? Ui::FormatPhone(phone)
 			: QString())
 		: result->nameOrPhone;
+	const auto newUsernames = Api::Usernames::FromTL(data.vusernames());
+	const auto userName = (newUsernames.empty() || !newUsernames[0].active)
+		? QString()
+		: newUsernames[0].username;
 	result->setName(firstName, lastName, phoneName, userName);
+	result->setUsernames(newUsernames);
 
 	if (const auto photo = data.vprofile_photo()) {
 		result->setPhoto(*photo);
@@ -1333,7 +1337,7 @@ not_null<PeerData*> Session::processPeer(const TLchat &dialog) {
 			channel->setDefaultRestrictions(
 				RestrictionsFromPermissions(data.vpermissions()));
 		}
-		channel->setName(data.vtitle().v, channel->username);
+		channel->setName(data.vtitle().v, channel->username());
 
 		if (const auto photo = data.vphoto()) {
 			channel->setPhoto(*photo);
@@ -1431,10 +1435,7 @@ not_null<ChatData*> Session::processChat(const TLbasicGroup &chat) {
 
 not_null<ChannelData*> Session::processChannel(
 		const TLsupergroup &channel) {
-	const auto &data = channel.match([](
-			const auto &data) -> const TLDsupergroup & {
-		return data;
-	});
+	const auto &data = channel.data();
 	const auto result = this->channel(data.vid().v);
 
 	using UpdateFlag = Data::PeerUpdate::Flag;
@@ -1458,7 +1459,8 @@ not_null<ChannelData*> Session::processChannel(
 		//| Flag::f_has_geo
 		| Flag::HasLink
 		| Flag::Creator
-		| Flag::Forbidden;
+		| Flag::Forbidden
+		| Flag::Forum;
 	auto flags = (result->flags() & ~setting)
 		| (data.vis_channel().v ? Flag::Broadcast : Flag::Megagroup)
 		| (data.vis_broadcast_group().v
@@ -1475,7 +1477,8 @@ not_null<ChannelData*> Session::processChannel(
 		//| (data.vhas_location().v ? Flag::f_has_geo : Flag())
 		| ((data.vstatus().type() == id_chatMemberStatusCreator)
 			? Flag::Creator
-			: Flag());
+			: Flag())
+		| (data.vis_forum().v ? Flag::Forum : Flag());
 	//data.vrestriction_reason(); // todo
 	data.vstatus().match([&](const TLDchatMemberStatusCreator &data) {
 		if (!data.vis_member().v) {
@@ -1520,7 +1523,12 @@ not_null<ChannelData*> Session::processChannel(
 	result->setFlags(flags);
 
 	result->setMembersCount(data.vmember_count().v);
-	result->setName(result->name(), data.vusername().v);
+	const auto newUsernames = Api::Usernames::FromTL(data.vusernames());
+	const auto userName = (newUsernames.empty() || !newUsernames[0].active)
+		? QString()
+		: newUsernames[0].username;
+	result->setName(result->name(), userName);
+	result->setUsernames(newUsernames);
 
 	if (wasInChannel != result->amIn()) {
 		updateFlags |= UpdateFlag::ChannelAmIn;
@@ -2652,7 +2660,6 @@ void Session::applyPinnedChats(
 	notifyPinnedDialogsOrderUpdated();
 }
 
-#if 0 // mtp
 void Session::applyPinnedTopics(
 		not_null<Data::Forum*> forum,
 		const QVector<MTPint> &list) {
@@ -2753,7 +2760,7 @@ void Session::applyChatTitle(const TLDupdateChatTitle &data) {
 		if (const auto chat = peer->asChat()) {
 			chat->setName(data.vtitle().v);
 		} else if (const auto channel = peer->asChannel()) {
-			channel->setName(data.vtitle().v, channel->username);
+			channel->setName(data.vtitle().v, channel->username());
 		} else {
 			// Process in updateUser.
 		}
@@ -5245,25 +5252,44 @@ void Session::removeChatListEntry(Dialogs::Key key) {
 
 void Session::refreshChatListEntry(Dialogs::Key key, FilterId filterId) {
 	Expects(filterId || key.entry()->folderKnown());
+	Expects(!key.entry()->asTopic() || !filterId);
 
 	using namespace Dialogs;
 
 	const auto entry = key.entry();
+	const auto history = entry->asHistory();
+	const auto topic = entry->asTopic();
 	const auto list = filterId
 		? chatsFilters().chatsList(filterId)
-		: chatsList(entry->folder());
+		: chatsListFor(entry);
 	auto event = ChatListEntryRefresh{ .key = key, .filterId = filterId };
 	event.existenceChanged = !entry->inChatList(filterId);
 	if (event.existenceChanged) {
-		const auto mainRow = entry->addToChatList(filterId, list);
+		if (topic && topic->creating()) {
+			return;
+		}
+		const auto row = entry->addToChatList(filterId, list);
 		if (!filterId) {
-			_contactsNoChatsList.del(key, mainRow);
+			_contactsNoChatsList.remove(key, row);
 		}
 	} else {
 		event.moved = entry->adjustByPosInChatList(filterId, list);
 	}
 	if (event) {
 		_chatListEntryRefreshes.fire(std::move(event));
+	}
+
+	if (history && event.existenceChanged) {
+		if (const auto from = history->peer->migrateFrom()) {
+			if (const auto migrated = historyLoaded(from)) {
+				if (migrated->inChatList(filterId)) {
+					removeChatListEntry(migrated, filterId);
+				}
+			}
+		}
+		if (const auto forum = history->peer->forum()) {
+			forum->preloadTopics();
+		}
 	}
 }
 
@@ -5273,7 +5299,7 @@ void Session::removeChatListEntry(Dialogs::Key key, FilterId filterId) {
 	const auto entry = key.entry();
 	const auto list = filterId
 		? chatsFilters().chatsList(filterId)
-		: chatsList(entry->folder());
+		: chatsListFor(entry);
 	if (entry->inChatList(filterId)) {
 		entry->removeFromChatList(filterId, list);
 		_chatListEntryRefreshes.fire(ChatListEntryRefresh{

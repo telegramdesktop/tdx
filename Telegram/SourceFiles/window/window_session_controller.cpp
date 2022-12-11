@@ -532,9 +532,9 @@ void SessionNavigation::resolveMessageByLink(const PeerByLinkInfo &info) {
 				.messageId = (data.vmessage()
 					? data.vmessage()->data().vid().v
 					: 0),
-				.repliesInfo = ((data.vmessage() && data.vfor_comment().v)
+				.repliesInfo = (data.vmessage_thread_id().v
 					? RepliesByLinkInfo{ ThreadId{
-						.id = data.vmessage()->data().vmessage_thread_id().v,
+						.id = data.vmessage_thread_id().v,
 					} }
 					: RepliesByLinkInfo()),
 				.clickFromMessageId = info.clickFromMessageId,
@@ -1042,15 +1042,23 @@ void SessionNavigation::showRepliesForMessage(
 	}
 	_api.request(base::take(_showingRepliesRequestId)).cancel();
 
+	const auto threadMsgId = (!history->peer->isBroadcast() && commentId)
+		? commentId
+		: rootId;
 	const auto postPeer = history->peer;
 	_showingRepliesHistory = history;
 	_showingRepliesRootId = rootId;
 	_showingRepliesRequestId = _api.request(TLgetMessageThread(
 		peerToTdbChat(history->peer->id),
-		tl_int53(rootId.bare)
+		tl_int53(threadMsgId.bare)
 	)).done([=](const TLmessageThreadInfo &result) {
 		_showingRepliesRequestId = 0;
 		const auto &data = result.data();
+		const auto threadPeer = peerFromTdbChat(data.vchat_id());
+		const auto threadHistory = _session->data().history(threadPeer);
+		const auto threadId = MsgId(data.vmessage_thread_id().v);
+		const auto list = data.vmessages().v;
+		const auto comments = history->peer->isBroadcast();
 		auto item = (HistoryItem*)nullptr;
 		for (const auto &message : data.vmessages().v) {
 			const auto added = _session->data().processMessage(
@@ -1060,35 +1068,38 @@ void SessionNavigation::showRepliesForMessage(
 				item = added;
 			}
 		}
-		if (const auto group = _session->data().groups().find(item)) {
+		auto &groups = _session->data().groups();
+		if (const auto group = item ? groups.find(item) : nullptr) {
 			item = group->items.front();
 		}
-		if (item) {
-			const auto &info = data.vreply_info().data();
-			if (const auto maxId = info.vlast_message_id().v) {
-				item->setRepliesMaxId(maxId);
-			}
-			item->setRepliesInboxReadTill(
-				info.vlast_read_inbox_message_id().v,
-				data.vunread_message_count().v);
-			item->setRepliesOutboxReadTill(
-				info.vlast_read_outbox_message_id().v);
-			const auto post = _session->data().message(postPeer, rootId);
-			if (post && item->history()->peer != postPeer) {
-				post->setCommentsItemId(item->fullId());
-				if (const auto maxId = info.vlast_message_id().v) {
-					post->setRepliesMaxId(maxId);
+		if (comments && item) {
+			if (const auto info = data.vreply_info()) {
+				const auto &data = info->data();
+				const auto post = _session->data().message(postPeer, rootId);
+				if (post) {
+					post->setCommentsItemId(item->fullId());
+					if (const auto maxId = data.vlast_message_id().v) {
+						post->setCommentsMaxId(maxId);
+					}
+					post->setCommentsInboxReadTill(
+						data.vlast_read_inbox_message_id().v);
 				}
-				post->setRepliesInboxReadTill(
-					info.vlast_read_inbox_message_id().v,
-					data.vunread_message_count().v);
-				post->setRepliesOutboxReadTill(
-					info.vlast_read_outbox_message_id().v);
 			}
-			showSection(std::make_shared<HistoryView::RepliesMemento>(
-				item,
-				commentId));
 		}
+		auto memento = std::make_shared<HistoryView::RepliesMemento>(
+			threadHistory,
+			threadId,
+			commentId);
+		// tdlib getMessageThread doesn't provide unread info for topics.
+		if (comments) {
+			if (const auto info = data.vreply_info()) {
+				memento->setReadInformation(
+					info->data().vlast_read_inbox_message_id().v,
+					data.vunread_message_count().v,
+					info->data().vlast_read_outbox_message_id().v);
+			}
+		}
+		showSection(std::move(memento), params);
 	}).fail([=](const Error &error) {
 		_showingRepliesRequestId = 0;
 		if (error.message == u"CHANNEL_PRIVATE"_q

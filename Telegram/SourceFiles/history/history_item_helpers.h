@@ -9,8 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class History;
 
+namespace tl {
+class int64_type;
+} // namespace tl
+
 namespace Tdb {
 class TLDmessage;
+using TLint53 = tl::int64_type;
 } // namespace Tdb
 
 namespace Api {
@@ -29,6 +34,10 @@ class Session;
 
 [[nodiscard]] MessageFlags FlagsFromTdb(const Tdb::TLDmessage &data);
 [[nodiscard]] TimeId MessageDateFromTdb(const Tdb::TLDmessage &data);
+
+[[nodiscard]] std::vector<not_null<UserData*>> ParseInvitedToCallUsers(
+	not_null<HistoryItem*> item,
+	const QVector<Tdb::TLint53> &users);
 
 struct PreparedServiceText {
 	TextWithEntities text;

@@ -178,8 +178,11 @@ public:
 
 	not_null<HistoryItem*> addNewLocalMessage(
 		HistoryItemCommonFields &&fields,
+		const TextWithEntities &text);
+#if 0 // mtp
 		const TextWithEntities &text,
 		const MTPMessageMedia &media);
+#endif
 	not_null<HistoryItem*> addNewLocalMessage(
 		HistoryItemCommonFields &&fields,
 		not_null<HistoryItem*> forwardOriginal);
@@ -302,7 +305,7 @@ public:
 #endif
 
 	void applyPosition(const Tdb::TLDchatPosition &data);
-	void finishSavingCloudDraftNow();
+	void finishSavingCloudDraftNow(MsgId topicRootId);
 	void applyUnreadInfo(int unreadCount,
 		MsgId maxInboxRead,
 		MsgId maxOutboxRead);

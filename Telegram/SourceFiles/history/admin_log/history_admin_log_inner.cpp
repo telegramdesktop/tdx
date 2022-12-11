@@ -834,24 +834,28 @@ void InnerWidget::preloadMore(Direction direction) {
 	// const auto minId = (direction == Direction::Up) ? 0 : _maxId;
 	const auto perPage = _items.empty() ? kEventsFirstPage : kEventsPerPage;
 
+	using LocalFlag = FilterValue::Flag;
+	const auto f = _filter.flags.value_or(LocalFlag());
 	auto filter = tl_chatEventLogFilters(
-		tl_bool(_filter.flags & FilterValue::Flag::Edit),
-		tl_bool(_filter.flags & FilterValue::Flag::Delete),
-		tl_bool(_filter.flags & FilterValue::Flag::Pinned),
-		tl_bool(_filter.flags & FilterValue::Flag::Join),
-		tl_bool(_filter.flags & FilterValue::Flag::Leave),
-		tl_bool(_filter.flags & FilterValue::Flag::Invites),
-		tl_bool(_filter.flags & FilterValue::Flag::Promote),
-		tl_bool(_filter.flags & FilterValue::Flag::Demote),
-		tl_bool(_filter.flags & FilterValue::Flag::Info),
-		tl_bool(_filter.flags & FilterValue::Flag::Settings),
-		tl_bool(_filter.flags & FilterValue::Flag::Invite),
-		tl_bool(_filter.flags & FilterValue::Flag::GroupCall));
+		tl_bool(f & LocalFlag::Edit),
+		tl_bool(f & LocalFlag::Delete),
+		tl_bool(f & LocalFlag::Pinned),
+		tl_bool(f & LocalFlag::Join),
+		tl_bool(f & LocalFlag::Leave),
+		tl_bool(f & LocalFlag::Invites),
+		tl_bool(f & LocalFlag::Promote),
+		tl_bool(f & LocalFlag::Demote),
+		tl_bool(f & LocalFlag::Info),
+		tl_bool(f & LocalFlag::Settings),
+		tl_bool(f & LocalFlag::Invite),
+		tl_bool(f & LocalFlag::GroupCall),
+		tl_bool(f & LocalFlag::Topics),
+		tl_bool(f & LocalFlag::SubExtend));
 
-	auto admins = _filter.allUsers
+	auto admins = !_filter.admins
 		? QVector<TLint53>()
 		: ranges::views::all(
-			_filter.admins
+			*_filter.admins
 		) | ranges::views::transform([](not_null<UserData*> user) {
 			return tl_int53(peerToUser(user->id).bare);
 		}) | ranges::to<QVector<TLint53>>();
@@ -979,7 +983,7 @@ void InnerWidget::addEvents(
 			return;
 		}
 		const auto rememberRealMsgId = (antiSpamUserId
-			== peerToUser(peerFromUser(data.vuser_id())));
+			== peerToUser(peerFromSender(data.vmember_id())));
 
 		auto count = 0;
 		const auto addOne = [&](

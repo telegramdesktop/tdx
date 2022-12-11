@@ -292,12 +292,12 @@ void EmojiStatuses::processClearing() {
 		_clearingTimer.cancel();
 	}
 }
-#endif
 
 void EmojiStatuses::processClearingIn(TimeId wait) {
 	const auto waitms = wait * crl::time(1000);
 	_clearingTimer.callOnce(std::min(waitms, kMaxTimeout));
 }
+#endif
 
 void EmojiStatuses::requestRecent() {
 	if (_recentRequestId) {

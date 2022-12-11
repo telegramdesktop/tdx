@@ -1480,7 +1480,7 @@ void Reactions::requestGeneric() {
 	}
 	auto &api = _owner->session().sender();
 	_genericRequestId = api.request(TLgetCustomEmojiReactionAnimations(
-	)).done([=](const TLDfiles &result) {
+	)).done([=](const TLDstickers &result) {
 		_genericRequestId = 0;
 		updateGeneric(result);
 	}).fail([=] {
@@ -1488,20 +1488,18 @@ void Reactions::requestGeneric() {
 	}).send();
 }
 
-void Reactions::updateGeneric(const TLDfiles &data) {
+void Reactions::updateGeneric(const TLDstickers &data) {
 	const auto oldCache = base::take(_genericCache);
 	const auto toCache = [&](not_null<DocumentData*> document) {
 		_genericAnimations.push_back(document);
 		_genericCache.emplace(document, document->createMediaView());
 	};
-	const auto &list = data.vfiles().v;
+	const auto &list = data.vstickers().v;
 	_genericAnimations.clear();
 	_genericAnimations.reserve(list.size());
 	_genericCache.reserve(list.size());
 	for (const auto &sticker : list) {
-		toCache(_owner->processPlainDocument(
-			sticker,
-			SimpleDocumentType::TgsSticker));
+		toCache(_owner->processDocument(sticker));
 	}
 	if (!_genericCache.empty()) {
 		_genericCache.front().second->checkStickerLarge();
