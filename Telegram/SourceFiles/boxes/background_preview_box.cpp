@@ -107,7 +107,9 @@ constexpr auto kDefaultDimming = 50;
 		out ? history->session().userId() : peerToUser(history->peer->id),
 		QString(),
 		TextWithEntities{ text },
+#if 0 // mtp
 		MTP_messageMediaEmpty(),
+#endif
 		HistoryMessageMarkupData(),
 		groupedId);
 	return AdminLog::OwnedItem(delegate, item);

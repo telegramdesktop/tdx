@@ -306,8 +306,8 @@ public:
 	[[nodiscard]] static TimeId OnlineTillFromStatus(
 		const Tdb::TLuserStatus &status,
 		TimeId currentOnlineTill);
-	void saveDraftToCloudNow(not_null<History*> history);
-	void manualClearCloudDraft(not_null<History*> history);
+	void saveDraftToCloudNow(not_null<Data::Thread*> thread);
+	void manualClearCloudDraft(not_null<Data::Thread*> thread);
 
 	void clearHistory(not_null<PeerData*> peer, bool revoke);
 	void deleteConversation(not_null<PeerData*> peer, bool revoke);

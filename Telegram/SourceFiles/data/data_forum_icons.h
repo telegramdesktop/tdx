@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 
+namespace Tdb {
+class TLDstickers;
+} // namespace Tdb
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -44,7 +48,10 @@ private:
 	void resetUserpics();
 	void resetUserpicsFor(not_null<Forum*> forum);
 
+#if 0 // mtp
 	void updateDefault(const MTPDmessages_stickerSet &data);
+#endif
+	void updateDefault(const Tdb::TLDstickers &data);
 
 	const not_null<Session*> _owner;
 
