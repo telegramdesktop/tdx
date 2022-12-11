@@ -35,10 +35,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 #include "styles/style_chat_helpers.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 #include <QtSvg/QSvgRenderer>
 
 namespace Data {
 namespace {
+
+using namespace Tdb;
 
 using UpdateFlag = TopicUpdate::Flag;
 
@@ -377,6 +381,72 @@ void ForumTopic::readTillEnd() {
 	_replies->readTill(_lastKnownServerMessageId);
 }
 
+void ForumTopic::applyTopic(const TLforumTopic &topic) {
+	const auto &data = topic.data();
+
+	applyInfo(data.vinfo());
+
+	owner().setChatPinned(this, 0, data.vis_pinned().v);
+	owner().notifySettings().apply(this, data.vnotification_settings());
+
+	if (const auto draft = data.vdraft_message()) {
+		Data::ApplyPeerCloudDraft(
+			&session(),
+			channel()->id,
+			_rootId,
+			draft->data());
+	} else {
+		Data::ClearPeerCloudDraft(
+			&session(),
+			channel()->id,
+			_rootId,
+			base::unixtime::now());
+	}
+
+	_replies->setInboxReadTill(
+		data.vlast_read_inbox_message_id().v,
+		data.vunread_count().v);
+	_replies->setOutboxReadTill(data.vlast_read_outbox_message_id().v);
+
+	if (const auto message = data.vlast_message()) {
+		const auto &data = message->data();
+		const auto id = data.vid().v;
+		history()->addMessage(*message, NewMessageType::Last);
+		applyTopicTopMessage(id);
+	} else {
+		if (_lastServerMessage) {
+			if (lastMessage() == lastServerMessage()) {
+				if (lastMessage() == chatListMessage()) {
+					_chatListMessage = std::nullopt;
+					requestChatListMessage();
+				}
+				_lastMessage = std::nullopt;
+			}
+			_lastServerMessage = std::nullopt;
+		}
+	}
+	unreadMentions().setCount(data.vunread_mention_count().v);
+	unreadReactions().setCount(data.vunread_reaction_count().v);
+}
+
+void ForumTopic::applyInfo(const TLforumTopicInfo &info) {
+	Expects(_rootId == info.data().vmessage_thread_id().v);
+
+	const auto &data = info.data();
+	const auto &icon = data.vicon().data();
+
+	applyCreator(peerFromSender(data.vcreator_id()));
+	applyCreationDate(data.vcreation_date().v);
+
+	applyTitle(data.vname().v);
+	applyIconId(icon.vcustom_emoji_id().v);
+	applyColorId(icon.vcolor().v);
+
+	applyIsMy(data.vis_outgoing().v);
+	setClosed(data.vis_closed().v);
+}
+
+#if 0 // mtp
 void ForumTopic::applyTopic(const MTPDforumTopic &data) {
 	Expects(_rootId == data.vid().v);
 
@@ -419,6 +489,7 @@ void ForumTopic::applyTopic(const MTPDforumTopic &data) {
 		unreadReactions().setCount(data.vunread_reactions_count().v);
 	}
 }
+#endif
 
 void ForumTopic::applyCreator(PeerId creatorId) {
 	if (_creatorId != creatorId) {
@@ -459,6 +530,13 @@ void ForumTopic::setClosed(bool closed) {
 void ForumTopic::setClosedAndSave(bool closed) {
 	setClosed(closed);
 
+	const auto sender = &session().sender();
+	sender->request(TLtoggleForumTopicIsClosed(
+		peerToTdbChat(channel()->id),
+		tl_int53(_rootId.bare),
+		tl_bool(closed)
+	)).send();
+#if 0 // mtp
 	const auto api = &session().api();
 	const auto weak = base::make_weak(this);
 	api->request(MTPchannels_EditForumTopic(
@@ -478,6 +556,7 @@ void ForumTopic::setClosedAndSave(bool closed) {
 			}
 		}
 	}).send();
+#endif
 }
 
 bool ForumTopic::hidden() const {
@@ -707,6 +786,7 @@ void ForumTopic::requestChatListMessage() {
 	}
 }
 
+// later-todo won't be needed when tdlib manages topics
 TimeId ForumTopic::adjustedChatListTimeId() const {
 	const auto result = chatListTimeId();
 	if (const auto draft = history()->cloudDraft(_rootId)) {
@@ -721,11 +801,13 @@ int ForumTopic::fixedOnTopIndex() const {
 	return 0;
 }
 
+#if 0 // mtp
 bool ForumTopic::shouldBeInChatList() const {
 	return isPinnedDialog(FilterId())
 		|| !lastMessageKnown()
 		|| (lastMessage() != nullptr);
 }
+#endif
 
 HistoryItem *ForumTopic::lastMessage() const {
 	return _lastMessage.value_or(nullptr);

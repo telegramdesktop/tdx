@@ -89,11 +89,19 @@ void UnreadThings::preloadEnoughReactions(not_null<Data::Thread*> thread) {
 
 void UnreadThings::cancelRequests(not_null<Data::Thread*> thread) {
 	if (const auto requestId = _mentionsRequests.take(thread)) {
+		_api->sender().request(*requestId).cancel();
+	}
+	if (const auto requestId = _reactionsRequests.take(thread)) {
+		_api->sender().request(*requestId).cancel();
+	}
+#if 0 // mtp
+	if (const auto requestId = _mentionsRequests.take(thread)) {
 		_api->request(*requestId).cancel();
 	}
 	if (const auto requestId = _reactionsRequests.take(thread)) {
 		_api->request(*requestId).cancel();
 	}
+#endif
 }
 
 void UnreadThings::requestMentions(
@@ -108,20 +116,22 @@ void UnreadThings::requestMentions(
 	const auto limit = loaded ? kNextRequestLimit : kFirstRequestLimit;
 	const auto addOffset = loaded ? -(limit + 1) : -limit;
 
+	const auto history = thread->owningHistory();
+	const auto topic = thread->asTopic();
 	const auto requestId = _api->sender().request(TLsearchChatMessages(
-		peerToTdbChat(history->peer->id),
+		peerToTdbChat(thread->peer()->id),
 		tl_string(),
 		std::nullopt,
 		tl_int53(offsetId.bare),
 		tl_int32(addOffset + 2), // TDLib requires -offset < limit.
 		tl_int32(limit),
 		tl_searchMessagesFilterUnreadMention(),
-		tl_int53(0) // message_thread_id
+		tl_int53(topic ? topic->rootId().bare : 0)
 	)).done([=](const TLDmessages &result) {
-		_mentionsRequests.remove(history);
-		history->unreadMentions().addSlice(result, loaded);
+		_mentionsRequests.remove(thread);
+		thread->unreadMentions().addSlice(result, loaded);
 	}).fail([=] {
-		_mentionsRequests.remove(history);
+		_mentionsRequests.remove(thread);
 	}).send();
 #if 0 // mtp
 	const auto maxId = 0;
@@ -160,6 +170,8 @@ void UnreadThings::requestReactions(
 	const auto limit = loaded ? kNextRequestLimit : kFirstRequestLimit;
 	const auto addOffset = loaded ? -(limit + 1) : -limit;
 
+	const auto history = thread->owningHistory();
+	const auto topic = thread->asTopic();
 	const auto requestId = _api->sender().request(TLsearchChatMessages(
 		peerToTdbChat(history->peer->id),
 		tl_string(),
@@ -168,7 +180,7 @@ void UnreadThings::requestReactions(
 		tl_int32(addOffset + 2), // TDLib requires -offset < limit.
 		tl_int32(limit),
 		tl_searchMessagesFilterUnreadReaction(),
-		tl_int53(0) // message_thread_id
+		tl_int53(topic ? topic->rootId().bare : 0)
 	)).done([=](const TLDmessages &result) {
 		_reactionsRequests.remove(history);
 		history->unreadReactions().addSlice(result, loaded);

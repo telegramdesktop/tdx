@@ -353,7 +353,8 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallBarContentByCall(
 						.speaking = speaker.speaking,
 					};
 					userpic.peer->loadUserpic();
-					const auto pic = userpic.peer->genUserpic(
+					auto image = PeerData::GenerateUserpicImage(
+						userpic.peer,
 						userpic.view,
 						userpicSize);
 					userpic.uniqueKey = userpic.peer->userpicUniqueKey(
@@ -363,7 +364,7 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallBarContentByCall(
 						state->someUserpicsNotLoaded = true;
 					}
 					state->current.users.push_back({
-						.userpic = pic.toImage(),
+						.userpic = std::move(image),
 						.userpicKey = userpic.uniqueKey,
 						.id = userpic.peer->id.value,
 						.speaking = userpic.speaking,

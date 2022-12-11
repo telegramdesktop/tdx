@@ -39,7 +39,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 #include "styles/style_chat_helpers.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kDefaultIconId = DocumentId(0x7FFF'FFFF'FFFF'FFFFULL);
 
@@ -547,6 +552,22 @@ void EditForumTopicBox(
 			topic->applyIconId(state->iconId.current());
 			box->closeBox();
 		} else {
+			const auto sender = &forum->session().sender();
+			const auto weak = Ui::MakeWeak(box.get());
+			state->requestId = sender->request(TLeditForumTopic(
+				peerToTdbChat(topic->channel()->id),
+				tl_int53(topic->rootId().bare),
+				tl_string(title->getLastText().trimmed()),
+				tl_bool(!topic->isGeneral()),
+				tl_int64(state->iconId.current())
+			)).done([=] {
+				if (const auto strong = weak.data()) {
+					strong->closeBox();
+				}
+			}).fail([=] {
+				state->requestId = -1;
+			}).send();
+#if 0 // mtp
 			using Flag = MTPchannels_EditForumTopic::Flag;
 			const auto api = &forum->session().api();
 			const auto weak = Ui::MakeWeak(box.get());
@@ -573,6 +594,7 @@ void EditForumTopicBox(
 					}
 				}
 			}).send();
+#endif
 		}
 	};
 

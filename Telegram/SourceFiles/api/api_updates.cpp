@@ -70,6 +70,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tdb/tdb_tl_scheme.h"
 #include "history/history_item_reply_markup.h"
 #include "data/data_document.h"
+#include "data/data_forum_topic.h"
 
 namespace Api {
 namespace {
@@ -3013,12 +3014,18 @@ void Updates::applyUpdate(const TLupdate &update) {
 		}
 	}, [&](const TLDupdateChatDraftMessage &data) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
+		const auto topicRootId = MsgId();
 		if (const auto draft = data.vdraft_message()) {
-			Data::ApplyPeerCloudDraft(&session(), peerId, draft->data());
+			Data::ApplyPeerCloudDraft(
+				&session(),
+				peerId,
+				topicRootId,
+				draft->data());
 		} else {
 			Data::ClearPeerCloudDraft(
 				&session(),
 				peerId,
+				topicRootId,
 				base::unixtime::now());
 		}
 		if (const auto history = owner.historyLoaded(peerId)) {
@@ -3186,6 +3193,14 @@ void Updates::applyUpdate(const TLupdate &update) {
 		// Updates below are handled in a different place.
 	}, [&](const TLDupdateConnectionState &data) {
 	}, [&](const TLDupdateServiceNotification &data) {
+	}, [&](const TLDupdateForumTopicInfo &data) {
+		const auto peerId = peerFromTdbChat(data.vchat_id());
+		if (const auto peer = owner.peerLoaded(peerId)) {
+			const auto rootId = data.vinfo().data().vmessage_thread_id().v;
+			if (const auto topic = peer->forumTopicFor(rootId)) {
+				topic->applyInfo(data.vinfo());
+			}
+		}
 	});
 	session().data().sendHistoryChangeNotifications();
 }

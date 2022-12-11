@@ -13,6 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class ApiWrap;
 class PeerData;
 
+namespace Tdb {
+class TLusernames;
+} // namespace Tdb
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -41,7 +45,10 @@ public:
 	void requestToCache(not_null<PeerData*> peer);
 	[[nodiscard]] Data::Usernames cacheFor(PeerId id);
 
+#if 0 // mtp
 	static Data::Usernames FromTL(const MTPVector<MTPUsername> &usernames);
+#endif
+	static Data::Usernames FromTL(const Tdb::TLusernames *usernames);
 
 private:
 

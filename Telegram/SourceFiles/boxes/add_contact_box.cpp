@@ -778,8 +778,9 @@ void GroupInfoBox::createGroup(
 #endif
 	_creationRequestId = _api.request(TLcreateNewBasicGroupChat(
 		tl_vector<TLUsers>(std::move(inputs)),
-		tl_string(title)
-	)).done([=](const TLchat &result) {
+		tl_string(title),
+		tl_int32(_ttlPeriod)
+	)).done([=](const TLcreatedBasicGroupChat &result) {
 		auto image = _photo->takeResultImage();
 		const auto period = ttlPeriod();
 		const auto navigation = _navigation;
@@ -954,6 +955,7 @@ void GroupInfoBox::createChannel(
 		Tdb::tl_chatLocation(
 			Tdb::tl_location(tlZero, tlZero, tlZero),
 			Tdb::tl_string()),
+		Tdb::tl_int32((_type == Type::Megagroup) ? _ttlPeriod : 0),
 		Tdb::tl_bool(false) // For import.
 	)).done([=](const Tdb::TLchat &result) {
 		auto &session = _navigation->session();
@@ -1480,7 +1482,7 @@ void SetupChannelBox::check() {
 			_checkRequestId = 0;
 			const auto parsed = parseError(result);
 			if ((parsed == UsernameResult::Ok)
-				|| _checkUsername == _channel->username) {
+				|| _checkUsername == _channel->username()) {
 				_errorText = QString();
 				_goodText = tr::lng_create_channel_link_available(tr::now);
 				update();
@@ -1548,10 +1550,12 @@ SetupChannelBox::UsernameResult SetupChannelBox::parseError(
 		return UsernameResult::Invalid;
 	}, [](const TLDcheckChatUsernameResultUsernameOccupied &) {
 		return UsernameResult::Occupied;
-	}, [](const TLDcheckChatUsernameResultPublicChatsTooMuch &) {
+	}, [](const TLDcheckChatUsernameResultPublicChatsTooMany &) {
 		return UsernameResult::ChatsTooMuch;
 	}, [](const TLDcheckChatUsernameResultPublicGroupsUnavailable &) {
 		return UsernameResult::NA;
+	}, [](const TLDcheckChatUsernameResultUsernamePurchasable &) {
+		return UsernameResult::Occupied;
 	});
 #if 0 // goodToRemove
 		const QString &error) {

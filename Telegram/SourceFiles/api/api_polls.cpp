@@ -78,8 +78,8 @@ void Polls::create(
 
 	_api.request(Tdb::TLsendMessage(
 		peerToTdbChat(peer->id),
-		Tdb::tl_int53(0), // message_thread_id
-		Tdb::tl_int53(action.replyTo.bare),
+		Tdb::tl_int53(action.replyTo.topicRootId.bare),
+		MessageReplyTo(action),
 		MessageSendOptions(peer, action),
 		PollToTL(&data)
 	)).done([=](const Tdb::TLmessage &result) {

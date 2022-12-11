@@ -39,7 +39,10 @@ AdminLog::OwnedItem GenerateItem(
 		.replyTo = FullReplyTo{.messageId = replyTo },
 		.date = base::unixtime::now(),
 		.effectId = effectId,
+	}, TextWithEntities{ .text = text });
+#if 0 // mtp
 	}, TextWithEntities{ .text = text }, MTP_messageMediaEmpty());
+#endif
 
 	return AdminLog::OwnedItem(delegate, item);
 }
@@ -52,7 +55,7 @@ PeerId GenerateUser(not_null<History*> history, const QString &name) {
 		peerToTdbChat(peerId),
 		tl_string(name),
 		TLstring(), // last_name_
-		TLstring(), // username_
+		std::nullopt, // usernames_
 		TLstring(), // phone_number_
 		tl_userStatusEmpty(), // status_
 		null, // profile_photo_
@@ -67,6 +70,7 @@ PeerId GenerateUser(not_null<History*> history, const QString &name) {
 		tl_bool(false), // is_verified_
 		tl_bool(false), // is_premium_
 		tl_bool(false), // is_support_
+		tl_bool(false), // has_anonymous_phone_number
 		TLstring(), // restriction_reason_
 		tl_bool(false), // is_scam_
 		tl_bool(false), // is_fake_

@@ -499,14 +499,19 @@ not_null<HistoryItem*> History::createItem(
 		MsgId id,
 		const TLmessage &message,
 		MessageFlags localFlags,
-		bool detachExistingItem) {
+		bool detachExistingItem,
+		HistoryItem *replacing) {
 	if (const auto result = owner().message(peer, id)) {
 		if (detachExistingItem) {
 			result->removeMainView();
 		}
 		return result;
 	}
-	const auto result = makeMessage(id, message.data(), localFlags);
+	const auto result = makeMessage(
+		id,
+		message.data(),
+		localFlags,
+		replacing);
 	if (result->isScheduled()) {
 		owner().scheduledMessages().append(result);
 	}
@@ -550,7 +555,8 @@ not_null<HistoryItem*> History::addMessage(
 		data.vid().v,
 		message,
 		MessageFlags(),
-		detachExistingItem);
+		detachExistingItem,
+		old);
 	if (!item->mainView() && item->isHistoryEntry()) {
 		const auto unread = (type == NewMessageType::Unread);
 		if (unread && item->isHistoryEntry()) {
@@ -770,10 +776,16 @@ void History::checkForLoadedAtTop(not_null<HistoryItem*> added) {
 
 not_null<HistoryItem*> History::addNewLocalMessage(
 		HistoryItemCommonFields &&fields,
+#if 0 // mtp
 		const TextWithEntities &text,
 		const MTPMessageMedia &media) {
+#endif
+		const TextWithEntities &text) {
 	return addNewItem(
+#if 0 // mtp
 		makeMessage(WithLocalFlag(std::move(fields)), text, media),
+#endif
+		makeMessage(WithLocalFlag(std::move(fields)), text),
 		true);
 }
 
@@ -3064,13 +3076,15 @@ void History::applyPosition(const TLDchatPosition &data) {
 	});
 }
 
-void History::finishSavingCloudDraftNow() {
+void History::finishSavingCloudDraftNow(MsgId topicRootId) {
 	session().sender().request(TLgetOption(
 		tl_string("unix_time")
 	)).done([=](const TLoptionValue &value) {
-		finishSavingCloudDraft(TimeId(OptionValue<int64>(value)));
+		finishSavingCloudDraft(
+			topicRootId,
+			TimeId(OptionValue<int64>(value)));
 	}).fail([=] {
-		finishSavingCloudDraft(TimeId());
+		finishSavingCloudDraft(topicRootId, TimeId());
 	}).send();
 }
 

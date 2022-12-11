@@ -579,7 +579,7 @@ void Controller::checkUsernameAvailability() {
 			if (checking != username) {
 				showUsernameError(tr::lng_create_channel_link_occupied());
 			}
-		}, [&](const TLDcheckChatUsernameResultPublicChatsTooMuch &) {
+		}, [&](const TLDcheckChatUsernameResultPublicChatsTooMany &) {
 			_usernameState = UsernameState::TooMany;
 			if (_controls.privacy->current() == Privacy::HasUsername) {
 				askUsernameRevoke();
@@ -587,6 +587,10 @@ void Controller::checkUsernameAvailability() {
 		}, [&](const TLDcheckChatUsernameResultPublicGroupsUnavailable &) {
 			_usernameState = UsernameState::NotAvailable;
 			_controls.privacy->setValue(Privacy::NoUsername);
+		}, [&](const TLDcheckChatUsernameResultUsernamePurchasable &) {
+			_goodUsername = false;
+			_usernameCheckInfo.fire(
+				UsernameCheckInfo::PurchaseAvailable(checking, _peer));
 		});
 	}).fail([=](const Error &error) {
 		_checkUsernameRequestId = 0;

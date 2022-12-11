@@ -3145,11 +3145,7 @@ void InnerWidget::cloudChatsReceived(
 		if (alreadyAdded(history)) {
 			continue;
 		}
-		auto row = std::make_unique<Row>(history, _filterResults.size());
-		const auto [i, ok] = _filterResultsGlobal.emplace(
-			history->peer,
-			std::move(row));
-		_filterResults.emplace_back(i->second.get());
+		appendToFiltered(history);
 	}
 	refresh();
 }

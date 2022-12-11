@@ -1075,11 +1075,13 @@ void ChannelData::setStoriesState(StoriesState state) {
 	}
 }
 
+#if 0 // mtp
 void ChannelData::processTopics(const MTPVector<MTPForumTopic> &topics) {
 	if (const auto forum = this->forum()) {
 		forum->applyReceivedTopics(topics);
 	}
 }
+#endif
 
 int ChannelData::levelHint() const {
 	return _levelHint;
@@ -1371,14 +1373,24 @@ void ApplyChannelUpdate(
 
 	//TTL of messages goes from updates.
 
-	// todo
-	//update.vcan_get_members();
-	//update.vcan_get_statistics();
-	//update.vcan_set_location();
-	//update.vcan_set_sticker_set();
-	//update.vcan_set_username();
-	//update.vis_all_history_available();
-	//channel->setFullFlags(update.vflags().v);
+	using Flag = ChannelDataFlag;
+	const auto mask = Flag::CanSetUsername
+		| Flag::CanViewParticipants
+		| Flag::CanSetStickers
+		| Flag::PreHistoryHidden
+		| Flag::AntiSpam
+		| Flag::Location;
+	channel->setFlags((channel->flags() & ~mask)
+		| Flag::CanSetUsername // Creators can always set usernames.
+		| (update.vcan_get_members().v ? Flag::CanViewParticipants : Flag())
+		| (update.vcan_set_sticker_set().v ? Flag::CanSetStickers : Flag())
+		| (update.vis_all_history_available().v
+			? Flag::PreHistoryHidden
+			: Flag())
+		| (update.vis_aggressive_anti_spam_enabled().v
+			? Flag::AntiSpam
+			: Flag())
+		| (update.vlocation() ? Flag::Location : Flag()));
 
 	if (const auto photo = update.vphoto()) {
 		channel->setPhotoFull(*photo);

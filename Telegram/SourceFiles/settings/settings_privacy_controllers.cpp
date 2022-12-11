@@ -178,6 +178,7 @@ AdminLog::OwnedItem GenerateForwardedItem(
 		tl_bool(true), // can_be_saved
 		tl_bool(false), // has_timestamped_media
 		tl_bool(false), // is_channel_post
+		tl_bool(false), // is_topic_message
 		tl_bool(false), // contains_unread_mention
 		tl_int32(base::unixtime::now()), // date
 		tl_int32(0), // edit_date
@@ -213,7 +214,8 @@ AdminLog::OwnedItem GenerateForwardedItem(
 	const auto item = history->makeMessage(
 		id,
 		fake.data(),
-		MessageFlag::FakeHistoryItem);
+		MessageFlag::FakeHistoryItem,
+		nullptr); // replacing
 
 #if 0 // mtp
 	using Flag = MTPDmessage::Flag;

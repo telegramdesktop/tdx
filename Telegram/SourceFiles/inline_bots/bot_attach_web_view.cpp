@@ -2035,7 +2035,7 @@ void AttachWebView::resolveUsername(
 		tl_string(_botUsername)
 	)).done([=](const TLchat &result) {
 		_requestId = 0;
-		done(_peer->owner().processPeer(result));
+		done(_session->data().processPeer(result));
 	}).fail([=](const Error &error) {
 		_requestId = 0;
 		if (error.code == 400) {

@@ -199,38 +199,37 @@ Tdb::TLmessage PrepareLogMessage(
 		message.data().vscheduling_state()
 			? std::make_optional(*message.data().vscheduling_state())
 			: std::nullopt,
-		Tdb::tl_bool(false), // out.
+		Tdb::tl_bool(false), // is_outgoing
 		message.data().vis_pinned(),
-		Tdb::tl_bool(false), // canBeEdited.
-		Tdb::tl_bool(false), // canBeForwarded.
-		Tdb::tl_bool(false), // canBeSaved.
-		Tdb::tl_bool(false), // canBeDeletedForMe.
-		Tdb::tl_bool(false), // canBeDeletedForAll.
-		Tdb::tl_bool(false), // canGetAddedReactions
-		Tdb::tl_bool(false), // statistics.
-		Tdb::tl_bool(false), // thread.
-		Tdb::tl_bool(false), // views.
-		message.data().vcan_get_media_timestamp_links(),
-		Tdb::tl_bool(false), // can_report_reactions
+		Tdb::tl_bool(false), // is_from_offline
+		Tdb::tl_bool(false), // can_be_saved
 		message.data().vhas_timestamped_media(),
-		Tdb::tl_bool(false), // post.
-		Tdb::tl_bool(false), // unreadMention.
-		Tdb::tl_int32(newDate), // date.
-		Tdb::tl_int32(0), // editDate.
+		Tdb::tl_bool(false), // is_channel_post
+		Tdb::tl_bool(false), // is_topic_message
+		Tdb::tl_bool(false), // contains_unread_mention
+		Tdb::tl_int32(newDate),
+		Tdb::tl_int32(0), // edit_date
 		message.data().vforward_info()
 			? std::make_optional(*message.data().vforward_info())
-			: std::nullopt, // forwards.
-		std::nullopt, // interactions.
+			: std::nullopt,
+		std::nullopt, // import_info
+		std::nullopt, // interaction_info
 		Tdb::tl_vector<Tdb::TLunreadReaction>(),
-		Tdb::tl_int53(0), // replyInChat
-		Tdb::tl_int53(0), // replyToId.
-		Tdb::tl_int53(0), // threadId.
-		Tdb::tl_int32(0), // TTL.
-		Tdb::tl_double(0), // expiresTTL.
+		std::nullopt, // fact_check
+		std::nullopt, // reply_to
+		Tdb::tl_int53(0), // message_thread_id
+		Tdb::tl_int53(0), // saved_messages_topic_id
+		std::nullopt, // self_destruct_type
+		Tdb::tl_double(0), // self_destruct_in
+		Tdb::tl_double(0), // auto_delete_in
 		message.data().vvia_bot_user_id(),
+		Tdb::tl_int53(0), // sender_business_bot_user_id
+		Tdb::tl_int32(0), // sender_boost_count
 		message.data().vauthor_signature(),
-		Tdb::tl_int64(0), // albumId.
-		Tdb::tl_string(), // restrictionReason.
+		Tdb::tl_int64(0), // media_album_id
+		Tdb::tl_int64(0), // effect_id
+		message.data().vhas_sensitive_content(),
+		Tdb::tl_string(), // restriction_reason
 		message.data().vcontent(),
 		message.data().vreply_markup()
 			? std::make_optional(*message.data().vreply_markup())
@@ -813,6 +812,7 @@ TextWithEntities GenerateDefaultBannedRightsChangeText(
 	return result;
 }
 
+#if 0 // mtp
 [[nodiscard]] bool IsTopicClosed(const MTPForumTopic &topic) {
 	return topic.match([](const MTPDforumTopic &data) {
 		return data.is_closed();
@@ -844,6 +844,21 @@ TextWithEntities GenerateDefaultBannedRightsChangeText(
 	}, [](const MTPDforumTopicDeleted &) {
 		return TextWithEntities{ u"Deleted"_q };
 	});
+}
+#endif
+
+[[nodiscard]] TextWithEntities GenerateTopicLink(
+		not_null<ChannelData*> channel,
+		const Tdb::TLforumTopicInfo &topic) {
+	const auto &data = topic.data();
+	return Ui::Text::Link(
+		Data::ForumTopicIconWithTitle(
+			data.vmessage_thread_id().v,
+			data.vicon().data().vcustom_emoji_id().v,
+			data.vname().v),
+		u"internal:url:https://t.me/c/%1/%2"_q.arg(
+			peerToChannel(channel->id).bare).arg(
+				data.vmessage_thread_id().v));
 }
 
 } // namespace
@@ -970,6 +985,7 @@ void GenerateItems(
 	using LogBan = TLDchatEventMemberRestricted;
 	using LogPromote = TLDchatEventMemberPromoted;
 	using LogSticker = TLDchatEventStickerSetChanged;
+	using LogEmoji = TLDchatEventCustomEmojiStickerSetChanged;
 	using LogPreHistory = TLDchatEventIsAllHistoryAvailableToggled;
 	using LogPermissions = TLDchatEventPermissionsChanged;
 	using LogPoll = TLDchatEventPollStopped;
@@ -988,7 +1004,22 @@ void GenerateItems(
 	using LogTTL = TLDchatEventMessageTtlChanged;
 	using LogJoinByRequest = TLDchatEventMemberJoinedByRequest;
 	using LogNoForwards = TLDchatEventHasProtectedContentToggled;
-	using LogEventActionChangeAvailableReactions = TLDchatEventAvailableReactionsChanged;
+	using LogChangeAvailableReactions = TLDchatEventAvailableReactionsChanged;
+	using LogChangeUsernames = TLDchatEventActiveUsernamesChanged;
+	using LogToggleForum = TLDchatEventIsForumToggled;
+	using LogCreateTopic = TLDchatEventForumTopicCreated;
+	using LogEditTopic = TLDchatEventForumTopicEdited;
+	using LogDeleteTopic = TLDchatEventForumTopicDeleted;
+	using LogPinTopic = TLDchatEventForumTopicPinned;
+	using LogToggleAntiSpam = TLDchatEventIsAggressiveAntiSpamEnabledToggled;
+	using LogToggleTopicClosed = TLDchatEventForumTopicToggleIsClosed;
+	using LogToggleTopicHidden = TLDchatEventForumTopicToggleIsHidden;
+	using LogChangePeerColor = TLDchatEventAccentColorChanged;
+	using LogChangeProfilePeerColor = TLDchatEventProfileAccentColorChanged;
+	using LogChangeWallpaper = TLDchatEventBackgroundChanged;
+	using LogChangeEmojiStatus = TLDchatEventEmojiStatusChanged;
+	using LogToggleSignatureProfiles = TLDchatEventShowMessageSenderToggled;
+	using LogParticipantSubExtend = TLDchatEventMemberSubscriptionExtended;
 
 	const auto session = &history->session();
 	const auto id = event.vid().v;
@@ -1048,7 +1079,10 @@ void GenerateItems(
 			.flags = MessageFlag::HasFromId | MessageFlag::AdminLogEntry,
 			.from = from->id,
 			.date = date,
+		}, std::move(text));
+#if 0 // mtp
 		}, std::move(text), MTP_messageMediaEmpty());
+#endif
 	};
 
 	const auto addSimpleTextMessage = [&](TextWithEntities &&text) {
@@ -1185,13 +1219,11 @@ void GenerateItems(
 				Ui::Text::WithEntities);
 		addSimpleServiceMessage(text);
 
-		const auto detachExistingItem = false;
 		addPart(
 			history->createItem(
 				history->nextNonHistoryEntryId(),
 				PrepareLogMessage(message, date),
-				MessageFlag::AdminLogEntry,
-				detachExistingItem),
+				MessageFlag::AdminLogEntry),
 			TimeId(message.data().vdate().v));
 	};
 #if 0 // goodToRemove
@@ -1433,8 +1465,12 @@ void GenerateItems(
 	};
 
 	const auto createChangeEmojiSet = [&](const LogEmoji &action) {
+#if 0 // mtp
 		const auto set = action.vnew_stickerset();
 		const auto removed = (set.type() == mtpc_inputStickerSetEmpty);
+#endif
+		const auto set = action.vnew_sticker_set_id().v;
+		const auto removed = !set;
 		if (removed) {
 			const auto text = tr::lng_admin_log_removed_emoji_group(
 				tr::now,
@@ -1459,7 +1495,10 @@ void GenerateItems(
 					controller->show(
 						Box<StickerSetBox>(
 							controller->uiShow(),
+#if 0 // mtp
 							Data::FromInputSet(set),
+#endif
+							StickerSetIdentifier{ .id = uint64(set) },
 							Data::StickersType::Emoji),
 						Ui::LayerOption::CloseOther);
 				}
@@ -2084,8 +2123,15 @@ void GenerateItems(
 	};
 
 	const auto createChangeUsernames = [&](const LogChangeUsernames &data) {
+#if 0 // mtp
 		const auto newValue = data.vnew_value().v;
 		const auto oldValue = data.vprev_value().v;
+#endif
+		const auto newValue = data.vnew_usernames().v;
+		const auto oldValue = data.vold_usernames().v;
+		const auto qs = [](const Tdb::TLstring &value) {
+			return value.v;
+		};
 
 		const auto list = [&](const auto &tlList) {
 			auto result = TextWithEntities();
@@ -2100,6 +2146,11 @@ void GenerateItems(
 
 		if (newValue.size() == oldValue.size()) {
 			if (newValue.size() == 1) {
+				createChangeUsername(tl_chatEventUsernameChanged(
+					oldValue.front(),
+					newValue.front()
+				).c_chatEventUsernameChanged());
+#if 0 // mtp
 				const auto tl = MTP_channelAdminLogEventActionChangeUsername(
 					newValue.front(),
 					oldValue.front());
@@ -2107,6 +2158,7 @@ void GenerateItems(
 					createChangeUsername(data);
 				}, [](const auto &) {
 				});
+#endif
 				return;
 			} else {
 				const auto wasReordered = [&] {
@@ -2172,7 +2224,10 @@ void GenerateItems(
 	};
 
 	const auto createToggleForum = [&](const LogToggleForum &data) {
+#if 0 // mtp
 		const auto enabled = (data.vnew_value().type() == mtpc_boolTrue);
+#endif
+		const auto enabled = data.vis_forum().v;
 		const auto text = (enabled
 			? tr::lng_admin_log_topics_enabled
 			: tr::lng_admin_log_topics_disabled)(
@@ -2184,7 +2239,10 @@ void GenerateItems(
 	};
 
 	const auto createCreateTopic = [&](const LogCreateTopic &data) {
+#if 0 // mtp
 		auto topicLink = GenerateTopicLink(channel, data.vtopic());
+#endif
+		auto topicLink = GenerateTopicLink(channel, data.vtopic_info());
 		addSimpleServiceMessage(tr::lng_admin_log_topics_created(
 			tr::now,
 			lt_from,
@@ -2195,8 +2253,12 @@ void GenerateItems(
 	};
 
 	const auto createEditTopic = [&](const LogEditTopic &data) {
+#if 0 // mtp
 		const auto prevLink = GenerateTopicLink(channel, data.vprev_topic());
 		const auto nowLink = GenerateTopicLink(channel, data.vnew_topic());
+#endif
+		const auto prevLink = GenerateTopicLink(channel, data.vold_topic_info());
+		const auto nowLink = GenerateTopicLink(channel, data.vnew_topic_info());
 		if (prevLink != nowLink) {
 			addSimpleServiceMessage(tr::lng_admin_log_topics_changed(
 				tr::now,
@@ -2208,6 +2270,7 @@ void GenerateItems(
 				nowLink,
 				Ui::Text::WithEntities));
 		}
+#if 0 // mtp
 		const auto wasClosed = IsTopicClosed(data.vprev_topic());
 		const auto nowClosed = IsTopicClosed(data.vnew_topic());
 		if (nowClosed != wasClosed) {
@@ -2234,10 +2297,40 @@ void GenerateItems(
 					nowLink,
 					Ui::Text::WithEntities));
 		}
+#endif
+	};
+
+	const auto createToggleTopicClosed = [&](const LogToggleTopicClosed &data) {
+		const auto nowLink = GenerateTopicLink(channel, data.vtopic_info());
+		addSimpleServiceMessage((data.vtopic_info().data().vis_closed().v
+			? tr::lng_admin_log_topics_closed
+			: tr::lng_admin_log_topics_reopened)(
+				tr::now,
+				lt_from,
+				fromLinkText,
+				lt_topic,
+				nowLink,
+				Ui::Text::WithEntities));
+	};
+
+	const auto createToggleTopicHidden = [&](const LogToggleTopicHidden &data) {
+		const auto nowLink = GenerateTopicLink(channel, data.vtopic_info());
+		addSimpleServiceMessage((data.vtopic_info().data().vis_hidden().v
+			? tr::lng_admin_log_topics_hidden
+			: tr::lng_admin_log_topics_unhidden)(
+				tr::now,
+				lt_from,
+				fromLinkText,
+				lt_topic,
+				nowLink,
+				Ui::Text::WithEntities));
 	};
 
 	const auto createDeleteTopic = [&](const LogDeleteTopic &data) {
+#if 0 // mtp
 		auto topicLink = GenerateTopicLink(channel, data.vtopic());
+#endif
+		auto topicLink = GenerateTopicLink(channel, data.vtopic_info());
 		if (!topicLink.entities.empty()) {
 			topicLink.entities.erase(topicLink.entities.begin());
 		}
@@ -2251,7 +2344,10 @@ void GenerateItems(
 	};
 
 	const auto createPinTopic = [&](const LogPinTopic &data) {
+		if (const auto &topic = data.vnew_topic_info()) {
+#if 0 // mtp
 		if (const auto &topic = data.vnew_topic()) {
+#endif
 			auto topicLink = GenerateTopicLink(channel, *topic);
 			addSimpleServiceMessage(tr::lng_admin_log_topics_pinned(
 				tr::now,
@@ -2260,7 +2356,10 @@ void GenerateItems(
 				lt_topic,
 				topicLink,
 				Ui::Text::WithEntities));
+		} else if (const auto &previous = data.vold_topic_info()) {
+#if 0 // mtp
 		} else if (const auto &previous = data.vprev_topic()) {
+#endif
 			auto topicLink = GenerateTopicLink(channel, *previous);
 			addSimpleServiceMessage(tr::lng_admin_log_topics_unpinned(
 				tr::now,
@@ -2273,7 +2372,10 @@ void GenerateItems(
 	};
 
 	const auto createToggleAntiSpam = [&](const LogToggleAntiSpam &data) {
+#if 0 // mtp
 		const auto enabled = (data.vnew_value().type() == mtpc_boolTrue);
+#endif
+		const auto enabled = data.vis_aggressive_anti_spam_enabled().v;
 		const auto text = (enabled
 			? tr::lng_admin_log_antispam_enabled
 			: tr::lng_admin_log_antispam_disabled)(
@@ -2285,18 +2387,33 @@ void GenerateItems(
 	};
 
 	const auto createColorChange = [&](
+#if 0 // mtp
 			const MTPPeerColor &was,
 			const MTPPeerColor &now,
+#endif
+			int32 prevColor,
+			uint64 prevEmoji,
+			int32 nextColor,
+			uint64 nextEmoji,
 			const auto &colorPhrase,
 			const auto &setEmoji,
 			const auto &removeEmoji,
 			const auto &changeEmoji) {
+#if 0 // mtp
 		const auto prevColor = was.data().vcolor();
 		const auto nextColor = now.data().vcolor();
+#endif
 		if (prevColor != nextColor) {
+#if 0 // mtp
 			const auto wrap = [&](tl::conditional<MTPint> value) {
 				return value
 					? value->v
+					: Data::DecideColorIndex(history->peer->id);
+			};
+#endif
+			const auto wrap = [&](int32 value) {
+				return value
+					? value
 					: Data::DecideColorIndex(history->peer->id);
 			};
 			const auto text = colorPhrase(
@@ -2310,8 +2427,10 @@ void GenerateItems(
 				Ui::Text::WithEntities);
 			addSimpleServiceMessage(text);
 		}
+#if 0 // mtp
 		const auto prevEmoji = was.data().vbackground_emoji_id().value_or_empty();
 		const auto nextEmoji = now.data().vbackground_emoji_id().value_or_empty();
+#endif
 		if (prevEmoji != nextEmoji) {
 			const auto text = !prevEmoji
 				? setEmoji(
@@ -2348,8 +2467,14 @@ void GenerateItems(
 
 	const auto createChangePeerColor = [&](const LogChangePeerColor &data) {
 		createColorChange(
+#if 0 // mtp
 			data.vprev_value(),
 			data.vnew_value(),
+#endif
+			data.vold_accent_color_id().v,
+			data.vold_background_custom_emoji_id().v,
+			data.vnew_accent_color_id().v,
+			data.vnew_background_custom_emoji_id().v,
 			tr::lng_admin_log_change_color,
 			tr::lng_admin_log_set_background_emoji,
 			tr::lng_admin_log_removed_background_emoji,
@@ -2359,8 +2484,14 @@ void GenerateItems(
 	const auto createChangeProfilePeerColor = [&](const LogChangeProfilePeerColor &data) {
 		const auto group = channel->isMegagroup();
 		createColorChange(
+#if 0 // mtp
 			data.vprev_value(),
 			data.vnew_value(),
+#endif
+			data.vold_profile_accent_color_id().v,
+			data.vold_profile_background_custom_emoji_id().v,
+			data.vnew_profile_accent_color_id().v,
+			data.vnew_profile_background_custom_emoji_id().v,
 			(group
 				? tr::lng_admin_log_change_profile_color_group
 				: tr::lng_admin_log_change_profile_color),
@@ -2384,6 +2515,7 @@ void GenerateItems(
 	};
 
 	const auto createChangeEmojiStatus = [&](const LogChangeEmojiStatus &data) {
+#if 0 // mtp
 		const auto parse = [](const MTPEmojiStatus &status) {
 			return status.match([](
 					const MTPDemojiStatus &data) {
@@ -2400,6 +2532,16 @@ void GenerateItems(
 				const MTPDemojiStatusUntil &data) {
 			return data.vuntil().v;
 		}, [](const auto &) { return TimeId(); });
+#endif
+		const auto prevEmoji = data.vold_emoji_status()
+			? data.vold_emoji_status()->data().vcustom_emoji_id().v
+			: DocumentId();
+		const auto nextEmoji = data.vnew_emoji_status()
+			? data.vnew_emoji_status()->data().vcustom_emoji_id().v
+			: DocumentId();
+		const auto nextUntil = data.vnew_emoji_status()
+			? data.vnew_emoji_status()->data().vexpiration_date().v
+			: TimeId(0);
 
 		const auto text = !prevEmoji
 			? (nextUntil
@@ -2461,7 +2603,10 @@ void GenerateItems(
 	};
 
 	const auto createToggleSignatureProfiles = [&](const LogToggleSignatureProfiles &action) {
+		const auto enabled = action.vshow_message_sender().v;
+#if 0 // mtp
 		const auto enabled = (action.vnew_value().type() == mtpc_boolTrue);
+#endif
 		const auto text = (enabled
 			? tr::lng_admin_log_signature_profiles_enabled
 			: tr::lng_admin_log_signature_profiles_disabled)(
@@ -2474,7 +2619,14 @@ void GenerateItems(
 
 	const auto createParticipantSubExtend = [&](const LogParticipantSubExtend &action) {
 		const auto participant = Api::ChatParticipant(
+#if 0 // mtp
 			action.vnew_participant(),
+#endif
+			tl_chatMember(
+				peerToSender(peerFromUser(action.vuser_id())),
+				tl_int53(0), // inviter_user_id
+				tl_int32(0), // joined_chat_date
+				action.vnew_status()),
 			channel);
 		if (!participant.subscriptionDate()) {
 			return;
@@ -2554,6 +2706,8 @@ void GenerateItems(
 		createToggleForum,
 		createCreateTopic,
 		createEditTopic,
+		createToggleTopicClosed,
+		createToggleTopicHidden,
 		createDeleteTopic,
 		createPinTopic,
 		createToggleAntiSpam,
