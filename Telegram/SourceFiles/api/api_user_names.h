@@ -10,8 +10,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user_names.h"
 #include "mtproto/sender.h"
 
+#include "tdb/tdb_sender.h"
+
 class ApiWrap;
 class PeerData;
+
+namespace Tdb {
+class TLusernames;
+} // namespace Tdb
 
 namespace Main {
 class Session;
@@ -41,12 +47,18 @@ public:
 	void requestToCache(not_null<PeerData*> peer);
 	[[nodiscard]] Data::Usernames cacheFor(PeerId id);
 
+#if 0 // mtp
 	static Data::Usernames FromTL(const MTPVector<MTPUsername> &usernames);
+#endif
+	static Data::Usernames FromTL(const Tdb::TLusernames *usernames);
 
 private:
 
 	const not_null<Main::Session*> _session;
+#if 0 // mtp
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 
 	using Key = PeerId;
 	struct Entry final {

@@ -125,7 +125,6 @@ void PinnedList::applyList(
 		});
 	}
 }
-#endif
 
 void PinnedList::applyList(
 		not_null<Data::Forum*> forum,
@@ -135,6 +134,7 @@ void PinnedList::applyList(
 		addPinned(forum->topicFor(topicId.v));
 	}
 }
+#endif
 
 void PinnedList::applyList(const std::vector<not_null<History*>> &list) {
 	Expects(_filterId != 0);

@@ -192,38 +192,38 @@ Tdb::TLmessage PrepareLogMessage(
 		message.data().vscheduling_state()
 			? std::make_optional(*message.data().vscheduling_state())
 			: std::nullopt,
-		Tdb::tl_bool(false), // out.
+		Tdb::tl_bool(false), // is_outgoing
 		message.data().vis_pinned(),
-		Tdb::tl_bool(false), // canBeEdited.
-		Tdb::tl_bool(false), // canBeForwarded.
-		Tdb::tl_bool(false), // canBeSaved.
-		Tdb::tl_bool(false), // canBeDeletedForMe.
-		Tdb::tl_bool(false), // canBeDeletedForAll.
-		Tdb::tl_bool(false), // canGetAddedReactions
-		Tdb::tl_bool(false), // statistics.
-		Tdb::tl_bool(false), // thread.
-		Tdb::tl_bool(false), // views.
+		Tdb::tl_bool(false), // can_be_edited
+		Tdb::tl_bool(false), // can_be_forwarded
+		Tdb::tl_bool(false), // can_be_saved
+		Tdb::tl_bool(false), // can_be_deleted_only_for_self
+		Tdb::tl_bool(false), // can_be_deleted_for_all_users
+		Tdb::tl_bool(false), // can_get_added_reactions
+		Tdb::tl_bool(false), // can_get_statistics
+		Tdb::tl_bool(false), // can_get_message_thread
+		Tdb::tl_bool(false), // can_get_viewers
 		message.data().vcan_get_media_timestamp_links(),
 		Tdb::tl_bool(false), // can_report_reactions
 		message.data().vhas_timestamped_media(),
-		Tdb::tl_bool(false), // post.
-		Tdb::tl_bool(false), // unreadMention.
-		Tdb::tl_int32(newDate), // date.
-		Tdb::tl_int32(0), // editDate.
+		Tdb::tl_bool(false), // is_channel_post
+		Tdb::tl_bool(false), // is_topic_message
+		Tdb::tl_bool(false), // contains_unread_mention
+		Tdb::tl_int32(newDate),
+		Tdb::tl_int32(0), // edit_date
 		message.data().vforward_info()
 			? std::make_optional(*message.data().vforward_info())
-			: std::nullopt, // forwards.
-		std::nullopt, // interactions.
+			: std::nullopt,
+		std::nullopt, // interaction_info
 		Tdb::tl_vector<Tdb::TLunreadReaction>(),
-		Tdb::tl_int53(0), // replyInChat
-		Tdb::tl_int53(0), // replyToId.
-		Tdb::tl_int53(0), // threadId.
-		Tdb::tl_int32(0), // TTL.
-		Tdb::tl_double(0), // expiresTTL.
+		std::nullopt, // reply_to
+		Tdb::tl_int53(0), // message_thread_id
+		Tdb::tl_int32(0), // ttl
+		Tdb::tl_double(0), // ttl_expires_in
 		message.data().vvia_bot_user_id(),
 		message.data().vauthor_signature(),
-		Tdb::tl_int64(0), // albumId.
-		Tdb::tl_string(), // restrictionReason.
+		Tdb::tl_int64(0), // media_album_id
+		Tdb::tl_string(), // restriction_reason
 		message.data().vcontent(),
 		message.data().vreply_markup()
 			? std::make_optional(*message.data().vreply_markup())
@@ -806,6 +806,7 @@ TextWithEntities GenerateDefaultBannedRightsChangeText(
 	return result;
 }
 
+#if 0 // mtp
 [[nodiscard]] bool IsTopicClosed(const MTPForumTopic &topic) {
 	return topic.match([](const MTPDforumTopic &data) {
 		return data.is_closed();
@@ -837,6 +838,21 @@ TextWithEntities GenerateDefaultBannedRightsChangeText(
 	}, [](const MTPDforumTopicDeleted &) {
 		return TextWithEntities{ u"Deleted"_q };
 	});
+}
+#endif
+
+[[nodiscard]] TextWithEntities GenerateTopicLink(
+		not_null<ChannelData*> channel,
+		const Tdb::TLforumTopicInfo &topic) {
+	const auto &data = topic.data();
+	return Ui::Text::Link(
+		Data::ForumTopicIconWithTitle(
+			data.vmessage_thread_id().v,
+			data.vicon().data().vcustom_emoji_id().v,
+			data.vname().v),
+		u"internal:url:https://t.me/c/%1/%2"_q.arg(
+			peerToChannel(channel->id).bare).arg(
+				data.vmessage_thread_id().v));
 }
 
 } // namespace
@@ -974,7 +990,16 @@ void GenerateItems(
 	using LogTTL = TLDchatEventMessageTtlChanged;
 	using LogJoinByRequest = TLDchatEventMemberJoinedByRequest;
 	using LogNoForwards = TLDchatEventHasProtectedContentToggled;
-	using LogEventActionChangeAvailableReactions = TLDchatEventAvailableReactionsChanged;
+	using LogChangeAvailableReactions = TLDchatEventAvailableReactionsChanged;
+	using LogChangeUsernames = TLDchatEventActiveUsernamesChanged;
+	using LogToggleForum = TLDchatEventIsForumToggled;
+	using LogCreateTopic = TLDchatEventForumTopicCreated;
+	using LogEditTopic = TLDchatEventForumTopicEdited;
+	using LogDeleteTopic = TLDchatEventForumTopicDeleted;
+	using LogPinTopic = TLDchatEventForumTopicPinned;
+	using LogToggleAntiSpam = TLDchatEventIsAggressiveAntiSpamEnabledToggled;
+	using LogToggleTopicClosed = TLDchatEventForumTopicToggleIsClosed;
+	using LogToggleTopicHidden = TLDchatEventForumTopicToggleIsHidden;
 
 	const auto session = &history->session();
 	const auto id = event.vid().v;
@@ -1044,7 +1069,9 @@ void GenerateItems(
 			from->id,
 			QString(),
 			std::move(text),
+#if 0 // mtp
 			MTP_messageMediaEmpty(),
+#endif
 			HistoryMessageMarkupData(),
 			bodyGroupedId);
 	};
@@ -2049,8 +2076,15 @@ void GenerateItems(
 	};
 
 	const auto createChangeUsernames = [&](const LogChangeUsernames &data) {
+#if 0 // mtp
 		const auto newValue = data.vnew_value().v;
 		const auto oldValue = data.vprev_value().v;
+#endif
+		const auto newValue = data.vnew_usernames().v;
+		const auto oldValue = data.vold_usernames().v;
+		const auto qs = [](const Tdb::TLstring &value) {
+			return value.v;
+		};
 
 		const auto list = [&](const auto &tlList) {
 			auto result = TextWithEntities();
@@ -2065,6 +2099,11 @@ void GenerateItems(
 
 		if (newValue.size() == oldValue.size()) {
 			if (newValue.size() == 1) {
+				createChangeUsername(tl_chatEventUsernameChanged(
+					oldValue.front(),
+					newValue.front()
+				).c_chatEventUsernameChanged());
+#if 0 // mtp
 				const auto tl = MTP_channelAdminLogEventActionChangeUsername(
 					newValue.front(),
 					oldValue.front());
@@ -2072,6 +2111,7 @@ void GenerateItems(
 					createChangeUsername(data);
 				}, [](const auto &) {
 				});
+#endif
 				return;
 			} else {
 				const auto wasReordered = [&] {
@@ -2137,7 +2177,10 @@ void GenerateItems(
 	};
 
 	const auto createToggleForum = [&](const LogToggleForum &data) {
+#if 0 // mtp
 		const auto enabled = (data.vnew_value().type() == mtpc_boolTrue);
+#endif
+		const auto enabled = data.vis_forum().v;
 		const auto text = (enabled
 			? tr::lng_admin_log_topics_enabled
 			: tr::lng_admin_log_topics_disabled)(
@@ -2149,7 +2192,10 @@ void GenerateItems(
 	};
 
 	const auto createCreateTopic = [&](const LogCreateTopic &data) {
+#if 0 // mtp
 		auto topicLink = GenerateTopicLink(channel, data.vtopic());
+#endif
+		auto topicLink = GenerateTopicLink(channel, data.vtopic_info());
 		addSimpleServiceMessage(tr::lng_admin_log_topics_created(
 			tr::now,
 			lt_from,
@@ -2160,8 +2206,12 @@ void GenerateItems(
 	};
 
 	const auto createEditTopic = [&](const LogEditTopic &data) {
+#if 0 // mtp
 		const auto prevLink = GenerateTopicLink(channel, data.vprev_topic());
 		const auto nowLink = GenerateTopicLink(channel, data.vnew_topic());
+#endif
+		const auto prevLink = GenerateTopicLink(channel, data.vold_topic_info());
+		const auto nowLink = GenerateTopicLink(channel, data.vnew_topic_info());
 		if (prevLink != nowLink) {
 			addSimpleServiceMessage(tr::lng_admin_log_topics_changed(
 				tr::now,
@@ -2173,6 +2223,7 @@ void GenerateItems(
 				nowLink,
 				Ui::Text::WithEntities));
 		}
+#if 0 // mtp
 		const auto wasClosed = IsTopicClosed(data.vprev_topic());
 		const auto nowClosed = IsTopicClosed(data.vnew_topic());
 		if (nowClosed != wasClosed) {
@@ -2199,10 +2250,40 @@ void GenerateItems(
 					nowLink,
 					Ui::Text::WithEntities));
 		}
+#endif
+	};
+
+	const auto createToggleTopicClosed = [&](const LogToggleTopicClosed &data) {
+		const auto nowLink = GenerateTopicLink(channel, data.vtopic_info());
+		addSimpleServiceMessage((data.vtopic_info().data().vis_closed().v
+			? tr::lng_admin_log_topics_closed
+			: tr::lng_admin_log_topics_reopened)(
+				tr::now,
+				lt_from,
+				fromLinkText,
+				lt_topic,
+				nowLink,
+				Ui::Text::WithEntities));
+	};
+
+	const auto createToggleTopicHidden = [&](const LogToggleTopicHidden &data) {
+		const auto nowLink = GenerateTopicLink(channel, data.vtopic_info());
+		addSimpleServiceMessage((data.vtopic_info().data().vis_hidden().v
+			? tr::lng_admin_log_topics_hidden
+			: tr::lng_admin_log_topics_unhidden)(
+				tr::now,
+				lt_from,
+				fromLinkText,
+				lt_topic,
+				nowLink,
+				Ui::Text::WithEntities));
 	};
 
 	const auto createDeleteTopic = [&](const LogDeleteTopic &data) {
+#if 0 // mtp
 		auto topicLink = GenerateTopicLink(channel, data.vtopic());
+#endif
+		auto topicLink = GenerateTopicLink(channel, data.vtopic_info());
 		if (!topicLink.entities.empty()) {
 			topicLink.entities.erase(topicLink.entities.begin());
 		}
@@ -2216,7 +2297,10 @@ void GenerateItems(
 	};
 
 	const auto createPinTopic = [&](const LogPinTopic &data) {
+		if (const auto &topic = data.vnew_topic_info()) {
+#if 0 // mtp
 		if (const auto &topic = data.vnew_topic()) {
+#endif
 			auto topicLink = GenerateTopicLink(channel, *topic);
 			addSimpleServiceMessage(tr::lng_admin_log_topics_pinned(
 				tr::now,
@@ -2225,7 +2309,10 @@ void GenerateItems(
 				lt_topic,
 				topicLink,
 				Ui::Text::WithEntities));
+		} else if (const auto &previous = data.vold_topic_info()) {
+#if 0 // mtp
 		} else if (const auto &previous = data.vprev_topic()) {
+#endif
 			auto topicLink = GenerateTopicLink(channel, *previous);
 			addSimpleServiceMessage(tr::lng_admin_log_topics_unpinned(
 				tr::now,
@@ -2238,7 +2325,10 @@ void GenerateItems(
 	};
 
 	const auto createToggleAntiSpam = [&](const LogToggleAntiSpam &data) {
+#if 0 // mtp
 		const auto enabled = (data.vnew_value().type() == mtpc_boolTrue);
+#endif
+		const auto enabled = data.vis_aggressive_anti_spam_enabled().v;
 		const auto text = (enabled
 			? tr::lng_admin_log_antispam_enabled
 			: tr::lng_admin_log_antispam_disabled)(
@@ -2305,6 +2395,8 @@ void GenerateItems(
 		createToggleForum,
 		createCreateTopic,
 		createEditTopic,
+		createToggleTopicClosed,
+		createToggleTopicHidden,
 		createDeleteTopic,
 		createPinTopic,
 		createToggleAntiSpam);

@@ -14,8 +14,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum_topic.h"
 #include "apiwrap.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+
 namespace Data {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kRefreshDefaultListEach = 60 * 60 * crl::time(1000);
 constexpr auto kRecentRequestTimeout = 10 * crl::time(1000);
@@ -56,6 +61,15 @@ void ForumIcons::requestDefault() {
 	if (_defaultRequestId) {
 		return;
 	}
+	auto &sender = _owner->session().sender();
+	_defaultRequestId = sender.request(TLgetForumTopicDefaultIcons(
+	)).done([=](const TLDstickers &result) {
+		_defaultRequestId = 0;
+		updateDefault(result);
+	}).fail([=] {
+		_defaultRequestId = 0;
+	}).send();
+#if 0 // mtp
 	auto &api = _owner->session().api();
 	_defaultRequestId = api.request(MTPmessages_GetStickerSet(
 		MTP_inputStickerSetEmojiDefaultTopicIcons(),
@@ -70,10 +84,15 @@ void ForumIcons::requestDefault() {
 	}).fail([=] {
 		_defaultRequestId = 0;
 	}).send();
+#endif
 }
 
+void ForumIcons::updateDefault(const TLDstickers &data) {
+#if 0 // mtp
 void ForumIcons::updateDefault(const MTPDmessages_stickerSet &data) {
 	const auto &list = data.vdocuments().v;
+#endif
+	const auto &list = data.vstickers().v;
 	_default.clear();
 	_default.reserve(list.size());
 	for (const auto &sticker : list) {

@@ -86,11 +86,12 @@ void ApplyPeerCloudDraft(
 void ApplyPeerCloudDraft(
 		not_null<Main::Session*> session,
 		PeerId peerId,
+		MsgId topicRootId,
 		const Tdb::TLDdraftMessage &draft) {
 	draft.vinput_message_text().match([&](const Tdb::TLDinputMessageText &d) {
 		const auto history = session->data().history(peerId);
 		const auto date = draft.vdate().v;
-		if (history->skipCloudDraftUpdate(date)) {
+		if (history->skipCloudDraftUpdate(topicRootId, date)) {
 			return;
 		}
 		const auto text = Api::FormattedTextFromTdb(d.vtext());
@@ -102,6 +103,7 @@ void ApplyPeerCloudDraft(
 		auto cloudDraft = std::make_unique<Draft>(
 			textWithTags,
 			replyTo,
+			topicRootId,
 			MessageCursor(QFIXED_MAX, QFIXED_MAX, QFIXED_MAX),
 			(d.vdisable_web_page_preview().v
 				? Data::PreviewState::Cancelled
@@ -109,7 +111,7 @@ void ApplyPeerCloudDraft(
 		cloudDraft->date = date;
 
 		history->setCloudDraft(std::move(cloudDraft));
-		history->applyCloudDraft();
+		history->applyCloudDraft(topicRootId);
 	}, [](const auto &) {
 		Unexpected("Unsupported draft content type.");
 	});

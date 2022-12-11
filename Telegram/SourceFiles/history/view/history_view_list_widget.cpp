@@ -2141,10 +2141,12 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 				_highlighter.enqueue(view);
 			}
 		}
+#if 0 // mtp
 		session->data().reactions().poll(item, context.now);
 		if (item->hasExtendedMediaPreview()) {
 			session->api().views().pollExtendedMedia(item);
 		}
+#endif
 		_reactionsManager->recordCurrentReactionEffect(
 			item->fullId(),
 			QPoint(0, top));

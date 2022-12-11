@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "dialogs/dialogs_main_list.h"
 
+namespace Tdb {
+class TLforumTopic;
+} // namespace Tdb
+
 class History;
 class ChannelData;
 
@@ -69,6 +73,10 @@ public:
 	[[nodiscard]] bool topicDeleted(MsgId rootId) const;
 
 	void applyReceivedTopics(
+		const QVector<Tdb::TLforumTopic> &topics,
+		Fn<void(not_null<ForumTopic*>)> callback = nullptr);
+#if 0 // mtp
+	void applyReceivedTopics(
 		const MTPmessages_ForumTopics &topics,
 		ForumOffsets &updateOffsets);
 	void applyReceivedTopics(
@@ -77,6 +85,7 @@ public:
 	void applyReceivedTopics(
 		const MTPVector<MTPForumTopic> &topics,
 		Fn<void(not_null<ForumTopic*>)> callback = nullptr);
+#endif
 
 	[[nodiscard]] MsgId reserveCreatingId(
 		const QString &title,

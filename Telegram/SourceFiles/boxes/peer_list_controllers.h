@@ -261,7 +261,10 @@ private:
 	void searchDone(const MTPcontacts_Found &result, mtpRequestId requestId);
 
 	const not_null<Data::Forum*> _forum;
+#if 0 // mtp
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 	base::Timer _timer;
 	QString _query;
 	mtpRequestId _requestId = 0;
