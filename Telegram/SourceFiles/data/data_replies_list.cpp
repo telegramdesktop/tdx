@@ -23,8 +23,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
 
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Data {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kMessagesPerPage = 50;
 constexpr auto kReadRequestTimeout = 3 * crl::time(1000);
@@ -81,10 +86,12 @@ RepliesList::RepliesList(
 }
 
 RepliesList::~RepliesList() {
-#if 0 // todo
+#if 0 // mtp
 	histories().cancelRequest(base::take(_beforeId));
 	histories().cancelRequest(base::take(_afterId));
 #endif
+	_history->session().sender().request(base::take(_beforeId)).cancel();
+	_history->session().sender().request(base::take(_afterId)).cancel();
 	if (_readRequestTimer.isActive()) {
 		sendReadTillRequest();
 	}
@@ -532,7 +539,44 @@ void RepliesList::loadAround(MsgId id) {
 		return;
 	}
 
-#if 0 // todo
+	const auto sender = &_history->session().sender();
+	sender->request(base::take(_beforeId)).cancel();
+	sender->request(base::take(_afterId)).cancel();
+
+	_loadingAround = id;
+	_beforeId = sender->request(TLgetMessageThreadHistory(
+		peerToTdbChat(_history->peer->id),
+		tl_int53(_rootId.bare),
+		tl_int53(id.bare),
+		tl_int32(id ? (-kMessagesPerPage / 2) : 0), // offset
+		tl_int32(kMessagesPerPage) // limit
+	)).done([=](const TLmessages &result) {
+		_beforeId = 0;
+		_loadingAround = std::nullopt;
+
+		if (!id) {
+			_skippedAfter = 0;
+		} else {
+			_skippedAfter = std::nullopt;
+		}
+		_skippedBefore = std::nullopt;
+		_list.clear();
+		if (processMessagesIsEmpty(result)) {
+			_fullCount = _skippedBefore = _skippedAfter = 0;
+		} else if (id) {
+			Assert(!_list.empty());
+			if (_list.front() <= id) {
+				_skippedAfter = 0;
+			} else if (_list.back() >= id) {
+				_skippedBefore = 0;
+			}
+		}
+		checkReadTillEnd();
+	}).fail([=] {
+		_beforeId = 0;
+		_loadingAround = std::nullopt;
+	}).send();
+#if 0 // mtp
 	histories().cancelRequest(base::take(_beforeId));
 	histories().cancelRequest(base::take(_afterId));
 
@@ -587,7 +631,37 @@ void RepliesList::loadAround(MsgId id) {
 void RepliesList::loadBefore() {
 	Expects(!_list.empty());
 
-#if 0 // todo
+	const auto sender = &_history->session().sender();
+	if (_loadingAround) {
+		sender->request(base::take(_beforeId)).cancel();
+	} else if (_beforeId) {
+		return;
+	}
+
+	const auto last = _list.back();
+	_beforeId = sender->request(TLgetMessageThreadHistory(
+		peerToTdbChat(_history->peer->id),
+		tl_int53(_rootId.bare),
+		tl_int53(last.bare),
+		tl_int32(0), // offset
+		tl_int32(kMessagesPerPage)
+	)).done([=](const TLmessages &result) {
+		_beforeId = 0;
+
+		if (_list.empty()) {
+			return;
+		} else if (_list.back() != last) {
+			loadBefore();
+		} else if (processMessagesIsEmpty(result)) {
+			_skippedBefore = 0;
+			if (_skippedAfter == 0) {
+				_fullCount = _list.size();
+			}
+		}
+	}).fail([=] {
+		_beforeId = 0;
+	}).send();
+#if 0 // mtp
 	if (_loadingAround) {
 		histories().cancelRequest(base::take(_beforeId));
 	} else if (_beforeId) {
@@ -638,9 +712,32 @@ void RepliesList::loadAfter() {
 	if (_afterId) {
 		return;
 	}
-
-#if 0 // todo
 	const auto first = _list.front();
+	const auto sender = &_history->session().sender();
+	_afterId = sender->request(TLgetMessageThreadHistory(
+		peerToTdbChat(_history->peer->id),
+		tl_int53(_rootId.bare),
+		tl_int53(first.bare + 1),
+		tl_int32(-kMessagesPerPage), // offset
+		tl_int32(kMessagesPerPage)
+	)).done([=](const TLmessages &result) {
+		_afterId = 0;
+
+		if (_list.empty()) {
+			return;
+		} else if (_list.front() != first) {
+			loadAfter();
+		} else if (processMessagesIsEmpty(result)) {
+			_skippedAfter = 0;
+			if (_skippedBefore == 0) {
+				_fullCount = _list.size();
+			}
+			checkReadTillEnd();
+		}
+	}).fail([=] {
+		_afterId = 0;
+	}).send();
+#if 0 // mtp
 	const auto send = [=](Fn<void()> finish) {
 		return _history->session().api().request(MTPmessages_GetReplies(
 			_history->peer->input,
@@ -744,6 +841,44 @@ bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 			++skipped;
 		}
 	}
+#endif
+bool RepliesList::processMessagesIsEmpty(const TLmessages &result) {
+	const auto guard = gsl::finally([&] { _listChanges.fire({}); });
+
+	auto &owner = _history->owner();
+	const auto list = ranges::views::all(
+		result.data().vmessages().v
+	) | ranges::views::filter(
+		&std::optional<TLmessage>::has_value
+	) | ranges::to_vector;
+	const auto fullCount = result.data().vtotal_count().v;
+
+	if (list.empty()) {
+		return true;
+	}
+
+	const auto maxId = list.front()->data().vid().v;
+	const auto wasSize = int(_list.size());
+	const auto toFront = (wasSize > 0) && (maxId > _list.front());
+	const auto localFlags = MessageFlags();
+	const auto type = NewMessageType::Existing;
+	auto refreshed = std::vector<MsgId>();
+	if (toFront) {
+		refreshed.reserve(_list.size() + list.size());
+	}
+	auto skipped = int(result.data().vmessages().v.size() - list.size());
+	for (const auto &message : list) {
+		const auto item = owner.processMessage(*message, type);
+		if (item->inThread(_rootId)) {
+			if (toFront && item->id > _list.front()) {
+				refreshed.push_back(item->id);
+			} else if (_list.empty() || item->id < _list.back()) {
+				_list.push_back(item->id);
+			}
+		} else {
+			++skipped;
+		}
+	}
 	if (toFront) {
 		refreshed.insert(refreshed.end(), _list.begin(), _list.end());
 		_list = std::move(refreshed);
@@ -786,10 +921,12 @@ bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 		}
 	}
 
+#if 0 // mtp
 	Ensures(list.size() >= skipped);
 	return (list.size() == skipped);
-}
 #endif
+	return false;
+}
 
 void RepliesList::setInboxReadTill(
 		MsgId readTillId,
@@ -947,7 +1084,7 @@ void RepliesList::requestUnreadCount() {
 			}
 		}
 	};
-#if 0 // todo
+#if 0 // later-todo getMessageThread doesn't provide unread info for topics.
 	_reloadUnreadCountRequestId = session->api().request(
 		MTPmessages_GetDiscussionMessage(
 			_history->peer->input,
@@ -1012,7 +1149,19 @@ void RepliesList::sendReadTillRequest() {
 		_readRequestTimer.cancel();
 	}
 	const auto api = &_history->session().api();
-#if 0 // todo
+	const auto sender = &api->sender();
+	sender->request(base::take(_readRequestId)).cancel();
+
+	_readRequestId = sender->request(TLviewMessages(
+		peerToTdbChat(_history->peer->id),
+		tl_int53(_rootId.bare),
+		tl_vector<TLint53>(1, tl_int53(computeInboxReadTillFull().bare)),
+		tl_bool(true)
+	)).done(crl::guard(this, [=] {
+		_readRequestId = 0;
+		reloadUnreadCountIfNeeded();
+	})).send();
+#if 0 // mtp
 	api->request(base::take(_readRequestId)).cancel();
 
 	_readRequestId = api->request(MTPmessages_ReadDiscussion(

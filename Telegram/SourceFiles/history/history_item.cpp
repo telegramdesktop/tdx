@@ -545,10 +545,9 @@ HistoryItem::HistoryItem(
 				data.vstory_sender_chat_id());
 			config.replyToStory = data.vstory_id().v;
 		});
-	} else if (data.vis_topic_message().v) {
-		const auto threadId = data.vmessage_thread_id().v;
+	} else if (const auto threadId = data.vmessage_thread_id().v) {
 		config.replyTo = config.replyToTop = threadId;
-		config.replyIsTopicPost = true;
+		config.replyIsTopicPost = data.vis_topic_message().v;
 	}
 	config.viaBotId = data.vvia_bot_user_id().v;
 	const auto interaction = data.vinteraction_info();
