@@ -428,7 +428,7 @@ void TogglePinnedThread(
 			owner->notifyPinnedDialogsOrderUpdated();
 		}).send();
 	} else if (const auto topic = thread->asTopic()) {
-		// todo
+		// later-todo pinned topics
 	}
 }
 
