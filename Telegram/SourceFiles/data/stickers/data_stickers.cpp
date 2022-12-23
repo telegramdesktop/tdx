@@ -366,6 +366,7 @@ void Stickers::addSavedGif(
 }
 
 void Stickers::checkSavedGif(not_null<HistoryItem*> item) {
+#if 0 // mtp
 	if (item->Has<HistoryMessageForwarded>()
 		|| (!item->out()
 			&& item->history()->peer != session().user())) {
@@ -378,6 +379,7 @@ void Stickers::checkSavedGif(not_null<HistoryItem*> item) {
 			}
 		}
 	}
+#endif
 }
 
 #if 0 // mtp

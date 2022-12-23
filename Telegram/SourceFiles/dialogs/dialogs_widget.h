@@ -409,6 +409,7 @@ private:
 	MsgId _lastSearchId = 0;
 	MsgId _lastSearchMigratedId = 0;
 
+	TimeId _lastSearchDate = 0;
 #if 0 // mtp
 	base::flat_map<QString, MTPmessages_Messages> _searchCache;
 #endif
