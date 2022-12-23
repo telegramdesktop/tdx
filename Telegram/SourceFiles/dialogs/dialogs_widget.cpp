@@ -2547,21 +2547,25 @@ void Widget::searchMore() {
 			});
 #endif
 		} else {
-			const auto requestId = _api.request(TLsearchMessages(
+			_searchRequest = _api.request(TLsearchMessages(
 				(session().settings().skipArchiveInSearch()
 					? tl_chatListMain()
 					: std::optional<TLchatList>()),
 				tl_string(_searchQuery),
-				tl_int32(0), // offset_date
-				tl_int53(0), // offset_chat_id
-				tl_int53(0), // offset_message_id
+				tl_int32(_lastSearchDate),
+				(_lastSearchPeer
+					? peerToTdbChat(_lastSearchPeer->id)
+					: tl_int53(0)),
+				tl_int53(_lastSearchId.bare),
 				tl_int32(kSearchPerPage),
 				std::nullopt,
 				tl_int32(0), // min_date
 				tl_int32(0)
 			)).done([=](const TLmessages &result) {
+				_searchRequest = 0;
 				searchReceived(SearchRequestType::FromOffset, result);
 			}).fail([=] {
+				_searchRequest = 0;
 				_searchFull = true;
 			}).send();
 #if 0 // mtp
@@ -2899,8 +2903,13 @@ void Widget::searchReceived(
 	};
 	for (const auto &message : data.vmessages().v) {
 		if (message) {
-			slice.messages.push_back(
-				session().data().processMessage(*message, NewMessageType::Existing));
+			const auto item = session().data().processMessage(
+				*message,
+				NewMessageType::Existing);
+			slice.messages.push_back(item);
+			_lastSearchPeer = item->history()->peer;
+			_lastSearchId = item->id;
+			_lastSearchDate = item->date();
 		}
 	}
 	const auto state = _inner->state();
@@ -4104,6 +4113,7 @@ bool Widget::cancelSearch(CancelSearchOptions options) {
 	}
 	_lastSearchPeer = nullptr;
 	_lastSearchId = _lastSearchMigratedId = 0;
+	_lastSearchDate = 0;
 	_inner->clearFilter();
 	applySearchState(std::move(updatedState));
 	if (_suggestions && clearSearchFocus) {
