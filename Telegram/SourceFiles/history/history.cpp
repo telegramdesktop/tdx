@@ -563,9 +563,11 @@ not_null<HistoryItem*> History::addMessage(
 			applyMessageChanges(item, message);
 		}
 		if (const auto max = maxMsgId()) {
-			if (loadedAtBottom() && item->id >= max) {
-				addNewItem(item, unread);
-			} else if (minMsgId() <= item->id) {
+			if (item->id >= max) {
+				if (type != NewMessageType::Existing) {
+					addNewItem(item, unread);
+				}
+			} else if (item->id >= minMsgId()) {
 				insertNewItem(item, unread);
 			}
 		} else if (type != NewMessageType::Existing) {
@@ -1314,11 +1316,6 @@ void History::applyServiceChanges(
 void History::applyMessageChanges(
 		not_null<HistoryItem*> item,
 		const TLmessage &data) {
-	//data.data().vcontent().match(); // todo
-	//if (data.type() == mtpc_messageService) {
-	//	applyServiceChanges(item, data.c_messageService());
-	//}
-	owner().stickers().checkSavedGif(item);
 	session().changes().messageUpdated(
 		item,
 		Data::MessageUpdate::Flag::NewAdded);
