@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "base/timer.h"
 
+namespace Tdb {
+class TLmessages;
+} // namespace Tdb
+
 class History;
 
 namespace Data {
@@ -98,6 +102,7 @@ private:
 #if 0 // mtp
 	bool processMessagesIsEmpty(const MTPmessages_Messages &result);
 #endif
+	bool processMessagesIsEmpty(const Tdb::TLmessages &result);
 	void loadAround(MsgId id);
 	void loadBefore();
 	void loadAfter();
