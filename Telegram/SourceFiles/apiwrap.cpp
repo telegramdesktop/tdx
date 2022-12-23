@@ -526,7 +526,7 @@ void ApiWrap::savePinnedOrder(not_null<Data::Forum*> forum) {
 		}
 		Unexpected("Key type in pinnedDialogsOrder().");
 	};
-#if 0 // later-todo
+#if 0 // later pinned topics
 	auto topics = QVector<MTPint>();
 	topics.reserve(order.size());
 	ranges::transform(
@@ -3768,7 +3768,57 @@ void ApiWrap::requestMessageAfterDate(
 		MsgId topicRootId,
 		const QDate &date,
 		Callback &&callback) {
-#if 0 // todo
+	const auto offsetDate = static_cast<int>(
+		date.startOfDay().toSecsSinceEpoch()) - 1;
+	sender().request(TLgetChatMessageByDate(
+		peerToTdbChat(peer->id),
+		tl_int32(offsetDate)
+	)).done([=](const TLmessage &message) {
+		const auto item = _session->data().processMessage(
+			message,
+			NewMessageType::Existing);
+		const auto send = [&](auto &&request) {
+			sender().request(
+				std::move(request)
+			).done([=](const TLmessages &result) {
+				const auto list = result.data().vmessages().v;
+				if (list.empty() || !list.front()) {
+					callback(ShowAtUnreadMsgId);
+				} else {
+					const auto item = session().data().processMessage(
+						*list.front(),
+						NewMessageType::Existing);
+					if (item->date() >= offsetDate) {
+						callback(item->id);
+					} else {
+						callback(ShowAtUnreadMsgId);
+					}
+				}
+			}).fail([=] {
+				callback(ShowAtUnreadMsgId);
+			}).send();
+		};
+		if (topicRootId) {
+			send(TLgetMessageThreadHistory(
+				peerToTdbChat(peer->id),
+				tl_int53(topicRootId.bare),
+				tl_int53(item->id.bare),
+				tl_int32(-2),
+				tl_int32(2)
+			));
+		} else {
+			send(TLgetChatHistory(
+				peerToTdbChat(peer->id),
+				tl_int53(item->id.bare),
+				tl_int32(-2),
+				tl_int32(2),
+				tl_bool(false)
+			));
+		}
+	}).fail([=] {
+		callback(ShowAtUnreadMsgId);
+	}).send();
+#if 0 // mtp
 	// API returns a message with date <= offset_date.
 	// So we request a message with offset_date = desired_date - 1 and add_offset = -1.
 	// This should give us the first message with date >= desired_date.
