@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Tdb {
+class TLmessages;
+} // namespace Tdb
+
 class HistoryItem;
 class History;
 class PeerData;
@@ -30,7 +34,10 @@ public:
 	[[nodiscard]] rpl::producer<FoundMessages> messagesFounds() const;
 
 private:
+#if 0 // mtp
 	using TLMessages = MTPmessages_Messages;
+#endif
+	using TLMessages = Tdb::TLmessages;
 	void searchRequest();
 	void searchReceived(
 		const TLMessages &result,
