@@ -17,11 +17,30 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "main/main_session.h"
 
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Api {
 namespace {
 
+using namespace Tdb;
+
 constexpr auto kSearchPerPage = 50;
 
+[[nodiscard]] MessageIdsList HistoryItemsFromTL(
+		not_null<Data::Session*> data,
+		const QVector<std::optional<TLmessage>> &messages) {
+	auto result = MessageIdsList();
+	for (const auto &message : messages) {
+		if (message) {
+			const auto item = data->processMessage(
+				*message,
+				NewMessageType::Existing);
+			result.push_back(item->fullId());
+		}
+	}
+	return result;
+}
 #if 0 // mtp
 [[nodiscard]] MessageIdsList HistoryItemsFromTL(
 		not_null<Data::Session*> data,
@@ -70,7 +89,8 @@ MessagesSearch::MessagesSearch(not_null<History*> history)
 }
 
 MessagesSearch::~MessagesSearch() {
-#if 0 // todo
+	_history->session().sender().request(_requestId).cancel();
+#if 0 // mtp
 	_history->owner().histories().cancelRequest(
 		base::take(_searchInHistoryRequest));
 #endif
@@ -99,7 +119,29 @@ void MessagesSearch::searchRequest() {
 			return;
 		}
 	}
-#if 0 // todo
+	if (_requestId) {
+		_history->session().sender().request(_requestId).cancel();
+	}
+	_requestId = _history->session().sender().request(TLsearchChatMessages(
+		peerToTdbChat(_history->peer->id),
+		tl_string(_query),
+		(_from
+			? peerToSender(_from->id)
+			: std::optional<TLmessageSender>()),
+		tl_int53(_offsetId.bare), // from_message_id
+		tl_int32(0), // offset
+		tl_int32(kSearchPerPage),
+		std::nullopt, // filter
+		tl_int53(0) // message_thread_id
+	)).done([=](const TLmessages &result, RequestId id) {
+		searchReceived(result, id, nextToken);
+	}).fail([=](const Error &error) {
+		_requestId = 0;
+		if (error.message == u"SEARCH_QUERY_EMPTY"_q) {
+			_messagesFounds.fire({ 0, MessageIdsList(), nextToken });
+		}
+	}).send();
+#if 0 // mtp
 	auto callback = [=](Fn<void()> finish) {
 		using Flag = MTPmessages_Search::Flag;
 		const auto from = _request.from;
@@ -155,7 +197,13 @@ void MessagesSearch::searchReceived(
 		const TLMessages &result,
 		mtpRequestId requestId,
 		const QString &nextToken) {
-#if 0 // todo
+	Expects(_requestId == requestId);
+
+	const auto &data = result.data();
+	auto items = HistoryItemsFromTL(&_history->owner(), data.vmessages().v);
+	const auto total = int(data.vtotal_count().v);
+	auto found = FoundMessages{ total, std::move(items), nextToken };
+#if 0 // mtp
 	if (requestId != _requestId) {
 		return;
 	}
@@ -202,6 +250,7 @@ void MessagesSearch::searchReceived(
 	}, [](const MTPDmessages_messagesNotModified &data) {
 		return FoundMessages{};
 	});
+#endif
 	if (!_offsetId) {
 		_cacheOfStartByToken.emplace(nextToken, result);
 	}
@@ -210,7 +259,6 @@ void MessagesSearch::searchReceived(
 		? MsgId()
 		: found.messages.back().msg;
 	_messagesFounds.fire(std::move(found));
-#endif
 }
 
 rpl::producer<FoundMessages> MessagesSearch::messagesFounds() const {
