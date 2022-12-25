@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qt/qt_compare.h"
 #include "data/data_message_reaction_id.h"
 
+namespace Tdb {
+class TLmessages;
+} // namespace Tdb
+
 class HistoryItem;
 class History;
 class PeerData;
@@ -50,7 +54,10 @@ public:
 	[[nodiscard]] rpl::producer<FoundMessages> messagesFounds() const;
 
 private:
+#if 0 // mtp
 	using TLMessages = MTPmessages_Messages;
+#endif
+	using TLMessages = Tdb::TLmessages;
 	void searchRequest();
 	void searchReceived(
 		const TLMessages &result,

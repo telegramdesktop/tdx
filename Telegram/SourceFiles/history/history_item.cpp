@@ -545,9 +545,10 @@ HistoryItem::HistoryItem(
 				data.vstory_sender_chat_id());
 			config.replyToStory = data.vstory_id().v;
 		});
-	} else if (const auto threadId = data.vmessage_thread_id().v) {
+	} else if (data.vis_topic_message().v) {
+		const auto threadId = data.vmessage_thread_id().v;
 		config.replyTo = config.replyToTop = threadId;
-		config.replyIsTopicPost = data.vis_topic_message().v;
+		config.replyIsTopicPost = true;
 	}
 	config.viaBotId = data.vvia_bot_user_id().v;
 	const auto interaction = data.vinteraction_info();
@@ -4122,20 +4123,36 @@ void HistoryItem::createComponentsHelper(HistoryItemCommonFields &&fields) {
 
 void HistoryItem::createServiceFromTdb(const TLmessageContent &content) {
 	clearDependencyMessage();
-	UpdateComponents(0);
-
 	auto replyToMsgId = MsgId();
 	auto replyInPeerId = PeerId();
+	const auto reply = Get<HistoryMessageReply>();
+	if (reply) {
+		replyToMsgId = reply->replyToMsgId;
+		replyInPeerId = reply->replyToPeerId;
+		reply->clearData(this);
+	}
+	RemoveComponents(
+		HistoryMessageReply::Bit()
+		| HistoryServiceData::Bit()
+		| HistoryServicePinned::Bit()
+		| HistoryServiceTopicInfo::Bit()
+		| HistoryServiceGameScore::Bit()
+		| HistoryServicePayment::Bit()
+		| HistoryServiceSelfDestruct::Bit()
+		| HistoryServiceOngoingCall::Bit()
+		| HistoryServiceChatThemeChange::Bit()
+		| HistoryServiceTTLChange::Bit());
+
 	content.match([&](const TLDmessageGameScore &data) {
 		replyToMsgId = data.vgame_message_id().v;
 
-		UpdateComponents(HistoryServiceGameScore::Bit());
+		AddComponents(HistoryServiceGameScore::Bit());
 		Get<HistoryServiceGameScore>()->score = data.vscore().v;
 	}, [&](const TLDmessagePaymentSuccessful &data) {
 		replyToMsgId = data.vinvoice_message_id().v;
 		replyInPeerId = peerFromTdbChat(data.vinvoice_chat_id());
 
-		UpdateComponents(HistoryServicePayment::Bit());
+		AddComponents(HistoryServicePayment::Bit());
 		const auto amount = data.vtotal_amount().v;
 		const auto currency = data.vcurrency().v;
 		const auto payment = Get<HistoryServicePayment>();
@@ -4178,15 +4195,12 @@ void HistoryItem::createServiceFromTdb(const TLmessageContent &content) {
 			}
 		});
 	}, [&](const TLDmessageVideoChatStarted &data) {
-		UpdateComponents(HistoryServiceOngoingCall::Bit());
+		AddComponents(HistoryServiceOngoingCall::Bit());
 		const auto call = Get<HistoryServiceOngoingCall>();
 		call->id = uint32(data.vgroup_call_id().v);
 		call->link = GroupCallClickHandler(history()->peer, call->id);
-	}, [&](const TLDmessageVideoChatEnded &data) {
-		const auto duration = data.vduration().v;
-		RemoveComponents(HistoryServiceOngoingCall::Bit());
 	}, [&](const TLDmessageVideoChatScheduled &data) {
-		UpdateComponents(HistoryServiceOngoingCall::Bit());
+		AddComponents(HistoryServiceOngoingCall::Bit());
 		const auto call = Get<HistoryServiceOngoingCall>();
 		call->id = uint32(data.vgroup_call_id().v);
 		call->link = GroupCallClickHandler(history()->peer, call->id);
@@ -4201,10 +4215,8 @@ void HistoryItem::createServiceFromTdb(const TLmessageContent &content) {
 				peer,
 				id) | rpl::skip(1) | rpl::type_erased()
 			: rpl::producer<bool>();
-		if (!hasLink) {
-			RemoveComponents(HistoryServiceOngoingCall::Bit());
-		} else {
-			UpdateComponents(HistoryServiceOngoingCall::Bit());
+		if (hasLink) {
+			AddComponents(HistoryServiceOngoingCall::Bit());
 			const auto call = Get<HistoryServiceOngoingCall>();
 			call->id = id;
 			call->lifetime.destroy();
@@ -4222,15 +4234,15 @@ void HistoryItem::createServiceFromTdb(const TLmessageContent &content) {
 	}, [&](const TLDmessagePinMessage &data) {
 		replyToMsgId = data.vmessage_id().v;
 
-		UpdateComponents(HistoryServicePinned::Bit());
+		AddComponents(HistoryServicePinned::Bit());
 	}, [&](const TLDmessageForumTopicCreated &data) {
-		UpdateComponents(HistoryServiceTopicInfo::Bit());
+		AddComponents(HistoryServiceTopicInfo::Bit());
 		const auto info = Get<HistoryServiceTopicInfo>();
 		info->topicPost = true;
 		info->title = data.vname().v;
 		info->iconId = data.vicon().data().vcustom_emoji_id().v;
 	}, [&](const TLDmessageForumTopicEdited &data) {
-		UpdateComponents(HistoryServiceTopicInfo::Bit());
+		AddComponents(HistoryServiceTopicInfo::Bit());
 		const auto info = Get<HistoryServiceTopicInfo>();
 		info->topicPost = true;
 		if (const auto name = data.vname().v; !name.isEmpty()) {
@@ -4242,13 +4254,13 @@ void HistoryItem::createServiceFromTdb(const TLmessageContent &content) {
 			info->reiconed = true;
 		}
 	}, [&](const TLDmessageForumTopicIsClosedToggled &data) {
-		UpdateComponents(HistoryServiceTopicInfo::Bit());
+		AddComponents(HistoryServiceTopicInfo::Bit());
 		const auto info = Get<HistoryServiceTopicInfo>();
 		info->topicPost = true;
 		info->closed = data.vis_closed().v;
 		info->reopened = !info->closed;
 	}, [&](const TLDmessageForumTopicIsHiddenToggled &data) {
-		UpdateComponents(HistoryServiceTopicInfo::Bit());
+		AddComponents(HistoryServiceTopicInfo::Bit());
 		const auto info = Get<HistoryServiceTopicInfo>();
 		info->topicPost = true;
 		info->hidden = data.vis_hidden().v;
