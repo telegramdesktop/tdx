@@ -73,6 +73,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "tdb/tdb_tl_scheme.h"
 #include "data/data_document.h"
+#include "api/api_transcribes.h"
 
 namespace {
 
@@ -120,6 +121,19 @@ using ItemPreview = HistoryView::ItemPreview;
 		}
 	}
 	return false;
+}
+
+void ApplyTranscribe(
+		not_null<HistoryItem*> item,
+		const TLspeechRecognitionResult *result,
+		bool roundview) {
+	if (!result) {
+		return;
+	}
+	item->history()->session().api().transcribes().apply(
+		item,
+		*result,
+		roundview);
 }
 
 } // namespace
@@ -4574,11 +4588,19 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 			owner.processDocument(data.vvideo()),
 			false);
 	}, [&](const TLDmessageVideoNote &data) -> Result {
+		ApplyTranscribe(
+			item,
+			data.vvideo_note().data().vspeech_recognition_result(),
+			true);
 		return std::make_unique<Data::MediaFile>(
 			item,
 			owner.processDocument(data.vvideo_note()),
 			false);
 	}, [&](const TLDmessageVoiceNote &data) -> Result {
+		ApplyTranscribe(
+			item,
+			data.vvoice_note().data().vspeech_recognition_result(),
+			false);
 		return std::make_unique<Data::MediaFile>(
 			item,
 			owner.processDocument(data.vvoice_note()),
