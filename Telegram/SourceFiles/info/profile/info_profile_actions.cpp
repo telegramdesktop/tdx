@@ -59,6 +59,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_menu_icons.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
 
@@ -66,11 +69,47 @@ namespace Info {
 namespace Profile {
 namespace {
 
+using namespace Tdb;
+
 base::options::toggle ShowPeerIdBelowAbout({
 	.id = kOptionShowPeerIdBelowAbout,
 	.name = "Show Peer IDs in Profile",
 	.description = "Show peer IDs from API below their Bio / Description.",
 });
+
+[[nodiscard]] rpl::producer<QString> PeerOrTopicLinkValue(
+		not_null<PeerData*> peer,
+		MsgId topicRootId) {
+	if (!topicRootId) {
+		return LinkValue(peer, true);
+	}
+	return [=](auto consumer) {
+		auto lifetime = rpl::lifetime();
+
+		const auto sender = &peer->session().sender();
+		const auto requestId = new RequestId();
+		lifetime.add([=] {
+			sender->request(*requestId).cancel();
+			delete requestId;
+		});
+		LinkValue(peer, true) | rpl::start_with_next([=](QString link) {
+			if (link.isEmpty()) {
+				consumer.put_next(QString());
+			}
+			sender->request(*requestId).cancel();
+			*requestId = sender->request(TLgetForumTopicLink(
+				peerToTdbChat(peer->id),
+				tl_int53(topicRootId.bare)
+			)).done([=](const TLDhttpUrl &result) {
+				consumer.put_next_copy(result.vurl().v);
+			}).fail([=] {
+				consumer.put_next(QString());
+			}).send();
+		}, lifetime);
+
+		return lifetime;
+	};
+}
 
 [[nodiscard]] rpl::producer<TextWithEntities> UsernamesSubtext(
 		not_null<PeerData*> peer,
@@ -506,12 +545,18 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			tracker);
 	} else {
 		const auto topicRootId = _topic ? _topic->rootId() : 0;
+#if 0 // mtp
 		const auto addToLink = topicRootId
 			? ('/' + QString::number(topicRootId.bare))
 			: QString();
 		auto linkText = LinkValue(
 			_peer,
 			true
+#endif
+		const auto addToLink = QString();
+		auto linkText = PeerOrTopicLinkValue(
+			_peer,
+			topicRootId
 		) | rpl::map([=](const QString &link) {
 			return link.isEmpty()
 				? TextWithEntities()
