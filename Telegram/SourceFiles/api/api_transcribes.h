@@ -7,9 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#if 0 // todo
 #include "mtproto/sender.h"
-#endif
+
+namespace Tdb {
+class TLspeechRecognitionResult;
+class TLDupdateSpeechRecognitionTrial;
+} // namespace Tdb
 
 class ApiWrap;
 
@@ -36,9 +39,14 @@ public:
 	void toggle(not_null<HistoryItem*> item);
 	[[nodiscard]] const Entry &entry(not_null<HistoryItem*> item) const;
 
-#if 0 // todo
+	void apply(
+		not_null<HistoryItem*> item,
+		const Tdb::TLspeechRecognitionResult &result,
+		bool roundview);
+#if 0 // mtp
 	void apply(const MTPDupdateTranscribedAudio &update);
 #endif
+	void apply(const Tdb::TLDupdateSpeechRecognitionTrial &data);
 
 	[[nodiscard]] bool freeFor(not_null<HistoryItem*> item) const;
 
@@ -51,13 +59,12 @@ private:
 	void load(not_null<HistoryItem*> item);
 
 	const not_null<Main::Session*> _session;
-#if 0 // todo
 	MTP::Sender _api;
-#endif
 
 	int _trialsCount = -1;
 	std::optional<bool> _trialsSupport;
 	TimeId _trialsRefreshAt = -1;
+	crl::time _trialsMaxLengthMs = 0;
 
 	base::flat_map<FullMsgId, Entry> _map;
 	base::flat_map<uint64, FullMsgId> _ids;
