@@ -54,6 +54,7 @@ private:
 
 	[[nodiscard]] std::optional<HistoryItem*> performLookup(
 		Fn<void()> ready);
+#if 0 // mtp
 	[[nodiscard]] std::optional<HistoryItem*> performLookupById(
 		ChannelId channelId,
 		Fn<void()> ready);
@@ -63,6 +64,8 @@ private:
 	[[nodiscard]] std::optional<HistoryItem*> performLookupByChannel(
 		not_null<ChannelData*> channel,
 		Fn<void()> ready);
+#endif
+	QString _requestQuery;
 
 	const not_null<Main::Session*> _session;
 	std::map<Key, FullMsgId> _cache;

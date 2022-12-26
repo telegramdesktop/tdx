@@ -16,8 +16,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_url.h"
 #include "apiwrap.h"
 
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
+#include "history/history.h"
+
 namespace Api {
 namespace {
+
+using namespace Tdb;
 
 using Key = details::SingleMessageSearchKey;
 
@@ -60,7 +66,8 @@ SingleMessageSearch::~SingleMessageSearch() {
 void SingleMessageSearch::clear() {
 	_cache.clear();
 	_requestKey = Key();
-#if 0 // todo
+	_session->sender().request(base::take(_requestId)).cancel();
+#if 0 // mtp
 	_session->api().request(base::take(_requestId)).cancel();
 #endif
 }
@@ -77,7 +84,9 @@ std::optional<HistoryItem*> SingleMessageSearch::lookup(
 		return _session->data().message(i->second);
 	}
 	if (!(_requestKey == key)) {
-#if 0 // todo
+		_requestQuery = query;
+		_session->sender().request(base::take(_requestId)).cancel();
+#if 0 // mtp
 		_session->api().request(base::take(_requestId)).cancel();
 #endif
 		_requestKey = key;
@@ -85,6 +94,7 @@ std::optional<HistoryItem*> SingleMessageSearch::lookup(
 	return performLookup(ready);
 }
 
+#if 0 // mtp
 std::optional<HistoryItem*> SingleMessageSearch::performLookupByChannel(
 		not_null<ChannelData*> channel,
 		Fn<void()> ready) {
@@ -98,7 +108,6 @@ std::optional<HistoryItem*> SingleMessageSearch::performLookupByChannel(
 		return nullptr;
 	}
 
-#if 0 // todo
 	const auto fail = [=] {
 		_cache.emplace(_requestKey, FullMsgId());
 		ready();
@@ -125,7 +134,6 @@ std::optional<HistoryItem*> SingleMessageSearch::performLookupByChannel(
 	}).fail([=] {
 		fail();
 	}).send();
-#endif
 
 	return std::nullopt;
 }
@@ -141,7 +149,6 @@ std::optional<HistoryItem*> SingleMessageSearch::performLookupById(
 		return nullptr;
 	}
 
-#if 0 // todo
 	const auto fail = [=] {
 		_cache.emplace(_requestKey, FullMsgId());
 		ready();
@@ -164,7 +171,6 @@ std::optional<HistoryItem*> SingleMessageSearch::performLookupById(
 	}).fail([=] {
 		fail();
 	}).send();
-#endif
 
 	return std::nullopt;
 }
@@ -188,7 +194,6 @@ std::optional<HistoryItem*> SingleMessageSearch::performLookupByUsername(
 		_cache.emplace(_requestKey, FullMsgId());
 		ready();
 	};
-#if 0 // todo
 	_requestId = _session->api().request(MTPcontacts_ResolveUsername(
 		MTP_string(username)
 	)).done([=](const MTPcontacts_ResolvedPeer &result) {
@@ -210,20 +215,43 @@ std::optional<HistoryItem*> SingleMessageSearch::performLookupByUsername(
 	}).fail([=] {
 		fail();
 	}).send();
-#endif
 
 	return std::nullopt;
 }
+#endif
 
 std::optional<HistoryItem*> SingleMessageSearch::performLookup(
 		Fn<void()> ready) {
 	Expects(!_requestKey.empty());
 
+	if (!ready) {
+		return nullptr;
+	}
+	_session->sender().request(TLgetMessageLinkInfo(
+		tl_string(_requestQuery)
+	)).done([=](const TLmessageLinkInfo &result) {
+		if (const auto message = result.data().vmessage()) {
+			const auto item = _session->data().processMessage(
+				*message,
+				NewMessageType::Existing);
+			_cache.emplace(_requestKey, item->fullId());
+		} else {
+			_cache.emplace(_requestKey, FullMsgId());
+		}
+		ready();
+	}).fail([=] {
+		_cache.emplace(_requestKey, FullMsgId());
+		ready();
+	}).send();
+
+	return std::nullopt;
+#if 0 // mtp
 	if (!_requestKey.domainOrId[0].isDigit()) {
 		return performLookupByUsername(_requestKey.domainOrId, ready);
 	}
 	const auto channelId = ChannelId(_requestKey.domainOrId.toULongLong());
 	return performLookupById(channelId, ready);
+#endif
 }
 
 QString ConvertPeerSearchQuery(const QString &query) {
