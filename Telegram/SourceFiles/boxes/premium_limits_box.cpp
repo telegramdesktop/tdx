@@ -330,7 +330,8 @@ PublicsController::PublicsController(
 
 PublicsController::~PublicsController() {
 	if (_requestId) {
-#if 0 // todo
+		_navigation->session().sender().request(_requestId).cancel();
+#if 0 // mtp
 		_navigation->session().api().request(_requestId).cancel();
 #endif
 	}
@@ -345,7 +346,22 @@ rpl::producer<int> PublicsController::countValue() const {
 }
 
 void PublicsController::prepare() {
-#if 0 // todo
+	_requestId = _navigation->session().sender().request(
+		TLgetCreatedPublicChats(tl_publicChatTypeHasUsername())
+	).done([=](const TLchats &result) {
+		_requestId = 0;
+
+		auto &owner = _navigation->session().data();
+		for (const auto &chatId : result.data().vchat_ids().v) {
+			const auto peer = owner.peer(peerFromTdbChat(chatId));
+			if (!peer->isChannel() || peer->username().isEmpty()) {
+				continue;
+			}
+			appendRow(peer);
+		}
+		delegate()->peerListRefreshRows();
+	}).send();
+#if 0 // mtp
 	_requestId = _navigation->session().api().request(
 		MTPchannels_GetAdminedPublicChannels(MTP_flags(0))
 	).done([=](const MTPmessages_Chats &result) {
@@ -394,7 +410,18 @@ void PublicsController::rowRightActionClicked(not_null<PeerListRow*> row) {
 			return;
 		}
 		*once = true;
-#if 0 // todo
+		peer->session().sender().request(TLsetSupergroupUsername(
+			tl_int53(peerToChannel(peer->id).bare),
+			tl_string()
+		)).done([=] {
+			peer->session().sender().request(TLdisableAllSupergroupUsernames(
+				tl_int53(peerToChannel(peer->id).bare)
+			)).done([=] {
+				closeBox();
+				close();
+			}).send();
+		}).send();
+#if 0 // mtp
 		peer->session().api().request(MTPchannels_UpdateUsername(
 			peer->asChannel()->inputChannel,
 			MTP_string()
