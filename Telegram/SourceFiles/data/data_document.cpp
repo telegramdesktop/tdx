@@ -606,7 +606,8 @@ void DocumentData::setFromTdb(const TLvideoNote &data) {
 	setMaybeSupportsStreaming(true);
 	dimensions = QSize(fields.vlength().v, fields.vlength().v);
 	type = RoundVideoDocument;
-	_additional = nullptr;
+	_additional = std::make_unique<RoundData>();
+	round()->duration = fields.vduration().v;
 	_duration = fields.vduration().v;
 	_flags &= ~Flag::HasAttachedStickers;
 }
