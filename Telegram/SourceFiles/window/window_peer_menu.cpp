@@ -1087,6 +1087,7 @@ void Filler::addTopicLink() {
 	const auto id = _topic->rootId();
 	const auto controller = _controller;
 	_addAction(tr::lng_context_copy_topic_link(tr::now), [=] {
+#if 0 // mtp
 		const auto base = channel->hasUsername()
 			? channel->username()
 			: "c/" + QString::number(peerToChannel(channel->id).bare);
@@ -1096,6 +1097,16 @@ void Filler::addTopicLink() {
 		controller->showToast(channel->hasUsername()
 			? tr::lng_channel_public_link_copied(tr::now)
 			: tr::lng_context_about_private_link(tr::now));
+#endif
+		channel->session().sender().request(TLgetForumTopicLink(
+			peerToTdbChat(channel->id),
+			tl_int53(id.bare)
+		)).done([=](const TLDhttpUrl &result) {
+			QGuiApplication::clipboard()->setText(result.vurl().v);
+			controller->showToast(channel->hasUsername()
+				? tr::lng_channel_public_link_copied(tr::now)
+				: tr::lng_context_about_private_link(tr::now));
+		}).send();
 	}, &st::menuIconCopy);
 }
 

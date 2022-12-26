@@ -84,12 +84,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h" // settingsButtonRightSkip.
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
 
 namespace Info {
 namespace Profile {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kDay = Data::WorkingInterval::kDay;
 
@@ -99,6 +104,44 @@ base::options::toggle ShowPeerIdBelowAbout({
 	.description = "Show peer IDs from API below their Bio / Description."
 		" Add contact IDs to exported data.",
 });
+
+[[nodiscard]] rpl::producer<LinkWithUrl> PeerOrTopicLinkValue(
+		not_null<PeerData*> peer,
+		MsgId topicRootId) {
+	if (!topicRootId) {
+		return LinkValue(peer, true);
+	}
+	return [=](auto consumer) {
+		auto lifetime = rpl::lifetime();
+
+		const auto sender = &peer->session().sender();
+		const auto requestId = new RequestId();
+		lifetime.add([=] {
+			sender->request(*requestId).cancel();
+			delete requestId;
+		});
+		LinkValue(peer, true) | rpl::start_with_next([=](LinkWithUrl link) {
+			if (link.url.isEmpty()) {
+				consumer.put_next({});
+			}
+			sender->request(*requestId).cancel();
+			*requestId = sender->request(TLgetForumTopicLink(
+				peerToTdbChat(peer->id),
+				tl_int53(topicRootId.bare)
+			)).done([=](const TLDmessageLink &result) {
+				const auto url = result.vlink().v;
+				consumer.put_next({
+					.text = url,
+					.url = url,
+				});
+			}).fail([=] {
+				consumer.put_next({});
+			}).send();
+		}, lifetime);
+
+		return lifetime;
+	};
+}
 
 [[nodiscard]] rpl::producer<TextWithEntities> UsernamesSubtext(
 		not_null<PeerData*> peer,
@@ -1225,12 +1268,18 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			tracker);
 	} else {
 		const auto topicRootId = _topic ? _topic->rootId() : 0;
+#if 0 // mtp
 		const auto addToLink = topicRootId
 			? ('/' + QString::number(topicRootId.bare))
 			: QString();
 		auto linkText = LinkValue(
 			_peer,
 			true
+#endif
+		const auto addToLink = QString();
+		auto linkText = PeerOrTopicLinkValue(
+			_peer,
+			topicRootId
 		) | rpl::map([=](const LinkWithUrl &link) {
 			const auto text = link.text;
 			return text.isEmpty()
