@@ -74,6 +74,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "tdb/tdb_tl_scheme.h"
 #include "data/data_document.h"
+#include "api/api_transcribes.h"
 
 namespace {
 
@@ -154,6 +155,19 @@ template <typename T>
 			Lang::FormatCountDecimal(std::abs(amount)));
 	}
 	return { Ui::FillAmountAndCurrency(amount, currency) };
+}
+
+void ApplyTranscribe(
+		not_null<HistoryItem*> item,
+		const TLspeechRecognitionResult *result,
+		bool roundview) {
+	if (!result) {
+		return;
+	}
+	item->history()->session().api().transcribes().apply(
+		item,
+		*result,
+		roundview);
 }
 
 } // namespace
