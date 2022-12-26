@@ -39,7 +39,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 #include "styles/style_settings.h"
 
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
+#include "history/history.h"
+#include "history/history_item.h"
+
 namespace {
+
+using namespace Tdb;
 
 struct InfographicDescriptor {
 	float64 defaultLimit = 0;
@@ -211,7 +218,8 @@ InactiveController::InactiveController(not_null<Main::Session*> session)
 
 InactiveController::~InactiveController() {
 	if (_requestId) {
-#if 0 // todo
+		_session->sender().request(_requestId).cancel();
+#if 0 // mtp
 		_session->api().request(_requestId).cancel();
 #endif
 	}
@@ -222,7 +230,20 @@ Main::Session &InactiveController::session() const {
 }
 
 void InactiveController::prepare() {
-#if 0 // todo
+	_requestId = _session->sender().request(TLgetInactiveSupergroupChats(
+	)).done([=](const TLchats &result) {
+		_requestId = 0;
+		for (const auto chatId : result.data().vchat_ids().v) {
+			const auto peerId = peerFromTdbChat(chatId);
+			const auto history = _session->data().historyLoaded(peerId);
+			const auto item = history ? history->lastMessage() : nullptr;
+			appendRow(
+				history ? history->peer : _session->data().peer(peerId),
+				item ? item->date() : TimeId(0));
+		}
+		delegate()->peerListRefreshRows();
+	}).send();
+#if 0 // mtp
 	_requestId = _session->api().request(MTPchannels_GetInactiveChannels(
 	)).done([=](const MTPmessages_InactiveChats &result) {
 		_requestId = 0;
