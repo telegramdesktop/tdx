@@ -403,7 +403,7 @@ EntitiesInText EntitiesFromTdb(const QVector<TLtextEntity> &entities) {
 				}, [&](const TLDtextEntityTypeSpoiler &data) {
 					return EntityType::Spoiler;
 				}, [&](const TLDtextEntityTypeMediaTimestamp &data) {
-					// later todo entities media timestamp links
+					// later entities media timestamp links
 					return EntityType::Invalid;
 				}, [&](const TLDtextEntityTypeCustomEmoji &data) {
 					additional = QString::number(

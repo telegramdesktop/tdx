@@ -692,7 +692,7 @@ private:
 	not_null<PeerData*> _from;
 	GiftCode _data;
 
-	DocumentData *_sticker = nullptr; // later todo move up
+	DocumentData *_sticker = nullptr; // later move up
 
 };
 

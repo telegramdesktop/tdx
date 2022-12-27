@@ -796,7 +796,7 @@ void ApplyUserUpdate(
 		: update.vcan_be_called().v
 		? UserData::CallsStatus::Enabled
 		: UserData::CallsStatus::Disabled);
-	user->setAbout(update.vbio() // todo use tdlib entities
+	user->setAbout(update.vbio() // later use tdlib entities
 		? update.vbio()->data().vtext().v
 		: QString());
 	//update.vshare_text(); // todo
