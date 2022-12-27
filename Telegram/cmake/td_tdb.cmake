@@ -24,6 +24,8 @@ PRIVATE
     tdb/tdb_format_phone.cpp
     tdb/tdb_format_phone.h
     tdb/tdb_option.h
+    tdb/tdb_options.cpp
+    tdb/tdb_options.h
     tdb/tdb_request_id.h
     tdb/tdb_sender.cpp
     tdb/tdb_sender.h

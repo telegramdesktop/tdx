@@ -405,6 +405,12 @@ Tdb::Sender &Account::sender() const {
 	return _tdb->sender();
 }
 
+Tdb::Options &Account::options() const {
+	Expects(_tdb != nullptr);
+
+	return _tdb->options();
+}
+
 bool Account::testMode() const {
 	Expects(_tdb != nullptr);
 

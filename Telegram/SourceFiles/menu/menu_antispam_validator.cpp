@@ -32,6 +32,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "tdb/tdb_tl_scheme.h"
 #include "tdb/tdb_sender.h"
+#include "tdb/tdb_options.h"
+#include "main/main_account.h"
 
 namespace AntiSpamMenu {
 namespace {
@@ -39,22 +41,22 @@ namespace {
 using namespace Tdb;
 
 [[nodiscard]] int EnableAntiSpamMinMembers(not_null<ChannelData*> channel) {
-#if 0 // todo
+#if 0 // mtp
 	return channel->session().appConfig().get<int>(
 		u"telegram_antispam_group_size_min"_q,
 		100);
 #endif
-	return 100;
+	return channel->account().options().antiSpamGroupSizeMin();
 }
 
 [[nodiscard]] UserId AntiSpamUserId(not_null<ChannelData*> channel) {
-#if 0 // todo
+#if 0 // mtp
 	const auto id = channel->session().appConfig().get<QString>(
 		u"telegram_antispam_user_id"_q,
 		QString());
 	return UserId(id.toULongLong());
 #endif
-	return 0;
+	return UserId(channel->account().options().antiSpamBotUserId());
 }
 
 } // namespace
@@ -138,17 +140,21 @@ object_ptr<Ui::RpWidget> AntiSpamValidator::createButton() const {
 
 void AntiSpamValidator::resolveUser(Fn<void()> finish) const {
 	if (_channel->antiSpamMode()) {
-#if 0 // todo
+#if 0 // mtp
 		const auto mtpUserId = peerToBareMTPInt(AntiSpamUserId(_channel));
 		_channel->session().api().request(MTPusers_GetUsers(
 			MTP_vector<MTPInputUser>(1, MTP_inputUser(mtpUserId, MTPlong()))
 		)).done([=, channel = _channel](const MTPVector<MTPUser> &result) {
 			channel->owner().processUsers(result);
+#endif
+		_channel->session().sender().request(TLgetUser(
+			tl_int53(AntiSpamUserId(_channel).bare)
+		)).done([=, channel = _channel](const TLuser &result) {
+			channel->owner().processUser(result);
 			finish();
 		}).fail([=] {
 			finish();
 		}).send();
-#endif
 	} else {
 		finish();
 	}
