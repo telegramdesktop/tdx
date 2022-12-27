@@ -3301,6 +3301,8 @@ bool HistoryItem::canUpdateDate() const {
 }
 
 void HistoryItem::applyTTL(TimeId destroyAt) {
+	_ttlDestroyAt = destroyAt;
+#if 0 // mtp
 	const auto previousDestroyAt = std::exchange(_ttlDestroyAt, destroyAt);
 	if (previousDestroyAt) {
 		_history->owner().unregisterMessageTTL(previousDestroyAt, this);
@@ -3317,6 +3319,7 @@ void HistoryItem::applyTTL(TimeId destroyAt) {
 	} else {
 		_history->owner().registerMessageTTL(_ttlDestroyAt, this);
 	}
+#endif
 }
 
 void HistoryItem::replaceBuyWithReceiptInMarkup() {
@@ -3408,7 +3411,19 @@ bool HistoryItem::hasUnpaidContent() const {
 
 void HistoryItem::applyTTL(const TLDmessage &data) {
 	if (const auto period = data.vttl().v) {
-		applyTTL(MessageDateFromTdb(data) + period);
+		const auto isSecret = data.vcontent().match([&](const auto &data) {
+			using T = decltype(data);
+			if constexpr (TLDmessageAnimation::Is<T>()
+				|| TLDmessagePhoto::Is<T>()
+				|| TLDmessageVideo::Is<T>()
+				|| TLDmessageVideoNote::Is<T>()) {
+				return data.vis_secret().v;
+			}
+			return false;
+		});
+		if (!isSecret) { // later apply correct field for secret as well.
+			applyTTL(MessageDateFromTdb(data) + period);
+		}
 	}
 }
 
@@ -4156,7 +4171,6 @@ void HistoryItem::createServiceFromTdb(const TLmessageContent &content) {
 		| HistoryServiceTopicInfo::Bit()
 		| HistoryServiceGameScore::Bit()
 		| HistoryServicePayment::Bit()
-		| HistoryServiceSelfDestruct::Bit()
 		| HistoryServiceOngoingCall::Bit()
 		| HistoryServiceChatThemeChange::Bit()
 		| HistoryServiceTTLChange::Bit());
@@ -4348,8 +4362,6 @@ void HistoryItem::setServiceMessageByContent(
 	content.match([&](const TLDmessageAnimation &data) {
 		Expects(data.vis_secret().v);
 
-		// todo
-		//setSelfDestruct(HistoryServiceSelfDestruct::Type::Video, ttl->v);
 		if (out()) {
 			prepared.text = { tr::lng_ttl_video_sent(tr::now) };
 		} else {
@@ -4363,8 +4375,6 @@ void HistoryItem::setServiceMessageByContent(
 	}, [&](const TLDmessagePhoto &data) {
 		Expects(data.vis_secret().v);
 
-		// todo
-		//setSelfDestruct(HistoryServiceSelfDestruct::Type::Photo, ttl->v);
 		if (out()) {
 			prepared.text = { tr::lng_ttl_photo_sent(tr::now) };
 		} else {
@@ -4378,8 +4388,6 @@ void HistoryItem::setServiceMessageByContent(
 	}, [&](const TLDmessageVideo &data) {
 		Expects(data.vis_secret().v);
 
-		// todo
-		//setSelfDestruct(HistoryServiceSelfDestruct::Type::Video, ttl->v);
 		if (out()) {
 			prepared.text = { tr::lng_ttl_video_sent(tr::now) };
 		} else {
@@ -4393,8 +4401,6 @@ void HistoryItem::setServiceMessageByContent(
 	}, [&](const TLDmessageVideoNote &data) {
 		Expects(data.vis_secret().v);
 
-		// todo
-		//setSelfDestruct(HistoryServiceSelfDestruct::Type::Video, ttl->v);
 		if (out()) {
 			prepared.text = { tr::lng_ttl_video_sent(tr::now) };
 		} else {
@@ -7230,11 +7236,13 @@ void HistoryItem::setSelfDestruct(
 		MTPint mtpTTLvalue) {
 	UpdateComponents(HistoryServiceSelfDestruct::Bit());
 	const auto selfdestruct = Get<HistoryServiceSelfDestruct>();
+#if 0 // mtp
 	if (mtpTTLvalue.v == TimeId(0x7FFFFFFF)) {
 		selfdestruct->timeToLive = TimeToLiveSingleView();
 	} else {
 		selfdestruct->timeToLive = mtpTTLvalue.v * crl::time(1000);
 	}
+#endif
 	selfdestruct->type = type;
 }
 
@@ -7640,6 +7648,7 @@ ClickHandlerPtr HistoryItem::fromLink() const {
 	return _from->createOpenLink();
 }
 
+#if 0 // mtp
 crl::time HistoryItem::getSelfDestructIn(crl::time now) {
 	if (const auto selfdestruct = Get<HistoryServiceSelfDestruct>()) {
 		const auto at = std::get_if<crl::time>(&selfdestruct->destructAt);
@@ -7663,6 +7672,7 @@ crl::time HistoryItem::getSelfDestructIn(crl::time now) {
 	}
 	return 0;
 }
+#endif
 
 void HistoryItem::cacheOnlyEmojiAndSpaces(bool only) {
 	_flags |= MessageFlag::OnlyEmojiAndSpacesSet;
