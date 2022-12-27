@@ -273,7 +273,9 @@ public:
 	void checkStartUrl();
 	void checkSendPaths();
 	void checkFileOpen();
+#if 0 // mtp
 	bool openLocalUrl(const QString &url, QVariant context);
+#endif
 	bool openInternalUrl(const QString &url, QVariant context);
 	[[nodiscard]] QString changelogLink() const;
 
