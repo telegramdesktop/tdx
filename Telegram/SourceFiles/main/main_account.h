@@ -15,6 +15,7 @@ namespace Tdb {
 class TLuser;
 class Account;
 class Sender;
+class Options;
 } // namespace Tdb
 
 namespace Storage {
@@ -96,6 +97,7 @@ public:
 		return *_tdb;
 	}
 	[[nodiscard]] Tdb::Sender &sender() const;
+	[[nodiscard]] Tdb::Options &options() const;
 	[[nodiscard]] bool testMode() const;
 
 	[[nodiscard]] MTP::Instance &mtp() const {

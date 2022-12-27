@@ -8,12 +8,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tdb/tdb_account.h"
 
 #include "tdb/tdb_file_generator.h"
+#include "tdb/tdb_options.h"
 
 namespace Tdb {
 
 Account::Account(AccountConfig &&config)
 : _instance(std::move(config))
-, _sender(&_instance) {
+, _sender(&_instance)
+, _options(std::make_unique<Options>(&_sender)) {
 	_instance.updates(
 	) | rpl::start_with_next([=](TLupdate &&update) {
 		if (!consumeUpdate(update)) {
@@ -21,6 +23,8 @@ Account::Account(AccountConfig &&config)
 		}
 	}, _lifetime);
 }
+
+Account::~Account() = default;
 
 void Account::logout() {
 	_instance.logout();
@@ -80,6 +84,8 @@ bool Account::consumeUpdate(const TLupdate &update) {
 			_generations.erase(i);
 		}
 		return true;
+	}, [&](const TLDupdateOption &data) {
+		return _options->consume(data);
 	}, [](const auto&) {
 		return false;
 	});
