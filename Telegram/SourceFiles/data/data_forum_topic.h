@@ -115,7 +115,7 @@ public:
 
 	TimeId adjustedChatListTimeId() const override;
 #endif
-	// later-todo won't be needed when tdlib manages topics
+	// tdlib won't be needed when tdlib manages topics
 	TimeId adjustedChatListTimeId() const;
 
 	int fixedOnTopIndex() const override;

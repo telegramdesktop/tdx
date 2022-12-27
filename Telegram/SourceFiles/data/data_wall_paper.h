@@ -57,7 +57,9 @@ public:
 	[[nodiscard]] Image *localThumbnail() const;
 	[[nodiscard]] bool isPattern() const;
 	[[nodiscard]] bool isDefault() const;
+#if 0 // mtp
 	[[nodiscard]] bool isCreator() const;
+#endif
 	[[nodiscard]] bool isDark() const;
 	[[nodiscard]] bool isLocal() const;
 	[[nodiscard]] bool isBlurred() const;
