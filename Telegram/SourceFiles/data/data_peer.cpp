@@ -766,10 +766,10 @@ void PeerData::setActionBar(const TLchatActionBar *bar) {
 			| Flag::ReportSpam
 			| (data.vcan_unarchive().v ? Flag::AutoArchived : Flag()));
 	}, [&](const TLDchatActionBarReportUnrelatedLocation &data) {
-		// later_todo
+		// later
 		// setSettings(existing | Flag::ReportGeo);
 	}, [&](const TLDchatActionBarInviteMembers &data) {
-		// later_todo
+		// later
 		// setSettings(existing | Flag::InviteMembers);
 	}, [&](const TLDchatActionBarReportAddBlock &data) {
 		setSettings(existing
