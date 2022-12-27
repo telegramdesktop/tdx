@@ -193,7 +193,10 @@ constexpr auto kRefreshBotsTimeout = 60 * 60 * crl::time(1000);
 			.icon = ResolveIcon(session, data),
 			.name = data.vname().v,
 			.types = ResolvePeerTypes(data),
-			.inactive = false,
+			.inactive = !data.vis_added().v,
+			.inMainMenu = data.vshow_in_side_menu().v,
+			.inAttachMenu = data.vshow_in_attachment_menu().v,
+			.disclaimerRequired = data.vshow_disclaimer_in_side_menu().v,
 			.hasSettings = data.vsupports_settings().v,
 		} : std::optional<AttachWebViewBot>();
 }
@@ -1044,13 +1047,12 @@ void AttachWebView::apply(const Tdb::TLDupdateAttachmentMenuBots &update) {
 	_attachBots.reserve(update.vbots().v.size());
 	for (const auto &bot : update.vbots().v) {
 		if (auto parsed = ParseAttachBot(_session, bot)) {
-			if (!parsed->inactive) {
-				if (const auto icon = parsed->icon) {
-					parsed->media = icon->createMediaView();
-					icon->save(Data::FileOrigin(), {});
-				}
-				_attachBots.push_back(std::move(*parsed));
+			if (const auto icon = parsed->icon) {
+				parsed->media = icon->createMediaView();
+				icon->save(Data::FileOrigin(), {});
 			}
+			_attachBots.push_back(std::move(*parsed));
+			_attachBots.back().inactive = false;
 		}
 	}
 	_attachBotsUpdates.fire({});
