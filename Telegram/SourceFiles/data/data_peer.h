@@ -40,6 +40,7 @@ class TLchatNotificationSettings;
 class TLchatActionBar;
 class TLfile;
 class TLchatAvailableReactions;
+class TLstring;
 } // namespace Tdb
 
 namespace Data {
@@ -115,7 +116,11 @@ struct UnavailableReason {
 		not_null<Main::Session*> session);
 
 	[[nodiscard]] static std::vector<UnavailableReason> Extract(
+		const Tdb::TLstring &restriction);
+#if 0 // mtp
+	[[nodiscard]] static std::vector<UnavailableReason> Extract(
 		const MTPvector<MTPRestrictionReason> *list);
+#endif
 };
 
 #if 0 // mtp
