@@ -974,7 +974,27 @@ void SessionNavigation::joinVoiceChatFromLink(
 	const auto bad = crl::guard(this, [=] {
 		uiShow()->showToast(tr::lng_group_invite_bad_link(tr::now));
 	});
-#if 0 // todo
+	const auto channel = peer->asChannel();
+	if (!channel) {
+		bad();
+		return;
+	}
+	const auto hash = *info.voicechatHash;
+	_api.request(base::take(_resolveRequestId)).cancel();
+	_resolveRequestId = _api.request(TLgetSupergroupFullInfo(
+		tl_int53(peerToChannel(peer->id).bare)
+	)).done([=](const TLDsupergroupFullInfo &result) {
+		Data::ApplyChannelUpdate(peer->asChannel(), result);
+		const auto call = peer->groupCall();
+		if (!call) {
+			bad();
+			return;
+		}
+		parentController()->startOrJoinGroupCall(
+			peer,
+			{ hash, Calls::StartGroupCallArgs::JoinConfirm::Always });
+	}).send();
+#if 0 // mtp
 	const auto hash = *info.voicechatHash;
 	_api.request(base::take(_resolveRequestId)).cancel();
 	_resolveRequestId = _api.request(

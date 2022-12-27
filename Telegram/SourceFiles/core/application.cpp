@@ -106,6 +106,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "styles/style_window.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+
 #include <QtCore/QStandardPaths>
 #include <QtCore/QMimeDatabase>
 #include <QtGui/QGuiApplication>
@@ -114,6 +117,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Core {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kQuitPreventTimeoutMs = crl::time(1500);
 constexpr auto kAutoLockTimeoutLateMs = crl::time(3000);
@@ -1108,17 +1113,36 @@ void Application::checkStartUrl() {
 				iv().showTonSite(url, {});
 			} else if (_lastActivePrimaryWindow) {
 				cSetStartUrl(QString());
+#if 0 // mtp
 				if (!openLocalUrl(url, {})) {
 					cSetStartUrl(url);
 				}
+#endif
+				_lastActivePrimaryWindow->account().sender().request(
+					TLgetInternalLinkType(tl_string(url))
+				).done([=](const TLinternalLinkType &result) {
+					if (!HandleLocalUrl(
+							result,
+							QVariant::fromValue(OpenFromExternalContext{}))) {
+						if (!_lastActivePrimaryWindow
+							|| !_lastActivePrimaryWindow->sessionController()) {
+							// Maybe we're still waiting for the session.
+							cSetStartUrl(url);
+						}
+					}
+				}).fail([=] {
+					cSetStartUrl(url);
+				}).send();
 			}
 		}
 	}
 }
 
+#if 0 // mtp
 bool Application::openLocalUrl(const QString &url, QVariant context) {
 	return openCustomUrl("tg://", LocalUrlHandlers(), url, context);
 }
+#endif
 
 bool Application::openInternalUrl(const QString &url, QVariant context) {
 	return openCustomUrl("internal:", InternalUrlHandlers(), url, context);

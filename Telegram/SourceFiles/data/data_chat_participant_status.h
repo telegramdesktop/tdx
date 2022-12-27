@@ -15,6 +15,7 @@ struct PreparedFile;
 namespace Tdb {
 class TLchatMemberStatus;
 class TLchatPermissions;
+class TLchatAdministratorRights;
 } // namespace Tdb
 
 enum class ChatAdminRight {
@@ -62,6 +63,11 @@ enum class ChatRestriction {
 };
 inline constexpr bool is_flag_type(ChatRestriction) { return true; }
 using ChatRestrictions = base::flags<ChatRestriction>;
+
+[[nodiscard]] ChatRestrictions RestrictionsFromPermissions(
+	const Tdb::TLchatPermissions &permissions);
+[[nodiscard]] ChatAdminRights AdminRightsFromChatAdministratorRights(
+	const Tdb::TLchatAdministratorRights &rights);
 
 struct ChatAdminRightsInfo {
 	ChatAdminRightsInfo() = default;

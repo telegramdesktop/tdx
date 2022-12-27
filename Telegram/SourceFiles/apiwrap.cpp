@@ -368,7 +368,7 @@ void ApiWrap::requestDeepLinkInfo(
 #endif
 	sender().request(_deepLinkInfoRequestId).cancel();
 	_deepLinkInfoRequestId = sender().request(TLgetDeepLinkInfo(
-		tl_string("tg://" + path)
+		tl_string(path)
 	)).done([=](const TLDdeepLinkInfo &result) {
 		_deepLinkInfoRequestId = 0;
 		callback(
@@ -452,7 +452,7 @@ void ApiWrap::checkChatInvite(
 		Fn<void(const Error &)> fail) {
 	sender().request(base::take(_checkInviteRequestId)).cancel();
 	_checkInviteRequestId = sender().request(TLcheckChatInviteLink(
-		tl_string("t.me/joinchat/" + hash)
+		tl_string(hash)
 	)).done(std::move(done)).fail(std::move(fail)).send();
 }
 #if 0 // mtp
