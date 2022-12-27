@@ -300,8 +300,10 @@ Session::Session(not_null<Main::Session*> session)
 	maxPinnedChatsLimitValue(nullptr))
 , _contactsList(Dialogs::SortMode::Name)
 , _contactsNoChatsList(Dialogs::SortMode::Name)
+#if 0 // mtp
 , _ttlCheckTimer([=] { checkTTLs(); })
 , _selfDestructTimer([=] { checkSelfDestructItems(); })
+#endif
 , _pollsClosingTimer([=] { checkPollsClosings(); })
 , _watchForOfflineTimer([=] { checkLocalUsersWentOffline(); })
 , _groups(this)
@@ -2868,6 +2870,7 @@ void Session::registerMessage(not_null<HistoryItem*> item) {
 	}
 }
 
+#if 0 // mtp
 void Session::registerMessageTTL(TimeId when, not_null<HistoryItem*> item) {
 	Expects(when > 0);
 
@@ -2919,7 +2922,6 @@ void Session::checkTTLs() {
 	scheduleNextTTLs();
 }
 
-#if 0 // mtp
 void Session::processMessagesDeleted(
 		PeerId peerId,
 		const QVector<MTPint> &data) {
@@ -3225,6 +3227,7 @@ bool Session::computeUnreadBadgeMuted(
 			: (state.chatsMuted >= state.chats));
 }
 
+#if 0 // mtp
 void Session::selfDestructIn(not_null<HistoryItem*> item, crl::time delay) {
 	_selfDestructItems.push_back(item->fullId());
 	if (!_selfDestructTimer.isActive()
@@ -3256,6 +3259,7 @@ void Session::checkSelfDestructItems() {
 		_selfDestructTimer.callOnce(nextDestructIn);
 	}
 }
+#endif
 
 not_null<PhotoData*> Session::photo(PhotoId id) {
 	auto i = _photos.find(id);
