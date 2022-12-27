@@ -613,8 +613,10 @@ struct HistoryServiceSelfDestruct
 	using Type = HistorySelfDestructType;
 
 	Type type = Type::Photo;
+#if 0 // mtp
 	std::variant<crl::time, TimeToLiveSingleView> timeToLive = crl::time();
 	std::variant<crl::time, TimeToLiveSingleView> destructAt = crl::time();
+#endif
 };
 
 struct HistoryServiceOngoingCall
