@@ -288,6 +288,7 @@ ReplyFields ReplyFields::clone(not_null<HistoryItem*> parent) const {
 	};
 }
 
+#if 0 // mtp
 ReplyFields ReplyFieldsFromMTP(
 		not_null<HistoryItem*> item,
 		const MTPMessageReplyHeader &reply) {
@@ -369,6 +370,7 @@ FullReplyTo ReplyToFromMTP(
 		return FullReplyTo();
 	});
 }
+#endif
 
 HistoryMessageReply::HistoryMessageReply() = default;
 
