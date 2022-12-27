@@ -31,8 +31,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "mainwindow.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+#include "core/local_url_handlers.h"
+#include "main/main_domain.h"
+#include "window/window_session_controller.h"
+
 namespace Core {
 namespace {
+
+using namespace Tdb;
 
 const auto kGoodPrefix = u"https://"_q;
 const auto kBadPrefix = u"http://"_q;
@@ -224,6 +232,32 @@ std::shared_ptr<ClickHandler> UiIntegration::createLinkHandler(
 bool UiIntegration::handleUrlClick(
 		const QString &url,
 		const QVariant &context) {
+	const auto window = context.value<ClickHandlerContext>().sessionWindow;
+	const auto sender = window.get()
+		? &window->session().sender()
+		: Core::App().domain().started()
+		? &Core::App().domain().active().sender()
+		: nullptr;
+	if (sender) {
+		const auto fallback = [=] {
+			if (UrlClickHandler::IsEmail(url)) {
+				File::OpenEmailLink(url);
+			} else if (url.startsWith(u"internal:"_q, Qt::CaseInsensitive)) {
+				Core::App().openInternalUrl(url, context);
+			} else {
+				File::OpenUrl(url);
+			}
+		};
+		sender->request(TLgetInternalLinkType(
+			tl_string(url)
+		)).done([=](const TLinternalLinkType &result) {
+			if (!Core::HandleLocalUrl(result, context)) {
+				fallback();
+			}
+		}).fail(fallback).send();
+		return true;
+	}
+
 	const auto local = Core::TryConvertUrlToLocal(url);
 	if (Core::InternalPassportLink(local)) {
 		return true;
@@ -232,9 +266,11 @@ bool UiIntegration::handleUrlClick(
 	if (UrlClickHandler::IsEmail(url)) {
 		File::OpenEmailLink(url);
 		return true;
+#if 0 // mtp
 	} else if (local.startsWith(u"tg://"_q, Qt::CaseInsensitive)) {
 		Core::App().openLocalUrl(local, context);
 		return true;
+#endif
 	} else if (local.startsWith(u"internal:"_q, Qt::CaseInsensitive)) {
 		Core::App().openInternalUrl(local, context);
 		return true;
