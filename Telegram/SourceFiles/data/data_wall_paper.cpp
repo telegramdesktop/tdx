@@ -268,9 +268,11 @@ bool WallPaper::isDefault() const {
 	return _flags & WallPaperFlag::Default;
 }
 
+#if 0 // mtp
 bool WallPaper::isCreator() const {
 	return _flags & WallPaperFlag::Creator;
 }
+#endif
 
 bool WallPaper::isDark() const {
 	return _flags & WallPaperFlag::Dark;
@@ -595,7 +597,7 @@ std::optional<WallPaper> WallPaper::Create(
 	}, [&](const TLDbackgroundTypeWallpaper &data) {
 		result._blurred = data.vis_blurred().v;
 	});
-	// later todo Flag::Creator
+	// mtp looks like Flag::Creator not used
 	return result;
 }
 

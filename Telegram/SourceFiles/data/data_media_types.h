@@ -587,7 +587,7 @@ private:
 	int _months = 0;
 	bool _activated = false;
 
-	DocumentData *_sticker = nullptr; // later todo move up
+	DocumentData *_sticker = nullptr; // later move up
 
 };
 
