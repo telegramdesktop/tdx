@@ -295,8 +295,10 @@ public:
 	[[nodiscard]] bool isEditingMedia() const;
 	void clearSavedMedia();
 
+#if 0 // mtp
 	// Zero result means this message is not self-destructing right now.
 	[[nodiscard]] crl::time getSelfDestructIn(crl::time now);
+#endif
 
 	[[nodiscard]] bool definesReplyKeyboard() const;
 	[[nodiscard]] ReplyMarkupFlags replyKeyboardFlags() const;
