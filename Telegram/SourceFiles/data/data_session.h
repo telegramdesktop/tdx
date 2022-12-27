@@ -500,10 +500,10 @@ public:
 	void registerMessage(not_null<HistoryItem*> item);
 	void unregisterMessage(not_null<HistoryItem*> item);
 
+#if 0 // mtp
 	void registerMessageTTL(TimeId when, not_null<HistoryItem*> item);
 	void unregisterMessageTTL(TimeId when, not_null<HistoryItem*> item);
 
-#if 0 // mtp
 	// Returns true if item found and it is not detached.
 	bool updateExistingMessage(const MTPDmessage &data);
 	void updateEditedMessage(const MTPMessage &data);
@@ -608,7 +608,9 @@ public:
 	[[nodiscard]] auto repliesReadTillUpdates() const
 		-> rpl::producer<RepliesReadTillUpdate>;
 
+#if 0 // mtp
 	void selfDestructIn(not_null<HistoryItem*> item, crl::time delay);
+#endif
 
 	[[nodiscard]] not_null<PhotoData*> photo(PhotoId id);
 #if 0 // mtp
@@ -933,11 +935,15 @@ private:
 	void setupPeerNameViewer();
 	void setupUserIsContactViewer();
 
+#if 0 // mtp
 	void checkSelfDestructItems();
+#endif
 	void checkLocalUsersWentOffline();
 
+#if 0 // mtp
 	void scheduleNextTTLs();
 	void checkTTLs();
+#endif
 
 	int computeUnreadBadge(const Dialogs::UnreadState &state) const;
 	bool computeUnreadBadgeMuted(const Dialogs::UnreadState &state) const;
@@ -1115,16 +1121,20 @@ private:
 	std::map<
 		not_null<HistoryItem*>,
 		base::flat_set<not_null<HistoryItem*>>> _dependentMessages;
+#if 0 // mtp
 	std::map<TimeId, base::flat_set<not_null<HistoryItem*>>> _ttlMessages;
 	base::Timer _ttlCheckTimer;
+#endif
 
 	std::unordered_map<MsgId, not_null<HistoryItem*>> _nonChannelMessages;
 
 	base::flat_map<uint64, FullMsgId> _messageByRandomId;
 	base::flat_map<uint64, SentData> _sentMessagesData;
 
+#if 0 // mtp
 	base::Timer _selfDestructTimer;
 	std::vector<FullMsgId> _selfDestructItems;
+#endif
 
 	std::unordered_map<
 		PhotoId,

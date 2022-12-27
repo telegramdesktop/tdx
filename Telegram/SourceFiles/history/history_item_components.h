@@ -261,6 +261,7 @@ struct ReplyFields {
 	uint32 topicPost : 1 = 0;
 };
 
+#if 0 // mtp
 [[nodiscard]] ReplyFields ReplyFieldsFromMTP(
 	not_null<HistoryItem*> item,
 	const MTPMessageReplyHeader &reply);
@@ -268,6 +269,7 @@ struct ReplyFields {
 [[nodiscard]] FullReplyTo ReplyToFromMTP(
 	not_null<History*> history,
 	const MTPInputReplyTo &reply);
+#endif
 
 struct HistoryMessageReply
 	: public RuntimeComponent<HistoryMessageReply, HistoryItem> {
@@ -705,8 +707,10 @@ struct HistoryServiceSelfDestruct
 	using Type = HistorySelfDestructType;
 
 	Type type = Type::Photo;
+#if 0 // mtp
 	std::variant<crl::time, TimeToLiveSingleView> timeToLive = crl::time();
 	std::variant<crl::time, TimeToLiveSingleView> destructAt = crl::time();
+#endif
 };
 
 struct HistoryServiceOngoingCall
