@@ -135,6 +135,7 @@ private:
 	};
 
 	void sendTdlibParameters();
+	void setIgnorePlatformRestrictions();
 	void sendToManager(
 		RequestId requestId,
 		ExternalGenerator &&request,
@@ -513,6 +514,23 @@ void Instance::Impl::sendTdlibParameters() {
 		nullptr,
 		fail,
 		true);
+	setIgnorePlatformRestrictions();
+}
+
+void Instance::Impl::setIgnorePlatformRestrictions() {
+#if !defined OS_MAC_STORE && !defined OS_WIN_STORE
+	const auto ignore = true;
+#else // !OS_MAC_STORE && !OS_WIN_STORE
+	const auto ignore = false;
+#endif // !OS_MAC_STORE && !OS_WIN_STORE
+	send(
+		allocateRequestId(),
+		TLsetOption(
+			tl_string("ignore_platform_restrictions"),
+			tl_optionValueBoolean(tl_bool(ignore))),
+		nullptr,
+		nullptr,
+		false);
 }
 
 Instance::Instance(InstanceConfig &&config)
