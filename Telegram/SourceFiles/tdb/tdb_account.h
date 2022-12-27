@@ -14,14 +14,19 @@ namespace Tdb {
 
 using AccountConfig = details::InstanceConfig;
 
+class Options;
 class FileGenerator;
 
 class Account final {
 public:
 	explicit Account(AccountConfig &&config);
+	~Account();
 
 	[[nodiscard]] Sender &sender() {
 		return _sender;
+	}
+	[[nodiscard]] Options &options() {
+		return *_options;
 	}
 
 	[[nodiscard]] rpl::producer<TLupdate> updates() const;
@@ -46,6 +51,7 @@ private:
 
 	details::Instance _instance;
 	Sender _sender;
+	std::unique_ptr<Options> _options;
 	rpl::event_stream<TLupdate> _updates;
 
 	base::flat_map<QString, not_null<FileGenerator*>> _generators;
