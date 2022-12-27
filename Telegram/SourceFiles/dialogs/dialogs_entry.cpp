@@ -222,7 +222,7 @@ void Entry::updateChatListSortPosition() {
 			: FixedOnTopDialogPos(kArchiveFixOnTopIndex);
 		updateChatListSortPosition(FilterId(), order, false);
 	} else if (const auto topic = asTopic()) {
-		// later-todo won't be needed when tdlib manages topics
+		// tdlib won't be needed when tdlib manages topics
 		auto sortKeyByDate = DialogPosFromDate(
 			topic->adjustedChatListTimeId());
 		const auto pinnedIndex = lookupPinnedIndex(FilterId());
@@ -445,7 +445,7 @@ void Entry::setChatListTimeId(TimeId date) {
 	}
 #endif
 	if (const auto topic = asTopic()) {
-		// later-todo won't be needed when tdlib manages topics
+		// tdlib won't be needed when tdlib manages topics
 		_timeId = date;
 		updateChatListSortPosition();
 	}

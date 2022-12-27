@@ -786,7 +786,7 @@ void ForumTopic::requestChatListMessage() {
 	}
 }
 
-// later-todo won't be needed when tdlib manages topics
+// tdlib won't be needed when tdlib manages topics
 TimeId ForumTopic::adjustedChatListTimeId() const {
 	const auto result = chatListTimeId();
 	if (const auto draft = history()->cloudDraft(_rootId)) {

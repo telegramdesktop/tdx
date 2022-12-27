@@ -526,7 +526,7 @@ void ApiWrap::savePinnedOrder(not_null<Data::Forum*> forum) {
 		}
 		Unexpected("Key type in pinnedDialogsOrder().");
 	};
-#if 0 // later pinned topics
+#if 0 // tdlib pinned topics
 	auto topics = QVector<MTPint>();
 	topics.reserve(order.size());
 	ranges::transform(

@@ -1084,7 +1084,7 @@ void RepliesList::requestUnreadCount() {
 			}
 		}
 	};
-#if 0 // later-todo getMessageThread doesn't provide unread info for topics.
+#if 0 // tdlib getMessageThread doesn't provide unread info for topics.
 	_reloadUnreadCountRequestId = session->api().request(
 		MTPmessages_GetDiscussionMessage(
 			_history->peer->input,
