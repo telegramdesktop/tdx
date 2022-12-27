@@ -575,6 +575,7 @@ bool MainWidget::setForwardDraft(
 	return true;
 }
 
+#if 0 // mtp
 bool MainWidget::shareUrl(
 		not_null<Data::Thread*> thread,
 		const QString &url,
@@ -592,6 +593,37 @@ bool MainWidget::shareUrl(
 		int(url.size()) + 1 + int(text.size()),
 		Ui::kQFixedMax
 	};
+	const auto history = thread->owningHistory();
+	const auto topicRootId = thread->topicRootId();
+	history->setLocalDraft(std::make_unique<Data::Draft>(
+		textWithTags,
+		FullReplyTo{ .topicRootId = topicRootId },
+		cursor,
+		Data::WebPageDraft()));
+	history->clearLocalEditDraft(topicRootId);
+	history->session().changes().entryUpdated(
+		thread,
+		Data::EntryUpdate::Flag::LocalDraftSet);
+	return true;
+}
+#endif
+
+bool MainWidget::shareUrl(
+		not_null<Data::Thread*> thread,
+		const TextWithEntities &text,
+		bool containsLink) const {
+	if (!Data::CanSendTexts(thread)) {
+		_controller->show(Ui::MakeInformBox(tr::lng_share_cant()));
+		return false;
+	}
+	const auto textWithTags = TextWithTags{
+		text.text,
+		TextUtilities::ConvertEntitiesToTextTags(text.entities)
+	};
+	const auto full = text.text.size();
+	const auto newline = text.text.indexOf('\n');
+	const auto start = (containsLink && newline > 0) ? (newline + 1) : full;
+	const auto cursor = MessageCursor{ start, full, Ui::kQFixedMax };
 	const auto history = thread->owningHistory();
 	const auto topicRootId = thread->topicRootId();
 	history->setLocalDraft(std::make_unique<Data::Draft>(

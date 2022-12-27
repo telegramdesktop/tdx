@@ -152,10 +152,16 @@ public:
 	bool sendPaths(
 		not_null<Data::Thread*> thread,
 		const QStringList &paths);
+#if 0 // mtp
 	bool shareUrl(
 		not_null<Data::Thread*> thread,
 		const QString &url,
 		const QString &text) const;
+#endif
+	bool shareUrl(
+		not_null<Data::Thread*> thread,
+		const TextWithEntities &text,
+		bool containsLink) const;
 	bool filesOrForwardDrop(
 		not_null<Data::Thread*> thread,
 		not_null<const QMimeData*> data);

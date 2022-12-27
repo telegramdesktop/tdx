@@ -97,7 +97,7 @@ void SubmitChatInvite(
 		const auto &type = error.type();
 #endif
 	session->sender().request(TLjoinChatByInviteLink(
-		tl_string("t.me/joinchat/" + hash)
+		tl_string(hash)
 	)).done([=](const TLchat &result) {
 		const auto peer = session->data().processPeer(result);
 		const auto strong = weak.get();

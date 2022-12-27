@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Tdb {
+class TLinternalLinkType;
+} // namespace Tdb
+
 namespace qthelp {
 class RegularExpressionMatch;
 } // namespace qthelp
@@ -25,7 +29,9 @@ struct LocalUrlHandler {
 		const QVariant &context)> handler;
 };
 
+#if 0 // mtp
 [[nodiscard]] const std::vector<LocalUrlHandler> &LocalUrlHandlers();
+#endif
 [[nodiscard]] const std::vector<LocalUrlHandler> &InternalUrlHandlers();
 
 [[nodiscard]] QString TryConvertUrlToLocal(QString url);
@@ -34,4 +40,22 @@ struct LocalUrlHandler {
 
 [[nodiscard]] bool StartUrlRequiresActivate(const QString &url);
 
+struct OpenFromExternalContext {
+};
+struct StartAttachContext {
+	Window::SessionController *controller = nullptr;
+	QString botUsername;
+	QString openWebAppUrl;
+
+	explicit operator bool() const {
+		return !botUsername.isEmpty();
+	}
+};
+bool HandleLocalUrl(
+	const Tdb::TLinternalLinkType &link,
+	const QVariant &context);
+
 } // namespace Core
+
+Q_DECLARE_METATYPE(Core::OpenFromExternalContext);
+Q_DECLARE_METATYPE(Core::StartAttachContext);

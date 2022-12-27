@@ -71,10 +71,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "apiwrap.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "core/file_utilities.h"
+#include "data/data_user.h"
+
 #include <QtGui/QGuiApplication>
 
 namespace Core {
 namespace {
+
+using namespace Tdb;
 
 using Match = qthelp::RegularExpressionMatch;
 
@@ -205,6 +211,7 @@ void SavePersonalChannel(
 	}
 }
 
+#if 0 // mtp
 bool JoinGroupByHash(
 		Window::SessionController *controller,
 		const Match &match,
@@ -263,12 +270,14 @@ bool ShowTheme(
 	controller->window().activate();
 	return true;
 }
+#endif
 
 void ShowLanguagesBox(Window::SessionController *controller) {
 	static auto Guard = base::binary_guard();
 	Guard = LanguageBox::Show(controller);
 }
 
+#if 0 // mtp
 bool SetLanguage(
 		Window::SessionController *controller,
 		const Match &match,
@@ -713,6 +722,7 @@ bool HandleUnknown(
 	controller->session().api().requestDeepLinkInfo(request, callback);
 	return true;
 }
+#endif
 
 bool OpenMediaTimestamp(
 		Window::SessionController *controller,
@@ -1115,6 +1125,7 @@ bool ResolveTestChatTheme(
 	return true;
 }
 
+#if 0 // mtp
 bool ResolveInvoice(
 		Window::SessionController *controller,
 		const Match &match,
@@ -1155,6 +1166,7 @@ bool ResolvePremiumOffer(
 	controller->window().activate();
 	return true;
 }
+#endif
 
 bool ResolvePremiumMultigift(
 		Window::SessionController *controller,
@@ -1281,6 +1293,7 @@ bool ResolveChatLink(
 
 } // namespace
 
+#if 0 // mtp
 const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 	static auto Result = std::vector<LocalUrlHandler>{
 		{
@@ -1378,6 +1391,7 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 	};
 	return Result;
 }
+#endif
 
 const std::vector<LocalUrlHandler> &InternalUrlHandlers() {
 	static auto Result = std::vector<LocalUrlHandler>{
@@ -1607,6 +1621,418 @@ bool StartUrlRequiresActivate(const QString &url) {
 	return Core::App().passcodeLocked()
 		? true
 		: !InternalPassportLink(url);
+}
+
+bool HandleLocalUrl(
+		const TLinternalLinkType &link,
+		const QVariant &context) {
+	using Navigation = Window::SessionNavigation;
+	const auto my = context.value<ClickHandlerContext>();
+	const auto attach = context.value<StartAttachContext>();
+	const auto external = context.canConvert<OpenFromExternalContext>();
+	const auto controller = my.sessionWindow.get()
+		? my.sessionWindow.get()
+		: attach.controller
+		? attach.controller
+		: Core::App().activePrimaryWindow()
+		? Core::App().activePrimaryWindow()->sessionController()
+		: nullptr;
+	const auto session = controller ? &controller->session() : nullptr;
+	const auto sender = session ? &session->sender() : nullptr;
+	const auto settingsSection = [&](::Settings::Type type) {
+		if (!controller) {
+			return false;
+		}
+		controller->showSettings(type);
+		controller->window().activate();
+		return true;
+	};
+	return link.match([&](const TLDinternalLinkTypeActiveSessions &) {
+		if (session) {
+			session->api().authorizations().reload();
+		}
+		return settingsSection(::Settings::Sessions::Id());
+	}, [&](const TLDinternalLinkTypeAttachmentMenuBot &data) {
+		if (!controller) {
+			return false;
+		}
+		const auto botUsername = data.vbot_username().v;
+		const auto openWebAppUrl = data.vurl().v;
+		return data.vtarget_chat().match([&](const TLDtargetChatCurrent &) {
+			controller->showPeerByLink(Navigation::PeerByLinkInfo{
+				.usernameOrId = botUsername,
+				.attachBotToggleCommand = openWebAppUrl,
+				.clickFromMessageId = my.itemId,
+			});
+			controller->window().activate();
+			return true;
+		}, [&](const TLDtargetChatChosen &data) {
+			using Type = InlineBots::PeerType;
+			controller->showPeerByLink(Navigation::PeerByLinkInfo{
+				.usernameOrId = botUsername,
+				.attachBotToggleCommand = openWebAppUrl,
+				.attachBotChooseTypes = (Type()
+					| (data.vallow_bot_chats().v ? Type::Bot : Type())
+					| (data.vallow_user_chats().v ? Type::User : Type())
+					| (data.vallow_group_chats().v ? Type::Group : Type())
+					| (data.vallow_channel_chats().v ? Type::Broadcast : Type())),
+				.clickFromMessageId = my.itemId,
+			});
+			controller->window().activate();
+			return true;
+		}, [&](const TLDtargetChatInternalLink &data) {
+			return HandleLocalUrl(data.vlink(), QVariant::fromValue(
+				StartAttachContext{
+					.controller = controller,
+					.botUsername = botUsername,
+					.openWebAppUrl = openWebAppUrl,
+				}));
+		});
+	}, [&](const TLDinternalLinkTypeAuthenticationCode &data) {
+		return false; // later fragment auth links?
+	}, [&](const TLDinternalLinkTypeBackground &data) {
+		if (!controller) {
+			return false;
+		}
+		sender->request(TLsearchBackground(
+			data.vbackground_name()
+		)).done(crl::guard(controller, [=](const TLbackground &result) {
+			const auto paper = Data::WallPaper::Create(
+				&controller->session(),
+				result.data());
+			if (paper) {
+				controller->show(
+					Box<BackgroundPreviewBox>(controller, *paper));
+			} else {
+				controller->show(
+					Ui::MakeInformBox(tr::lng_background_bad_link()));
+			}
+			controller->window().activate();
+		})).send();
+		return true;
+	}, [&](const TLDinternalLinkTypeBotStart &data) {
+		if (!controller) {
+			return false;
+		}
+		controller->showPeerByLink(Navigation::PeerByLinkInfo{
+			.usernameOrId = data.vbot_username().v,
+			.resolveType = Window::ResolveType::BotStart,
+			.startToken = data.vstart_parameter().v,
+			.startAutoSubmit = data.vautostart().v || my.botStartAutoSubmit,
+			.clickFromMessageId = my.itemId,
+		});
+		controller->window().activate();
+		return true;
+	}, [&](const TLDinternalLinkTypeBotStartInGroup &data) {
+		if (!controller) {
+			return false;
+		}
+		controller->showPeerByLink(Navigation::PeerByLinkInfo{
+			.usernameOrId = data.vbot_username().v,
+			.resolveType = Window::ResolveType::AddToGroup,
+			.startToken = data.vstart_parameter().v,
+			.startAdminRights = (data.vadministrator_rights()
+				? AdminRightsFromChatAdministratorRights(
+					*data.vadministrator_rights())
+				: ChatAdminRights()),
+			.clickFromMessageId = my.itemId,
+		});
+		controller->window().activate();
+		return true;
+	}, [&](const TLDinternalLinkTypeBotAddToChannel &data) {
+		if (!controller) {
+			return false;
+		}
+		controller->showPeerByLink(Navigation::PeerByLinkInfo{
+			.usernameOrId = data.vbot_username().v,
+			.resolveType = Window::ResolveType::AddToChannel,
+			.startAdminRights = AdminRightsFromChatAdministratorRights(
+				data.vadministrator_rights()),
+			.clickFromMessageId = my.itemId,
+		});
+		controller->window().activate();
+		return true;
+	}, [&](const TLDinternalLinkTypeChangePhoneNumber &) {
+		if (!controller) {
+			return false;
+		}
+		controller->show(Ui::MakeInformBox(tr::lng_change_phone_error()));
+		return true;
+	}, [&](const TLDinternalLinkTypeChatInvite &data) {
+		if (!controller) {
+			return false;
+		}
+		Api::CheckChatInvite(controller, data.vinvite_link().v);
+		return true;
+	}, [&](const TLDinternalLinkTypeFilterSettings &) {
+		return settingsSection(::Settings::Folders::Id());
+	}, [&](const TLDinternalLinkTypeGame &data) {
+		// tdlib tg://share_game_score links
+		if (!controller) {
+			return false;
+		}
+		controller->showPeerByLink(Navigation::PeerByLinkInfo{
+			.usernameOrId = data.vbot_username().v,
+			.resolveType = Window::ResolveType::ShareGame,
+			.startToken = data.vgame_short_name().v,
+			.clickFromMessageId = my.itemId,
+		});
+		controller->window().activate();
+		return true;
+	}, [&](const TLDinternalLinkTypeInstantView &data) {
+		File::OpenUrl(data.vfallback_url().v);
+		return true;
+	}, [&](const TLDinternalLinkTypeInvoice &data) {
+		if (!controller) {
+			return false;
+		}
+		const auto window = &controller->window();
+		Payments::CheckoutProcess::Start(
+			&controller->session(),
+			data.vinvoice_name().v,
+			crl::guard(window, [=](auto) { window->activate(); }));
+		return true;
+	}, [&](const TLDinternalLinkTypeLanguagePack &data) {
+		Lang::CurrentCloudManager().switchWithWarning(
+			data.vlanguage_pack_id().v);
+		if (controller) {
+			controller->window().activate();
+		}
+		return true;
+	}, [&](const TLDinternalLinkTypeLanguageSettings &data) {
+		ShowLanguagesBox(controller);
+		return true;
+	}, [&](const TLDinternalLinkTypeMessage &data) {
+		if (!controller) {
+			return false;
+		}
+		controller->showPeerByLink(Navigation::PeerByLinkInfo{
+			.clickFromMessageId = my.itemId,
+			.messageLink = data.vurl().v,
+		});
+		controller->window().activate();
+		return true;
+	}, [&](const TLDinternalLinkTypeMessageDraft &data) {
+		if (!controller) {
+			return false;
+		}
+		const auto text = Api::FormattedTextFromTdb(data.vtext());
+		const auto link = data.vcontains_link().v;
+		const auto chosen = [=](not_null<Data::Thread*> thread) {
+			const auto content = controller->content();
+			return content->shareUrl(thread, text, link);
+		};
+		Window::ShowChooseRecipientBox(controller, chosen);
+		controller->window().activate();
+		return true;
+	}, [&](const TLDinternalLinkTypePassportDataRequest &data) {
+		if (!external) {
+			return true;
+		} else if (!controller) {
+			return false;
+		}
+		controller->showPassportForm(Passport::FormRequest(
+			UserId(data.vbot_user_id().v),
+			data.vscope().v,
+			data.vcallback_url().v,
+			data.vpublic_key().v,
+			data.vnonce().v));
+		return true;
+	}, [&](const TLDinternalLinkTypePhoneNumberConfirmation &data) {
+		if (!controller) {
+			return false;
+		}
+		session->api().confirmPhone().resolve(
+			controller,
+			data.vphone_number().v,
+			data.vhash().v);
+		controller->window().activate();
+		return true;
+	}, [&](const TLDinternalLinkTypePremiumFeatures &data) {
+		if (!controller) {
+			return false;
+		}
+		const auto refAddition = data.vreferrer().v;
+		const auto ref = u"deeplink"_q
+			+ (refAddition.isEmpty() ? QString() : '_' + refAddition);
+		::Settings::ShowPremium(controller, ref);
+		controller->window().activate();
+		return true;
+	}, [&](const TLDinternalLinkTypePremiumGiftCode &data) {
+		if (!controller) {
+			return false;
+		}
+		const auto slug = data.vcode().v;
+		const auto done = [=](Api::GiftCode code) {
+			if (!code) {
+				controller->showToast(tr::lng_gift_link_expired(tr::now));
+			} else {
+				controller->uiShow()->showBox(
+					Box(GiftCodeBox, controller, slug));
+			}
+		};
+		controller->session().api().premium().checkGiftCode(
+			slug,
+			crl::guard(controller, done));
+		return true;
+	}, [&](const TLDinternalLinkTypePrivacyAndSecuritySettings &) {
+		return settingsSection(::Settings::PrivacySecurity::Id());
+	}, [&](const TLDinternalLinkTypeProxy &data) {
+		auto fields = QMap<QString, QString>{
+			{ u"server"_q, data.vserver().v },
+			{ u"port"_q, QString::number(data.vport().v) },
+		};
+		const auto type = data.vtype().match([&](
+				const TLDproxyTypeHttp &data) {
+			fields.insert(u"user"_q, data.vusername().v);
+			fields.insert(u"pass"_q, data.vpassword().v);
+			return MTP::ProxyData::Type::Http;
+		}, [&](const TLDproxyTypeSocks5 &data) {
+			fields.insert(u"user"_q, data.vusername().v);
+			fields.insert(u"pass"_q, data.vpassword().v);
+			return MTP::ProxyData::Type::Socks5;
+		}, [&](const TLDproxyTypeMtproto &data) {
+			fields.insert(u"secret"_q, data.vsecret().v);
+			return MTP::ProxyData::Type::Mtproto;
+		});
+		ProxiesBoxController::ShowApplyConfirmation(type, fields);
+		if (controller) {
+			controller->window().activate();
+		}
+		return true;
+	}, [&](const TLDinternalLinkTypePublicChat &data) {
+		if (!controller) {
+			return false;
+		}
+		controller->showPeerByLink(Navigation::PeerByLinkInfo{
+			.usernameOrId = data.vchat_username().v,
+			.attachBotUsername = (attach ? attach.botUsername : QString()),
+			.attachBotToggleCommand = (attach
+				? attach.openWebAppUrl
+				: std::optional<QString>()),
+			.clickFromMessageId = my.itemId,
+		});
+		controller->window().activate();
+		return true;
+	}, [&](const TLDinternalLinkTypeQrCodeAuthentication &data) {
+		return false;
+	}, [&](const TLDinternalLinkTypeRestorePurchases &data) {
+		return false;
+	}, [&](const TLDinternalLinkTypeSettings &data) {
+		return settingsSection(::Settings::Main::Id());
+	}, [&](const TLDinternalLinkTypeStickerSet &data) {
+		if (!controller) {
+			return false;
+		}
+		Core::App().hideMediaView();
+		controller->show(Box<StickerSetBox>(
+			controller->uiShow(),
+			StickerSetIdentifier{ .shortName = data.vsticker_set_name().v },
+			Data::StickersType::Stickers)); // tdlib stickers or emoji
+		controller->window().activate();
+		return true;
+	}, [&](const TLDinternalLinkTypeTheme &data) {
+		if (!controller) {
+			return false;
+		}
+		Core::App().hideMediaView();
+		controller->session().data().cloudThemes().resolve( // tdlib themes
+			&controller->window(),
+			data.vtheme_name().v,
+			my.itemId);
+		controller->window().activate();
+		return true;
+	}, [&](const TLDinternalLinkTypeThemeSettings &data) {
+		return settingsSection(::Settings::Chat::Id());
+	}, [&](const TLDinternalLinkTypeUnknownDeepLink &data) {
+		if (!controller) {
+			return false;
+		}
+		const auto callback = crl::guard(controller, [=](
+				TextWithEntities message,
+				bool updateRequired) {
+			if (updateRequired) {
+				const auto callback = [=](Fn<void()> &&close) {
+					Core::UpdateApplication();
+					close();
+				};
+				controller->show(Ui::MakeConfirmBox({
+					.text = message,
+					.confirmed = callback,
+					.confirmText = tr::lng_menu_update(),
+				}));
+			} else {
+				controller->show(Ui::MakeInformBox(message));
+			}
+		});
+		session->api().requestDeepLinkInfo(data.vlink().v, callback);
+		return true;
+	}, [&](const TLDinternalLinkTypeUnsupportedProxy &data) {
+		if (const auto window = Core::App().activePrimaryWindow()) {
+			window->uiShow()->show(
+				Ui::MakeInformBox(tr::lng_proxy_unsupported(tr::now)));
+		}
+		return true;
+	}, [&](const TLDinternalLinkTypeUserPhoneNumber &data) {
+		if (!controller) {
+			return false;
+		}
+		controller->showPeerByLink(Navigation::PeerByLinkInfo{
+			.phone = data.vphone_number().v,
+			.attachBotUsername = (attach ? attach.botUsername : QString()),
+			.attachBotToggleCommand = (attach
+				? attach.openWebAppUrl
+				: std::optional<QString>()),
+			.clickFromMessageId = my.itemId,
+		});
+		controller->window().activate();
+		return true;
+	}, [&](const TLDinternalLinkTypeUserToken &data) {
+		if (!controller) {
+			return false;
+		}
+		const auto token = data.vtoken().v;
+		sender->request(TLsearchUserByToken(
+			tl_string(token)
+		)).done(crl::guard(controller, [=](const TLuser &result) {
+			controller->showPeerHistory(
+				controller->session().data().processUser(result));
+		})).fail(crl::guard(controller, [=] {
+			controller->show(
+				Ui::MakeInformBox(
+					tr::lng_username_not_found(tr::now, lt_user, token)),
+				Ui::LayerOption::CloseOther);
+		})).send();
+		return true;
+	}, [&](const TLDinternalLinkTypeVideoChat &data) {
+		if (!controller) {
+			return false;
+		}
+		controller->showPeerByLink(Navigation::PeerByLinkInfo{
+			.usernameOrId = data.vchat_username().v,
+			.voicechatHash = data.vinvite_hash().v,
+			.clickFromMessageId = my.itemId,
+		});
+		controller->window().activate();
+		return true;
+	}, [&](const TLDinternalLinkTypeWebApp &data) {
+		if (!controller) {
+			return false;
+		}
+		controller->showPeerByLink(Navigation::PeerByLinkInfo{
+			.usernameOrId = data.vbot_username().v,
+			.resolveType = Window::ResolveType::BotApp,
+			.startToken = data.vstart_parameter().v,
+			.botAppName = data.vweb_app_short_name().v,
+			.botAppForceConfirmation = my.mayShowConfirmation,
+			.clickFromMessageId = my.itemId,
+		});
+		controller->window().activate();
+		return true;
+	}, [&](const TLDinternalLinkTypeStory &data) {
+		// todo
+		return true;
+	});
 }
 
 } // namespace Core
