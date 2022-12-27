@@ -85,7 +85,9 @@ public:
 	~GroupCall();
 
 	[[nodiscard]] CallId id() const;
+#if 0 // mtp
 	[[nodiscard]] bool loaded() const;
+#endif
 	[[nodiscard]] bool rtmp() const;
 	[[nodiscard]] bool listenersHidden() const;
 	[[nodiscard]] not_null<PeerData*> peer() const;

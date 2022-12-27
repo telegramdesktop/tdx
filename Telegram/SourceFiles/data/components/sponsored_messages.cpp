@@ -224,7 +224,7 @@ void SponsoredMessages::request(not_null<History*> history, Fn<void()> done) {
 	}
 	const auto channel = history->peer->asChannel();
 	Assert(channel != nullptr);
-#if 0 // todo
+#if 0 // todo - chatInviteHash = link.internalLinkTypeChatInvite.invite_link
 	request.requestId = _session->api().request(
 		MTPchannels_GetSponsoredMessages(channel->inputChannel)
 	).done([=](const MTPmessages_sponsoredMessages &result) {

@@ -56,24 +56,56 @@ ChatRestrictionsInfo::ChatRestrictionsInfo(const MTPChatBannedRights &rights)
 }
 #endif
 
+ChatRestrictions RestrictionsFromPermissions(
+		const Tdb::TLchatPermissions &permissions) {
+	using Flag = ChatRestriction;
+	const auto &data = permissions.data();
+	const auto bit = [&](const Tdb::TLbool &check, Flag value) {
+		return check.v ? Flag(0) : value;
+	};
+	return Flag(0)
+		| bit(data.vcan_add_link_previews(), Flag::EmbedLinks)
+		| bit(data.vcan_change_info(), Flag::ChangeInfo)
+		| bit(data.vcan_invite_users(), Flag::AddParticipants)
+		| bit(data.vcan_pin_messages(), Flag::PinMessages)
+		| bit(data.vcan_send_media_messages(), Flag::SendMedia)
+		| bit(data.vcan_send_messages(), Flag::SendMessages)
+		| bit(data.vcan_send_polls(), Flag::SendPolls)
+		| bit(data.vcan_send_other_messages(), Flag::SendStickers)
+		| bit(data.vcan_send_other_messages(), Flag::SendGames)
+		| bit(data.vcan_send_other_messages(), Flag::SendGifs)
+		| bit(data.vcan_send_other_messages(), Flag::SendInline);
+}
+
+[[nodiscard]] ChatAdminRights AdminRightsFromChatAdministratorRights(
+		const Tdb::TLchatAdministratorRights &rights) {
+	using Flag = ChatAdminRight;
+	const auto &data = rights.data();
+	const auto bit = [&](const Tdb::TLbool &check, Flag value) {
+		return check.v ? value : Flag(0);
+	};
+	return Flag(0)
+		| bit(data.vcan_manage_chat(), Flag::Other)
+		| bit(data.vcan_change_info(), Flag::ChangeInfo)
+		| bit(data.vcan_post_messages(), Flag::PostMessages)
+		| bit(data.vcan_edit_messages(), Flag::EditMessages)
+		| bit(data.vcan_delete_messages(), Flag::DeleteMessages)
+		| bit(data.vcan_post_stories(), Flag::PostStories)
+		| bit(data.vcan_edit_stories(), Flag::EditStories)
+		| bit(data.vcan_delete_stories(), Flag::DeleteStories)
+		| bit(data.vcan_invite_users(), Flag::InviteByLinkOrAdd)
+		| bit(data.vcan_manage_video_chats(), Flag::ManageCall)
+		| bit(data.vcan_pin_messages(), Flag::PinMessages)
+		| bit(data.vcan_promote_members(), Flag::AddAdmins)
+		| bit(data.vcan_restrict_members(), Flag::BanUsers)
+		| bit(data.vis_anonymous(), Flag::Anonymous);
+}
+
 ChatAdminRightsInfo::ChatAdminRightsInfo(
 		const Tdb::TLchatMemberStatus &status) {
 	const auto empty = ChatAdminRights(0);
 	status.match([&](const Tdb::TLDchatMemberStatusAdministrator &data) {
-		using Flag = ChatAdminRight;
-		const auto &rights = data.vrights().data();
-		flags = empty
-			| (rights.vcan_change_info().v ? Flag::ChangeInfo : empty)
-			| (rights.vcan_post_messages().v ? Flag::PostMessages : empty)
-			| (rights.vcan_edit_messages().v ? Flag::EditMessages : empty)
-			| (rights.vcan_delete_messages().v ? Flag::DeleteMessages : empty)
-			| (rights.vcan_restrict_members().v ? Flag::BanUsers : empty)
-			| (rights.vcan_invite_users().v ? Flag::InviteByLinkOrAdd : empty)
-			| (rights.vcan_pin_messages().v ? Flag::PinMessages : empty)
-			| (rights.vcan_promote_members().v ? Flag::AddAdmins : empty)
-			| (rights.vis_anonymous().v ? Flag::Anonymous : empty)
-			| (rights.vcan_manage_video_chats().v ? Flag::ManageCall : empty)
-			| (rights.vcan_manage_chat().v ? Flag::Other : empty);
+		flags = AdminRightsFromChatAdministratorRights(data.vrights());
 	}, [&](const Tdb::TLDchatMemberStatusCreator &data) {
 		_creator = true;
 		flags = ChatAdminRight::ChangeInfo
@@ -109,6 +141,9 @@ Tdb::TLchatMemberStatus ChatAdminRightsInfo::ToTL(
 			Tdb::tl_bool(rights.flags & ChatAdminRight::ManageTopics),
 			Tdb::tl_bool(rights.flags & ChatAdminRight::AddAdmins),
 			Tdb::tl_bool(rights.flags & ChatAdminRight::ManageCall),
+			Tdb::tl_bool(rights.flags & ChatAdminRight::PostStories),
+			Tdb::tl_bool(rights.flags & ChatAdminRight::EditStories),
+			Tdb::tl_bool(rights.flags & ChatAdminRight::DeleteStories),
 			Tdb::tl_bool(rights.flags & ChatAdminRight::Anonymous)));
 }
 
@@ -116,23 +151,7 @@ ChatRestrictionsInfo::ChatRestrictionsInfo(
 		const Tdb::TLchatMemberStatus &status) {
 	status.match([&](const Tdb::TLDchatMemberStatusRestricted &status) {
 		until = status.vrestricted_until_date().v;
-		const auto &data = status.vpermissions().data();
-		const auto empty = ChatRestrictions(0);
-		using Flag = ChatRestriction;
-		flags = empty
-			| (data.vcan_send_messages().v ? Flag::SendMessages : empty)
-			| (data.vcan_send_media_messages().v ? Flag::SendMedia : empty)
-			| (data.vcan_send_other_messages().v
-				? (Flag::SendStickers
-					| Flag::SendGifs
-					| Flag::SendInline
-					| Flag::SendGames)
-				: empty)
-			| (data.vcan_add_web_page_previews().v ? Flag::EmbedLinks : empty)
-			| (data.vcan_send_polls().v ? Flag::SendPolls : empty)
-			| (data.vcan_change_info().v ? Flag::ChangeInfo : empty)
-			| (data.vcan_invite_users().v ? Flag::AddParticipants : empty)
-			| (data.vcan_pin_messages().v ? Flag::PinMessages : empty);
+		flags = RestrictionsFromPermissions(status.vpermissions());
 	}, [&](const Tdb::TLDchatMemberStatusBanned &data) {
 #if 0 // doLater Check if it's an user.
 #endif

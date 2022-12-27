@@ -131,50 +131,9 @@ void CheckForSwitchInlineButton(not_null<HistoryItem*> item) {
 	}
 }
 
-[[nodiscard]] ChatRestrictions RestrictionsFromPermissions(
-		const TLchatPermissions &permissions) {
-	const auto &data = permissions.data();
-	using Flag = ChatRestriction;
-	const auto bit = [&](const TLbool &check, Flag value) {
-		return check.v ? Flag(0) : value;
-	};
-	return Flag(0)
-		| bit(data.vcan_add_web_page_previews(), Flag::EmbedLinks)
-		| bit(data.vcan_change_info(), Flag::ChangeInfo)
-		| bit(data.vcan_invite_users(), Flag::AddParticipants)
-		| bit(data.vcan_pin_messages(), Flag::PinMessages)
-		| bit(data.vcan_send_media_messages(), Flag::SendMedia)
-		| bit(data.vcan_send_messages(), Flag::SendMessages)
-		| bit(data.vcan_send_polls(), Flag::SendPolls)
-		| bit(data.vcan_send_other_messages(), Flag::SendStickers)
-		| bit(data.vcan_send_other_messages(), Flag::SendGames)
-		| bit(data.vcan_send_other_messages(), Flag::SendGifs)
-		| bit(data.vcan_send_other_messages(), Flag::SendInline);
-}
-
-[[nodiscard]] ChatAdminRights AdminRightsFromChatAdministratorRights(
-		const TLDchatAdministratorRights &data) {
-	using Flag = ChatAdminRight;
-	const auto bit = [&](const TLbool &check, Flag value) {
-		return check.v ? value : Flag(0);
-	};
-	return Flag(0)
-		| bit(data.vcan_manage_chat(), Flag::Other)
-		| bit(data.vcan_change_info(), Flag::ChangeInfo)
-		| bit(data.vcan_delete_messages(), Flag::DeleteMessages)
-		| bit(data.vcan_edit_messages(), Flag::EditMessages)
-		| bit(data.vcan_invite_users(), Flag::InviteByLinkOrAdd)
-		| bit(data.vcan_manage_video_chats(), Flag::ManageCall)
-		| bit(data.vcan_pin_messages(), Flag::PinMessages)
-		| bit(data.vcan_post_messages(), Flag::PostMessages)
-		| bit(data.vcan_promote_members(), Flag::AddAdmins)
-		| bit(data.vcan_restrict_members(), Flag::BanUsers)
-		| bit(data.vis_anonymous(), Flag::Anonymous);
-}
-
 [[nodiscard]] ChatAdminRights AdminRightsFromChatMemberStatus(
 		const TLDchatMemberStatusAdministrator &data) {
-	return AdminRightsFromChatAdministratorRights(data.vrights().data());
+	return AdminRightsFromChatAdministratorRights(data.vrights());
 }
 
 #if 0 // mtp

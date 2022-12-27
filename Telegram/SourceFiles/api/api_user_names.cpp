@@ -323,13 +323,17 @@ Data::Usernames Usernames::FromTL(const Tdb::TLusernames *usernames) {
 				.editable = (active.v == editable),
 			});
 		}
-		for (const auto &inactive : data->vactive_usernames().v) {
+		for (const auto &inactive : data->vdisabled_usernames().v) {
 			result.push_back({
 				.username = inactive.v,
 				.active = false,
 				.editable = (inactive.v == editable),
 			});
 		}
+	}
+	if (result.size() == 1 && result.front().editable) {
+		// We return non empty only if there is at least one non-editable.
+		return {};
 	}
 	return result;
 }

@@ -101,9 +101,11 @@ CallId GroupCall::id() const {
 	return _id;
 }
 
+#if 0 // mtp
 bool GroupCall::loaded() const {
 	return _version > 0;
 }
+#endif
 
 bool GroupCall::rtmp() const {
 	return _rtmp;
