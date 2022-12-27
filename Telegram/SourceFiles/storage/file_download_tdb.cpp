@@ -196,11 +196,11 @@ int64 TdbFileLoader::currentOffset() const {
 }
 
 Storage::Cache::Key TdbFileLoader::cacheKey() const {
-	return {}; // todo file.id is not persistent across relaunches.
+	return {}; // tdlib encrypted local file storage
 }
 
 std::optional<MediaKey> TdbFileLoader::fileLocationKey() const {
-	return {}; // todo file.id is not persistent across relaunches.
+	return {}; // tdlib encrypted local file storage
 }
 
 void TdbFileLoader::cancelRequest() {
