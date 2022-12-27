@@ -177,6 +177,7 @@ void CheckForSwitchInlineButton(not_null<HistoryItem*> item) {
 	return AdminRightsFromChatAdministratorRights(data.vrights().data());
 }
 
+#if 0 // mtp
 [[nodiscard]] InlineImageLocation FindInlineThumbnail(
 		const QVector<MTPPhotoSize> &sizes) {
 	const auto i = ranges::find(
@@ -257,6 +258,7 @@ void CheckForSwitchInlineButton(not_null<HistoryItem*> item) {
 			0.,
 			double(std::numeric_limits<int>::max())));
 }
+#endif
 
 } // namespace
 
@@ -1177,7 +1179,8 @@ not_null<UserData*> Session::processUser(const TLuser &user) {
 	} else {
 		result->clearPhoto();
 	}
-	result->setUnavailableReasons({}); // todo
+	result->setUnavailableReasons(
+		Data::UnavailableReason::Extract(data.vrestriction_reason()));
 
 	data.vtype().match([&](const TLDuserTypeRegular &) {
 		result->setFlags(result->flags() & ~UserDataFlag::Deleted);
@@ -1315,7 +1318,7 @@ not_null<PeerData*> Session::processPeer(const TLchat &dialog) {
 			chat->setGroupCallDefaultJoinAs(as);
 		}
 		const auto setFlags = Flag::CallNotEmpty | Flag::NoForwards;
-		chat->setFlags((chat->flags() & ~setFlags) // todo ?
+		chat->setFlags((chat->flags() & ~setFlags)
 			| (videoChat.vhas_participants().v
 				? Flag::CallNotEmpty
 				: Flag())
@@ -1363,7 +1366,7 @@ not_null<PeerData*> Session::processPeer(const TLchat &dialog) {
 			channel->setGroupCallDefaultJoinAs(as);
 		}
 		const auto setFlags = Flag::CallNotEmpty | Flag::NoForwards;
-		channel->setFlags((channel->flags() & ~setFlags) // todo ?
+		channel->setFlags((channel->flags() & ~setFlags)
 			| (videoChat.vhas_participants().v
 				? Flag::CallNotEmpty
 				: Flag())
@@ -1412,10 +1415,8 @@ not_null<ChatData*> Session::processChat(const TLbasicGroup &chat) {
 		result->setAdminRights(data.vis_anonymous().v
 			? ChatAdminRight::Anonymous
 			: ChatAdminRight());
-		//data.vcustom_title().v; // todo
 	}, [&](const TLDchatMemberStatusAdministrator &data) {
 		result->setAdminRights(AdminRightsFromChatMemberStatus(data));
-		//data.vcustom_title().v; // todo
 	}, [&](const TLDchatMemberStatusMember &data) {
 		result->setAdminRights(ChatAdminRights());
 	}, [&](const TLDchatMemberStatusRestricted &data) {
@@ -1481,7 +1482,10 @@ not_null<ChannelData*> Session::processChannel(
 			? Flag::Creator
 			: Flag())
 		| (data.vis_forum().v ? Flag::Forum : Flag());
-	//data.vrestriction_reason(); // todo
+
+	result->setUnavailableReasons(
+		Data::UnavailableReason::Extract(data.vrestriction_reason()));
+
 	data.vstatus().match([&](const TLDchatMemberStatusCreator &data) {
 		if (!data.vis_member().v) {
 			flags |= Flag::Left;
@@ -1490,7 +1494,7 @@ not_null<ChannelData*> Session::processChannel(
 			? ChatAdminRight::Anonymous
 			: ChatAdminRight());
 		result->setRestrictions(ChatRestrictionsInfo());
-		//data.vcustom_title().v; // todo
+		// custom_title is not set here, so ignored.
 	}, [&](const TLDchatMemberStatusAdministrator &data) {
 		using Flag = ChatAdminRight;
 		const auto bit = [&](const TLbool &check, Flag value) {
@@ -1498,7 +1502,7 @@ not_null<ChannelData*> Session::processChannel(
 		};
 		result->setAdminRights(AdminRightsFromChatMemberStatus(data));
 		result->setRestrictions(ChatRestrictionsInfo());
-		//data.vcustom_title().v; // todo
+		// custom_title is not set here, so ignored.
 	}, [&](const TLDchatMemberStatusMember &data) {
 		result->setAdminRights(ChatAdminRights());
 		result->setRestrictions(ChatRestrictionsInfo());

@@ -111,6 +111,15 @@ bool UnavailableReason::IgnoreSensitiveMark(
 			UnavailableReason::Sensitive().reason);
 }
 
+[[nodiscard]] std::vector<UnavailableReason> UnavailableReason::Extract(
+		const TLstring &restriction) {
+	if (restriction.v.isEmpty()) {
+		return {};
+	}
+	return { { u"tdlib"_q, restriction.v } };
+}
+
+#if 0 // mtp
 // We should get a full restriction in "{full}: {reason}" format and we
 // need to find an "-all" tag in {full}, otherwise ignore this restriction.
 std::vector<UnavailableReason> UnavailableReason::Extract(
@@ -138,7 +147,6 @@ std::vector<UnavailableReason> UnavailableReason::Extract(
 	}) | ranges::to_vector;
 }
 
-#if 0 // mtp
 bool ApplyBotMenuButton(
 		not_null<BotInfo*> info,
 		const MTPBotMenuButton *button) {
