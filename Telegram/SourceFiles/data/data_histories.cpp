@@ -437,7 +437,11 @@ void Histories::changeDialogUnreadMark(
 		bool unread) {
 	history->setUnreadMark(unread);
 
-#if 0 // todo
+	session().sender().request(TLtoggleChatIsMarkedAsUnread(
+		peerToTdbChat(history->peer->id),
+		tl_bool(unread)
+	)).send();
+#if 0 // mtp
 	using Flag = MTPmessages_MarkDialogUnread::Flag;
 	session().api().request(MTPmessages_MarkDialogUnread(
 		MTP_flags(unread ? Flag::f_unread : Flag(0)),
@@ -780,10 +784,7 @@ void Histories::deleteAllMessages(
 			|| (channel && channel->canDelete()))) {
 		session().sender().request(TLdeleteChat(
 			peerToTdbChat(peer->id)
-		)).fail([=](const Error &error) {
-			//if (error.type() == qstr("CHANNEL_TOO_LARGE")) { // todo
-			//if (error.type() == qstr("PEER_ID_INVALID")) { // todo
-		}).send();
+		)).send();
 	} else {
 		session().sender().request(TLdeleteChatHistory(
 			peerToTdbChat(peer->id),
