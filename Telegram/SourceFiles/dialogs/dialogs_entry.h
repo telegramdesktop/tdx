@@ -254,7 +254,7 @@ public:
 		Ui::PeerUserpicView &view,
 		const Ui::PaintContext &context) const = 0;
 
-	// later-todo won't be needed when tdlib manages topics
+	// tdlib later won't be needed when tdlib manages topics
 	[[nodiscard]] TimeId chatListTimeId() const {
 		return _timeId;
 	}
@@ -306,7 +306,7 @@ private:
 	mutable Ui::PeerBadge _chatListPeerBadge;
 	mutable Ui::Text::String _chatListNameText;
 	mutable int _chatListNameVersion = 0;
-	// later-todo won't be needed when tdlib manages topics
+	// tdlib won't be needed when tdlib manages topics
 	TimeId _timeId = 0;
 	Flags _flags;
 

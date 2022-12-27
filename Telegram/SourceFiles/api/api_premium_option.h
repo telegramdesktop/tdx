@@ -51,7 +51,7 @@ template<typename Option>
 		const auto currency = qs(option.vcurrency());
 #endif
 		const auto lnk = option.vpayment_link();
-		const auto botUrl = !lnk // later todo internalLink types.
+		const auto botUrl = !lnk // later internalLink types.
 			? QString()
 			: (lnk->type() == Tdb::id_internalLinkTypeInvoice)
 			? ("https://t.me/$"

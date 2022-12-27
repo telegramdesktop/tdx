@@ -2909,7 +2909,7 @@ void Updates::applyUpdate(const TLupdate &update) {
 			peer->setIsBlocked(data.vis_blocked().v);
 		}
 	}, [&](const TLDupdateChatHasScheduledMessages &data) {
-		// later-todo optimization
+		// later optimization
 	}, [&](const TLDupdateChatVideoChat &data) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
 		const auto callId = data.vvideo_chat().data().vgroup_call_id().v;
@@ -3036,7 +3036,7 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateChatFilters &data) {
 		owner.chatsFilters().apply(data);
 	}, [&](const TLDupdateChatOnlineMemberCount &data) {
-		// later-todo online count for all chats
+		// later online count for all chats
 	}, [&](const TLDupdateNotification &data) {
 	}, [&](const TLDupdateNotificationGroup &data) {
 	}, [&](const TLDupdateActiveNotifications &data) {
@@ -3114,7 +3114,7 @@ void Updates::applyUpdate(const TLupdate &update) {
 			const auto list = owner.folder(Data::Folder::kId)->chatsList();
 			list->updateCloudUnread(data);
 		}, [&](const TLDchatListFilter &data) {
-			// later-todo use tdlib counters
+			// later use tdlib counters
 		});
 	}, [&](const TLDupdateUnreadChatCount &data) {
 		data.vchat_list().match([&](const TLDchatListMain &) {
@@ -3122,7 +3122,7 @@ void Updates::applyUpdate(const TLupdate &update) {
 		}, [&](const TLDchatListArchive &) {
 			owner.folder(Data::Folder::kId)->applyDialog(data);
 		}, [&](const TLDchatListFilter &data) {
-			// later-todo use tdlib counters
+			// later use tdlib counters
 		});
 	}, [&](const TLDupdateOption &data) {
 		if (session().apply(data)) {
