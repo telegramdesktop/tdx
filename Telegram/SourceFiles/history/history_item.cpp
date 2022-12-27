@@ -3028,7 +3028,7 @@ void HistoryItem::applyTTL(const TLDmessage &data) {
 			}
 			return false;
 		});
-		if (!isSecret) { // later apply correct field for secret as well.
+		if (!isSecret) { // tdlib apply correct field for secret as well.
 			applyTTL(MessageDateFromTdb(data) + period);
 		}
 	}

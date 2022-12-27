@@ -713,7 +713,7 @@ void Stickers::apply(const TLDupdateStickerSet &data) {
 }
 
 void Stickers::apply(const TLDupdateInstalledStickerSets &data) {
-	// later todo optimize in case all sets are already known
+	// later optimize in case all sets are already known
 	const auto type = data.vsticker_type().match([&](
 			const TLDstickerTypeCustomEmoji &) {
 		//setLastEmojiUpdate(crl::now());
@@ -746,7 +746,7 @@ void Stickers::apply(const TLDupdateTrendingStickerSets &data) {
 }
 
 void Stickers::apply(const TLDupdateRecentStickers &data) {
-	// later todo optimize in case all stickers are already known
+	// later optimize in case all stickers are already known
 	//if (data.vis_attached().v) {
 	//	setLastRecentAttachedUpdate(crl::now());
 	//} else {
@@ -762,7 +762,7 @@ void Stickers::apply(const TLDupdateRecentStickers &data) {
 }
 
 void Stickers::apply(const TLDupdateFavoriteStickers &data) {
-	// later todo optimize in case all stickers are already known
+	// later optimize in case all stickers are already known
 	//setLastFavedUpdate(crl::now());
 	//specialSetReceived(
 	//	Data::Stickers::FavedSetId,
@@ -773,7 +773,7 @@ void Stickers::apply(const TLDupdateFavoriteStickers &data) {
 }
 
 void Stickers::apply(const TLDupdateSavedAnimations &data) {
-	// later todo optimize in case all gifs are already known
+	// later optimize in case all gifs are already known
 	//setLastSavedGifsUpdate(crl::now());
 	//gifsReceived(data.vanimation_ids().v);
 	setLastSavedGifsUpdate(0);
