@@ -12,17 +12,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Tdb {
 
 QString FormatPhone(const QString &phone) {
+	if (phone.isEmpty()) {
+		return {};
+	}
 	const auto result = Execute(TLgetPhoneNumberInfoSync(
 		tl_string(),
 		tl_string(phone)
 	));
-	if (!result.has_value()) {
-		return phone;
-	} else {
-		return QString("+%1 %2")
-			.arg(result->data().vcountry_calling_code().v)
-			.arg(result->data().vformatted_phone_number().v);
-	}
+	const auto fields = result ? &result->data() : nullptr;
+	const auto code = fields ? fields->vcountry_calling_code().v : u""_q;
+	const auto rest = fields ? fields->vformatted_phone_number().v : u""_q;
+	return (code.isEmpty() && rest.isEmpty())
+		? phone
+		: u"+%1 %2"_q.arg(code).arg(rest);
 }
 
 // doLater Refuse to use "groups".
