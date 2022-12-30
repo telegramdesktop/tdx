@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "tdb/tdb_sender.h"
 
+enum class PremiumPreview;
+
 class ApiWrap;
 
 namespace Main {
@@ -30,7 +32,10 @@ public:
 	[[nodiscard]] rpl::producer<TextWithEntities> statusTextValue() const;
 
 	[[nodiscard]] auto videos() const
+		-> const base::flat_map<PremiumPreview, not_null<DocumentData*>> &;
+#if 0 // mtp
 		-> const base::flat_map<QString, not_null<DocumentData*>> &;
+#endif
 	[[nodiscard]] rpl::producer<> videosUpdated() const;
 
 	[[nodiscard]] auto stickers() const
@@ -62,7 +67,10 @@ private:
 	std::optional<TextWithEntities> _statusText;
 	rpl::event_stream<TextWithEntities> _statusTextUpdates;
 
+#if 0 // mtp
 	base::flat_map<QString, not_null<DocumentData*>> _videos;
+#endif
+	base::flat_map<PremiumPreview, not_null<DocumentData*>> _videos;
 	rpl::event_stream<> _videosUpdated;
 
 	mtpRequestId _stickersRequestId = 0;
