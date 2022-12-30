@@ -195,6 +195,7 @@ void SignupWidget::submit() {
 
 		_firstName = _first->getLastText().trimmed();
 		_lastName = _last->getLastText().trimmed();
+		getData()->chosenPhoto = _photo->takeResultImage();
 
 		_sentRequest = true;
 		api().request(TLregisterUser(
