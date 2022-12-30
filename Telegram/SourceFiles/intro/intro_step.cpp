@@ -225,7 +225,6 @@ void Step::jumpByState(const TLauthorizationState &state) {
 	}, [&](const TLDauthorizationStateWaitPassword &) {
 		go(StepType::Password);
 	}, [&](const TLDauthorizationStateReady &) {
-		finish();
 	}, [&](const TLDauthorizationStateLoggingOut &) {
 	}, [&](const TLDauthorizationStateClosing &) {
 	}, [&](const TLDauthorizationStateClosed &) {
@@ -236,15 +235,15 @@ void Step::jumpByState(const TLauthorizationState &state) {
 	});
 }
 
-void Step::finish(QImage &&photo) {
+void Step::filtersReceived() {
 	api().request(TLgetMe()).done([=](const TLuser &result) {
-		finish(result, photo);
+		finish(result);
 	}).fail([=](const Error &error) {
 		const auto &type = error.message;
 	}).send();
 }
 
-void Step::finish(const TLuser &self, QImage photo) {
+void Step::finish(const TLuser &self) {
 	self.match([&](const TLDuser &data) {
 		// Check if such account is authorized already.
 		for (const auto &[_, existing] : Core::App().domain().accounts()) {
@@ -261,9 +260,9 @@ void Step::finish(const TLuser &self, QImage photo) {
 			}
 		}
 	});
-	createSession(self, photo, {});
+	createSession(self);
 
-#if 0 // todo
+#if 0 // mtp
 	api().request(MTPmessages_GetDialogFilters(
 	)).done([=](const MTPmessages_DialogFilters &result) {
 		createSession(user, photo, result.data().vfilters().v);
@@ -318,10 +317,7 @@ void Step::createSession(
 }
 #endif
 
-void Step::createSession(
-		const TLuser &self,
-		QImage photo,
-		const QVector<TLchatFilter> &filters) {
+void Step::createSession(const TLuser &self) {
 	// Save the default language if we've suggested some other and user ignored it.
 	const auto currentId = Lang::Id();
 	const auto defaultId = Lang::DefaultLanguageId();
@@ -331,8 +327,13 @@ void Step::createSession(
 		Local::writeLangPack();
 	}
 
+	auto photo = getData()->chosenPhoto;
+	const auto filtersUpdate = getData()->filtersUpdate;
+	const auto &filters = filtersUpdate->c_updateChatFilters();
+	const auto hasFilters = !filters.vchat_filters().v.empty();
+
 	auto settings = std::make_unique<Main::SessionSettings>();
-	settings->setDialogsFiltersEnabled(!filters.isEmpty());
+	settings->setDialogsFiltersEnabled(hasFilters);
 
 	const auto account = _account;
 	account->createSession(self, std::move(settings));
@@ -341,7 +342,8 @@ void Step::createSession(
 	account->local().writeMtpData();
 	auto &session = account->session();
 	//session.data().chatsFilters().setPreloaded(filters); // todo
-	if (!filters.isEmpty()) {
+	if (hasFilters) {
+		session.data().chatsFilters().apply(filters);
 		session.saveSettingsDelayed();
 	}
 	if (!photo.isNull()) {

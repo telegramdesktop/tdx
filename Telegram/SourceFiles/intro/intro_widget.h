@@ -60,6 +60,9 @@ struct Data {
 	QByteArray phoneHash;
 #endif
 	bool madeInitialJumpToStep = false;
+	bool waitingForFilters = false;
+	std::shared_ptr<Tdb::TLupdate> filtersUpdate;
+	QImage chosenPhoto;
 	QString pwdEmailPattern;
 
 	CallStatus callStatus = CallStatus::Disabled;

@@ -115,6 +115,7 @@ public:
 
 	virtual bool applyState(const Tdb::TLauthorizationState &state) = 0;
 	void jumpByState(const Tdb::TLauthorizationState &state);
+	void filtersReceived();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -181,8 +182,6 @@ protected:
 
 	virtual int errorTop() const;
 
-	void finish(QImage &&photo = QImage());
-
 private:
 	struct CoverAnimation {
 		CoverAnimation() = default;
@@ -220,11 +219,8 @@ private:
 	void prepareCoverMask();
 	void paintCover(QPainter &p, int top);
 
-	void finish(const Tdb::TLuser &self, QImage photo);
-	void createSession(
-		const Tdb::TLuser &user,
-		QImage photo,
-		const QVector<Tdb::TLchatFilter> &filters);
+	void finish(const Tdb::TLuser &self);
+	void createSession(const Tdb::TLuser &user);
 
 	const not_null<Main::Account*> _account;
 	const not_null<Data*> _data;
