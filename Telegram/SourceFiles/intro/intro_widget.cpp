@@ -273,6 +273,11 @@ void Widget::handleUpdate(const MTPUpdate &update) {
 void Widget::handleUpdate(const TLupdate &update) {
 	update.match([&](const TLDupdateAuthorizationState &data) {
 		handleAuthorizationState(data.vauthorization_state());
+	}, [&](const TLDupdateChatFilters &data) {
+		if (getData()->waitingForFilters) {
+			getData()->filtersUpdate = std::make_shared<TLupdate>(update);
+			getStep()->filtersReceived();
+		}
 	}, [](const auto &) {
 	});
 }
@@ -296,6 +301,7 @@ void Widget::handleAuthorizationState(const TLauthorizationState &state) {
 			= data.vrecovery_email_address_pattern().v;
 		getData()->pwdState.notEmptyPassport = data.vhas_passport_data().v;
 	}, [&](const TLDauthorizationStateReady &) {
+		getData()->waitingForFilters = true;
 	}, [&](const TLDauthorizationStateLoggingOut &) {
 	}, [&](const TLDauthorizationStateClosing &) {
 	}, [&](const TLDauthorizationStateClosed &) {
