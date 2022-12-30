@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_location.h"
 
 namespace Tdb {
+class TLfile;
 class TLdocument;
 class TLvideo;
 class TLaudio;
@@ -400,7 +401,7 @@ private:
 	void updateThumbnails(
 		const Tdb::TLminithumbnail *inlineThumbnail,
 		const Tdb::TLthumbnail *thumbnail,
-		bool isPremiumSticker);
+		const Tdb::TLfile *premiumStickerAnimation);
 	void setTdbLocation(const Tdb::TLfile &file);
 
 	const not_null<Data::Session*> _owner;
