@@ -25,6 +25,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 
 #include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+#include "boxes/premium_preview_box.h"
 
 namespace Api {
 namespace {
@@ -61,6 +63,39 @@ using namespace Tdb;
 	return options;
 }
 
+[[nodiscard]] PremiumPreview PreviewFromFeature(
+		const TLpremiumFeature &feature) {
+	return feature.match([](const TLDpremiumFeatureIncreasedLimits &) {
+		return PremiumPreview::kCount;
+	}, [](const TLDpremiumFeatureIncreasedUploadFileSize &) {
+		return PremiumPreview::MoreUpload;
+	}, [](const TLDpremiumFeatureImprovedDownloadSpeed &) {
+		return PremiumPreview::FasterDownload;
+	}, [](const TLDpremiumFeatureVoiceRecognition &) {
+		return PremiumPreview::VoiceToText;
+	}, [](const TLDpremiumFeatureDisabledAds &) {
+		return PremiumPreview::NoAds;
+	}, [](const TLDpremiumFeatureUniqueReactions &) {
+		return PremiumPreview::InfiniteReactions;
+	}, [](const TLDpremiumFeatureUniqueStickers &) {
+		return PremiumPreview::Stickers;
+	}, [](const TLDpremiumFeatureCustomEmoji &) {
+		return PremiumPreview::AnimatedEmoji;
+	}, [](const TLDpremiumFeatureAdvancedChatManagement &) {
+		return PremiumPreview::AdvancedChatManagement;
+	}, [](const TLDpremiumFeatureProfileBadge &) {
+		return PremiumPreview::ProfileBadge;
+	}, [](const TLDpremiumFeatureEmojiStatus &) {
+		return PremiumPreview::EmojiStatus;
+	}, [](const TLDpremiumFeatureAnimatedProfilePhoto &) {
+		return PremiumPreview::AnimatedUserpics;
+	}, [](const TLDpremiumFeatureForumTopicIcon &) {
+		return PremiumPreview::kCount;
+	}, [](const TLDpremiumFeatureAppIcons &) {
+		return PremiumPreview::kCount;
+	});
+}
+
 } // namespace
 
 Premium::Premium(not_null<ApiWrap*> api)
@@ -86,7 +121,10 @@ rpl::producer<TextWithEntities> Premium::statusTextValue() const {
 }
 
 auto Premium::videos() const
+-> const base::flat_map<PremiumPreview, not_null<DocumentData*>> & {
+#if 0 // mtp
 -> const base::flat_map<QString, not_null<DocumentData*>> & {
+#endif
 	return _videos;
 }
 
@@ -141,7 +179,49 @@ void Premium::reloadPromo() {
 	if (_promoRequestId) {
 		return;
 	}
-#if 0 // todo
+	_promoRequestId = _api.request(TLgetPremiumState(
+	)).done([=](const TLDpremiumState &data) {
+		_promoRequestId = 0;
+
+		_subscriptionOptions = SubscriptionOptionsFromTL(
+			data.vpayment_options().v);
+		for (const auto &option : data.vpayment_options().v) {
+			if (option.data().vmonth_count().v == 1) {
+				_monthlyAmount = option.data().vamount().v;
+				_monthlyCurrency = option.data().vcurrency().v;
+			}
+		}
+
+		auto text = TextWithEntities{
+			data.vstate().data().vtext().v,
+			EntitiesFromTdb(data.vstate().data().ventities().v),
+		};
+		_statusText = text;
+		_statusTextUpdates.fire(std::move(text));
+		auto videos = base::flat_map<
+			PremiumPreview,
+			not_null<DocumentData*>>();
+		videos.reserve(data.vanimations().v.size());
+		for (const auto &single : data.vanimations().v) {
+			const auto document = _session->data().processDocument(
+				single.data().vanimation());
+			if ((!document->isVideoFile() && !document->isGifv())
+				|| !document->supportsStreaming()) {
+				document->forceIsStreamedAnimation();
+			}
+			const auto type = PreviewFromFeature(single.data().vfeature());
+			if (type != PremiumPreview::kCount) {
+				videos.emplace(type, document);
+			}
+		}
+		if (_videos != videos) {
+			_videos = std::move(videos);
+			_videosUpdated.fire({});
+		}
+	}).fail([=] {
+		_promoRequestId = 0;
+	}).send();
+#if 0 // mtp
 	_promoRequestId = _api.request(MTPhelp_GetPremiumPromo(
 	)).done([=](const MTPhelp_PremiumPromo &result) {
 		_promoRequestId = 0;
@@ -192,7 +272,24 @@ void Premium::reloadStickers() {
 	if (_stickersRequestId) {
 		return;
 	}
-#if 0 // todo
+	_stickersRequestId = _api.request(TLgetPremiumStickerExamples(
+	)).done([=](const TLDstickers &result) {
+		_stickersRequestId = 0;
+		const auto &list = result.vstickers().v;
+		const auto owner = &_session->data();
+		_stickers.clear();
+		_stickers.reserve(list.size());
+		for (const auto &sticker : list) {
+			const auto document = owner->processDocument(sticker);
+			if (document->isPremiumSticker()) {
+				_stickers.push_back(document);
+			}
+		}
+		_stickersUpdated.fire({});
+	}).fail([=] {
+		_stickersRequestId = 0;
+	}).send();
+#if 0 // mtp
 	_stickersRequestId = _api.request(MTPmessages_GetStickers(
 		MTP_string("\xe2\xad\x90\xef\xb8\x8f\xe2\xad\x90\xef\xb8\x8f"),
 		MTP_long(_stickersHash)
@@ -232,6 +329,7 @@ void Premium::reloadCloudSet() {
 			_cloudSetHash = data.vhash().v;
 #endif
 	_cloudSetRequestId = _api.request(TLgetPremiumStickers(
+		tl_int32(100)
 	)).done([=](const TLDstickers &data) {
 		_cloudSetRequestId = 0;
 		const auto owner = &_session->data();

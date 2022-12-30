@@ -547,7 +547,10 @@ struct VideoPreviewDocument {
 		return "";
 	}();
 	const auto &videos = session->api().premium().videos();
+#if 0 // mtp
 	const auto i = videos.find(name);
+#endif
+	const auto i = videos.find(section);
 	return (i != end(videos)) ? i->second.get() : nullptr;
 }
 
