@@ -52,25 +52,27 @@ PeerId GenerateUser(not_null<History*> history, const QString &name) {
 	history->owner().processUser(Tdb::tl_user(
 		peerToTdbChat(peerId),
 		Tdb::tl_string(tr::lng_settings_chat_message_reply_from(tr::now)),
-		Tdb::TLstring(), // last_name_
-		std::nullopt, // usernames_
-		Tdb::TLstring(), // phone_number_
-		Tdb::tl_userStatusEmpty(), // status_
-		Tdb::null, // profile_photo_
-		Tdb::null, // emoji_status_
-		Tdb::tl_bool(false), // is_contact_
-		Tdb::tl_bool(false), // is_mutual_contact_
-		Tdb::tl_bool(false), // is_verified_
-		Tdb::tl_bool(false), // is_premium_
-		Tdb::tl_bool(false), // is_support_
-		Tdb::tl_bool(false), // has_anonymous_phone_number
-		Tdb::TLstring(), // restriction_reason_
-		Tdb::tl_bool(false), // is_scam_
-		Tdb::tl_bool(false), // is_fake_
-		Tdb::tl_bool(true), // have_access_
-		Tdb::tl_userTypeRegular(), // type_
-		Tdb::TLstring(), // language_code_
-		Tdb::tl_bool(false))); // added_to_attachment_menu_
+		Tdb::TLstring(), // last_name
+		std::nullopt, // usernames
+		Tdb::TLstring(), // phone_number
+		Tdb::tl_userStatusEmpty(), // status
+		Tdb::null, // profile_photo
+		Tdb::null, // emoji_status
+		Tdb::tl_bool(false), // is_contact
+		Tdb::tl_bool(false), // is_mutual_contact
+		Tdb::tl_bool(false), // is_close_friend
+		Tdb::tl_bool(false), // is_verified
+		Tdb::tl_bool(false), // is_premium
+		Tdb::tl_bool(false), // is_support
+		Tdb::TLstring(), // restriction_reason
+		Tdb::tl_bool(false), // is_scam
+		Tdb::tl_bool(false), // is_fake
+		Tdb::tl_bool(false), // has_active_stories
+		Tdb::tl_bool(false), // has_unread_active_stories
+		Tdb::tl_bool(true), // have_access
+		Tdb::tl_userTypeRegular(), // type
+		Tdb::TLstring(), // language_code
+		Tdb::tl_bool(false))); // added_to_attachment_menu
 #if 0 // goodToRemove
 	history->owner().processUser(MTP_user(
 		MTP_flags(MTPDuser::Flag::f_first_name | MTPDuser::Flag::f_min),

@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tdb/tdb_sender.h"
 
 namespace Tdb {
-class TLDmessages;
+class TLDfoundMessages;
 } // namespace Tdb
 
 namespace Window {
@@ -57,7 +57,7 @@ public:
 		not_null<PeerListRow*> row) override;
 
 private:
-	void receivedCalls(const Tdb::TLDmessages &messages);
+	void receivedCalls(const Tdb::TLDfoundMessages &messages);
 #if 0 // goodToRemove
 	void receivedCalls(const QVector<MTPMessage> &result);
 #endif
@@ -79,9 +79,10 @@ private:
 	Tdb::Sender _tdbApi;
 #if 0 // goodToRemove
 	MTP::Sender _api;
-#endif
 
 	MsgId _offsetId = 0;
+#endif
+	QString _offset;
 	int _loadRequestId = 0; // Not a real mtpRequestId.
 	bool _allLoaded = false;
 

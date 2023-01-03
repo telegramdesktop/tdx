@@ -366,8 +366,9 @@ AdminLog::OwnedItem GenerateContactItem(
 		tl_vector<TLunreadReaction>(), // unread_reactions
 		std::nullopt, // reply_to
 		tl_int53(0), // message_thread_id
-		tl_int32(0), // ttl
-		tl_double(0.), // ttl_expires_in
+		tl_int32(0), // self_destruct_time
+		tl_double(0), // self_destruct_in
+		tl_double(0), // auto_delete_in
 		tl_int53(0), // via_bot_user_id
 		tl_string(), // author_signature
 		tl_int64(0), // media_album_id

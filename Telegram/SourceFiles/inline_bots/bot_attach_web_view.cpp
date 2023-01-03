@@ -199,6 +199,7 @@ constexpr auto kRefreshBotsTimeout = 60 * 60 * crl::time(1000);
 			.inAttachMenu = data.vshow_in_attachment_menu().v,
 			.disclaimerRequired = data.vshow_disclaimer_in_side_menu().v,
 			.hasSettings = data.vsupports_settings().v,
+			.requestWriteAccess = data.vrequest_write_access().v,
 		} : std::optional<AttachWebViewBot>();
 }
 
@@ -1844,7 +1845,8 @@ void AttachWebView::toggleInMenu(
 		Fn<void()> callback) {
 	_session->sender().request(TLtoggleBotIsAddedToAttachmentMenu(
 		tl_int53(peerToUser(bot->id).bare),
-		tl_bool(state != ToggledState::Removed) // todo write_allowed
+		tl_bool(state != ToggledState::Removed),
+		tl_bool(state == ToggledState::AllowedToWrite)
 	)).done([=] {
 		if (callback) {
 			callback();
