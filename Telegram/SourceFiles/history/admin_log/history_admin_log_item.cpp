@@ -220,8 +220,9 @@ Tdb::TLmessage PrepareLogMessage(
 		Tdb::tl_vector<Tdb::TLunreadReaction>(),
 		std::nullopt, // reply_to
 		Tdb::tl_int53(0), // message_thread_id
-		Tdb::tl_int32(0), // ttl
-		Tdb::tl_double(0), // ttl_expires_in
+		std::nullopt, // self_destruct_type
+		Tdb::tl_double(0), // self_destruct_in
+		Tdb::tl_double(0), // auto_delete_in
 		message.data().vvia_bot_user_id(),
 		message.data().vauthor_signature(),
 		Tdb::tl_int64(0), // media_album_id
@@ -233,24 +234,17 @@ Tdb::TLmessage PrepareLogMessage(
 }
 
 bool MediaCanHaveCaption(const Tdb::TLmessage &message) {
-	return message.data().vcontent().match([](const Tdb::TLDmessagePhoto &) {
-		return true;
-	}, [](const Tdb::TLDmessageDocument &) {
-		return true;
-	}, [](const Tdb::TLDmessageAudio &) {
-		return true;
-	}, [](const Tdb::TLDmessageAnimation &) {
-		return true;
-	}, [](const Tdb::TLDmessageExpiredPhoto &) {
-		return true;
-	}, [](const Tdb::TLDmessageVideo &) {
-		return true;
-	}, [](const Tdb::TLDmessageExpiredVideo &) {
-		return true;
-	}, [](const Tdb::TLDmessageVoiceNote &) {
-		return true;
-	}, [](const auto &) {
-		return false;
+	using namespace Tdb;
+	return message.data().vcontent().match([](const auto &data) {
+		using T = decltype(data);
+		return TLDmessagePhoto::Is<T>()
+			|| TLDmessageDocument::Is<T>()
+			|| TLDmessageAudio::Is<T>()
+			|| TLDmessageAnimation::Is<T>()
+			|| TLDmessageExpiredPhoto::Is<T>()
+			|| TLDmessageVideo::Is<T>()
+			|| TLDmessageExpiredVideo::Is<T>()
+			|| TLDmessageVoiceNote::Is<T>();
 	});
 }
 
@@ -991,7 +985,7 @@ void GenerateItems(
 	using LogInviteRevoke = TLDchatEventInviteLinkRevoked;
 	using LogInviteEdit = TLDchatEventInviteLinkEdited;
 	using LogVolume = TLDchatEventVideoChatParticipantVolumeLevelChanged;
-	using LogTTL = TLDchatEventMessageTtlChanged;
+	using LogTTL = TLDchatEventMessageAutoDeleteTimeChanged;
 	using LogJoinByRequest = TLDchatEventMemberJoinedByRequest;
 	using LogNoForwards = TLDchatEventHasProtectedContentToggled;
 	using LogChangeAvailableReactions = TLDchatEventAvailableReactionsChanged;
@@ -1001,7 +995,7 @@ void GenerateItems(
 	using LogEditTopic = TLDchatEventForumTopicEdited;
 	using LogDeleteTopic = TLDchatEventForumTopicDeleted;
 	using LogPinTopic = TLDchatEventForumTopicPinned;
-	using LogToggleAntiSpam = TLDchatEventIsAggressiveAntiSpamEnabledToggled;
+	using LogToggleAntiSpam = TLDchatEventHasAggressiveAntiSpamEnabledToggled;
 	using LogToggleTopicClosed = TLDchatEventForumTopicToggleIsClosed;
 	using LogToggleTopicHidden = TLDchatEventForumTopicToggleIsHidden;
 	using LogChangeColor = TLDchatEventAccentColorChanged;
@@ -1894,8 +1888,8 @@ void GenerateItems(
 		const auto was = data.vprev_value().v;
 		const auto now = data.vnew_value().v;
 #endif
-		const auto was = data.vold_message_ttl().v;
-		const auto now = data.vnew_message_ttl().v;
+		const auto was = data.vold_message_auto_delete_time().v;
+		const auto now = data.vnew_message_auto_delete_time().v;
 		const auto wrap = [](int duration) -> TextWithEntities {
 			const auto text = (duration == 5)
 				? u"5 seconds"_q
@@ -1936,6 +1930,8 @@ void GenerateItems(
 		const auto user = channel->owner().user(UserId(data.vapproved_by()));
 		const auto linkText = GenerateInviteLinkLink(data.vinvite());
 #endif
+		const auto user = channel->owner().user(
+			UserId(data.vapprover_user_id().v));
 		const auto linkText = GenerateInviteLinkLink(
 			data.vinvite_link()->data());
 		const auto text = (linkText.text == PublicJoinLink())
@@ -2334,7 +2330,7 @@ void GenerateItems(
 #if 0 // mtp
 		const auto enabled = (data.vnew_value().type() == mtpc_boolTrue);
 #endif
-		const auto enabled = data.vis_aggressive_anti_spam_enabled().v;
+		const auto enabled = data.vhas_aggressive_anti_spam_enabled().v;
 		const auto text = (enabled
 			? tr::lng_admin_log_antispam_enabled
 			: tr::lng_admin_log_antispam_disabled)(

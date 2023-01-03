@@ -100,8 +100,8 @@ base::options::toggle ShowPeerIdBelowAbout({
 			*requestId = sender->request(TLgetForumTopicLink(
 				peerToTdbChat(peer->id),
 				tl_int53(topicRootId.bare)
-			)).done([=](const TLDhttpUrl &result) {
-				consumer.put_next_copy(result.vurl().v);
+			)).done([=](const TLDmessageLink &result) {
+				consumer.put_next_copy(result.vlink().v);
 			}).fail([=] {
 				consumer.put_next(QString());
 			}).send();

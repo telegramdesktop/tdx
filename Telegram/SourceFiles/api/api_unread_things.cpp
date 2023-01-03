@@ -127,7 +127,7 @@ void UnreadThings::requestMentions(
 		tl_int32(limit),
 		tl_searchMessagesFilterUnreadMention(),
 		tl_int53(topic ? topic->rootId().bare : 0)
-	)).done([=](const TLDmessages &result) {
+	)).done([=](const TLDfoundChatMessages &result) {
 		_mentionsRequests.remove(thread);
 		thread->unreadMentions().addSlice(result, loaded);
 	}).fail([=] {
@@ -181,7 +181,7 @@ void UnreadThings::requestReactions(
 		tl_int32(limit),
 		tl_searchMessagesFilterUnreadReaction(),
 		tl_int53(topic ? topic->rootId().bare : 0)
-	)).done([=](const TLDmessages &result) {
+	)).done([=](const TLDfoundChatMessages &result) {
 		_reactionsRequests.remove(history);
 		history->unreadReactions().addSlice(result, loaded);
 	}).fail([=] {
