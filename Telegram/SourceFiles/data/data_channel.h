@@ -67,6 +67,9 @@ enum class ChannelDataFlag {
 	HasActiveStories = (1 << 27),
 	HasUnreadStories = (1 << 28),
 	CanGetStatistics = (1 << 29),
+
+	CanHideMembers = (1 << 30),
+	CanEnableAntiSpam = (1 << 31),
 };
 inline constexpr bool is_flag_type(ChannelDataFlag) { return true; };
 using ChannelDataFlags = base::flags<ChannelDataFlag>;

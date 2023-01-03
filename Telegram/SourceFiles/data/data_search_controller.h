@@ -18,7 +18,7 @@ class Session;
 } // namespace Main
 
 namespace Tdb {
-class TLmessages;
+class TLfoundChatMessages;
 class TLsearchChatMessages;
 } // namespace Tdb
 
@@ -39,7 +39,7 @@ using SearchRequest = MTPmessages_Search;
 using SearchRequestResult = MTPmessages_Messages;
 #endif
 using SearchRequest = Tdb::TLsearchChatMessages;
-using SearchRequestResult = Tdb::TLmessages;
+using SearchRequestResult = Tdb::TLfoundChatMessages;
 
 std::optional<SearchRequest> PrepareSearchRequest(
 	not_null<PeerData*> peer,

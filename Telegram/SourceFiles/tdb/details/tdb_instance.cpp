@@ -487,6 +487,9 @@ void Instance::Impl::reset() {
 void Instance::Impl::sendTdlibParameters() {
 	const auto fail = [=](Error error) {
 		LOG(("Critical Error: setTdlibParameters - %1").arg(error.message));
+		if (error.message == u"Wrong database encryption key"_q) {
+			// todo
+		}
 	};
 	//const auto fail = [=](Error error) {
 	//	LOG(("Critical Error: Invalid local key - %1").arg(error.message));

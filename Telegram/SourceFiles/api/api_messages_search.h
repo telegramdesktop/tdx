@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 namespace Tdb {
-class TLmessages;
+class TLfoundChatMessages;
 } // namespace Tdb
 
 class HistoryItem;
@@ -21,6 +21,7 @@ struct FoundMessages {
 	int total = -1;
 	MessageIdsList messages;
 	QString nextToken;
+	bool full = false;
 };
 
 class MessagesSearch final {
@@ -37,7 +38,7 @@ private:
 #if 0 // mtp
 	using TLMessages = MTPmessages_Messages;
 #endif
-	using TLMessages = Tdb::TLmessages;
+	using TLMessages = Tdb::TLfoundChatMessages;
 	void searchRequest();
 	void searchReceived(
 		const TLMessages &result,
@@ -54,6 +55,8 @@ private:
 
 	int _searchInHistoryRequest = 0; // Not real mtpRequestId.
 	mtpRequestId _requestId = 0;
+
+	bool _full = false;
 
 	rpl::event_stream<FoundMessages> _messagesFounds;
 
