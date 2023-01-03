@@ -19,7 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Tdb {
 class TLchats;
-class TLmessages;
+class TLfoundMessages;
+class TLfoundChatMessages;
 } // namespace Tdb
 
 namespace MTP {
@@ -176,10 +177,13 @@ private:
 	};
 	void searchReceived(
 		SearchRequestType type,
-		const Tdb::TLmessages &result);
+		const Tdb::TLfoundMessages &result);
 	void searchReceived(
 		SearchRequestType type,
-		const SearchSlice &result,
+		const Tdb::TLfoundChatMessages &result);
+	void searchReceived(
+		SearchRequestType type,
+		SearchSlice result,
 		int);
 	void peerSearchReceived(
 		const QString &query,
@@ -358,12 +362,15 @@ private:
 	int _searchInHistoryRequest = 0; // Not real mtpRequestId.
 	mtpRequestId _searchRequest = 0;
 
+	MsgId _nextSearchMessageId = 0;
+	MsgId _nextSearchMigratedMessageId = 0;
+	QString _nextSearchOffset;
+#if 0 // mtp
 	PeerData *_lastSearchPeer = nullptr;
 	MsgId _lastSearchId = 0;
 	MsgId _lastSearchMigratedId = 0;
 
 	TimeId _lastSearchDate = 0;
-#if 0 // mtp
 	base::flat_map<QString, MTPmessages_Messages> _searchCache;
 #endif
 	base::flat_map<QString, SearchSlice> _searchCache;

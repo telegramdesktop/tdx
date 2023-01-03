@@ -62,6 +62,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tdb/tdb_tl_scheme.h"
 #include "core/file_utilities.h"
 #include "data/data_user.h"
+#include "main/main_domain.h"
 
 #include <QtGui/QGuiApplication>
 
@@ -1226,7 +1227,21 @@ bool HandleLocalUrl(
 				}));
 		});
 	}, [&](const TLDinternalLinkTypeAuthenticationCode &data) {
-		return false; // later fragment auth links?
+		const auto account = controller
+			? &controller->session().account()
+			: Core::App().domain().started()
+			? &Core::App().domain().active()
+			: nullptr;
+		if (!account) {
+			return false;
+		}
+		account->handleLoginCode(data.vcode().v);
+		if (controller) {
+			controller->window().activate();
+		} else if (const auto window = Core::App().activeWindow()) {
+			window->activate();
+		}
+		return true;
 	}, [&](const TLDinternalLinkTypeBackground &data) {
 		if (!controller) {
 			return false;
@@ -1301,6 +1316,10 @@ bool HandleLocalUrl(
 		}
 		Api::CheckChatInvite(controller, data.vinvite_link().v);
 		return true;
+	}, [&](const TLDinternalLinkTypeDefaultMessageAutoDeleteTimerSettings &) {
+		return settingsSection(::Settings::GlobalTTLId());
+	}, [&](const TLDinternalLinkTypeEditProfileSettings &) {
+		return settingsSection(::Settings::Information::Id());
 	}, [&](const TLDinternalLinkTypeFilterSettings &) {
 		return settingsSection(::Settings::Folders::Id());
 	}, [&](const TLDinternalLinkTypeGame &data) {
@@ -1445,7 +1464,9 @@ bool HandleLocalUrl(
 		controller->show(Box<StickerSetBox>(
 			controller->uiShow(),
 			StickerSetIdentifier{ .shortName = data.vsticker_set_name().v },
-			Data::StickersType::Stickers)); // tdlib stickers or emoji
+			(data.vexpect_custom_emoji().v
+				? Data::StickersType::Emoji
+				: Data::StickersType::Stickers)));
 		controller->window().activate();
 		return true;
 	}, [&](const TLDinternalLinkTypeTheme &data) {

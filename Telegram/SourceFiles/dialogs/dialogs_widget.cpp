@@ -1759,7 +1759,7 @@ bool Widget::searchMessages(bool searchCache) {
 				tl_int32(kSearchPerPage),
 				std::nullopt, // filter
 				tl_int53(topic ? topic->rootId().bare : 0)
-			)).done([=](const TLmessages &result) {
+			)).done([=](const TLfoundChatMessages &result) {
 				_searchRequest = 0;
 				searchReceived(type, result);
 			}).fail([=] {
@@ -1811,14 +1811,12 @@ bool Widget::searchMessages(bool searchCache) {
 					? tl_chatListMain()
 					: std::optional<TLchatList>()),
 				tl_string(_searchQuery),
-				tl_int32(0), // offset_date
-				tl_int53(0), // offset_chat_id
-				tl_int53(0), // offset_message_id
+				tl_string(), // offset
 				tl_int32(kSearchPerPage),
 				std::nullopt,
 				tl_int32(0), // min_date
 				tl_int32(0)
-			)).done([=](const TLmessages &result) {
+			)).done([=](const TLfoundMessages &result) {
 				_searchRequest = 0;
 				searchReceived(type, result);
 			}).fail([=] {
@@ -2079,12 +2077,12 @@ void Widget::searchMore() {
 				(_searchQueryFrom
 					? peerToSender(_searchQueryFrom->id)
 					: std::optional<TLmessageSender>()),
-				tl_int53(_lastSearchId.bare),
+				tl_int53(_nextSearchMessageId.bare),
 				tl_int32(0), // offset
 				tl_int32(kSearchPerPage),
 				std::nullopt, // filter
 				tl_int53(0) // message_thread_id
-			)).done([=](const TLmessages &result) {
+			)).done([=](const TLfoundChatMessages &result) {
 				_searchRequest = 0;
 				searchReceived(SearchRequestType::PeerFromOffset, result);
 			}).fail([=] {
@@ -2140,16 +2138,12 @@ void Widget::searchMore() {
 					? tl_chatListMain()
 					: std::optional<TLchatList>()),
 				tl_string(_searchQuery),
-				tl_int32(_lastSearchDate),
-				(_lastSearchPeer
-					? peerToTdbChat(_lastSearchPeer->id)
-					: tl_int53(0)),
-				tl_int53(_lastSearchId.bare),
+				tl_string(_nextSearchOffset),
 				tl_int32(kSearchPerPage),
 				std::nullopt,
 				tl_int32(0), // min_date
 				tl_int32(0)
-			)).done([=](const TLmessages &result) {
+			)).done([=](const TLfoundMessages &result) {
 				_searchRequest = 0;
 				searchReceived(SearchRequestType::FromOffset, result);
 			}).fail([=] {
@@ -2188,7 +2182,7 @@ void Widget::searchMore() {
 #endif
 		}
 	} else if (_searchInMigrated && !_searchFullMigrated) {
-		auto offsetMigratedId = _lastSearchMigratedId;
+		auto offsetMigratedId = _nextSearchMigratedMessageId;
 		const auto type = offsetMigratedId
 			? SearchRequestType::MigratedFromOffset
 			: SearchRequestType::MigratedFromStart;
@@ -2203,7 +2197,7 @@ void Widget::searchMore() {
 			tl_int32(kSearchPerPage),
 			std::nullopt, // filter
 			tl_int53(0) // message_thread_id
-		)).done([=](const TLmessages &result) {
+		)).done([=](const TLfoundChatMessages &result) {
 			_searchRequest = 0;
 			searchReceived(type, result);
 		}).fail([=] {
@@ -2454,39 +2448,63 @@ void Widget::peopleFailed(const MTP::Error &error, mtpRequestId requestId) {
 
 void Widget::searchReceived(
 		SearchRequestType type,
-		const Tdb::TLmessages &result) {
+		const Tdb::TLfoundMessages &result) {
 	const auto &data = result.data();
 	auto slice = SearchSlice{
 		.fullCount = data.vtotal_count().v,
 	};
 	for (const auto &message : data.vmessages().v) {
-		if (message) {
-			const auto item = session().data().processMessage(
-				*message,
-				NewMessageType::Existing);
-			slice.messages.push_back(item);
-			_lastSearchPeer = item->history()->peer;
-			_lastSearchId = item->id;
-			_lastSearchDate = item->date();
-		}
+		slice.messages.push_back(session().data().processMessage(
+			message,
+			NewMessageType::Existing));
 	}
-	const auto state = _inner->state();
-	if (state == WidgetState::Filtered) {
-		if (type == SearchRequestType::FromStart || type == SearchRequestType::PeerFromStart) {
-			auto &entry = _searchCache[_searchQuery];
-			entry = std::move(slice);
-			searchReceived(type, entry, 0);
-			return;
-		}
+	_nextSearchOffset = data.vnext_offset().v;
+	if (_nextSearchOffset.isEmpty()) {
+		_searchFull = true;
 	}
-	searchReceived(type, slice, 0);
+	searchReceived(type, std::move(slice), 0);
 }
 
 void Widget::searchReceived(
 		SearchRequestType type,
-		const SearchSlice &result,
+		const Tdb::TLfoundChatMessages &result) {
+	const auto &data = result.data();
+	auto slice = SearchSlice{
+		.fullCount = data.vtotal_count().v,
+	};
+	for (const auto &message : data.vmessages().v) {
+		slice.messages.push_back(session().data().processMessage(
+			message,
+			NewMessageType::Existing));
+	}
+	const auto migrated = (type == SearchRequestType::MigratedFromStart)
+		|| (type == SearchRequestType::MigratedFromOffset);
+	auto &nextId = migrated
+		? _nextSearchMigratedMessageId
+		: _nextSearchMessageId;
+	nextId = data.vnext_from_message_id().v;
+	if (!nextId) {
+		(migrated ? _searchFullMigrated : _searchFull) = true;
+	}
+	searchReceived(type, std::move(slice), 0);
+}
+
+void Widget::searchReceived(
+		SearchRequestType type,
+		SearchSlice result,
 		int) {
-	if (result.messages.empty()) {
+	auto slice = &result;
+	const auto state = _inner->state();
+	if (state == WidgetState::Filtered) {
+		if (type == SearchRequestType::FromStart
+			|| type == SearchRequestType::PeerFromStart) {
+			auto &entry = _searchCache[_searchQuery];
+			entry = std::move(result);
+			slice = &entry;
+		}
+	}
+
+	if (slice->messages.empty()) {
 		if (type == SearchRequestType::MigratedFromStart
 			|| type == SearchRequestType::MigratedFromOffset) {
 			_searchFullMigrated = true;
@@ -2498,7 +2516,7 @@ void Widget::searchReceived(
 		|| type == SearchRequestType::PeerFromStart)
 		? *_singleMessageSearch.lookup(_searchQuery)
 		: nullptr;
-	_inner->searchReceived(result.messages, inject, type, result.fullCount);
+	_inner->searchReceived(slice->messages, inject, type, slice->fullCount);
 	listScrollUpdated();
 	update();
 }
@@ -3372,9 +3390,13 @@ bool Widget::cancelSearch() {
 		setFocus();
 		clearingInChat = true;
 	}
+	_nextSearchMessageId = _nextSearchMigratedMessageId = 0;
+	_nextSearchOffset = QString();
+#if 0 // mtp
 	_lastSearchPeer = nullptr;
 	_lastSearchId = _lastSearchMigratedId = 0;
 	_lastSearchDate = 0;
+#endif
 	_inner->clearFilter();
 	clearSearchField();
 	applyFilterUpdate();

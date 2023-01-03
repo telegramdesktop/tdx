@@ -100,6 +100,7 @@ private:
 
 	void stopCheck();
 #endif
+	void submitCode();
 
 	void checkCodeFail(const Tdb::Error &error);
 
