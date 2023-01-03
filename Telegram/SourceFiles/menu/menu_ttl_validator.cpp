@@ -87,7 +87,7 @@ Args TTLValidator::createArgs() const {
 			peer->session().api().applyUpdates(result);
 #endif
 		state->savingRequestId = api.sender().request(
-			Tdb::TLsetChatMessageTtl(
+			Tdb::TLsetChatMessageAutoDeleteTime(
 				peerToTdbChat(peer->id),
 				Tdb::tl_int32(period)
 		)).done([=] {

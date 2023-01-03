@@ -99,7 +99,10 @@ void CodeWidget::updateDescText() {
 			? tr::lng_intro_fragment_about(
 				lt_phone_number,
 				rpl::single(TextWithEntities{
+#if 0 // mtp
 					.text = Ui::FormatPhone(getData()->phone)
+#endif
+					.text = Tdb::FormatPhone(getData()->phone)
 				}),
 				Ui::Text::RichLangValue)
 			: (byTelegram ? tr::lng_code_from_telegram : tr::lng_code_desc)(

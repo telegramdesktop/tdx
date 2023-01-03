@@ -3137,20 +3137,8 @@ bool HistoryItem::hasExtendedMediaPreview() const {
 }
 
 void HistoryItem::applyTTL(const TLDmessage &data) {
-	if (const auto period = data.vttl().v) {
-		const auto isSecret = data.vcontent().match([&](const auto &data) {
-			using T = decltype(data);
-			if constexpr (TLDmessageAnimation::Is<T>()
-				|| TLDmessagePhoto::Is<T>()
-				|| TLDmessageVideo::Is<T>()
-				|| TLDmessageVideoNote::Is<T>()) {
-				return data.vis_secret().v;
-			}
-			return false;
-		});
-		if (!isSecret) { // tdlib apply correct field for secret as well.
-			applyTTL(MessageDateFromTdb(data) + period);
-		}
+	if (const auto period = data.vauto_delete_in().v) {
+		applyTTL(base::unixtime::now() + period);
 	}
 }
 
@@ -4248,8 +4236,8 @@ void HistoryItem::setServiceMessageByContent(
 					Ui::Text::WithEntities);
 			}
 		}
-	}, [&](const TLDmessageChatSetTtl &data) {
-		const auto period = data.vttl().v;
+	}, [&](const TLDmessageChatSetMessageAutoDeleteTime &data) {
+		const auto period = data.vmessage_auto_delete_time().v;
 		const auto duration = (period == 5)
 			? u"5 seconds"_q
 			: Ui::FormatTTL(period);
@@ -4594,6 +4582,12 @@ void HistoryItem::applyContent(const TLmessageContent &content) {
 		_flags |= MessageFlag::IsGroupEssential;
 	}, [&](const TLDmessageContactRegistered &) {
 		_flags |= MessageFlag::IsContactSignUp;
+	}, [&](const TLDmessageSuggestProfilePhoto &data) {
+		_flags |= MessageFlag::IsUserpicSuggestion;
+		_media = std::make_unique<Data::MediaPhoto>(
+			this,
+			_history->peer,
+			_history->owner().processPhoto(data.vphoto()));
 	}, [](const auto &) {
 	});
 }
@@ -4677,7 +4671,7 @@ void HistoryItem::setContent(const TLmessageContent &content) {
 			|| TLDmessagePinMessage::Is<T>()
 			|| TLDmessageScreenshotTaken::Is<T>()
 			|| TLDmessageChatSetTheme::Is<T>()
-			|| TLDmessageChatSetTtl::Is<T>()
+			|| TLDmessageChatSetMessageAutoDeleteTime::Is<T>()
 			|| TLDmessageCustomServiceAction::Is<T>()
 			|| TLDmessageGameScore::Is<T>()
 			|| TLDmessagePaymentSuccessful::Is<T>()
@@ -4690,7 +4684,9 @@ void HistoryItem::setContent(const TLmessageContent &content) {
 			|| TLDmessageForumTopicCreated::Is<T>()
 			|| TLDmessageForumTopicEdited::Is<T>()
 			|| TLDmessageForumTopicIsClosedToggled::Is<T>()
-			|| TLDmessageForumTopicIsHiddenToggled::Is<T>()) {
+			|| TLDmessageForumTopicIsHiddenToggled::Is<T>()
+			|| TLDmessageSuggestProfilePhoto::Is<T>()
+			|| TLDmessageBotWriteAccessAllowed::Is<T>()) {
 			createServiceFromTdb(content);
 		} else if constexpr (TLDmessageUnsupported::Is<T>()) {
 			setText(UnsupportedMessageText());
@@ -4706,6 +4702,8 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 	using Result = std::unique_ptr<Data::Media>;
 	auto &owner = item->history()->owner();
 
+	const auto skipPremiumEffectDefault = false;
+	const auto hasSpoilerDefault = false;
 	return content.match([&](const TLDmessageText &data) -> Result {
 		auto flags = MediaWebPageFlags();
 		const auto options = data.vweb_page()
@@ -4733,31 +4731,37 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 		return std::make_unique<Data::MediaFile>(
 			item,
 			owner.processDocument(data.vanimation()),
-			false);
+			skipPremiumEffectDefault,
+			data.vhas_spoiler().v);
 	}, [&](const TLDmessageAudio &data) -> Result {
 		return std::make_unique<Data::MediaFile>(
 			item,
 			owner.processDocument(data.vaudio()),
-			false);
+			skipPremiumEffectDefault,
+			hasSpoilerDefault);
 	}, [&](const TLDmessageDocument &data) -> Result {
 		return std::make_unique<Data::MediaFile>(
 			item,
 			owner.processDocument(data.vdocument()),
-			false);
+			skipPremiumEffectDefault,
+			hasSpoilerDefault);
 	}, [&](const TLDmessagePhoto &data) -> Result {
 		return std::make_unique<Data::MediaPhoto>(
 			item,
-			owner.processPhoto(data.vphoto()));
+			owner.processPhoto(data.vphoto()),
+			data.vhas_spoiler().v);
 	}, [&](const TLDmessageSticker &data) -> Result {
 		return std::make_unique<Data::MediaFile>(
 			item,
 			owner.processDocument(data.vsticker()),
-			!data.vis_premium().v);
+			!data.vis_premium().v,
+			hasSpoilerDefault);
 	}, [&](const TLDmessageVideo &data) -> Result {
 		return std::make_unique<Data::MediaFile>(
 			item,
 			owner.processDocument(data.vvideo()),
-			false);
+			skipPremiumEffectDefault,
+			data.vhas_spoiler().v);
 	}, [&](const TLDmessageVideoNote &data) -> Result {
 		ApplyTranscribe(
 			item,
@@ -4766,7 +4770,8 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 		return std::make_unique<Data::MediaFile>(
 			item,
 			owner.processDocument(data.vvideo_note()),
-			false);
+			skipPremiumEffectDefault,
+			hasSpoilerDefault);
 	}, [&](const TLDmessageVoiceNote &data) -> Result {
 		ApplyTranscribe(
 			item,
@@ -4775,7 +4780,8 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 		return std::make_unique<Data::MediaFile>(
 			item,
 			owner.processDocument(data.vvoice_note()),
-			false);
+			skipPremiumEffectDefault,
+			hasSpoilerDefault);
 	}, [&](const TLDmessageLocation &data) -> Result {
 		return std::make_unique<Data::MediaLocation>(
 			item,
@@ -4819,7 +4825,8 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 			return std::make_unique<Data::MediaFile>(
 				item,
 				owner.processDocument(*sticker),
-				false);
+				skipPremiumEffectDefault,
+				hasSpoilerDefault);
 		}
 		return nullptr;
 	}, [&](const TLDmessageStory &data) -> Result {

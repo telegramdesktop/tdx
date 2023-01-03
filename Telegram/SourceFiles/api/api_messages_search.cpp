@@ -29,15 +29,13 @@ constexpr auto kSearchPerPage = 50;
 
 [[nodiscard]] MessageIdsList HistoryItemsFromTL(
 		not_null<Data::Session*> data,
-		const QVector<std::optional<TLmessage>> &messages) {
+		const QVector<TLmessage> &messages) {
 	auto result = MessageIdsList();
 	for (const auto &message : messages) {
-		if (message) {
-			const auto item = data->processMessage(
-				*message,
-				NewMessageType::Existing);
-			result.push_back(item->fullId());
-		}
+		const auto item = data->processMessage(
+			message,
+			NewMessageType::Existing);
+		result.push_back(item->fullId());
 	}
 	return result;
 }
@@ -99,11 +97,12 @@ MessagesSearch::~MessagesSearch() {
 void MessagesSearch::searchMessages(Request request) {
 	_request = std::move(request);
 	_offsetId = {};
+	_full = false;
 	searchRequest();
 }
 
 void MessagesSearch::searchMore() {
-	if (_searchInHistoryRequest || _requestId) {
+	if (_searchInHistoryRequest || _requestId || _full) {
 		return;
 	}
 	searchRequest();
@@ -133,7 +132,7 @@ void MessagesSearch::searchRequest() {
 		tl_int32(kSearchPerPage),
 		std::nullopt, // filter
 		tl_int53(0) // message_thread_id
-	)).done([=](const TLmessages &result, RequestId id) {
+	)).done([=](const TLfoundChatMessages &result, RequestId id) {
 		searchReceived(result, id, nextToken);
 	}).fail([=](const Error &error) {
 		_requestId = 0;
@@ -255,9 +254,9 @@ void MessagesSearch::searchReceived(
 		_cacheOfStartByToken.emplace(nextToken, result);
 	}
 	_requestId = 0;
-	_offsetId = found.messages.empty()
-		? MsgId()
-		: found.messages.back().msg;
+	_offsetId = data.vnext_from_message_id().v;
+	_full = !_offsetId;
+	found.full = _full;
 	_messagesFounds.fire(std::move(found));
 }
 

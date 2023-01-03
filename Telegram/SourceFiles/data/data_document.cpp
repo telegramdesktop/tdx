@@ -519,9 +519,13 @@ void DocumentData::setFromTdb(const TLanimation &data) {
 }
 
 DocumentId DocumentData::IdFromTdb(const TLsticker &data) {
-	return data.data().vcustom_emoji_id().v
-		? data.data().vcustom_emoji_id().v
-		: data.data().vsticker().data().vid().v;
+	const auto &fields = data.data();
+	return fields.vfull_type().match([](
+			const TLDstickerFullTypeCustomEmoji &data) -> DocumentId {
+		return data.vcustom_emoji_id().v;
+	}, [&](const auto &) -> DocumentId {
+		return fields.vsticker().data().vid().v;
+	});
 }
 
 void DocumentData::setFromTdb(const TLsticker &data) {
@@ -540,10 +544,15 @@ void DocumentData::setFromTdb(const TLsticker &data) {
 		: (stickerType == StickerType::Webm)
 		? u"video/webm"_q
 		: u"image/webp"_q);
-	updateThumbnails(
-		nullptr,
-		fields.vthumbnail(),
-		fields.vpremium_animation());
+
+	const auto premiumAnimation = fields.vfull_type().match([&](
+			const TLDstickerFullTypeRegular &data) -> const TLfile* {
+		return data.vpremium_animation();
+	}, [](const auto &) -> const TLfile* {
+		return nullptr;
+	});
+	updateThumbnails(nullptr, fields.vthumbnail(), premiumAnimation);
+
 	setTdbLocation(fields.vsticker());
 	recountIsImage();
 	dimensions = (stickerType == StickerType::Tgs)
@@ -556,6 +565,18 @@ void DocumentData::setFromTdb(const TLsticker &data) {
 		& ~Flag::HasAttachedStickers;
 	const auto stickerData = sticker();
 	stickerData->type = stickerType;
+	stickerData->setType = fields.vfull_type().match([&](
+			const TLDstickerFullTypeRegular &data) {
+		return Data::StickersType::Stickers;
+	}, [&](const TLDstickerFullTypeMask &data) {
+		return Data::StickersType::Masks;
+	}, [&](const TLDstickerFullTypeCustomEmoji &data) {
+		if (data.vneeds_repainting().v) {
+			_flags |= Flag::UseTextColor;
+		}
+		return Data::StickersType::Emoji;
+	});
+
 	stickerData->alt = fields.vemoji().v;
 	stickerData->outlineGenerator = PathFromOutlineGenerator(
 		fields.voutline().v);

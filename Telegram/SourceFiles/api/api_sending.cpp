@@ -234,7 +234,8 @@ void SendExistingMedia(
 			tl_int32(file->dimensions.width()),
 			tl_int32(file->dimensions.height()),
 			formatted,
-			tl_int32(0)); // ttl
+			std::nullopt, // self_destruct_type
+			tl_bool(file->spoiler));
 	case PreparedFileType::Animation:
 		return tl_inputMessageAnimation(
 			fileById,
@@ -243,7 +244,8 @@ void SendExistingMedia(
 			tl_int32(seconds),
 			tl_int32(file->dimensions.width()),
 			tl_int32(file->dimensions.height()),
-			formatted);
+			formatted,
+			tl_bool(file->spoiler));
 	case PreparedFileType::Audio:
 		return tl_inputMessageAudio(
 			fileById,
@@ -275,7 +277,8 @@ void SendExistingMedia(
 			tl_int32(file->dimensions.height()),
 			tl_bool(file->supportsStreaming),
 			formatted,
-			tl_int32(0)); // ttl
+			std::nullopt, // self_destruct_type
+			tl_bool(file->spoiler));
 	case PreparedFileType::VoiceNote:
 		return tl_inputMessageVoiceNote(
 			fileById,
@@ -323,7 +326,8 @@ void SendExistingMedia(
 			tl_int32(document->duration() / 1000),
 			tl_int32(document->dimensions.width()),
 			tl_int32(document->dimensions.height()),
-			formatted);
+			formatted,
+			tl_bool(false)); // has_spoiler
 	} else if (document->sticker()) {
 		return tl_inputMessageSticker(
 			fileById,
@@ -341,7 +345,8 @@ void SendExistingMedia(
 			tl_int32(document->dimensions.height()),
 			tl_bool(document->supportsStreaming()),
 			formatted,
-			tl_int32(0)); // ttl
+			std::nullopt, // self_destruct_type
+			tl_bool(false)); // has_spoiler
 	} else if (const auto song = document->song()) {
 		return tl_inputMessageAudio(
 			fileById,
@@ -386,7 +391,8 @@ void SendExistingMedia(
 		tl_int32(photo->width()),
 		tl_int32(photo->height()),
 		formatted,
-		tl_int32(0)); // ttl
+		std::nullopt, // self_destruct_type
+		tl_bool(false)); // spoiler
 }
 
 void SendPreparedAlbumIfReady(

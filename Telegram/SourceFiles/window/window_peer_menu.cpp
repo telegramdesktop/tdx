@@ -462,7 +462,11 @@ void TogglePinnedThread(
 			owner->notifyPinnedDialogsOrderUpdated();
 		}).send();
 	} else if (const auto topic = thread->asTopic()) {
-		// tdlib pinned topics
+		history->session().sender().request(TLtoggleForumTopicIsPinned(
+			peerToTdbChat(history->peer->id),
+			tl_int53(topic->rootId().bare),
+			tl_bool(isPinned)
+		)).send();
 	}
 }
 
@@ -1057,9 +1061,9 @@ void Filler::addTopicLink() {
 		channel->session().sender().request(TLgetForumTopicLink(
 			peerToTdbChat(channel->id),
 			tl_int53(id.bare)
-		)).done([=](const TLDhttpUrl &result) {
-			QGuiApplication::clipboard()->setText(result.vurl().v);
-			controller->showToast(channel->hasUsername()
+		)).done([=](const TLDmessageLink &result) {
+			QGuiApplication::clipboard()->setText(result.vlink().v);
+			controller->showToast(result.vis_public().v
 				? tr::lng_channel_public_link_copied(tr::now)
 				: tr::lng_context_about_private_link(tr::now));
 		}).send();
