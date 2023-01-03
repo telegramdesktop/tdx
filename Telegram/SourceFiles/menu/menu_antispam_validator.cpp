@@ -119,7 +119,7 @@ object_ptr<Ui::RpWidget> AntiSpamValidator::createButton() const {
 				Ui::Text::RichLangValue));
 		} else {
 			channel->session().sender().request(
-				TLtoggleSupergroupIsAggressiveAntiSpamEnabled(
+				TLtoggleSupergroupHasAggressiveAntiSpamEnabled(
 					tl_int53(peerToChannel(channel->id).bare),
 					tl_bool(toggled)
 				)

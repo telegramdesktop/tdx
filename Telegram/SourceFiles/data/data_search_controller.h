@@ -18,7 +18,7 @@ class Session;
 } // namespace Main
 
 namespace Tdb {
-class TLmessages;
+class TLfoundChatMessages;
 class TLsearchChatMessages;
 class TLgetChatHistory;
 class TLmessages;
@@ -41,7 +41,7 @@ using SearchRequest = MTPmessages_Search;
 using SearchRequestResult = MTPmessages_Messages;
 #endif
 using SearchRequest = Tdb::TLsearchChatMessages;
-using SearchRequestResult = Tdb::TLmessages;
+using SearchRequestResult = Tdb::TLfoundChatMessages;
 
 using HistoryResult = SearchResult;
 #if 0 // mtp

@@ -520,7 +520,7 @@ void BoxController::loadMoreRows() {
 		Tdb::tl_string(_offset),
 		Tdb::tl_int32(_offset.isEmpty() ? kFirstPageCount : kPerPageCount),
 		Tdb::tl_bool(false)
-	)).done([=](const Tdb::TLDmessages &messages) {
+	)).done([=](const Tdb::TLDfoundMessages &messages) {
 		_loadRequestId = 0;
 		receivedCalls(messages);
 	}).fail([=](const Tdb::Error &error) {
@@ -616,25 +616,25 @@ void BoxController::rowRightActionClicked(not_null<PeerListRow*> row) {
 	Core::App().calls().startOutgoingCall(user, false);
 }
 
-void BoxController::receivedCalls(const Tdb::TLDmessages &messages) {
+void BoxController::receivedCalls(const Tdb::TLDfoundMessages &messages) {
 	if (messages.vmessages().v.empty()) {
 		_allLoaded = true;
 	}
 	for (const auto &message : messages.vmessages().v) {
-		if (!message) {
-			continue;
-		}
-		const auto peerId = peerFromTdbChat(message->data().vchat_id());
+		const auto peerId = peerFromTdbChat(message.data().vchat_id());
 		if (const auto peer = session().data().peerLoaded(peerId)) {
 			const auto item = session().data().processMessage(
-				*message,
+				message,
 				NewMessageType::Existing);
 			insertRow(item, InsertWay::Append);
 		} else {
 			LOG(("API Error: a search results with not loaded peer %1"
 				).arg(peerId.value));
 		}
-		_offsetId = message->data().vid().v;
+	}
+	_offset = messages.vnext_offset().v;
+	if (_offset.isEmpty()) {
+		_allLoaded = true;
 	}
 
 	refreshAbout();

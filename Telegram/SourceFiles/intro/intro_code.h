@@ -83,6 +83,7 @@ private:
 
 	void stopCheck();
 #endif
+	void submitCode(const QString &text);
 
 	void checkCodeFail(const Tdb::Error &error);
 

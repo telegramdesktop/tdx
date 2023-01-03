@@ -1379,7 +1379,9 @@ void ApplyChannelUpdate(
 		| Flag::CanSetStickers
 		| Flag::PreHistoryHidden
 		| Flag::AntiSpam
-		| Flag::Location;
+		| Flag::Location
+		| Flag::CanHideMembers
+		| Flag::CanEnableAntiSpam;
 	channel->setFlags((channel->flags() & ~mask)
 		| Flag::CanSetUsername // Creators can always set usernames.
 		| (update.vcan_get_members().v ? Flag::CanViewParticipants : Flag())
@@ -1387,10 +1389,17 @@ void ApplyChannelUpdate(
 		| (update.vis_all_history_available().v
 			? Flag::PreHistoryHidden
 			: Flag())
-		| (update.vis_aggressive_anti_spam_enabled().v
+		| (update.vhas_aggressive_anti_spam_enabled().v
 			? Flag::AntiSpam
 			: Flag())
-		| (update.vlocation() ? Flag::Location : Flag()));
+		| (update.vlocation() ? Flag::Location : Flag())
+		| (update.vhas_hidden_members().v
+			? Flag::ParticipantsHidden
+			: Flag())
+		| (update.vcan_hide_members().v ? Flag::CanHideMembers : Flag())
+		| (update.vcan_toggle_aggressive_anti_spam().v
+			? Flag::CanEnableAntiSpam
+			: Flag()));
 
 	if (const auto photo = update.vphoto()) {
 		channel->setPhotoFull(*photo);

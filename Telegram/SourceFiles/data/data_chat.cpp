@@ -654,7 +654,17 @@ void ApplyChatUpdate(
 		chat->setBotCommands(std::move(commands) | ranges::to_vector);
 	}
 
-	//chat->setFullFlags(update.vflags().v);
+	using Flag = ChatDataFlag;
+	const auto mask = Flag::CanHideMembers
+		| Flag::CanSetUsername
+		| Flag::CanEnableAntiSpam;
+	chat->setFlags((chat->flags() & ~mask)
+		| (update.vcan_hide_members().v ? Flag::CanHideMembers : Flag())
+		| Flag::CanSetUsername // Creators can always set usernames.
+		| (update.vcan_toggle_aggressive_anti_spam().v
+			? Flag::CanEnableAntiSpam
+			: Flag()));
+
 	if (const auto photo = update.vphoto()) {
 		chat->setPhotoFull(*photo);
 	}

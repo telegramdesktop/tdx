@@ -147,6 +147,11 @@ void UserData::setPhoto(const MTPUserProfilePhoto &photo) {
 #endif
 
 void UserData::setPhoto(const TLprofilePhoto &photo) {
+	if (photo.data().vis_personal().v) {
+		addFlags(UserDataFlag::PersonalPhoto);
+	} else {
+		removeFlags(UserDataFlag::PersonalPhoto);
+	}
 	updateUserpic(photo);
 }
 
@@ -740,9 +745,32 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 void ApplyUserUpdate(
 		not_null<UserData*> user,
 		const TLDuserFullInfo &update) {
-	if (const auto photo = update.vphoto()) {
-		user->setPhotoFull(*photo);
+	if (const auto personal = update.vpersonal_photo()) {
+		user->setPhotoFull(*personal);
 	}
+	const auto peerPhotos = &user->session().api().peerPhoto();
+	if (const auto photo = update.vphoto()) {
+		if (!update.vpersonal_photo()) {
+			user->setPhotoFull(*photo);
+			peerPhotos->unregisterNonPersonalPhoto(user);
+		} else {
+			peerPhotos->registerNonPersonalPhoto(
+				user,
+				user->owner().processPhoto(*photo));
+		}
+	} else {
+		peerPhotos->unregisterNonPersonalPhoto(user);
+	}
+	if (const auto photo = update.vpublic_photo()) {
+		const auto data = user->owner().processPhoto(*photo);
+		if (!data->isNull()) { // Sometimes there is photoEmpty :shrug:
+			user->session().storage().add(Storage::UserPhotosSetBack(
+				peerToUser(user->id),
+				data->id
+			));
+		}
+	}
+
 	//const auto settings = update.vsettings().match([&]( // todo
 	//	const MTPDpeerSettings &data) {
 	//	return data.vflags().v;

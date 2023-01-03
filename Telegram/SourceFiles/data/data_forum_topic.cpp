@@ -411,7 +411,7 @@ void ForumTopic::applyTopic(const TLforumTopic &topic) {
 	if (const auto message = data.vlast_message()) {
 		const auto &data = message->data();
 		const auto id = data.vid().v;
-		history()->addMessage(*message, NewMessageType::Last);
+		history()->addMessage(*message, NewMessageType::Existing);
 		applyTopicTopMessage(id);
 	} else {
 		if (_lastServerMessage) {
