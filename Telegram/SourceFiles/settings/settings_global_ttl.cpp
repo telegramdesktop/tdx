@@ -400,10 +400,11 @@ void GlobalTTL::setupContent() {
 						peer->session().api().applyUpdates(result);
 					}).send();
 #endif
-					peer->session().sender().request(TLsetChatMessageTtl(
-						peerToTdbChat(peer->id),
-						tl_int32(ttl)
-					)).send();
+					peer->session().sender().request(
+						TLsetChatMessageAutoDeleteTime(
+							peerToTdbChat(peer->id),
+							tl_int32(ttl))
+					).send();
 				}
 				box->showToast(ttl
 					? tr::lng_settings_ttl_select_chats_toast(

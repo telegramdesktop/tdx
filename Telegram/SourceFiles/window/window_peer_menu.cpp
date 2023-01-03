@@ -464,7 +464,7 @@ void TogglePinnedThread(
 		//}
 	}
 #endif
-	if (const auto history = thread->asHistory()) {
+	if (const auto history = entry->asHistory()) {
 		history->session().sender().request(TLtoggleChatIsPinned(
 			history->folder() ? tl_chatListArchive() : tl_chatListMain(),
 			peerToTdbChat(history->peer->id),
@@ -472,8 +472,20 @@ void TogglePinnedThread(
 		)).done([=] {
 			owner->notifyPinnedDialogsOrderUpdated();
 		}).send();
-	} else if (const auto topic = thread->asTopic()) {
-		// tdlib pinned topics
+	} else if (const auto topic = entry->asTopic()) {
+		history->session().sender().request(TLtoggleForumTopicIsPinned(
+			peerToTdbChat(history->peer->id),
+			tl_int53(topic->rootId().bare),
+			tl_bool(isPinned)
+		)).send();
+	} else if (const auto sublist = entry->asSublist()) {
+		const auto session = &sublist->session();
+		session->sender().request(TLtoggleSavedMessagesTopicIsPinned(
+			tl_int53(session->data().savedMessages().sublistId(sublist)),
+			tl_bool(isPinned)
+		)).done([=] {
+			owner->notifyPinnedDialogsOrderUpdated();
+		}).send();
 	}
 }
 
@@ -1101,9 +1113,9 @@ void Filler::addTopicLink() {
 		channel->session().sender().request(TLgetForumTopicLink(
 			peerToTdbChat(channel->id),
 			tl_int53(id.bare)
-		)).done([=](const TLDhttpUrl &result) {
-			QGuiApplication::clipboard()->setText(result.vurl().v);
-			controller->showToast(channel->hasUsername()
+		)).done([=](const TLDmessageLink &result) {
+			QGuiApplication::clipboard()->setText(result.vlink().v);
+			controller->showToast(result.vis_public().v
 				? tr::lng_channel_public_link_copied(tr::now)
 				: tr::lng_context_about_private_link(tr::now));
 		}).send();

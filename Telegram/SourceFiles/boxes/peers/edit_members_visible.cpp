@@ -22,7 +22,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 #include "styles/style_menu_icons.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+
 namespace {
+
+using namespace Tdb;
 
 [[nodiscard]] int EnableHideMembersMin(not_null<ChannelData*> channel) {
 	return channel->session().appConfig().get<int>(
@@ -63,6 +68,7 @@ namespace {
 
 	button->toggledValue(
 	) | rpl::start_with_next([=](bool toggled) {
+#if 0 // mtp
 		megagroup->session().api().request(
 			MTPchannels_ToggleParticipantsHidden(
 				megagroup->inputChannel,
@@ -71,6 +77,12 @@ namespace {
 		).done([=](const MTPUpdates &result) {
 			megagroup->session().api().applyUpdates(result);
 		}).send();
+#endif
+		megagroup->session().sender().request(
+			TLtoggleSupergroupHasHiddenMembers(
+				peerToTdbChat(megagroup->id),
+				tl_bool(toggled))
+		).send();
 	}, button->lifetime());
 
 	return result;

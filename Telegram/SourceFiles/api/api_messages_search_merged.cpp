@@ -32,6 +32,9 @@ MessagesSearchMerged::MessagesSearchMerged(not_null<History*> history)
 		if (data.total == int(_concatedFound.messages.size())) {
 			_isFull = true;
 			addFound(_migratedFirstFound);
+		} else if (data.full) {
+			_isFull = true;
+			addFound(_migratedFirstFound);
 		}
 	};
 

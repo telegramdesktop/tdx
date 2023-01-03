@@ -250,19 +250,14 @@ SearchResult ParseSearchResult(
 		result.noSkipRange.from = ServerMaxMsgId;
 	}
 	for (const auto &message : data.data().vmessages().v) {
-		if (!message) {
-			continue;
+		const auto item = peer->owner().processMessage(message, addType);
+		const auto itemId = item->id;
+		if ((type == Storage::SharedMediaType::kCount)
+			|| item->sharedMediaTypes().test(type)) {
+			result.messageIds.push_back(itemId);
 		}
-		const auto item = peer->owner().processMessage(*message, addType);
-		if (item) {
-			const auto itemId = item->id;
-			if ((type == Storage::SharedMediaType::kCount)
-				|| item->sharedMediaTypes().test(type)) {
-				result.messageIds.push_back(itemId);
-			}
-			accumulate_min(result.noSkipRange.from, itemId);
-			accumulate_max(result.noSkipRange.till, itemId);
-		}
+		accumulate_min(result.noSkipRange.from, itemId);
+		accumulate_max(result.noSkipRange.till, itemId);
 	}
 	if (messageId && result.messageIds.empty()) {
 		result.noSkipRange = [&]() -> MsgRange {
