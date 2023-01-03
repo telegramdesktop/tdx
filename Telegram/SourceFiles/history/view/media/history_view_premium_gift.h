@@ -64,7 +64,7 @@ private:
 	const not_null<Element*> _parent;
 	const not_null<Data::MediaGiftBox*> _gift;
 	const Data::GiftCode &_data;
-	const DocumentData *_document = nullptr;
+	DocumentData *_document = nullptr;
 	mutable std::optional<Sticker> _sticker;
 
 };

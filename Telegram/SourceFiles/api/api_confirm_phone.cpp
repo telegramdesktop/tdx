@@ -198,6 +198,10 @@ void ConfirmPhone::resolve(
 			LOG(("Error: should not be flashcall!"));
 			return 0;
 		});
+		const auto fragmentUrl = data.vtype().match([](
+				const Tdb::TLDauthenticationCodeTypeFragment &data) {
+			return data.vurl().v;
+		}, [](const auto &) { return QString(); });
 		const auto timeout = [&]() -> std::optional<int> {
 			if (const auto next = data.vnext_type()) {
 				using TypeCall = Tdb::TLDauthenticationCodeTypeCall;
@@ -212,6 +216,7 @@ void ConfirmPhone::resolve(
 		auto box = Box<Ui::ConfirmPhoneBox>(
 			phone,
 			sentCodeLength,
+			fragmentUrl,
 			timeout);
 		const auto boxWeak = Ui::MakeWeak(box.data());
 		box->resendRequests(

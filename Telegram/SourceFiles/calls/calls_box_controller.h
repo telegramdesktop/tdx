@@ -16,7 +16,7 @@ class TLDfoundMessages;
 } // namespace Tdb
 
 namespace Tdb {
-class TLDmessages;
+class TLDfoundMessages;
 } // namespace Tdb
 
 namespace Window {
@@ -61,7 +61,7 @@ public:
 		not_null<PeerListRow*> row) override;
 
 private:
-	void receivedCalls(const Tdb::TLDmessages &messages);
+	void receivedCalls(const Tdb::TLDfoundMessages &messages);
 #if 0 // goodToRemove
 	void receivedCalls(const QVector<MTPMessage> &result);
 #endif
@@ -81,10 +81,11 @@ private:
 
 	const not_null<Window::SessionController*> _window;
 	MTP::Sender _api;
-#endif
 
 #if 0 // goodToRemove
 	MsgId _offsetId = 0;
+#endif
+	QString _offset;
 	int _loadRequestId = 0; // Not a real mtpRequestId.
 	bool _allLoaded = false;
 

@@ -365,7 +365,8 @@ HistoryMessageMarkupData::HistoryMessageMarkupData(
 	data->match([&](const TLDreplyMarkupShowKeyboard &data) {
 		flags = (data.vresize_keyboard().v ? Flag::Resize : Flag())
 			| (data.vis_personal().v ? Flag::Selective : Flag())
-			| (data.vone_time().v ? Flag::SingleUse : Flag());
+			| (data.vone_time().v ? Flag::SingleUse : Flag())
+			| (data.vis_persistent().v ? Flag::Persistent : Flag());
 		placeholder = data.vinput_field_placeholder().v;
 		fillRows(data.vrows().v);
 	}, [&](const TLDreplyMarkupInlineKeyboard &data) {

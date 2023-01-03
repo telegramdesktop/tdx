@@ -2992,10 +2992,10 @@ void Updates::applyUpdate(const TLupdate &update) {
 			return Data::DefaultNotify::Broadcast;
 		});
 		owner.notifySettings().apply(type, data.vnotification_settings());
-	}, [&](const TLDupdateChatMessageTtl &data) {
+	}, [&](const TLDupdateChatMessageAutoDeleteTime &data) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
 		if (const auto peer = owner.peerLoaded(peerId)) {
-			peer->setMessagesTTL(data.vmessage_ttl().v);
+			peer->setMessagesTTL(data.vmessage_auto_delete_time().v);
 		}
 	}, [&](const TLDupdateChatActionBar &data) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());

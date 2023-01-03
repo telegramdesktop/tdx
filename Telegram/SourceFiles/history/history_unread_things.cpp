@@ -199,7 +199,7 @@ void Proxy::addSlice(const MTPmessages_Messages &slice, int alreadyLoaded) {
 }
 #endif
 
-void Proxy::addSlice(const TLDmessages &result, int alreadyLoaded) {
+void Proxy::addSlice(const TLDfoundChatMessages &result, int alreadyLoaded) {
 	if (!alreadyLoaded && _data) {
 		resolveList().clear();
 	}
@@ -212,19 +212,17 @@ void Proxy::addSlice(const TLDmessages &result, int alreadyLoaded) {
 	const auto history = _thread->owningHistory();
 	const auto list = _data ? &resolveList() : nullptr;
 	for (const auto &message : result.vmessages().v) {
-		if (message) {
-			const auto item = history->addMessage(*message);
-			const auto is = [&] {
-				switch (_type) {
-				case Type::Mentions: return item->isUnreadMention();
-				case Type::Reactions: return item->hasUnreadReaction();
-				}
-				Unexpected("Type in Proxy::addSlice.");
-			}();
-			if (is) {
-				list->insert(item->id);
-				added = true;
+		const auto item = history->addMessage(message);
+		const auto is = [&] {
+			switch (_type) {
+			case Type::Mentions: return item->isUnreadMention();
+			case Type::Reactions: return item->hasUnreadReaction();
 			}
+			Unexpected("Type in Proxy::addSlice.");
+		}();
+		if (is) {
+			list->insert(item->id);
+			added = true;
 		}
 	}
 	if (!added) {

@@ -184,6 +184,16 @@ void PeerPhoto::updateSelf(
 		not_null<PhotoData*> photo,
 		Data::FileOrigin origin,
 		Fn<void()> done) {
+	_api.request(TLsetProfilePhoto(
+		tl_inputChatPhotoPrevious(tl_int64(photo->id)),
+		tl_bool(false) // is_public
+	)).done([=] {
+		if (done) {
+			done();
+		}
+	}).send();
+
+#if 0 // mtp
 	const auto send = [=](auto resend) -> void {
 		const auto usedFileReference = photo->fileReference();
 		_api.request(MTPphotos_UpdateProfilePhoto(
@@ -211,6 +221,7 @@ void PeerPhoto::updateSelf(
 		}).send();
 	};
 	send(send);
+#endif
 }
 
 void PeerPhoto::upload(
@@ -260,7 +271,7 @@ void PeerPhoto::upload(
 	const auto eraseExisted = [=] {
 		const auto it = _uploads.find(peer);
 		if (it != end(_uploads)) {
-			it->second->cancel();
+			it->second.generator->cancel();
 			_uploads.erase(it);
 		}
 	};
@@ -270,17 +281,39 @@ void PeerPhoto::upload(
 		eraseExisted();
 	});
 
-	_uploads.emplace(peer, std::move(generator));
+	_uploads.emplace(peer, UploadValue{
+		.generator = std::move(generator),
+		.type = type,
+		.done = std::move(done),
+	});
+	const auto finish = [=] {
+		if (auto taken = _uploads.take(peer); taken && taken->done) {
+			taken->done();
+		}
+	};
 
 	if (peer->isSelf()) {
 		_api.request(TLsetProfilePhoto(
-			std::move(inputFile)
-		)).send();
+			std::move(inputFile),
+			tl_bool(type == UploadType::Fallback)
+		)).done(finish).send();
+	} else if (const auto user = peer->asUser()) {
+		if (type == UploadType::Suggestion) {
+			_api.request(TLsuggestUserProfilePhoto(
+				tl_int53(peerToUser(user->id).bare),
+				std::move(inputFile)
+			)).done(finish).send();
+		} else {
+			_api.request(TLsetUserPersonalProfilePhoto(
+				tl_int53(peerToUser(user->id).bare),
+				std::move(inputFile)
+			)).done(finish).send();
+		}
 	} else {
 		_api.request(TLsetChatPhoto(
 			peerToTdbChat(peer->id),
 			std::move(inputFile)
-		)).send();
+		)).done(finish).send();
 	}
 }
 
@@ -289,8 +322,8 @@ void PeerPhoto::suggest(not_null<PeerData*> peer, UserPhoto &&photo) {
 }
 
 void PeerPhoto::clear(not_null<PhotoData*> photo) {
-#if 0 // mtp
 	const auto self = _session->user();
+#if 0 // mtp
 	if (self->userpicPhotoId() == photo->id) {
 		_api.request(MTPphotos_UpdateProfilePhoto(
 			MTP_flags(0),
@@ -346,16 +379,28 @@ void PeerPhoto::clear(not_null<PhotoData*> photo) {
 			null
 		)).send();
 	} else {
+		const auto fallbackPhotoId = SyncUserFallbackPhotoViewer(self);
 		_api.request(TLdeleteProfilePhoto(
 			tl_int64(photo->id)
 		)).send();
-		_session->storage().remove(Storage::UserPhotosRemoveOne(
-			peerToUser(_session->userPeerId()),
-			photo->id));
+		if (fallbackPhotoId && (*fallbackPhotoId) == photo->id) {
+			_session->storage().add(Storage::UserPhotosSetBack(
+				peerToUser(self->id),
+				PhotoId()));
+		} else {
+			_session->storage().remove(Storage::UserPhotosRemoveOne(
+				peerToUser(_session->userPeerId()),
+				photo->id));
+		}
 	}
 }
 
 void PeerPhoto::clearPersonal(not_null<UserData*> user) {
+	_api.request(TLsetUserPersonalProfilePhoto(
+		tl_int53(peerToUser(user->id).bare),
+		std::nullopt
+	)).send();
+#if 0 // mtp
 	_api.request(MTPphotos_UploadContactProfilePhoto(
 		MTP_flags(MTPphotos_UploadContactProfilePhoto::Flag::f_save),
 		user->inputUser,
@@ -369,6 +414,7 @@ void PeerPhoto::clearPersonal(not_null<UserData*> user) {
 			_session->data().processUsers(data.vusers());
 		});
 	}).send();
+#endif
 
 	if (!user->userpicPhotoUnknown() && user->hasPersonalPhoto()) {
 		_session->storage().remove(Storage::UserPhotosRemoveOne(
@@ -383,7 +429,8 @@ void PeerPhoto::set(not_null<PeerData*> peer, not_null<PhotoData*> photo) {
 	}
 	if (peer->isSelf()) {
 		_api.request(TLsetProfilePhoto(
-			tl_inputChatPhotoPrevious(tl_int64(photo->id))
+			tl_inputChatPhotoPrevious(tl_int64(photo->id)),
+			tl_bool(false) // is_public
 		)).send();
 	} else {
 		_api.request(TLsetChatPhoto(
@@ -558,7 +605,7 @@ void PeerPhoto::requestUserPhotos(
 		tl_int32(kSharedMediaLimit)
 	)).done([this, user](const TLchatPhotos &result) {
 		_userPhotosRequests.remove(user);
-		const auto fullCount = result.data().vtotal_count().v;
+		auto fullCount = result.data().vtotal_count().v;
 
 		auto &owner = _session->data();
 		auto photoIds = result.match([&](const auto &data) {

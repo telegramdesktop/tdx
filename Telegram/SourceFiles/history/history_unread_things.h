@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 namespace Tdb {
-class TLDmessages;
+class TLDfoundChatMessages;
 class TLDupdateMessageMentionRead;
 } // namespace Tdb
 
@@ -138,7 +138,9 @@ public:
 #if 0 // mtp
 	void addSlice(const MTPmessages_Messages &slice, int alreadyLoaded);
 #endif
-	void addSlice(const Tdb::TLDmessages &result, int alreadyLoaded);
+	void addSlice(
+		const Tdb::TLDfoundChatMessages &result,
+		int alreadyLoaded);
 	void markAsRead(const Tdb::TLDupdateMessageMentionRead &update);
 
 	void checkAdd(MsgId msgId, bool resolved = false);

@@ -522,11 +522,23 @@ void ApiWrap::savePinnedOrder(not_null<Data::Forum*> forum) {
 	const auto &order = _session->data().pinnedChatsOrder(forum);
 	const auto input = [](Dialogs::Key key) {
 		if (const auto topic = key.topic()) {
+			return tl_int53(topic->rootId().bare);
+		}
+		Unexpected("Key type in pinnedDialogsOrder().");
+	};
+	sender().request(TLsetPinnedForumTopics(
+		peerToTdbChat(forum->channel()->id),
+		tl_vector<TLint53>(order
+			| ranges::views::transform(input)
+			| ranges::to<QVector>)
+	)).send();
+#if 0 // mtp
+	const auto input = [](Dialogs::Key key) {
+		if (const auto topic = key.topic()) {
 			return MTP_int(topic->rootId().bare);
 		}
 		Unexpected("Key type in pinnedDialogsOrder().");
 	};
-#if 0 // tdlib pinned topics
 	auto topics = QVector<MTPint>();
 	topics.reserve(order.size());
 	ranges::transform(

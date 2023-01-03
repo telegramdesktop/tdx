@@ -3406,20 +3406,8 @@ bool HistoryItem::hasUnpaidContent() const {
 }
 
 void HistoryItem::applyTTL(const TLDmessage &data) {
-	if (const auto period = data.vttl().v) {
-		const auto isSecret = data.vcontent().match([&](const auto &data) {
-			using T = decltype(data);
-			if constexpr (TLDmessageAnimation::Is<T>()
-				|| TLDmessagePhoto::Is<T>()
-				|| TLDmessageVideo::Is<T>()
-				|| TLDmessageVideoNote::Is<T>()) {
-				return data.vis_secret().v;
-			}
-			return false;
-		});
-		if (!isSecret) { // tdlib apply correct field for secret as well.
-			applyTTL(MessageDateFromTdb(data) + period);
-		}
+	if (const auto period = data.vauto_delete_in().v) {
+		applyTTL(base::unixtime::now() + period);
 	}
 }
 
@@ -5365,6 +5353,8 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 	using Result = std::unique_ptr<Data::Media>;
 	auto &owner = item->history()->owner();
 
+	const auto skipPremiumEffectDefault = false;
+	const auto hasSpoilerDefault = false;
 	return content.match([&](const TLDmessageText &data) -> Result {
 		auto flags = MediaWebPageFlags();
 		const auto options = data.vlink_preview()
@@ -5412,7 +5402,8 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 	}, [&](const TLDmessagePhoto &data) -> Result {
 		return std::make_unique<Data::MediaPhoto>(
 			item,
-			owner.processPhoto(data.vphoto()));
+			owner.processPhoto(data.vphoto()),
+			data.vhas_spoiler().v);
 	}, [&](const TLDmessageSticker &data) -> Result {
 		return std::make_unique<Data::MediaFile>(
 			item,
@@ -5499,7 +5490,8 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 			return std::make_unique<Data::MediaFile>(
 				item,
 				owner.processDocument(*sticker),
-				false);
+				skipPremiumEffectDefault,
+				hasSpoilerDefault);
 		}
 		return nullptr;
 	}, [&](const TLDmessageStory &data) -> Result {
