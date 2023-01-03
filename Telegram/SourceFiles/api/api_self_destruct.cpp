@@ -53,10 +53,11 @@ void SelfDestruct::reload() {
 		}).send();
 	}
 	if (!_defaultHistoryTTL.requestId) {
-		_defaultHistoryTTL.requestId = _api.request(TLgetDefaultMessageTtl(
-		)).done([=](const TLDmessageTtl &data) {
+		_defaultHistoryTTL.requestId = _api.request(
+			TLgetDefaultMessageAutoDeleteTime()
+		).done([=](const TLDmessageAutoDeleteTime &data) {
 			_defaultHistoryTTL.requestId = 0;
-			_defaultHistoryTTL.period = data.vttl().v;
+			_defaultHistoryTTL.period = data.vtime().v;
 		}).fail([=](const Error &error) {
 			_defaultHistoryTTL.requestId = 0;
 		}).send();
@@ -115,9 +116,10 @@ void SelfDestruct::updateAccountTTL(int days) {
 
 void SelfDestruct::updateDefaultHistoryTTL(TimeId period) {
 	using namespace Tdb;
-	_defaultHistoryTTL.requestId = _api.request(TLsetDefaultMessageTtl(
-		tl_messageTtl(tl_int32(period))
-	)).done([=](const TLok &result) {
+	_defaultHistoryTTL.requestId = _api.request(
+		TLsetDefaultMessageAutoDeleteTime(
+			tl_messageAutoDeleteTime(tl_int32(period)))
+	).done([=](const TLok &result) {
 		_defaultHistoryTTL.requestId = 0;
 	}).fail([=](const Error &result) {
 		_defaultHistoryTTL.requestId = 0;

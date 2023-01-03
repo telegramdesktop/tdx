@@ -27,6 +27,9 @@ enum class ChatDataFlag {
 	CallNotEmpty = (1 << 6),
 	CanSetUsername = (1 << 7),
 	NoForwards = (1 << 8),
+
+	CanHideMembers = (1 << 9),
+	CanEnableAntiSpam = (1 << 10),
 };
 inline constexpr bool is_flag_type(ChatDataFlag) { return true; };
 using ChatDataFlags = base::flags<ChatDataFlag>;
