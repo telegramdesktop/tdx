@@ -108,14 +108,14 @@ public:
 
 private:
 	class Manager;
-	class Impl;
+	class Client;
 
 	void sendPrepared(
 		RequestId requestId,
 		ExternalGenerator &&request,
 		ExternalCallback &&callback);
 
-	const std::unique_ptr<Impl> _impl;
+	std::unique_ptr<Client> _client;
 
 	static std::weak_ptr<Instance::Manager> ManagerInstance;
 
