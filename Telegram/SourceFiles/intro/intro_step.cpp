@@ -224,10 +224,10 @@ void Step::jumpByState(const TLauthorizationState &state) {
 		go(StepType::SignUp);
 	}, [&](const TLDauthorizationStateWaitPassword &) {
 		go(StepType::Password);
-	}, [&](const TLDauthorizationStateReady &) {
-	}, [&](const TLDauthorizationStateLoggingOut &) {
-	}, [&](const TLDauthorizationStateClosing &) {
-	}, [&](const TLDauthorizationStateClosed &) {
+	}, [](const TLDauthorizationStateReady &) {
+	}, [](const TLDauthorizationStateLoggingOut &) {
+	}, [](const TLDauthorizationStateClosing &) {
+	}, [](const TLDauthorizationStateClosed &) {
 	}, [](const TLDauthorizationStateWaitEmailAddress &) {
 		LOG(("Tdb Error: Should not StateWaitEmailAddress in TDesktop."));
 	}, [](const TLDauthorizationStateWaitEmailCode &) {
