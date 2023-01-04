@@ -218,9 +218,11 @@ void TdbFileLoader::cancelHook() {
 	_proxy = nullptr;
 	if (_requestId || _loadingLifetime) {
 		cancelRequest();
-		session().sender().request(TLcancelDownloadFile(
-			tl_int32(_fileId),
-			tl_bool(false)
-		)).send();
+		if (!session().loggingOut()) {
+			session().sender().request(TLcancelDownloadFile(
+				tl_int32(_fileId),
+				tl_bool(false)
+			)).send();
+		}
 	}
 }
