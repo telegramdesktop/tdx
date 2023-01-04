@@ -302,9 +302,9 @@ void Widget::handleAuthorizationState(const TLauthorizationState &state) {
 		getData()->pwdState.notEmptyPassport = data.vhas_passport_data().v;
 	}, [&](const TLDauthorizationStateReady &) {
 		getData()->waitingForFilters = true;
-	}, [&](const TLDauthorizationStateLoggingOut &) {
-	}, [&](const TLDauthorizationStateClosing &) {
-	}, [&](const TLDauthorizationStateClosed &) {
+	}, [](const TLDauthorizationStateLoggingOut &) {
+	}, [](const TLDauthorizationStateClosing &) {
+	}, [](const TLDauthorizationStateClosed &) {
 	}, [](const TLDauthorizationStateWaitEmailAddress &) {
 		LOG(("Tdb Error: Should not StateWaitEmailAddress in TDesktop."));
 	}, [](const TLDauthorizationStateWaitEmailCode &) {
@@ -318,19 +318,31 @@ void Widget::handleAuthorizationState(const TLauthorizationState &state) {
 void Widget::fillCodeInfo(const TLauthenticationCodeInfo &info) {
 	info.match([&](const TLDauthenticationCodeInfo &data) {
 		getData()->phone = data.vphone_number().v;
-		const auto currentType = data.vtype().type();
-		getData()->codeByTelegram
-			= (currentType == id_authenticationCodeTypeTelegramMessage);
-		getData()->codeLength = data.vtype().match([](
-				const TLDauthenticationCodeTypeFlashCall &) {
-			LOG(("Tdb Error: authenticationCodeTypeFlashCall."));
-			return 0;
-		}, [](const Tdb::TLDauthenticationCodeTypeMissedCall &data) {
+
+		auto codeLength = 0;
+		auto codeByTelegram = false;
+		auto codeByFragmentUrl = QString();
+		data.vtype().match([&](
+				const TLDauthenticationCodeTypeTelegramMessage &data) {
+			codeLength = data.vlength().v;
+			codeByTelegram = true;
+		}, [&](const TLDauthenticationCodeTypeSms &data) {
+			codeLength = data.vlength().v;
+		}, [&](const TLDauthenticationCodeTypeCall &data) {
+			codeLength = data.vlength().v;
+		}, [&](const TLDauthenticationCodeTypeFragment &data) {
+			codeLength = data.vlength().v;
+			codeByFragmentUrl = data.vurl().v;
+		}, [&](const TLDauthenticationCodeTypeMissedCall &) {
 			LOG(("Tdb Error: authenticationCodeTypeMissedCall."));
-			return 0;
-		}, [&](const auto &data) {
-			return data.vlength().v;
+		}, [&](const TLDauthenticationCodeTypeFlashCall &) {
+			LOG(("Tdb Error: authenticationCodeTypeFlashCall."));
 		});
+
+		const auto currentType = data.vtype().type();
+		getData()->codeLength = codeLength;
+		getData()->codeByTelegram = codeByTelegram;
+		getData()->codeByFragmentUrl = codeByFragmentUrl;
 		if (const auto next = data.vnext_type()) {
 			const auto type = next->type();
 			getData()->callStatus
