@@ -1389,7 +1389,7 @@ not_null<ChatData*> Session::processChat(const TLbasicGroup &chat) {
 		flags |= Flag::Left;
 	}, [&](const TLDchatMemberStatusBanned &data) {
 		result->setAdminRights(ChatAdminRights());
-		LOG(("Tdb Error: Should not get banned in basic groups."));
+		flags |= Flag::Forbidden;
 	});
 	result->setFlags(flags);
 	return result;

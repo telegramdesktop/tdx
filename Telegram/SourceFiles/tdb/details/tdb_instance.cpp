@@ -11,22 +11,133 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QMutex>
 #include <QtCore/QDir>
+
 #include <thread>
-#include <crl/crl_semaphore.h>
 #include <td/telegram/Client.h>
 
 namespace Tdb::details {
 namespace {
 
+constexpr auto kPurgeInvalidLimit = 1024;
+
 using namespace ::td;
 using ClientId = ClientManager::ClientId;
 namespace api = td_api;
 
-std::optional<Error> ParseError(ExternalResponse response) {
+[[nodiscard]] QString BadPostfix() {
+	return u"_td_bad"_q;
+}
+
+[[nodiscard]] QString ClientKey(const InstanceConfig &config) {
+	return config.databaseDirectory;
+}
+
+[[nodiscard]] std::optional<Error> ParseError(ExternalResponse response) {
 	if (response->get_id() != api::error::ID) {
 		return std::nullopt;
 	}
 	return Error(tl_from<TLerror>(response));
+}
+
+template <typename Message>
+[[nodiscard]] bool WrongEncryptionKeyError(int code, Message &&message) {
+	return (code == 401) && (message == "Wrong database encryption key");
+}
+
+template <typename Message>
+[[nodiscard]] bool RequestAbortedError(int code, Message &&message) {
+	return (code == 500) && (message == "Request aborted.");
+}
+
+[[nodiscard]] bool RequestAbortedError(
+		const td::ClientManager::Response &response) {
+	if (response.object->get_id() == api::error::ID) {
+		const auto error = static_cast<const api::error*>(
+			response.object.get());
+		return RequestAbortedError(error->code_, error->message_);
+	}
+	return false;
+}
+
+bool PurgePath(const QString &path) {
+	return QDir(path).removeRecursively();
+}
+
+enum class PurgeDatabaseType {
+	Test,
+	Production,
+	Both,
+};
+
+bool PurgeDatabase(const QString &directory, PurgeDatabaseType type) {
+	for (const auto &name : QDir(directory).entryList(QDir::Files)) {
+		const auto clearWith = [&](const QString &postfix) {
+			if (!name.startsWith("db" + postfix + ".sqlite")
+				&& !name.startsWith("td" + postfix + ".binlog")) {
+				return true;
+			}
+			const auto full = directory + '/' + name;
+			auto file = QFile(full);
+			if (file.remove() || !file.exists()) {
+				return true;
+			}
+			LOG(("Critical Error: Could not delete file \"%1\".").arg(full));
+			return false;
+		};
+		if ((type != PurgeDatabaseType::Production && !clearWith(u"_test"_q))
+			|| (type != PurgeDatabaseType::Test && !clearWith(QString()))) {
+			return false;
+		}
+	}
+	return true;
+}
+
+void PurgeBad(const QDir &directory) {
+	const auto filter = QDir::Dirs | QDir::NoDotAndDotDot;
+	for (const auto &name : directory.entryList(filter)) {
+		if (name.endsWith(BadPostfix())) {
+			PurgePath(directory.absoluteFilePath(name));
+		}
+	}
+}
+
+[[nodiscard]] QString ComputeTempPath(const QString &path, int index) {
+	return path + '_' + QString::number(index) + BadPostfix();
+}
+
+[[nodiscard]] bool PurgePathAsync(const QString &path) {
+	for (auto i = 0; i != kPurgeInvalidLimit; ++i) {
+		if (!QDir(path).exists()) {
+			return true;
+		}
+		const auto purging = ComputeTempPath(path, i);
+		if (QDir().rename(path, purging)) {
+			crl::async([=] {
+				PurgePath(purging);
+			});
+			return true;
+		}
+	}
+	LOG(("Critical Error: Could not rename-for-purge path: %1.").arg(path));
+	return false;
+}
+
+[[nodiscard]] bool PurgeDatabaseFilesAsync(const QString &directory) {
+	const auto filter = QDir::Dirs | QDir::NoDotAndDotDot;
+	for (const auto &name : QDir(directory).entryList(filter)) {
+		if (!name.endsWith(BadPostfix())
+			&& !PurgePathAsync(directory + '/' + name)) {
+			return false;
+		}
+	}
+	return true;
+}
+
+[[nodiscard]] bool PurgeInvalid(const InstanceConfig &config) {
+	const auto db = config.databaseDirectory;
+	return PurgeDatabase(db, PurgeDatabaseType::Both)
+		&& PurgeDatabaseFilesAsync(db)
+		&& PurgePathAsync(config.filesDirectory);
 }
 
 } // namespace
@@ -42,22 +153,25 @@ public:
 
 	[[nodiscard]] static std::shared_ptr<Manager> Instance();
 
-	[[nodiscard]] ClientId createClient(not_null<Impl*> impl);
-	void destroyClient(ClientId id);
+	[[nodiscard]] std::unique_ptr<Client> borrow(InstanceConfig config);
+	void free(std::unique_ptr<Client> client);
+
+	[[nodiscard]] ClientId recreateId(not_null<Client*> client);
+	void purgeInvalidFinishOnMain(ClientId clientId, const QString &key);
 
 	// Thread-safe.
 	[[nodiscard]] RequestId allocateRequestId();
-	void send(
+	void enqueueSend(
 		ClientId id,
-		RequestId allocatedRequestId,
+		RequestId requestId,
 		ExternalGenerator &&request,
 		ExternalCallback &&callback);
 
 private:
-	void sendToExternal(
+	void sendToTdManager(
 		ClientId id,
 		api::object_ptr<api::Function> request,
-		RequestId requestId = 0);
+		RequestId requestId);
 	void loop();
 
 	void handleUpdateOnMain(ClientId clientId, TLupdate &&update);
@@ -66,13 +180,16 @@ private:
 		RequestId requestId,
 		FnMut<void()> &&handler);
 
-	const not_null<ClientManager*> _manager;
+	void clearBadOnce(const InstanceConfig &config);
+
+	const not_null<ClientManager*> _tdmanager;
 
 	// Lives on the main thread.
-	base::flat_map<ClientId, not_null<Impl*>> _clients;
+	base::flat_map<ClientId, not_null<Client*>> _clients;
+	base::flat_map<QString, std::unique_ptr<Client>> _waitingToFinish;
 
 	// Lives on the main thread before _stopRequested, on _thread - after.
-	base::flat_set<ClientId> _waiting;
+	base::flat_map<ClientId, RequestId> _waitingForClose;
 
 	// Lives on _thread.
 	base::flat_set<ClientId> _closed;
@@ -80,26 +197,45 @@ private:
 	QMutex _mutex;
 	base::flat_map<RequestId, ExternalCallback> _callbacks;
 
+	base::flat_set<QString> _clearingPaths;
+
 	std::atomic<int32> _requestIdCounter = 0;
-	std::atomic<ClientId> _closingId = 0;
-	crl::semaphore _closing;
 
 	std::thread _thread;
+	std::unique_ptr<crl::queue> _queue;
 	std::atomic<bool> _stopRequested = false;
 
 };
 
-class Instance::Impl final {
+class Instance::Client final {
 public:
-	explicit Impl(InstanceConfig &&config);
-	~Impl();
+	Client(ClientId id, InstanceConfig &&config);
+	~Client();
+
+	enum class State {
+		Working,
+		Starting,
+		Closing,
+		Closed,
+		Failed,
+		Purging,
+		PurgeDone,
+		PurgeFail,
+	};
+	[[nodiscard]] static QString ToString(State state);
+
+	[[nodiscard]] State state() const;
+	[[nodiscard]] ClientId id() const;
+	[[nodiscard]] QString key() const;
+
+	void replaceConfig(InstanceConfig &&config);
 
 	[[nodiscard]] RequestId allocateRequestId() const;
 	void sendPrepared(
 		RequestId requestId,
 		ExternalGenerator &&request,
 		ExternalCallback &&callback,
-		bool skipReadyCheck = false);
+		bool skipStateCheck = false);
 	void cancel(RequestId requestId);
 	[[nodiscard]] bool shouldInvokeHandler(RequestId requestId);
 
@@ -111,7 +247,7 @@ public:
 			Request &&request,
 			FnMut<void(const typename Request::ResponseType &)> &&done,
 			FnMut<void(const Error &)> &&fail,
-			bool skipReadyCheck = false) {
+			bool skipStateCheck = false) {
 		const auto type = request.type();
 		return sendPrepared(
 			requestId,
@@ -120,10 +256,11 @@ public:
 				type,
 				std::move(done),
 				std::move(fail)),
-			skipReadyCheck);
+			skipStateCheck);
 	}
 
 	void handleUpdate(TLupdate &&update);
+	void purgeInvalidDone();
 	[[nodiscard]] rpl::producer<TLupdate> updates() const;
 	void logout();
 	void reset();
@@ -134,22 +271,26 @@ private:
 		ExternalCallback callback;
 	};
 
+	void restart();
 	void sendTdlibParameters();
 	void setIgnorePlatformRestrictions();
 	void sendToManager(
 		RequestId requestId,
 		ExternalGenerator &&request,
 		ExternalCallback &&callback);
-	void markReady();
+	void purgeInvalid();
+	void clearStale();
+	void started();
 
 	const std::shared_ptr<Manager> _manager;
-	std::atomic<ClientManager::ClientId> _client;
+	ClientManager::ClientId _id = 0;
 	InstanceConfig _config;
 	QMutex _activeRequestsMutex;
 	base::flat_set<RequestId> _activeRequests;
 	base::flat_map<RequestId, QueuedRequest> _queuedRequests;
 	rpl::event_stream<TLupdate> _updates;
-	bool _ready = false;
+	std::atomic<State> _state = State::Working;
+	std::atomic<bool> _clearingStale = false;
 
 };
 
@@ -194,16 +335,21 @@ FnMut<void()> HandleAsError(
 }
 
 Instance::Manager::Manager(PrivateTag)
-: _manager(ClientManager::get_manager_singleton())
-, _thread([=] { loop(); }) {
+: _tdmanager(ClientManager::get_manager_singleton())
+, _thread([=] { loop(); })
+, _queue(std::make_unique<crl::queue>()) {
 }
 
 Instance::Manager::~Manager() {
 	Expects(_stopRequested);
 	Expects(!_thread.joinable());
 	Expects(_clients.empty());
-	Expects(_waiting.empty());
+	Expects(_waitingForClose.empty());
+	Expects(_waitingToFinish.empty());
 	Expects(_closed.empty());
+
+	const auto raw = _queue.get();
+	raw->async([moved = std::move(_queue)] {});
 }
 
 std::shared_ptr<Instance::Manager> Instance::Manager::Instance() {
@@ -214,84 +360,157 @@ std::shared_ptr<Instance::Manager> Instance::Manager::Instance() {
 	return result;
 }
 
-[[nodiscard]] ClientId Instance::Manager::createClient(
-		not_null<Impl*> impl) {
+auto Instance::Manager::borrow(InstanceConfig config)
+-> std::unique_ptr<Client> {
 	Expects(!_stopRequested);
 
-	const auto result = _manager->create_client_id();
-	_clients.emplace(result, impl);
+	clearBadOnce(config);
+
+	const auto key = ClientKey(config);
+	const auto i = _waitingToFinish.find(key);
+	if (i != end(_waitingToFinish)) {
+		auto result = std::move(i->second);
+		_waitingToFinish.erase(i);
+		const auto raw = result.get();
+		const auto id = raw->id();
+		raw->replaceConfig(std::move(config));
+		_clients.emplace(id, raw);
+
+		LOG(("Tdb Info: Reviving client %1 \"%2\".").arg(id).arg(key));
+
+		return result;
+	}
+	auto result = std::make_unique<Client>(
+		_tdmanager->create_client_id(),
+		std::move(config));
+	const auto raw = result.get();
+	const auto id = raw->id();
+	_clients.emplace(raw->id(), raw);
+
+	LOG(("Tdb Info: Creating client %1 \"%2\".").arg(id).arg(key));
+
 	return result;
 }
 
-void Instance::Manager::destroyClient(ClientId id) {
+void Instance::Manager::free(std::unique_ptr<Client> client) {
 	Expects(!_stopRequested);
 
-	LOG(("Tdb Info: Destroying client %1.").arg(id));
+	const auto raw = client.get();
+	const auto state = raw->state();
+	const auto key = raw->key();
+	const auto id = raw->id();
+
+	LOG(("Tdb Info: Freeing client %1 \"%2\" (state: %3)."
+		).arg(id
+		).arg(key
+		).arg(Client::ToString(state)));
 
 	_clients.remove(id);
-	_waiting.emplace(id);
+	_waitingToFinish.emplace(key, std::move(client));
 
 	const auto finishing = _clients.empty();
+	const auto purging = (state == Client::State::Purging)
+		|| (state == Client::State::PurgeDone)
+		|| (state == Client::State::PurgeFail);
+	const auto failed = (state == Client::State::Failed);
+	const auto closingId = (purging || failed) ? 0 : allocateRequestId();
+	if (closingId) {
+		// In case `setTdlibParameters` failed we don't `close`.
+		_waitingForClose.emplace(id, closingId);
+	}
 	if (finishing) {
+		LOG(("Tdb Info: All clients freed, finishing."));
 		_stopRequested = true;
 	}
-	sendToExternal(id, api::make_object<api::close>());
-	if (finishing) {
-		_thread.join();
-	}
+	if (closingId) {
+		LOG(("Tdb Info: Sending close to %1, requestId: %2."
+			).arg(id
+			).arg(closingId));
 
-	Ensures(!finishing || _waiting.empty());
+		sendToTdManager(id, api::make_object<api::close>(), closingId);
+	} else if (finishing) {
+		const auto id = _tdmanager->create_client_id();
+
+		LOG(("Tdb Info: Explicitly waking the thread by a new client: %1."
+			).arg(id));
+
+		sendToTdManager(
+			id,
+			api::make_object<api::close>(),
+			allocateRequestId());
+	}
+	if (finishing) {
+		LOG(("Tdb Info: Joining the thread."));
+		_thread.join();
+
+		LOG(("Tdb Info: Clearing all pending clients."));
+		_waitingToFinish.clear();
+	}
+}
+
+ClientId Instance::Manager::recreateId(not_null<Client*> client) {
+	const auto was = client->id();
+	const auto now = _tdmanager->create_client_id();
+
+	LOG(("Tdb Info: Replacing client id %1 -> %2.").arg(was).arg(now));
+
+	const auto removed = _clients.remove(was);
+	Assert(removed);
+
+	_clients.emplace(now, client);
+	return now;
 }
 
 RequestId Instance::Manager::allocateRequestId() {
 	return ++_requestIdCounter;
 }
 
-void Instance::Manager::send(
+void Instance::Manager::enqueueSend(
 		ClientId clientId,
-		RequestId allocatedRequestId,
+		RequestId requestId,
 		ExternalGenerator &&request,
 		ExternalCallback &&callback) {
-	if (callback) {
-		QMutexLocker lock(&_mutex);
-		_callbacks.emplace(allocatedRequestId, std::move(callback));
-	}
-	sendToExternal(
+	_queue->async([
+		that = shared_from_this(),
 		clientId,
-		api::object_ptr<api::Function>(request()),
-		allocatedRequestId);
+		requestId,
+		request = std::move(request),
+		callback = std::move(callback)
+	]() mutable {
+		const auto raw = that.get();
+		if (callback) {
+			QMutexLocker lock(&raw->_mutex);
+			raw->_callbacks.emplace(requestId, std::move(callback));
+		}
+		raw->sendToTdManager(
+			clientId,
+			api::object_ptr<api::Function>(request()),
+			requestId);
+	});
 }
 
-void Instance::Manager::sendToExternal(
+void Instance::Manager::sendToTdManager(
 		ClientId id,
 		api::object_ptr<api::Function> request,
 		RequestId requestId) {
-	if (!requestId) {
-		requestId = allocateRequestId();
-	}
-	_manager->send(id, requestId, std::move(request));
+	_tdmanager->send(id, requestId, std::move(request));
 }
 
 void Instance::Manager::loop() {
 	auto stopping = false;
-	while (!stopping || !_waiting.empty()) {
-		auto response = _manager->receive(60.);
+	while (!stopping || !_waitingForClose.empty()) {
+		auto response = _tdmanager->receive(60.);
 		if (!response.object) {
 			continue;
 		}
 		if (!stopping && _stopRequested) {
 			stopping = true;
 			for (const auto clientId : base::take(_closed)) {
-				_waiting.remove(clientId);
+				_waitingForClose.remove(clientId);
 			}
 		}
-		if (response.object->get_id() == api::error::ID) {
-			const auto error = static_cast<api::error*>(
-				response.object.get());
-			if (error->code_ == 500
-				&& error->message_ == "Request aborted.") {
-				continue;
-			}
+		if (RequestAbortedError(response)) {
+			continue;
 		}
 		const auto clientId = response.client_id;
 		const auto requestId = RequestId(response.request_id);
@@ -301,7 +520,7 @@ void Instance::Manager::loop() {
 			if (ClientClosedUpdate(update)) {
 				LOG(("Tdb Info: Client %1 finished closing.").arg(clientId));
 				if (stopping) {
-					_waiting.remove(clientId);
+					_waitingForClose.remove(clientId);
 				} else {
 					_closed.emplace(clientId);
 				}
@@ -320,6 +539,9 @@ void Instance::Manager::loop() {
 		lock.unlock();
 
 		if (!callback) {
+			//if (_waitingForClose[clientId] == requestId) {
+			//	_waitingForClose.remove(clientId);
+			//}
 			if (const auto error = ParseError(object)) {
 				LogError(uint32(-1), requestId, *error);
 			}
@@ -341,17 +563,27 @@ void Instance::Manager::handleUpdateOnMain(
 		TLupdate &&update) {
 	const auto closed = ClientClosedUpdate(update);
 	if (closed) {
-		_waiting.remove(clientId);
+		_waitingForClose.remove(clientId);
 	}
 	const auto i = _clients.find(clientId);
-	if (i == end(_clients)) {
+	if (i != end(_clients)) {
+		i->second->handleUpdate(std::move(update));
+	} else if (!closed) {
 		return;
 	}
-	const auto instance = i->second;
-	if (closed) {
-		_clients.erase(i);
+
+	for (auto i = begin(_waitingToFinish)
+		; i != end(_waitingToFinish)
+		; ++i) {
+		if (i->second->id() == clientId) {
+			LOG(("Tdb Info: Deleting closed client %1 \"%2\"."
+				).arg(clientId
+				).arg(i->first));
+
+			_waitingToFinish.erase(i);
+			break;
+		}
 	}
-	instance->handleUpdate(std::move(update));
 }
 
 void Instance::Manager::handleResponseOnMain(
@@ -367,34 +599,96 @@ void Instance::Manager::handleResponseOnMain(
 	handler();
 }
 
-Instance::Impl::Impl(InstanceConfig &&config)
+void Instance::Manager::clearBadOnce(const InstanceConfig &config) {
+	if (_clearingPaths.emplace(config.databaseDirectory).second) {
+		crl::async([path = config.databaseDirectory] {
+			PurgeBad(QDir(path));
+		});
+	}
+	if (_clearingPaths.emplace(config.filesDirectory).second) {
+		crl::async([path = config.filesDirectory] {
+			auto dir = QDir(path);
+			dir.cdUp();
+			PurgeBad(dir);
+		});
+	}
+}
+
+void Instance::Manager::purgeInvalidFinishOnMain(
+		ClientId clientId,
+		const QString &key) {
+	const auto i = _clients.find(clientId);
+	if (i == end(_clients)) {
+		LOG(("Tdb Info: Deleting purged client %1 \"%2\"."
+			).arg(clientId
+			).arg(key));
+
+		_waitingToFinish.remove(key);
+		return;
+	}
+	i->second->purgeInvalidDone();
+}
+
+Instance::Client::Client(ClientId id, InstanceConfig &&config)
 : _manager(Manager::Instance())
-, _client(_manager->createClient(this))
+, _id(id)
 , _config(std::move(config)) {
-	QDir().mkpath(_config.databaseDirectory);
-	QDir().mkpath(_config.filesDirectory);
 	sendTdlibParameters();
 }
 
-Instance::Impl::~Impl() {
-	_manager->destroyClient(_client);
+Instance::Client::~Client() {
+	_state.wait(State::Purging);
+	_clearingStale.wait(true);
 }
 
-RequestId Instance::Impl::allocateRequestId() const {
+QString Instance::Client::ToString(State state) {
+	switch (state) {
+	case State::Starting: return u"Starting"_q;
+	case State::Working: return u"Working"_q;
+	case State::Closing: return u"Closing"_q;
+	case State::Closed: return u"Closed"_q;
+	case State::Failed: return u"Failed"_q;
+	case State::Purging: return u"Purging"_q;
+	case State::PurgeDone: return u"PurgeDone"_q;
+	case State::PurgeFail: return u"PurgeFail"_q;
+	}
+	Unexpected("State value in Tdb::Instance::Client::ToString.");
+}
+
+Instance::Client::State Instance::Client::state() const {
+	return _state.load();
+}
+
+ClientId Instance::Client::id() const {
+	return _id;
+}
+
+QString Instance::Client::key() const {
+	return ClientKey(_config);
+}
+
+void Instance::Client::replaceConfig(InstanceConfig &&config) {
+	_config = std::move(config);
+}
+
+RequestId Instance::Client::allocateRequestId() const {
 	return _manager->allocateRequestId();
 }
 
-void Instance::Impl::sendPrepared(
+void Instance::Client::sendPrepared(
 		RequestId requestId,
 		ExternalGenerator &&request,
 		ExternalCallback &&callback,
-		bool skipReadyCheck) {
+		bool skipStateCheck) {
 	if (callback) {
 		QMutexLocker lock(&_activeRequestsMutex);
 		_activeRequests.emplace(requestId);
 	}
-	if (!_ready && !skipReadyCheck) {
-		DEBUG_LOG(("Request %1 queued until logged out.").arg(requestId));
+	if (_state == State::Closed) {
+		restart();
+	}
+	if (!skipStateCheck && _state != State::Working) {
+		DEBUG_LOG(("Request %1 queued until start working.").arg(requestId));
 		_queuedRequests.emplace(requestId, QueuedRequest{
 			std::move(request),
 			std::move(callback)
@@ -404,26 +698,18 @@ void Instance::Impl::sendPrepared(
 	sendToManager(requestId, std::move(request), std::move(callback));
 }
 
-void Instance::Impl::sendToManager(
+void Instance::Client::sendToManager(
 		RequestId requestId,
 		ExternalGenerator &&request,
 		ExternalCallback &&callback) {
-	crl::async([
-		manager = _manager,
-		clientId = _client.load(),
+	_manager->enqueueSend(
+		_id,
 		requestId,
-		request = std::move(request),
-		callback = std::move(callback)
-	]() mutable {
-		manager->send(
-			clientId,
-			requestId,
-			std::move(request),
-			std::move(callback));
-	});
+		std::move(request),
+		std::move(callback));
 }
 
-void Instance::Impl::cancel(RequestId requestId) {
+void Instance::Client::cancel(RequestId requestId) {
 	{
 		QMutexLocker lock(&_activeRequestsMutex);
 		_activeRequests.remove(requestId);
@@ -431,16 +717,17 @@ void Instance::Impl::cancel(RequestId requestId) {
 	_queuedRequests.remove(requestId);
 }
 
-bool Instance::Impl::shouldInvokeHandler(RequestId requestId) {
+bool Instance::Client::shouldInvokeHandler(RequestId requestId) {
 	QMutexLocker lock(&_activeRequestsMutex);
 	return _activeRequests.remove(requestId);
 }
 
-void Instance::Impl::markReady() {
-	if (_ready) {
+void Instance::Client::started() {
+	if (_state == State::PurgeFail || _state == State::Failed) {
 		return;
 	}
-	_ready = true;
+	_state = State::Working;
+	setIgnorePlatformRestrictions();
 	for (auto &[requestId, queued] : base::take(_queuedRequests)) {
 		sendToManager(
 			requestId,
@@ -449,20 +736,24 @@ void Instance::Impl::markReady() {
 	}
 }
 
-void Instance::Impl::handleUpdate(TLupdate &&update) {
+void Instance::Client::handleUpdate(TLupdate &&update) {
+	Expects(_state != State::Purging);
+
 	update.match([&](const TLDupdateAuthorizationState &data) {
 		data.vauthorization_state().match([](
 			const TLDauthorizationStateWaitTdlibParameters &) {
 		}, [&](const TLDauthorizationStateLoggingOut &) {
-			_ready = false;
+			_state = State::Closing;
 		}, [&](const TLDauthorizationStateClosing &) {
-			_ready = false;
+			_state = State::Closing;
 		}, [&](const TLDauthorizationStateClosed &) {
-			_client = _manager->createClient(this);
-			sendTdlibParameters();
+			_state = State::Closed;
 			_updates.fire(std::move(update));
+			if (!_queuedRequests.empty() && _state == State::Closed) {
+				restart();
+			}
 		}, [&](const auto &) {
-			markReady();
+			started();
 			_updates.fire(std::move(update));
 		});
 	}, [&](const auto &) {
@@ -470,38 +761,83 @@ void Instance::Impl::handleUpdate(TLupdate &&update) {
 	});
 }
 
-rpl::producer<TLupdate> Instance::Impl::updates() const {
+void Instance::Client::purgeInvalidDone() {
+	if (_state != State::PurgeDone) {
+		return;
+	}
+
+	LOG(("Tdb Info: Sending `closed` after purge for client %1 \"%2\"."
+		).arg(_id
+		).arg(ClientKey(_config)));
+
+	handleUpdate(tl_updateAuthorizationState(tl_authorizationStateClosed()));
+}
+
+rpl::producer<TLupdate> Instance::Client::updates() const {
 	return _updates.events();
 }
 
-void Instance::Impl::logout() {
-	_ready = false;
+void Instance::Client::logout() {
+	if (_state == State::Purging
+		|| _state == State::PurgeDone
+		|| _state == State::PurgeFail
+		|| _state == State::Failed) {
+		return;
+	} else if (_state == State::Closed) {
+		restart();
+		return;
+	}
+	_state = State::Closing;
 	send(allocateRequestId(), TLlogOut(), nullptr, nullptr, true);
 }
 
-void Instance::Impl::reset() {
-	_ready = false;
+void Instance::Client::reset() {
+	if (_state == State::Purging
+		|| _state == State::PurgeDone
+		|| _state == State::PurgeFail
+		|| _state == State::Failed) {
+		return;
+	} else if (_state == State::Closed) {
+		restart();
+		return;
+	}
+	_state = State::Closing;
 	send(allocateRequestId(), TLdestroy(), nullptr, nullptr, true);
 }
 
-void Instance::Impl::sendTdlibParameters() {
+void Instance::Client::restart() {
+	Expects(_state == State::Closed);
+
+	_id = _manager->recreateId(this);
+	_state = State::Working;
+	sendTdlibParameters();
+}
+
+void Instance::Client::sendTdlibParameters() {
+	Expects(_state != State::Purging);
+	Expects(_state != State::Closed);
+
+	QDir().mkpath(_config.databaseDirectory);
+	QDir().mkpath(_config.filesDirectory);
+
 	const auto fail = [=](Error error) {
-		LOG(("Critical Error: setTdlibParameters - %1").arg(error.message));
-		if (error.message == u"Wrong database encryption key"_q) {
-			// todo
+		LOG(("Critical Error: setTdlibParameters - %1.").arg(error.message));
+
+		if (WrongEncryptionKeyError(error.code, error.message)) {
+			purgeInvalid();
+		} else {
+			_state = State::Failed;
 		}
 	};
-	//const auto fail = [=](Error error) {
-	//	LOG(("Critical Error: Invalid local key - %1").arg(error.message));
-	//	send(allocateRequestId(), TLdestroy(), nullptr, nullptr, true);
-	//};
+	_clearingStale.wait(true);
+	_state = State::Starting;
 	send(
 		allocateRequestId(),
 		TLsetTdlibParameters(
 			tl_bool(_config.testDc),
 			tl_string(_config.databaseDirectory),
-			tl_string(_config.filesDirectory), // files_directory
-			tl_bytes(_config.encryptionKey), // database_encryption_key
+			tl_string(_config.filesDirectory),
+			tl_bytes(_config.encryptionKey),
 			tl_bool(true), // use_file_database
 			tl_bool(true), // use_chat_info_database
 			tl_bool(true), // use_message_database
@@ -517,10 +853,51 @@ void Instance::Impl::sendTdlibParameters() {
 		nullptr,
 		fail,
 		true);
-	setIgnorePlatformRestrictions();
+	clearStale();
 }
 
-void Instance::Impl::setIgnorePlatformRestrictions() {
+void Instance::Client::purgeInvalid() {
+	_state = State::Purging;
+	const auto id = _id;
+	const auto key = ClientKey(_config);
+	const auto weak = std::weak_ptr(_manager);
+
+	LOG(("Tdb Info: Purging client %1 \"%2\".").arg(id).arg(key));
+
+	_clearingStale.wait(true);
+	crl::async([weak, id, key, state = &_state, config = _config] {
+		const auto purged = PurgeInvalid(config);
+
+		LOG(("Tdb Info: Purge result %1 for client %2 \"%3\"."
+			).arg(purged ? "TRUE" : "FALSE"
+			).arg(id
+			).arg(key));
+
+		*state = purged ? State::PurgeDone : State::PurgeFail;
+		crl::on_main([weak, id, key] {
+			if (const auto strong = weak.lock()) {
+				strong->purgeInvalidFinishOnMain(id, key);
+			} else {
+				LOG(("Tdb Info: No manager after purge for client %1 \"%2\"."
+					).arg(id
+					).arg(key));
+			}
+		});
+	});
+}
+
+void Instance::Client::clearStale() {
+	_clearingStale = true;
+	crl::async([flag = &_clearingStale, config = _config] {
+		const auto purgeType = config.testDc
+			? PurgeDatabaseType::Production
+			: PurgeDatabaseType::Test;
+		PurgeDatabase(config.databaseDirectory, purgeType);
+		*flag = false;
+	});
+}
+
+void Instance::Client::setIgnorePlatformRestrictions() {
 #if !defined OS_MAC_STORE && !defined OS_WIN_STORE
 	const auto ignore = true;
 #else // !OS_MAC_STORE && !OS_WIN_STORE
@@ -532,44 +909,45 @@ void Instance::Impl::setIgnorePlatformRestrictions() {
 			tl_string("ignore_platform_restrictions"),
 			tl_optionValueBoolean(tl_bool(ignore))),
 		nullptr,
-		nullptr,
-		false);
+		nullptr);
 }
 
 Instance::Instance(InstanceConfig &&config)
-: _impl(std::make_unique<Impl>(std::move(config))) {
+: _client(Manager::Instance()->borrow(std::move(config))) {
 }
 
-Instance::~Instance() = default;
+Instance::~Instance() {
+	Manager::Instance()->free(std::move(_client));
+}
 
 RequestId Instance::allocateRequestId() const {
-	return _impl->allocateRequestId();
+	return _client->allocateRequestId();
 }
 
 void Instance::sendPrepared(
 		RequestId requestId,
 		ExternalGenerator &&request,
 		ExternalCallback &&callback) {
-	_impl->sendPrepared(
+	_client->sendPrepared(
 		requestId,
 		std::move(request),
 		std::move(callback));
 }
 
 void Instance::cancel(RequestId requestId) {
-	_impl->cancel(requestId);
+	_client->cancel(requestId);
 }
 
 rpl::producer<TLupdate> Instance::updates() const {
-	return _impl->updates();
+	return _client->updates();
 }
 
 void Instance::logout() {
-	_impl->logout();
+	_client->logout();
 }
 
 void Instance::reset() {
-	_impl->reset();
+	_client->reset();
 }
 
 void ExecuteExternal(

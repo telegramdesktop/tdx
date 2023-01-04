@@ -132,12 +132,15 @@ std::unique_ptr<Tdb::Account> Account::createTdb() {
 		update.match([&](const TLDupdateAuthorizationState &data) {
 			data.vauthorization_state().match([&](
 					const TLDauthorizationStateWaitTdlibParameters &) {
-			}, [&](const TLDauthorizationStateReady &) {
-			}, [&](const TLDauthorizationStateLoggingOut &) {
-			}, [&](const TLDauthorizationStateClosing &) {
+			}, [](const TLDauthorizationStateReady &) {
+			}, [](const TLDauthorizationStateLoggingOut &) {
+			}, [](const TLDauthorizationStateClosing &) {
 			}, [&](const TLDauthorizationStateClosed &) {
-				DEBUG_LOG(("Tdb Info: Got 'Closed', logged out."));
-				loggedOut();
+				if (_session) {
+					DEBUG_LOG(("Tdb Info: Got 'Closed', logged out."));
+					loggedOut();
+				}
+				setConnectionState(ConnectionState::WaitingForNetwork);
 			}, [&](const auto &) {
 				if (_session) {
 					LOG(("Tdb Info: Got bad state, logged out."));
@@ -705,7 +708,6 @@ void Account::startMtp(std::unique_ptr<MTP::Config> config) {
 		session->changes().sendNotifications();
 	}
 
-	_local->destroyStaleTdbs();
 #if 0 // mtp
 	_mtpValue = _mtp.get();
 #endif
@@ -761,11 +763,14 @@ void Account::forcedLogOut() {
 }
 
 void Account::loggedOut() {
+#if 0 // mtp
 	_loggingOut = false;
+#endif
 	Media::Player::mixer()->stopAndClear();
 	destroySession(DestroyReason::LoggedOut);
 	local().reset();
 	cSetOtherOnline(0);
+	_loggingOut = false;
 }
 
 #if 0 // mtp
