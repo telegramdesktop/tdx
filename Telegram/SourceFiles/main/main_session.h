@@ -95,6 +95,7 @@ public:
 
 	[[nodiscard]] Tdb::Account &tdb() const;
 	[[nodiscard]] Tdb::Sender &sender();
+	[[nodiscard]] bool loggingOut() const;
 
 	bool apply(const Tdb::TLDupdateOption &option);
 
