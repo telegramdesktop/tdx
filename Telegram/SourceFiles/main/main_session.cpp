@@ -263,6 +263,10 @@ Tdb::Sender &Session::sender() {
 	return *_sender;
 }
 
+bool Session::loggingOut() const {
+	return _account->loggingOut();
+}
+
 bool Session::apply(const TLDupdateOption &update) {
 	if (update.vname().v == "is_premium_available") {
 		_premiumPossible = OptionValue<bool>(update.vvalue());
