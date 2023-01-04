@@ -1028,20 +1028,24 @@ void Updates::updateOnline(crl::time lastNonIdleTime, bool gotOtherOffline) {
 			}).send();
 		}
 #endif
-		if (!Core::Quitting()) {
-			_session->sender().request(TLsetOption(
-				tl_string("online"),
-				tl_optionValueBoolean(tl_bool(isOnline))
-			)).send();
-		} else {
-			_session->sender().request(TLsetOption(
-				tl_string("online"),
-				tl_optionValueBoolean(tl_bool(isOnline))
-			)).done([=] {
-				Core::App().quitPreventFinished();
-			}).fail([=] {
-				Core::App().quitPreventFinished();
-			}).send();
+		// We don't want to send requests after `logout` was called, it'll
+		// force creation of a new TDLib client, just to fail the request.
+		if (!_session->loggingOut()) {
+			if (!Core::Quitting()) {
+				_session->sender().request(TLsetOption(
+					tl_string("online"),
+					tl_optionValueBoolean(tl_bool(isOnline))
+				)).send();
+			} else {
+				_session->sender().request(TLsetOption(
+					tl_string("online"),
+					tl_optionValueBoolean(tl_bool(isOnline))
+				)).done([=] {
+					Core::App().quitPreventFinished();
+				}).fail([=] {
+					Core::App().quitPreventFinished();
+				}).send();
+			}
 		}
 
 		const auto self = session().user();
