@@ -106,12 +106,37 @@ public:
 	void logout();
 	void reset();
 
+	// Synchronous requests. Use with care!!
+	// If request will use the network or even disk it may freeze the app.
+	// It expects the _state is Working, instantly fails otherwise.
+	// Returns `base::expected<Response, Error>`.
+	template <
+		typename Request,
+		typename = std::enable_if_t<!std::is_reference_v<Request>>,
+		typename = typename Request::ResponseType>
+	auto sendSync(Request &&request) {
+		using Response = typename Request::ResponseType;
+		auto container = base::expected<Response, Error>();
+		const auto type = request.type();
+		sendPreparedSync(
+			tl_to_generator(std::move(request)),
+			PrepareCallback<Response>(type, [&](const Response &result) {
+				container = result;
+			}, [&](const Error &error) {
+				container = base::make_unexpected(error);
+			}));
+		return container;
+	}
+
 private:
 	class Manager;
 	class Client;
 
 	void sendPrepared(
 		RequestId requestId,
+		ExternalGenerator &&request,
+		ExternalCallback &&callback);
+	void sendPreparedSync(
 		ExternalGenerator &&request,
 		ExternalCallback &&callback);
 
@@ -125,6 +150,7 @@ void ExecuteExternal(
 	ExternalGenerator &&request,
 	ExternalCallback &&callback);
 
+// Returns `base::expected<Response, Error>`.
 template <
 	typename Request,
 	typename = std::enable_if_t<!std::is_reference_v<Request>>,

@@ -185,6 +185,17 @@ public:
 			return id;
 		}
 
+		// Synchronous requests. Use with care!!
+		// If request will use the network or even disk it may freeze the app.
+		// It expects the _state is Working, instantly fails otherwise.
+		// Returns `base::expected<Response, Error>`.
+		auto sendSync() noexcept {
+			Expects(!_done);
+			Expects(!takeOnFail());
+
+			return sender()->_instance->sendSync(std::move(_request));
+		}
+
 	private:
 		DoneHandler<Result> _done;
 		Request _request;
