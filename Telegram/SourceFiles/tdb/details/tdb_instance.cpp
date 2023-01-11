@@ -238,6 +238,9 @@ public:
 		bool skipStateCheck = false);
 	void cancel(RequestId requestId);
 	[[nodiscard]] bool shouldInvokeHandler(RequestId requestId);
+	void sendPreparedSync(
+		ExternalGenerator &&request,
+		ExternalCallback &&callback);
 
 	template <
 		typename Request,
@@ -698,6 +701,29 @@ void Instance::Client::sendPrepared(
 	sendToManager(requestId, std::move(request), std::move(callback));
 }
 
+void Instance::Client::sendPreparedSync(
+		ExternalGenerator &&request,
+		ExternalCallback &&callback) {
+	Expects(callback != nullptr);
+
+	if (_state != State::Working) {
+		auto error = api::error(500, "Request aborted.");
+		callback(0, &error)();
+		return;
+	}
+	auto flag = std::atomic<bool>(false);
+	sendToManager(allocateRequestId(), std::move(request), [&, flag = &flag](
+			uint64 id,
+			ExternalResponse response) mutable {
+		// Don't send callback() result to the main thread, invoke instantly.
+		callback(id, std::move(response))();
+		*flag = true;
+		std::atomic_notify_all(flag);
+		return FnMut<void()>();
+	});
+	flag.wait(false);
+}
+
 void Instance::Client::sendToManager(
 		RequestId requestId,
 		ExternalGenerator &&request,
@@ -874,6 +900,8 @@ void Instance::Client::purgeInvalid() {
 			).arg(key));
 
 		*state = purged ? State::PurgeDone : State::PurgeFail;
+		std::atomic_notify_all(state);
+
 		crl::on_main([weak, id, key] {
 			if (const auto strong = weak.lock()) {
 				strong->purgeInvalidFinishOnMain(id, key);
@@ -894,6 +922,7 @@ void Instance::Client::clearStale() {
 			: PurgeDatabaseType::Test;
 		PurgeDatabase(config.databaseDirectory, purgeType);
 		*flag = false;
+		std::atomic_notify_all(flag);
 	});
 }
 
@@ -932,6 +961,12 @@ void Instance::sendPrepared(
 		requestId,
 		std::move(request),
 		std::move(callback));
+}
+
+void Instance::sendPreparedSync(
+		ExternalGenerator &&request,
+		ExternalCallback &&callback) {
+	_client->sendPreparedSync(std::move(request), std::move(callback));
 }
 
 void Instance::cancel(RequestId requestId) {
