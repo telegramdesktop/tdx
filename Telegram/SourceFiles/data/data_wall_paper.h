@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class Image;
 
 namespace Tdb {
-class TLDbackground;
+class TLbackground;
 } // namespace Tdb
 
 namespace Main {
@@ -100,7 +100,7 @@ public:
 #endif
 	[[nodiscard]] static std::optional<WallPaper> Create(
 		not_null<Main::Session*> session,
-		const Tdb::TLDbackground &data);
+		const Tdb::TLbackground &paper);
 
 	[[nodiscard]] QByteArray serialize() const;
 	[[nodiscard]] static std::optional<WallPaper> FromSerialized(
