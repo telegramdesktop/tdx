@@ -68,10 +68,12 @@ public:
 		return uploadingId;
 	}
 
+#if 0 // mtp
 	void uploadMedia(const FullMsgId &msgId, const SendMediaReady &image);
 	void upload(
 		const FullMsgId &msgId,
 		const std::shared_ptr<FileLoadResult> &file);
+#endif
 
 	void cancel(const FullMsgId &msgId);
 	void pause(const FullMsgId &msgId);
