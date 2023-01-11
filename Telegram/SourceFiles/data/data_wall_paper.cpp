@@ -17,6 +17,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 
 #include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+
+#include <QtGui/QGuiApplication>
+#include <QtGui/QClipboard>
 
 namespace Ui {
 
@@ -131,6 +135,27 @@ using Ui::MaybeColorFromSerialized;
 	}, [&](const TLDbackgroundFillFreeformGradient &data) {
 		return 0;
 	});;
+}
+
+[[nodiscard]] TLbackgroundFill FillToTL(
+		const std::vector<QColor> &colors,
+		int rotation) {
+	const auto wrap = [](const QColor &value) {
+		return tl_int32(static_cast<int32>(SerializeColor(value)));
+	};
+	if (colors.empty()) {
+		return tl_backgroundFillSolid(tl_int32(0));
+	} else if (colors.size() == 1) {
+		return tl_backgroundFillSolid(wrap(colors[0]));
+	} else if (colors.size() == 2) {
+		return tl_backgroundFillGradient(
+			wrap(colors[0]),
+			wrap(colors[1]),
+			tl_int32(rotation));
+	}
+	return tl_backgroundFillFreeformGradient(tl_vector<TLint32>(colors
+		| ranges::views::transform(wrap)
+		| ranges::to<QVector>()));
 }
 
 [[nodiscard]] std::optional<QColor> ColorFromString(QStringView string) {
@@ -352,6 +377,7 @@ QString WallPaper::key() const {
 	return params.isEmpty() ? base : (base + '?' + params.join('&'));
 }
 
+#if 0 // mtp
 QString WallPaper::shareUrl(not_null<Main::Session*> session) const {
 	if (!hasShareUrl()) {
 		return QString();
@@ -359,6 +385,30 @@ QString WallPaper::shareUrl(not_null<Main::Session*> session) const {
 	const auto base = session->createInternalLinkFull("bg/" + _slug);
 	const auto params = collectShareParams();
 	return params.isEmpty() ? base : (base + '?' + params.join('&'));
+}
+#endif
+
+void WallPaper::requestShareUrl(
+		not_null<Main::Session*> session,
+		Fn<void(QString)> done) const {
+	const auto type = [&] {
+		const auto moving = false;
+		return isPattern()
+			? tl_backgroundTypePattern(
+				FillToTL(_backgroundColors, _rotation),
+				tl_int32(std::abs(_intensity)),
+				tl_bool(_intensity < 0),
+				tl_bool(moving))
+			: _backgroundColors.empty()
+			? tl_backgroundTypeWallpaper(tl_bool(_blurred), tl_bool(moving))
+			: tl_backgroundTypeFill(FillToTL(_backgroundColors, _rotation));
+	}();
+	session->sender().request(TLgetBackgroundUrl(
+		tl_string(_slug),
+		type
+	)).done([=](const TLDhttpUrl &result) {
+		done(result.vurl().v);
+	}).send();
 }
 
 void WallPaper::loadDocumentThumbnail() const {
@@ -599,6 +649,11 @@ std::optional<WallPaper> WallPaper::Create(
 		result._rotation = RotationFromTL(data.vfill());
 	}, [&](const TLDbackgroundTypePattern &data) {
 		result._backgroundColors = ColorsFromTL(data.vfill());
+		if (result._backgroundColors.size() == 1
+			&& result._backgroundColors[0] == QColor(0, 0, 0, 255)) {
+			// This is really a bad pattern without colors at all.
+			result._backgroundColors = {};
+		}
 		result._rotation = RotationFromTL(data.vfill());
 		result._intensity = (data.vis_inverted().v ? -1 : 1)
 			* data.vintensity().v;
