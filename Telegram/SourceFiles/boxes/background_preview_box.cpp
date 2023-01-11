@@ -845,9 +845,17 @@ void BackgroundPreviewBox::applyForEveryone() {
 }
 
 void BackgroundPreviewBox::share() {
+	const auto weak = Ui::MakeWeak(this);
+	const auto session = &_controller->session();
+	_paper.requestShareUrl(session, crl::guard(this, [=](QString url) {
+		QGuiApplication::clipboard()->setText(url);
+		showToast(tr::lng_background_link_copied(tr::now));
+	}));
+#if 0 // mtp
 	QGuiApplication::clipboard()->setText(
 		_paper.shareUrl(&_controller->session()));
 	showToast(tr::lng_background_link_copied(tr::now));
+#endif
 }
 
 void BackgroundPreviewBox::paintEvent(QPaintEvent *e) {
