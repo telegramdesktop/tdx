@@ -62,8 +62,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
 
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Settings {
 namespace {
+
+using namespace Tdb;
 
 using SectionCustomTopBarData = Info::Settings::SectionCustomTopBarData;
 
@@ -409,15 +414,115 @@ void SendAppLog(
 }
 #endif
 
+[[nodiscard]] QString PreviewNameFromFeature(
+		const TLpremiumFeature &feature) {
+	return feature.match([](const TLDpremiumFeatureUpgradedStories &) {
+		return u"stories"_q;
+	}, [](const TLDpremiumFeatureChatBoost &) {
+		return u"channel_boost"_q;
+	}, [](const TLDpremiumFeatureAccentColor &) {
+		return u"accent_color"_q;
+	}, [](const TLDpremiumFeatureIncreasedLimits &) {
+		return u"double_limits"_q;
+	}, [](const TLDpremiumFeatureIncreasedUploadFileSize &) {
+		return u"more_upload"_q;
+	}, [](const TLDpremiumFeatureImprovedDownloadSpeed &) {
+		return u"faster_download"_q;
+	}, [](const TLDpremiumFeatureVoiceRecognition &) {
+		return u"voice_to_text"_q;
+	}, [](const TLDpremiumFeatureDisabledAds &) {
+		return u"no_ads"_q;
+	}, [](const TLDpremiumFeatureUniqueReactions &) {
+		return u"infinite_reactions"_q;
+	}, [](const TLDpremiumFeatureUniqueStickers &) {
+		return u"premium_stickers"_q;
+	}, [](const TLDpremiumFeatureCustomEmoji &) {
+		return u"animated_emoji"_q;
+	}, [](const TLDpremiumFeatureAdvancedChatManagement &) {
+		return u"advanced_chat_management"_q;
+	}, [](const TLDpremiumFeatureProfileBadge &) {
+		return u"profile_badge"_q;
+	}, [](const TLDpremiumFeatureEmojiStatus &) {
+		return u"emoji_status"_q;
+	}, [](const TLDpremiumFeatureAnimatedProfilePhoto &) {
+		return u"animated_userpics"_q;
+	}, [](const TLDpremiumFeatureForumTopicIcon &) {
+		return u"forum_topic_icon"_q;
+	}, [](const TLDpremiumFeatureAppIcons &) {
+		return u"app_icons"_q;
+	});
+}
+
+[[nodiscard]] Order ComputeOrder(const TLpremiumFeatures &list) {
+	return list.data().vfeatures().v | ranges::views::transform(
+		PreviewNameFromFeature
+	) | ranges::to_vector;
+}
+
+[[nodiscard]] std::optional<TLpremiumSource> GetSource(const QString &ref) {
+	if (ref == u"settings"_q) {
+		return tl_premiumSourceSettings();
+	} else if (ref == u"deeplink"_q) {
+		return tl_premiumSourceLink(tl_string());
+	}
+	const auto prefix = u"deeplink_"_q;
+	if (ref.startsWith(prefix)) {
+		return tl_premiumSourceLink(tl_string(ref.mid(prefix.size())));
+	}
+	const auto limits = u"double_limits__"_q;
+	if (ref.startsWith(limits)) {
+		const auto part = QStringView(ref).mid(limits.size());
+		if (part == u"upload_max_fileparts"_q) {
+			return tl_premiumSourceFeature(
+				tl_premiumFeatureIncreasedUploadFileSize());
+		}
+		return tl_premiumSourceLimitExceeded([&] {
+			if (part == u"channels"_q) {
+				return tl_premiumLimitTypeSupergroupCount();
+			} else if (part == u"channels_public"_q) {
+				return tl_premiumLimitTypeCreatedPublicChatCount();
+			} else if (part == u"saved_gifs"_q) {
+				return tl_premiumLimitTypeSavedAnimationCount();
+			} else if (part == u"stickers_faved"_q) {
+				return tl_premiumLimitTypeFavoriteStickerCount();
+			} else if (part == u"dialog_filters"_q) {
+				return tl_premiumLimitTypeChatFilterCount();
+			} else if (part == u"dialog_filters_chats"_q
+				|| part == u"dialog_filters_pinned"_q) {
+				return tl_premiumLimitTypeChatFilterChosenChatCount();
+			} else if (part == u"caption_length"_q) {
+				return tl_premiumLimitTypeCaptionLength();
+			} else if (part == u"dialog_pinned"_q) {
+				return tl_premiumLimitTypePinnedChatCount();
+			} else if (part == u"dialogs_folder_pinned"_q) {
+				return tl_premiumLimitTypePinnedArchivedChatCount();
+			}
+			Unexpected("Unknown double_limits__ premium ref.");
+		}());
+	}
+	for (const auto &[entryRef, entry] : EntryMap()) {
+		if (entryRef == ref) {
+			return tl_premiumSourceFeature(
+				Api::FeatureToTL(entry.section));
+		}
+	}
+	if (ref == u"forum_topic_icon"_q) {
+		return tl_premiumSourceFeature(tl_premiumFeatureForumTopicIcon());
+	} else if (ref == u"double_limits"_q) {
+		return tl_premiumSourceFeature(tl_premiumFeatureIncreasedLimits());
+	}
+	return {};
+}
+
 [[nodiscard]] QString ResolveRef(const QString &ref) {
 	return ref.isEmpty() ? "settings" : ref;
 }
 
+#if 0 // mtp
 void SendScreenShow(
 		not_null<Window::SessionController*> controller,
 		const std::vector<QString> &order,
 		const QString &ref) {
-#if 0 // todo
 	auto list = QVector<MTPJSONValue>();
 	list.reserve(order.size());
 	for (const auto &element : order) {
@@ -437,11 +542,14 @@ void SendScreenShow(
 		&controller->session(),
 		"premium.promo_screen_show",
 		data);
-#endif
 }
+#endif
 
 void SendScreenAccept(not_null<Window::SessionController*> controller) {
-#if 0 // todo
+	controller->session().sender().request(
+		TLclickPremiumSubscriptionButton()
+	).send();
+#if 0 // mtp
 	SendAppLog(
 		&controller->session(),
 		"premium.promo_screen_accept",
@@ -1725,9 +1833,17 @@ void AddSummaryPremium(
 	icons.reserve(int(entryMap.size()));
 	{
 		const auto session = &controller->session();
+
+		// later do async - it is still slow if done after launch
+		const auto features = session->sender().request(
+			TLgetPremiumFeatures(GetSource(ref))
+		).sendSync();
+		auto mtpOrder = features ? ComputeOrder(*features) : FallbackOrder();
+#if 0 // mtp
 		const auto mtpOrder = session->appConfig().get<Order>(
 			"premium_promo_order",
 			FallbackOrder());
+#endif
 		const auto processEntry = [&](Entry &entry) {
 			icons.push_back(entry.icon);
 			addRow(entry);
@@ -1741,7 +1857,9 @@ void AddSummaryPremium(
 			processEntry(it->second);
 		}
 
+#if 0 // mtp
 		SendScreenShow(controller, mtpOrder, ref);
+#endif
 	}
 
 	content->resizeToWidth(content->height());

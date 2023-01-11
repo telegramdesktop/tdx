@@ -100,6 +100,10 @@ struct UserStarGift {
 	bool mine = false;
 };
 
+[[nodiscard]] std::optional<PremiumPreview> PreviewFromFeature(
+	const Tdb::TLpremiumFeature &feature);
+[[nodiscard]] Tdb::TLpremiumFeature PreviewToFeature(PremiumPreview preview);
+
 class Premium final {
 public:
 	explicit Premium(not_null<ApiWrap*> api);
