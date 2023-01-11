@@ -771,11 +771,6 @@ void ApplyUserUpdate(
 		}
 	}
 
-	//const auto settings = update.vsettings().match([&]( // todo
-	//	const MTPDpeerSettings &data) {
-	//	return data.vflags().v;
-	//});
-
 	if (const auto settings = user->barSettings()) {
 		user->setBarSettings(update.vneed_phone_number_privacy_exception().v
 			? (*settings | PeerBarSetting::NeedContactsException)
@@ -783,12 +778,25 @@ void ApplyUserUpdate(
 	} else if (update.vneed_phone_number_privacy_exception().v) {
 		user->setBarSettings(PeerBarSetting::NeedContactsException);
 	}
-
-	//user->session().api().applyNotifySettings(
-	//	MTP_inputNotifyPeer(user->input),
-	//	update.vnotify_settings());
-
-	//TTL of messages goes from updates.
+	user->setWallPaperOverriden(update.vset_chat_background().v);
+	user->setPersonalChannel(
+		peerToChannel(peerFromTdbChat(update.vpersonal_chat_id())),
+		MsgId());
+	user->setBirthday(update.vbirthdate());
+	user->setBusinessDetails(FromTL(
+		&user->owner(),
+		update.vbusiness_info()));
+	if (user->isSelf()) {
+		const auto info = update.vbusiness_info();
+		user->owner().businessInfo().applyAwaySettings(
+			FromTL(&user->owner(), info
+				? info->data().vaway_message_settings()
+				: nullptr));
+		user->owner().businessInfo().applyGreetingSettings(
+			FromTL(&user->owner(), info
+				? info->data().vgreeting_message_settings()
+				: nullptr));
+	}
 
 	if (const auto info = update.vbot_info()) {
 		user->setBotInfo(*info);
@@ -796,12 +804,6 @@ void ApplyUserUpdate(
 		user->setBotInfoVersion(-1);
 	}
 
-	//if (const auto pinned = update.vpinned_msg_id()) {
-	//	SetTopPinnedMessageId(user, pinned->v);
-	//}
-
-	//MTPDuserFull::Flag::f_video_calls_available; // todo
-	//update.vsupports_video_calls();
 	using Flag = UserDataFlag;
 	const auto mask = Flag::Blocked
 		// | Flag::HasPhoneCalls // Unused.
