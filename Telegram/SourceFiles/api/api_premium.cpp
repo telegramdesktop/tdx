@@ -63,10 +63,19 @@ using namespace Tdb;
 	return options;
 }
 
-[[nodiscard]] PremiumPreview PreviewFromFeature(
+} // namespace
+
+std::optional<PremiumPreview> PreviewFromFeature(
 		const TLpremiumFeature &feature) {
-	return feature.match([](const TLDpremiumFeatureIncreasedLimits &) {
+	const auto result = feature.match([](
+			const TLDpremiumFeatureUpgradedStories &) {
+		return PremiumPreview::Stories;
+	}, [](const TLDpremiumFeatureChatBoost &) {
 		return PremiumPreview::kCount;
+	}, [](const TLDpremiumFeatureAccentColor &) {
+		return PremiumPreview::kCount;
+	}, [](const TLDpremiumFeatureIncreasedLimits &) {
+		return PremiumPreview::DoubleLimits;
 	}, [](const TLDpremiumFeatureIncreasedUploadFileSize &) {
 		return PremiumPreview::MoreUpload;
 	}, [](const TLDpremiumFeatureImprovedDownloadSpeed &) {
@@ -94,9 +103,44 @@ using namespace Tdb;
 	}, [](const TLDpremiumFeatureAppIcons &) {
 		return PremiumPreview::kCount;
 	});
+	return (result != PremiumPreview::kCount)
+		? result
+		: std::optional<PremiumPreview>();
 }
 
-} // namespace
+TLpremiumFeature PreviewToFeature(PremiumPreview preview) {
+	Expects(preview != PremiumPreview::kCount);
+
+	switch (preview) {
+	case PremiumPreview::Stories:
+		return tl_premiumFeatureUpgradedStories();
+	case PremiumPreview::DoubleLimits:
+		return tl_premiumFeatureIncreasedLimits();
+	case PremiumPreview::MoreUpload:
+		return tl_premiumFeatureIncreasedUploadFileSize();
+	case PremiumPreview::FasterDownload:
+		return tl_premiumFeatureImprovedDownloadSpeed();
+	case PremiumPreview::VoiceToText:
+		return tl_premiumFeatureVoiceRecognition();
+	case PremiumPreview::NoAds:
+		return tl_premiumFeatureDisabledAds();
+	case PremiumPreview::InfiniteReactions:
+		return tl_premiumFeatureUniqueReactions();
+	case PremiumPreview::Stickers:
+		return tl_premiumFeatureUniqueStickers();
+	case PremiumPreview::AnimatedEmoji:
+		return tl_premiumFeatureCustomEmoji();
+	case PremiumPreview::AdvancedChatManagement:
+		return tl_premiumFeatureAdvancedChatManagement();
+	case PremiumPreview::ProfileBadge:
+		return tl_premiumFeatureProfileBadge();
+	case PremiumPreview::EmojiStatus:
+		return tl_premiumFeatureEmojiStatus();
+	case PremiumPreview::AnimatedUserpics:
+		return tl_premiumFeatureAnimatedProfilePhoto();
+	}
+	Unexpected("PremiumPreview value in PreviewToFeature.");
+}
 
 Premium::Premium(not_null<ApiWrap*> api)
 : _session(&api->session())
@@ -210,8 +254,8 @@ void Premium::reloadPromo() {
 				document->forceIsStreamedAnimation();
 			}
 			const auto type = PreviewFromFeature(single.data().vfeature());
-			if (type != PremiumPreview::kCount) {
-				videos.emplace(type, document);
+			if (type) {
+				videos.emplace(*type, document);
 			}
 		}
 		if (_videos != videos) {
