@@ -303,10 +303,10 @@ Main::Session &Uploader::session() const {
 	return _api->session();
 }
 
+#if 0 // mtp
 void Uploader::uploadMedia(
 		const FullMsgId &msgId,
 		const SendMediaReady &media) {
-#if 0 // todo
 	if (media.type == SendMediaType::Photo) {
 		session().data().processPhoto(media.photo, media.photoThumbs);
 	} else if (media.type == SendMediaType::File
@@ -332,13 +332,11 @@ void Uploader::uploadMedia(
 	}
 	queue.emplace(msgId, File(media));
 	sendNext();
-#endif
 }
 
 void Uploader::upload(
 		const FullMsgId &msgId,
 		const std::shared_ptr<FileLoadResult> &file) {
-#if 0 // mtp
 	if (file->type == SendMediaType::Photo) {
 		const auto photo = session().data().processPhoto(
 			file->photo,
@@ -385,8 +383,8 @@ void Uploader::upload(
 	}
 	queue.emplace(msgId, File(file));
 	sendNext();
-#endif
 }
+#endif
 
 void Uploader::start(
 		const std::shared_ptr<FileLoadResult> &file,

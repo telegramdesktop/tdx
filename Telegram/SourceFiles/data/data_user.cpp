@@ -609,11 +609,6 @@ void ApplyUserUpdate(
 		}
 	}
 
-	//const auto settings = update.vsettings().match([&]( // todo
-	//	const MTPDpeerSettings &data) {
-	//	return data.vflags().v;
-	//});
-
 	if (const auto settings = user->settings()) {
 		user->setSettings(update.vneed_phone_number_privacy_exception().v
 			? (*settings | PeerSetting::NeedContactsException)
@@ -622,24 +617,12 @@ void ApplyUserUpdate(
 		user->setSettings(PeerSetting::NeedContactsException);
 	}
 
-	//user->session().api().applyNotifySettings(
-	//	MTP_inputNotifyPeer(user->input),
-	//	update.vnotify_settings());
-
-	//TTL of messages goes from updates.
-
 	if (const auto info = update.vbot_info()) {
 		user->setBotInfo(*info);
 	} else {
 		user->setBotInfoVersion(-1);
 	}
 
-	//if (const auto pinned = update.vpinned_msg_id()) {
-	//	SetTopPinnedMessageId(user, pinned->v);
-	//}
-
-	//MTPDuserFull::Flag::f_video_calls_available; // todo
-	//update.vsupports_video_calls();
 	using Flag = UserDataFlag;
 	const auto mask = Flag::Blocked
 		// | Flag::HasPhoneCalls // Unused.
