@@ -309,10 +309,10 @@ FullMsgId Uploader::currentUploadId() const {
 	return _queue.empty() ? FullMsgId() : _queue.front().itemId;
 }
 
+#if 0 // mtp
 void Uploader::upload(
 		FullMsgId itemId,
 		const std::shared_ptr<FilePrepareResult> &file) {
-#if 0 // mtp
 	if (file->type == SendMediaType::Photo) {
 		const auto photo = session().data().processPhoto(
 			file->photo,
@@ -361,8 +361,8 @@ void Uploader::upload(
 	if (!_nextTimer.isActive()) {
 		maybeSend();
 	}
-#endif
 }
+#endif
 
 void Uploader::start(
 		const std::shared_ptr<FilePrepareResult> &file,

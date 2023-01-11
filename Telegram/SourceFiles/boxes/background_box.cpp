@@ -35,7 +35,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
 
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
+
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kBackgroundsInRow = 3;
 
@@ -134,9 +139,7 @@ private:
 	const not_null<Main::Session*> _session;
 	PeerData * const _forPeer = nullptr;
 
-#if 0 // mtp
 	MTP::Sender _api;
-#endif
 
 	std::vector<Paper> _papers;
 	uint64 _currentId = 0;
@@ -366,7 +369,10 @@ void BackgroundBox::removePaper(const Data::WallPaper &paper) {
 			weak->_inner->removePaper(paper);
 		}
 		session->data().removeWallpaper(paper);
-#if 0 // todo
+		session->sender().request(TLremoveInstalledBackground(
+			tl_int64(paper.id())
+		)).send();
+#if 0 // mtp
 		session->api().request(MTPaccount_SaveWallPaper(
 			paper.mtpInput(session),
 			MTP_bool(true),
@@ -388,9 +394,7 @@ BackgroundBox::Inner::Inner(
 : RpWidget(parent)
 , _session(session)
 , _forPeer(forPeer)
-#if 0 // mtp
 , _api(&_session->mtp())
-#endif
 , _check(
 	std::make_unique<Ui::RoundCheckbox>(
 		st::overviewCheck,
@@ -442,7 +446,13 @@ void BackgroundBox::Inner::requestPapers() {
 		_session->data().cloudThemes().refreshChatThemes();
 		return;
 	}
-#if 0 // todo
+	_api.request(TLgetInstalledBackgrounds(
+	)).done([=](const TLbackgrounds &result) {
+		if (_session->data().updateWallpapers(result)) {
+			updatePapers();
+		}
+	}).send();
+#if 0 // mtp
 	_api.request(MTPaccount_GetWallPapers(
 		MTP_long(_session->data().wallpapersHash())
 	)).done([=](const MTPaccount_WallPapers &result) {

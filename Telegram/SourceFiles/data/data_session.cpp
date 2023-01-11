@@ -1338,6 +1338,7 @@ not_null<PeerData*> Session::processPeer(const TLchat &dialog) {
 		channel->setAllowedReactions(availableReactions());
 	}
 	result->setActionBar(data.vaction_bar());
+	result->setMessagesTTL(data.vmessage_auto_delete_time().v);
 
 	if (const auto sender = data.vmessage_sender_id()) {
 		session().sendAsPeers().setChosen(result, peerFromSender(*sender));
@@ -5434,6 +5435,11 @@ void Session::setNotTopPromoted(not_null<History*> history) {
 	}
 }
 
+bool Session::updateWallpapers(const TLbackgrounds &papers) {
+	setWallpapers(papers.data().vbackgrounds().v);
+	return true; // later optimize check if there were changes
+}
+
 #if 0 // mtp
 bool Session::updateWallpapers(const MTPaccount_WallPapers &data) {
 	return data.match([&](const MTPDaccount_wallPapers &data) {
@@ -5447,6 +5453,8 @@ bool Session::updateWallpapers(const MTPaccount_WallPapers &data) {
 void Session::setWallpapers(const QVector<MTPWallPaper> &data, uint64 hash) {
 	_wallpapersHash = hash;
 
+#endif
+void Session::setWallpapers(const QVector<TLbackground> &data) {
 	_wallpapers.clear();
 	_wallpapers.reserve(data.size() + 2);
 
@@ -5481,7 +5489,6 @@ void Session::setWallpapers(const QVector<MTPWallPaper> &data, uint64 hash) {
 			u":/gui/art/bg_thumbnail.png"_q));
 	}
 }
-#endif
 
 void Session::removeWallpaper(const WallPaper &paper) {
 	const auto i = ranges::find(_wallpapers, paper.id(), &WallPaper::id);

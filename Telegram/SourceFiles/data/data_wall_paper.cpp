@@ -578,7 +578,8 @@ std::optional<WallPaper> WallPaper::Create(const MTPDwallPaperNoFile &data) {
 
 std::optional<WallPaper> WallPaper::Create(
 		not_null<Main::Session*> session,
-		const TLDbackground &data) {
+		const TLbackground &paper) {
+	const auto &data = paper.data();
 	const auto document = data.vdocument()
 		? session->data().processDocument(*data.vdocument()).get()
 		: nullptr;

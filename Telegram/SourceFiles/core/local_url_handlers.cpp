@@ -1715,7 +1715,7 @@ bool HandleLocalUrl(
 		)).done(crl::guard(controller, [=](const TLbackground &result) {
 			const auto paper = Data::WallPaper::Create(
 				&controller->session(),
-				result.data());
+				result);
 			if (paper) {
 				controller->show(
 					Box<BackgroundPreviewBox>(controller, *paper));

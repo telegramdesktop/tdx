@@ -1351,7 +1351,7 @@ void ApiWrap::requestWallPaper(
 	}
 	_wallPaperRequestId = sender().request(TLsearchBackground(
 		tl_string(slug)
-	)).done([=](const TLDbackground &result) {
+	)).done([=](const TLbackground &result) {
 		_wallPaperRequestId = 0;
 		_wallPaperSlug = QString();
 		if (const auto paper = Data::WallPaper::Create(_session, result)) {
