@@ -67,7 +67,12 @@ public:
 	[[nodiscard]] float64 patternOpacity() const;
 	[[nodiscard]] int gradientRotation() const;
 	[[nodiscard]] bool hasShareUrl() const;
+#if 0 // mtp
 	[[nodiscard]] QString shareUrl(not_null<Main::Session*> session) const;
+#endif
+	[[nodiscard]] void requestShareUrl(
+		not_null<Main::Session*> session,
+		Fn<void(QString)> done) const;
 
 	void loadDocument() const;
 	void loadDocumentThumbnail() const;
