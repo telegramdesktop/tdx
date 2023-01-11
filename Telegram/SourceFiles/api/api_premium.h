@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "tdb/tdb_sender.h"
 
+namespace Tdb {
+class TLpremiumFeature;
+} // namespace Tdb
+
 enum class PremiumPreview;
 
 class ApiWrap;
@@ -23,6 +27,10 @@ class Session;
 } // namespace Main
 
 namespace Api {
+
+[[nodiscard]] std::optional<PremiumPreview> PreviewFromFeature(
+	const Tdb::TLpremiumFeature &feature);
+[[nodiscard]] Tdb::TLpremiumFeature PreviewToFeature(PremiumPreview preview);
 
 class Premium final {
 public:
