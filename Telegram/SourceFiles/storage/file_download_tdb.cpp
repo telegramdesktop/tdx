@@ -85,9 +85,9 @@ void TdbFileLoader::sendRequest() {
 				}, [](const auto &) {});
 			}, _loadingLifetime);
 		}
-	}).fail([=](const Error &error) {
+	}).fail([=](const Tdb::Error &error) {
 		_requestId = 0;
-		cancel(true);
+		cancel(FailureReason::OtherFailure);
 	}).send();
 }
 
@@ -121,7 +121,7 @@ void TdbFileLoader::apply(
 	const auto readyForRead = std::min(required, available);
 	const auto active = local.vis_downloading_active().v;
 	if (!active && (!_loadSize || readyForRead < required)) {
-		cancel(true);
+		cancel(FailureReason::OtherFailure);
 		return;
 	} else if (readyForRead <= 0) {
 		Assert(active);
@@ -138,14 +138,14 @@ void TdbFileLoader::apply(
 	}
 	auto leftToRead = readyForRead;
 	if (!_proxy->seek(_loadOffset)) {
-		cancel(true);
+		cancel(FailureReason::OtherFailure);
 		return;
 	}
 	while (leftToRead > 0) {
 		const auto read = std::min(leftToRead, kMaxReadPart);
 		const auto bytes = _proxy->read(read);
 		if (bytes.size() != read) {
-			cancel(true);
+			cancel(FailureReason::OtherFailure);
 			return;
 		}
 		if (!feedPart(_loadOffset, bytes) || !weak) {
@@ -170,7 +170,7 @@ bool TdbFileLoader::setFinalSize(int64 size) {
 		).arg(_fullSize
 		).arg(size
 		).arg(_loadSize));
-	cancel(true);
+	cancel(FailureReason::OtherFailure);
 	return false;
 }
 

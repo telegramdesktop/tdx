@@ -18,6 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flags.h"
 
 namespace Tdb {
+class TLbackground;
+class TLbackgrounds;
 class TLchat;
 class TLuser;
 class TLbasicGroup;
@@ -838,6 +840,7 @@ public:
 #if 0 // mtp
 	bool updateWallpapers(const MTPaccount_WallPapers &data);
 #endif
+	bool updateWallpapers(const Tdb::TLbackgrounds &papers);
 	void removeWallpaper(const WallPaper &paper);
 	const std::vector<WallPaper> &wallpapers() const;
 	uint64 wallpapersHash() const;
@@ -994,6 +997,7 @@ private:
 
 	void setWallpapers(const QVector<MTPWallPaper> &data, uint64 hash);
 #endif
+	void setWallpapers(const QVector<Tdb::TLbackground> &data);
 
 	void checkPollsClosings();
 
