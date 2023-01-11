@@ -65,9 +65,11 @@ public:
 	[[nodiscard]] Main::Session &session() const;
 	[[nodiscard]] FullMsgId currentUploadId() const;
 
+#if 0 // mtp
 	void upload(
 		FullMsgId itemId,
 		const std::shared_ptr<FilePrepareResult> &file);
+#endif
 
 	void pause(FullMsgId itemId);
 	void cancel(FullMsgId itemId);
