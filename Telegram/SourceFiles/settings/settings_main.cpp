@@ -70,12 +70,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 #include "styles/style_menu_icons.h"
 
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
+
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
 #include <QtGui/QWindow>
 
 namespace Settings {
 namespace {
+
+using namespace Tdb;
 
 class Cover final : public Ui::FixedHeightWidget {
 public:
@@ -722,7 +727,8 @@ void SetupHelp(
 	const auto requestId = button->lifetime().make_state<mtpRequestId>();
 	button->lifetime().add([=] {
 		if (*requestId) {
-#if 0 // todo
+			controller->session().sender().request(*requestId).cancel();
+#if 0 // mtp
 			controller->session().api().request(*requestId).cancel();
 #endif
 		}
@@ -732,7 +738,17 @@ void SetupHelp(
 			if (*requestId) {
 				return;
 			}
-#if 0 // todo
+			const auto session = &controller->session();
+			*requestId = session->sender().request(
+				TLgetSupportUser()
+			).done([=](const TLuser &result) {
+				*requestId = 0;
+				const auto user = session->data().processUser(result);
+				controller->showPeerHistory(user);
+			}).fail([=] {
+				*requestId = 0;
+			}).send();
+#if 0 // mtp
 			*requestId = controller->session().api().request(
 				MTPhelp_GetSupport()
 			).done([=](const MTPhelp_Support &result) {
