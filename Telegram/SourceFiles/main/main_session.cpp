@@ -178,6 +178,7 @@ Session::Session(
 #endif
 		}, _lifetime);
 
+#if 0 // mtp
 #ifndef OS_MAC_STORE
 		appConfig().value(
 		) | rpl::start_with_next([=] {
@@ -186,6 +187,7 @@ Session::Session(
 				true);
 		}, _lifetime);
 #endif // OS_MAC_STORE
+#endif
 
 		if (_settings->hadLegacyCallsPeerToPeerNobody()) {
 			api().userPrivacy().save(
