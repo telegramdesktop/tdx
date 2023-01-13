@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "settings/settings_type.h"
 
+namespace Tdb {
+class TLpremiumFeatures;
+} // namespace Tdb
+
 enum class PremiumPreview;
 
 namespace ChatHelpers {
@@ -30,6 +34,13 @@ class SessionController;
 
 namespace Settings {
 
+[[nodiscard]] std::optional<Tdb::TLpremiumFeatures> GetPremiumFeaturesSync(
+	not_null<::Main::Session*> session,
+	const QString &ref);
+[[nodiscard]] Fn<void()> CreateStartSubscription(
+	not_null<Window::SessionController*> controller,
+	const Tdb::TLpremiumFeatures *features);
+
 [[nodiscard]] Type PremiumId();
 
 void ShowPremium(not_null<::Main::Session*> session, const QString &ref);
@@ -45,9 +56,11 @@ void ShowEmojiStatusPremium(
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer);
 
+#if 0 // mtp
 void StartPremiumPayment(
 	not_null<Window::SessionController*> controller,
 	const QString &ref);
+#endif
 
 [[nodiscard]] QString LookupPremiumRef(PremiumPreview section);
 
@@ -64,6 +77,8 @@ struct SubscribeButtonArgs final {
 	std::optional<QGradientStops> gradientStops;
 	Fn<QString()> computeBotUrl; // nullable
 	std::shared_ptr<ChatHelpers::Show> show;
+
+	required<Fn<void()>> startSubscription;
 };
 
 [[nodiscard]] not_null<Ui::GradientButton*> CreateSubscribeButton(
