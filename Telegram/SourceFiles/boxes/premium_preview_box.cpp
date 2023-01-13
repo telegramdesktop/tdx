@@ -47,6 +47,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_premium.h"
 #include "styles/style_settings.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 #include <QSvgRenderer>
 
 namespace {
@@ -1126,12 +1128,26 @@ void PreviewBox(
 				? tr::lng_premium_unlock_status()
 				: tr::lng_premium_more_about();
 		}) | rpl::flatten_latest();
+		const auto startSubscription = [=] {
+			// later do async - it is still slow if done after launch
+			const auto features = Settings::GetPremiumFeaturesSync(
+				&show->session(),
+				computeRef());
+			const auto window = show->resolveWindow(
+				ChatHelpers::WindowUsage::PremiumPromo);
+			if (window) {
+				Settings::CreateStartSubscription(
+					window,
+					features ? &*features : nullptr)();
+			}
+		};
 		auto button = descriptor.fromSettings
 			? object_ptr<Ui::GradientButton>::fromRaw(
 				Settings::CreateSubscribeButton({
 					.parent = box,
 					.computeRef = computeRef,
 					.show = show,
+					.startSubscription = startSubscription,
 				}))
 			: CreateUnlockButton(box, std::move(unlock));
 		button->resizeToWidth(width);
@@ -1235,10 +1251,24 @@ void DecorateListPromoBox(
 			box->closeBox();
 		});
 	} else {
+		const auto startSubscription = [=] {
+			// later do async - it is still slow if done after launch
+			const auto features = Settings::GetPremiumFeaturesSync(
+				&show->session(),
+				u"double_limits"_q);
+			const auto window = show->resolveWindow(
+				ChatHelpers::WindowUsage::PremiumPromo);
+			if (window) {
+				Settings::CreateStartSubscription(
+					window,
+					features ? &*features : nullptr)();
+			}
+		};
 		const auto button = Settings::CreateSubscribeButton({
 			.parent = box,
 			.computeRef = [] { return u"double_limits"_q; },
 			.show = show,
+			.startSubscription = startSubscription,
 		});
 
 		box->setShowFinishedCallback([=] {
