@@ -48,6 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_premium.h"
 
 #include "tdb/tdb_tl_scheme.h"
+#include "core/click_handler_types.h"
 
 #include <QtGui/QGuiApplication>
 
@@ -218,6 +219,14 @@ void GiftBox(
 	// Button.
 	const auto &stButton = st::premiumGiftBox;
 	box->setStyle(stButton);
+	const auto weak = base::make_weak(controller);
+	const auto startSubscription = [=] {
+		const auto value = group->value();
+		if (value >= 0 && value < options.size()) {
+			options[value].startPayment(QVariant::fromValue(
+				ClickHandlerContext{ .sessionWindow = weak }));
+		}
+	};
 	auto raw = Settings::CreateSubscribeButton({
 		controller,
 		box,
@@ -230,6 +239,8 @@ void GiftBox(
 				? options[value].botUrl
 				: QString();
 		},
+		controller->uiShow(),
+		startSubscription,
 	});
 	auto button = object_ptr<Ui::GradientButton>::fromRaw(raw);
 	button->resizeToWidth(boxWidth
