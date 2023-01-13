@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_premium_subscription_option.h"
 
 #include "tdb/tdb_tl_scheme.h"
+#include "core/local_url_handlers.h"
 
 namespace Api {
 
@@ -51,6 +52,10 @@ template<typename Option>
 		const auto currency = qs(option.vcurrency());
 #endif
 		const auto lnk = option.vpayment_link();
+		if (!lnk) {
+			continue;
+		}
+#if 0 // mtp
 		const auto botUrl = !lnk // later internalLink types.
 			? QString()
 			: (lnk->type() == Tdb::id_internalLinkTypeInvoice)
@@ -62,6 +67,8 @@ template<typename Option>
 				+ "?start="
 				+ lnk->c_internalLinkTypeBotStart().vstart_parameter().v)
 			: QString();
+#endif
+		const auto botUrl = QString();
 		const auto months = option.vmonth_count().v;
 		const auto amount = option.vamount().v;
 		const auto currency = option.vcurrency().v;
@@ -71,6 +78,9 @@ template<typename Option>
 			amount,
 			currency,
 			botUrl));
+		result.back().startPayment = [=, link = *lnk](QVariant context) {
+			Core::HandleLocalUrl(link, context);
+		};
 	}
 	return result;
 }

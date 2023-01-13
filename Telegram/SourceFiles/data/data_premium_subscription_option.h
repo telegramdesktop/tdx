@@ -16,6 +16,8 @@ struct PremiumSubscriptionOption {
 	QString costTotal;
 	QString total;
 	QString botUrl;
+
+	Fn<void(QVariant)> startPayment;
 };
 using PremiumSubscriptionOptions = std::vector<PremiumSubscriptionOption>;
 
