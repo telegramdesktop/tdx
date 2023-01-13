@@ -989,6 +989,8 @@ private:
 	const not_null<Window::SessionController*> _controller;
 	const QString _ref;
 
+	Fn<void()> _startSubscription;
+
 	QPointer<Ui::GradientButton> _subscribe;
 	base::unique_qptr<Ui::FadeWrap<Ui::IconButton>> _back;
 	base::unique_qptr<Ui::IconButton> _close;
@@ -1094,6 +1096,14 @@ void Premium::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
 	setupSubscriptionOptions(content);
+
+	// later do async - it is still slow if done after launch
+	const auto features = GetPremiumFeaturesSync(
+		&_controller->session(),
+		_ref);
+	_startSubscription = CreateStartSubscription(
+		_controller,
+		features ? &*features : nullptr);
 
 	auto buttonCallback = [=](PremiumFeature section) {
 		_setPaused(true);
@@ -1321,6 +1331,9 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 				? options[value].botUrl
 				: QString();
 		},
+		_controller->uiShow(),
+		false, // showPromo
+		_startSubscription,
 	});
 #if 0
 	if (emojiStatusData) {
@@ -1409,6 +1422,35 @@ struct SectionFactory<Premium> : AbstractSectionFactory {
 	}
 };
 
+std::optional<Tdb::TLpremiumFeatures> GetPremiumFeaturesSync(
+		not_null<::Main::Session*> session,
+		const QString &ref) {
+	const auto result = session->sender().request(
+		TLgetPremiumFeatures(GetSource(ref))
+	).sendSync();
+	return result ? *result : std::optional<Tdb::TLpremiumFeatures>();
+}
+
+Fn<void()> CreateStartSubscription(
+		not_null<Window::SessionController*> controller,
+		const TLpremiumFeatures *features) {
+	SendScreenAccept(controller);
+
+	if (!features) {
+		return [] {}; // later show some error?
+	}
+	const auto &data = features->data();
+	if (!data.vpayment_link()) {
+		return [] {}; // later show some error?
+	}
+	const auto weak = base::make_weak(controller);
+	return [link = *data.vpayment_link(), weak] {
+		Core::HandleLocalUrl(link, QVariant::fromValue(ClickHandlerContext{
+			.sessionWindow = weak,
+		}));
+	};
+}
+
 Type PremiumId() {
 	return Premium::Id();
 }
@@ -1454,6 +1496,7 @@ void ShowEmojiStatusPremium(
 	ShowPremium(controller, Ref::EmojiStatus::Serialize({ peer->id }));
 }
 
+#if 0 // mtp
 void StartPremiumPayment(
 		not_null<Window::SessionController*> controller,
 		const QString &ref) {
@@ -1475,6 +1518,7 @@ void StartPremiumPayment(
 		UrlClickHandler::Open("https://t.me/$" + slug);
 	}
 }
+#endif
 
 QString LookupPremiumRef(PremiumFeature section) {
 	for (const auto &[ref, entry] : EntryMap()) {
@@ -1588,6 +1632,7 @@ not_null<Ui::RoundButton*> CreateLockedButton(
 not_null<Ui::GradientButton*> CreateSubscribeButton(
 		SubscribeButtonArgs &&args) {
 	Expects(args.show || args.controller);
+	Expects(args.startSubscription.value() != nullptr);
 
 	auto show = args.show ? std::move(args.show) : args.controller->uiShow();
 	auto resolve = [show](
@@ -1620,7 +1665,10 @@ not_null<Ui::GradientButton*> CreateSubscribeButton(
 			resolveWindow,
 			promo = args.showPromo,
 			computeRef = args.computeRef,
+			start = args.startSubscription,
 			computeBotUrl = args.computeBotUrl] {
+		start.value()();
+#if 0 // mtp
 		const auto window = resolveWindow(
 			&show->session(),
 			ChatHelpers::WindowUsage::PremiumPromo);
@@ -1646,6 +1694,7 @@ not_null<Ui::GradientButton*> CreateSubscribeButton(
 			SendScreenAccept(window);
 			StartPremiumPayment(window, computeRef());
 		}
+#endif
 	});
 
 	const auto &st = st::premiumPreviewBox.button;
