@@ -1870,7 +1870,10 @@ void History::applyInboxReadUpdate(
 }
 
 void History::inboxRead(MsgId upTo, std::optional<int> stillUnread) {
+#if 0 // mtp
 	if (stillUnread.has_value() && folderKnown()) {
+#endif
+	if (stillUnread.has_value()) {
 		setUnreadCount(*stillUnread);
 	} else if (const auto still = countStillUnreadLocal(upTo)) {
 		setUnreadCount(*still);
