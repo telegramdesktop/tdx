@@ -509,6 +509,8 @@ QString FormatDialogsDate(const QDateTime &lastTime) {
 		return QLocale().toString(lastTime.time(), QLocale::ShortFormat);
 	} else if (std::abs(lastDate.daysTo(nowDate)) < 7) {
 		return langDayOfWeek(lastDate);
+	} else if (std::abs(lastDate.daysTo(nowDate)) < 150) {
+		return langDayOfMonth(lastDate);
 	} else {
 		return QLocale().toString(lastDate, QLocale::ShortFormat);
 	}
