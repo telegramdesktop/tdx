@@ -3342,6 +3342,25 @@ not_null<PhotoData*> Session::photo(
 	return result;
 }
 
+void Session::photoFileIdUpdated(
+		not_null<PhotoData*> photo,
+		FileId was,
+		FileId now) {
+	if (was != now) {
+		if (was) {
+			_photoByFileId.erase(was);
+		}
+		if (now) {
+			_photoByFileId.emplace(now, photo);
+		}
+	}
+}
+
+PhotoData *Session::photoByFileId(FileId id) const {
+	const auto i = _photoByFileId.find(id);
+	return (i != end(_photoByFileId)) ? i->second.get() : nullptr;
+}
+
 #if 0 // mtp
 void Session::photoConvert(
 		not_null<PhotoData*> original,
@@ -3788,6 +3807,25 @@ void Session::documentApplyFields(
 		document->setRemoteLocation(dc, access, fileReference);
 	}
 #endif
+}
+
+void Session::documentFileIdUpdated(
+		not_null<DocumentData*> document,
+		FileId was,
+		FileId now) {
+	if (was != now) {
+		if (was) {
+			_documentByFileId.erase(was);
+		}
+		if (now) {
+			_documentByFileId.emplace(now, document);
+		}
+	}
+}
+
+DocumentData *Session::documentByFileId(FileId id) const {
+	const auto i = _documentByFileId.find(id);
+	return (i != end(_documentByFileId)) ? i->second.get() : nullptr;
 }
 
 not_null<WebPageData*> Session::webpage(WebPageId id) {

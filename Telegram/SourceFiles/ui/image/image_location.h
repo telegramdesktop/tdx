@@ -614,6 +614,12 @@ public:
 		return _height;
 	}
 
+	[[nodiscard]] FileId tdbFileId() const {
+		return v::is<TdbFileLocation>(_file.data)
+			? v::get<TdbFileLocation>(_file.data).fileId
+			: FileId();
+	}
+
 	void setSize(int width, int height) {
 		_width = width;
 		_height = height;
