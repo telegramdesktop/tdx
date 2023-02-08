@@ -33,6 +33,8 @@ public:
 	void logout();
 	void reset();
 
+	void setProxy(std::variant<TLdisableProxy, TLaddProxy> value);
+
 	void registerFileGenerator(not_null<FileGenerator*> generator);
 	void unregisterFileGenerator(not_null<FileGenerator*> generator);
 	void registerFileGeneration(

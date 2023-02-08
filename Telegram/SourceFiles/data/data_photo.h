@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_cloud_file.h"
 
 namespace Tdb {
+class TLfile;
 class TLphoto;
 class TLchatPhoto;
 class TLchatPhotoInfo;
@@ -59,6 +60,7 @@ public:
 	void setFromTdb(const Tdb::TLphoto &data);
 	void setFromTdb(const Tdb::TLchatPhoto &data);
 	void setFromTdb(const Tdb::TLchatPhotoInfo &data);
+	void applyTdbFile(const Tdb::TLfile &file);
 
 	[[nodiscard]] Data::Session &owner() const;
 	[[nodiscard]] Main::Session &session() const;
@@ -199,8 +201,11 @@ private:
 	std::array<Data::CloudFile, Data::kPhotoSizeCount> _images;
 	std::unique_ptr<VideoSizes> _videoSizes;
 
+#if 0 // mtp
 	int32 _dc = 0;
 	uint64 _access = 0;
+#endif
+	FileId _fileId = 0;
 	bool _hasStickers = false;
 	bool _extendedMediaPreview = false;
 

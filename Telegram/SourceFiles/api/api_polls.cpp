@@ -82,10 +82,7 @@ void Polls::create(
 		MessageReplyTo(action),
 		MessageSendOptions(peer, action),
 		PollToTL(&data)
-	)).done([=](const Tdb::TLmessage &result) {
-		_session->data().processMessage(result, NewMessageType::Unread);
-		done();
-	}).fail(fail).send();
+	)).done(done).fail(fail).send();
 
 #if 0 // goodToRemove
 	const auto history = action.history;

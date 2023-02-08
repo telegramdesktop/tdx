@@ -1633,6 +1633,7 @@ bool Account::hasDraft(PeerId peer) {
 }
 
 void Account::writeFileLocation(MediaKey location, const Core::FileLocation &local) {
+#if 0 // mtp
 	if (local.fname.isEmpty()) {
 		return;
 	}
@@ -1672,9 +1673,11 @@ void Account::writeFileLocation(MediaKey location, const Core::FileLocation &loc
 	}
 	_fileLocations.insert(location, local);
 	writeLocationsQueued();
+#endif
 }
 
 void Account::removeFileLocation(MediaKey location) {
+#if 0 // mtp
 	auto i = _fileLocations.find(location);
 	if (i == _fileLocations.end()) {
 		return;
@@ -1683,9 +1686,11 @@ void Account::removeFileLocation(MediaKey location) {
 		i = _fileLocations.erase(i);
 	}
 	writeLocationsQueued();
+#endif
 }
 
 Core::FileLocation Account::readFileLocation(MediaKey location) {
+#if 0 // mtp
 	const auto aliasIt = _fileLocationAliases.constFind(location);
 	if (aliasIt != _fileLocationAliases.cend()) {
 		location = aliasIt.value();
@@ -1700,6 +1705,7 @@ Core::FileLocation Account::readFileLocation(MediaKey location) {
 		}
 		return i.value();
 	}
+#endif
 	return Core::FileLocation();
 }
 
