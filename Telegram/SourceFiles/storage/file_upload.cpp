@@ -163,13 +163,17 @@ Uploader::Uploader(not_null<ApiWrap*> api)
 	_api->session().tdb().updates(
 	) | rpl::start_with_next([=](const TLupdate &update) {
 		update.match([&](const TLDupdateFile &data) {
-			const auto &fields = data.vfile().data();
+			const auto &file = data.vfile();
+			const auto &fields = file.data();
 			const auto id = fields.vid().v;
-			const auto i = _uploads.find(id);
-			if (i != end(_uploads)) {
-				if (fields.vremote().data().vis_uploading_completed().v) {
-					_uploads.erase(i);
-				}
+			auto &owner = _api->session().data();
+			if (const auto photo = owner.photoByFileId(id)) {
+				photo->applyTdbFile(file);
+			} else if (const auto document = owner.documentByFileId(id)) {
+				document->applyTdbFile(file);
+			}
+			if (fields.vremote().data().vis_uploading_completed().v) {
+				_uploads.remove(id);
 			}
 		}, [](const auto &) {
 		});
@@ -419,7 +423,8 @@ void Uploader::start(
 			if (outResult) {
 				*outResult = std::make_unique<TLfile>(result);
 			}
-			_uploads[result.data().vid().v] = base::take(generator);
+			const auto id = result.data().vid().v;
+			_uploads[id] = base::take(generator);
 			if (state->result.file && !state->thumbnailGenerator) {
 				state->ready(std::move(state->result));
 			}
@@ -469,6 +474,8 @@ void Uploader::start(
 			tl_int32(1)
 		)).done([=](const TLfile &result) {
 			state->result.file = std::make_unique<TLfile>(result);
+			const auto id = result.data().vid().v;
+			_uploads[id] = nullptr;
 			if (!state->thumbnailGenerator) {
 				state->ready(std::move(state->result));
 			}
@@ -802,17 +809,17 @@ void Uploader::cancelRequests() {
 }
 
 void Uploader::clear() {
+#if 0 // mtp
 	queue.clear();
 	cancelRequests();
 	dcMap.clear();
 	sentSize = 0;
-#if 0 // mtp
 	for (int i = 0; i < MTP::kUploadSessionsCount; ++i) {
 		_api->instance().stopSession(MTP::uploadDcId(i));
 		sentSizes[i] = 0;
 	}
-#endif
 	_stopSessionsTimer.cancel();
+#endif
 }
 
 #if 0 // mtp
