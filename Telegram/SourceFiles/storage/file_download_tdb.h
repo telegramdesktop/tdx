@@ -28,6 +28,17 @@ public:
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading,
 		uint8 cacheTag);
+	TdbFileLoader(
+		not_null<Main::Session*> session,
+		Fn<void(Fn<void(FileId)>)> fileIdGenerator,
+		LocationType type,
+		const QString &toFile,
+		int64 loadSize,
+		int64 fullSize,
+		LoadToCacheSetting toCache,
+		LoadFromCloudSetting fromCloud,
+		bool autoLoading,
+		uint8 cacheTag);
 	~TdbFileLoader();
 
 	[[nodiscard]] FileId fileId() const;
@@ -51,7 +62,8 @@ private:
 	bool setFinalSize(int64 size);
 	bool feedPart(int64 offset, const QByteArray &bytes);
 
-	const FileId _fileId = 0;
+	const Fn<void(Fn<void(FileId)>)> _fileIdGenerator;
+	FileId _fileId = 0;
 	int64 _loadOffset = 0;
 	std::unique_ptr<Tdb::FileProxy> _proxy;
 	Tdb::RequestId _requestId = 0;
@@ -59,3 +71,7 @@ private:
 	rpl::lifetime _loadingLifetime;
 
 };
+
+[[nodiscard]] Fn<void(Fn<void(FileId)>)> MapFileIdGenerator(
+	not_null<Main::Session*> session,
+	const GeoPointLocation &location);
