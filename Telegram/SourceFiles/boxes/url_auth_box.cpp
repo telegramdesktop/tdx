@@ -23,6 +23,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
+
+namespace {
+
+using namespace Tdb;
+
+} // namespace
+
 void UrlAuthBox::Activate(
 		not_null<const HistoryItem*> message,
 		int row,
@@ -37,7 +46,45 @@ void UrlAuthBox::Activate(
 		return;
 	}
 	const auto session = &message->history()->session();
-#if 0 // todo
+	const auto url = QString::fromUtf8(button->data);
+	button->requestId = session->sender().request(TLgetLoginUrlInfo(
+		peerToTdbChat(message->history()->peer->id),
+		tl_int53(message->id.bare),
+		tl_int53(button->buttonId)
+	)).done([=](const TLloginUrlInfo &result) {
+		const auto button = HistoryMessageMarkupButton::Get(
+			&session->data(),
+			itemId,
+			row,
+			column);
+		if (!button) {
+			return;
+		}
+
+		button->requestId = 0;
+		result.match([&](const TLDloginUrlInfoOpen &data) {
+			if (data.vskip_confirmation().v) {
+				UrlClickHandler::Open(data.vurl().v);
+			} else {
+				HiddenUrlClickHandler::Open(data.vurl().v);
+			}
+		}, [&](const TLDloginUrlInfoRequestConfirmation &data) {
+			if (const auto item = session->data().message(itemId)) {
+				Request(data, item, row, column);
+			}
+		});
+	}).fail([=] {
+		const auto button = HistoryMessageMarkupButton::Get(
+			&session->data(),
+			itemId,
+			row,
+			column);
+		if (!button) return;
+
+		button->requestId = 0;
+		HiddenUrlClickHandler::Open(url);
+	}).send();
+#if 0 // mtp
 	const auto inputPeer = message->history()->peer->input;
 	const auto buttonId = button->buttonId;
 	const auto url = QString::fromUtf8(button->data);
@@ -87,13 +134,16 @@ void UrlAuthBox::Activate(
 		not_null<Main::Session*> session,
 		const QString &url,
 		QVariant context) {
+	const auto my = context.value<ClickHandlerContext>();
+	const auto confirm = my.mayShowConfirmation;
 	context = QVariant::fromValue([&] {
 		auto result = context.value<ClickHandlerContext>();
 		result.skipBotAutoLogin = true;
+		result.mayShowConfirmation = false;
 		return result;
 	}());
 
-#if 0 // todo
+#if 0 // mtp
 	using Flag = MTPmessages_RequestUrlAuth::Flag;
 	session->api().request(MTPmessages_RequestUrlAuth(
 		MTP_flags(Flag::f_url),
@@ -109,15 +159,33 @@ void UrlAuthBox::Activate(
 		}, [&](const MTPDurlAuthResultRequest &data) {
 			Request(data, session, url, context);
 		});
-	}).fail([=] {
-		HiddenUrlClickHandler::Open(url, context);
-	}).send();
 #endif
+	session->sender().request(TLgetExternalLinkInfo(
+		tl_string(url)
+	)).done([=](const TLloginUrlInfo &result) {
+		result.match([&](const TLDloginUrlInfoOpen &data) {
+			if (data.vskip_confirmation().v || !confirm) {
+				UrlClickHandler::Open(data.vurl().v, context);
+			} else {
+				HiddenUrlClickHandler::Confirm(data.vurl().v, context);
+			}
+		}, [&](const TLDloginUrlInfoRequestConfirmation &data) {
+			UrlAuthBox::Request(data, session, data.vurl().v, context);
+		});
+	}).fail([=] {
+		if (!confirm) {
+			UrlClickHandler::Open(url, context);
+		} else {
+			HiddenUrlClickHandler::Confirm(url, context);
+		}
+	}).send();
 }
 
-#if 0 // mtp
 void UrlAuthBox::Request(
+#if 0 // mtp
 		const MTPDurlAuthResultRequest &request,
+#endif
+		const Tdb::TLDloginUrlInfoRequestConfirmation &request,
 		not_null<const HistoryItem*> message,
 		int row,
 		int column) {
@@ -131,12 +199,19 @@ void UrlAuthBox::Request(
 		return;
 	}
 	const auto session = &message->history()->session();
+#if 0 // mtp
 	const auto inputPeer = message->history()->peer->input;
+#endif
 	const auto buttonId = button->buttonId;
 	const auto url = QString::fromUtf8(button->data);
 
+#if 0 // mtp
 	const auto bot = request.is_request_write_access()
 		? session->data().processUser(request.vbot()).get()
+		: nullptr;
+#endif
+	const auto bot = request.vrequest_write_access().v
+		? session->data().user(UserId(request.vbot_user_id().v)).get()
 		: nullptr;
 	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
 	const auto finishWithUrl = [=](const QString &url) {
@@ -150,6 +225,7 @@ void UrlAuthBox::Request(
 			finishWithUrl(url);
 		} else if (const auto msg = session->data().message(itemId)) {
 			const auto allowWrite = (result == Result::AuthAndAllowWrite);
+#if 0 // mtp
 			using Flag = MTPmessages_AcceptUrlAuth::Flag;
 			const auto flags = (allowWrite ? Flag::f_write_allowed : Flag(0))
 				| (Flag::f_peer | Flag::f_msg_id | Flag::f_button_id);
@@ -170,6 +246,14 @@ void UrlAuthBox::Request(
 						"got urlAuthResultRequest after acceptUrlAuth."));
 					return url;
 				});
+#endif
+			session->sender().request(TLgetLoginUrl(
+				peerToTdbChat(msg->history()->peer->id),
+				tl_int53(msg->id.bare),
+				tl_int53(buttonId),
+				tl_bool(allowWrite)
+			)).done([=](const TLhttpUrl &result) {
+				const auto to = result.data().vurl().v;
 				finishWithUrl(to);
 			}).fail([=] {
 				finishWithUrl(url);
@@ -177,17 +261,28 @@ void UrlAuthBox::Request(
 		}
 	};
 	*box = Ui::show(
+#if 0 // mtp
 		Box<UrlAuthBox>(session, url, qs(request.vdomain()), bot, callback),
+#endif
+		Box<UrlAuthBox>(session, url, request.vdomain().v, bot, callback),
 		Ui::LayerOption::KeepOther);
 }
 
 void UrlAuthBox::Request(
+#if 0 // mtp
 		const MTPDurlAuthResultRequest &request,
+#endif
+		const Tdb::TLDloginUrlInfoRequestConfirmation &request,
 		not_null<Main::Session*> session,
 		const QString &url,
 		QVariant context) {
+#if 0 // mtp
 	const auto bot = request.is_request_write_access()
 		? session->data().processUser(request.vbot()).get()
+		: nullptr;
+#endif
+	const auto bot = request.vrequest_write_access().v
+		? session->data().user(UserId(request.vbot_user_id().v)).get()
 		: nullptr;
 	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
 	const auto finishWithUrl = [=](const QString &url) {
@@ -201,6 +296,7 @@ void UrlAuthBox::Request(
 			finishWithUrl(url);
 		} else {
 			const auto allowWrite = (result == Result::AuthAndAllowWrite);
+#if 0 // mtp
 			using Flag = MTPmessages_AcceptUrlAuth::Flag;
 			const auto flags = (allowWrite ? Flag::f_write_allowed : Flag(0))
 				| Flag::f_url;
@@ -221,6 +317,12 @@ void UrlAuthBox::Request(
 						"got urlAuthResultRequest after acceptUrlAuth."));
 					return url;
 				});
+#endif
+			session->sender().request(TLgetExternalLink(
+				tl_string(url),
+				tl_bool(allowWrite)
+			)).done([=](const TLhttpUrl &result) {
+				const auto to = result.data().vurl().v;
 				finishWithUrl(to);
 			}).fail([=] {
 				finishWithUrl(url);
@@ -228,10 +330,12 @@ void UrlAuthBox::Request(
 		}
 	};
 	*box = Ui::show(
+#if 0 // mtp
 		Box<UrlAuthBox>(session, url, qs(request.vdomain()), bot, callback),
+#endif
+		Box<UrlAuthBox>(session, url, request.vdomain().v, bot, callback),
 		Ui::LayerOption::KeepOther);
 }
-#endif
 
 UrlAuthBox::UrlAuthBox(
 	QWidget*,

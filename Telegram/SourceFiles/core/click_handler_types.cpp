@@ -98,14 +98,32 @@ QString HiddenUrlClickHandler::dragText() const {
 }
 
 void HiddenUrlClickHandler::Open(QString url, QVariant context) {
+#if 0 // mtp
 	url = Core::TryConvertUrlToLocal(url);
 	if (Core::InternalPassportLink(url)) {
 		return;
 	}
+#endif
+	UrlClickHandler::Open(url, QVariant::fromValue([&] {
+		auto result = context.value<ClickHandlerContext>();
+		result.mayShowConfirmation = !base::IsCtrlPressed();
+		return result;
+	}()));
+}
 
+void HiddenUrlClickHandler::Confirm(
+		QString url,
+		QVariant context,
+		bool force) {
+	context = QVariant::fromValue([&] {
+		auto result = context.value<ClickHandlerContext>();
+		result.mayShowConfirmation = false;
+		return result;
+	}());
 	const auto open = [=] {
 		UrlClickHandler::Open(url, context);
 	};
+#if 0 // mtp
 	if (url.startsWith(u"tg://"_q, Qt::CaseInsensitive)
 		|| url.startsWith(u"internal:"_q, Qt::CaseInsensitive)) {
 		UrlClickHandler::Open(url, QVariant::fromValue([&] {
@@ -116,6 +134,10 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 	} else {
 		const auto parsedUrl = QUrl::fromUserInput(url);
 		if (UrlRequiresConfirmation(parsedUrl) && !base::IsCtrlPressed()) {
+#endif
+	{
+		const auto parsedUrl = QUrl::fromUserInput(url);
+		if (force || UrlRequiresConfirmation(parsedUrl)) {
 			Core::App().hideMediaView();
 			const auto displayed = parsedUrl.isValid()
 				? parsedUrl.toDisplayString()
