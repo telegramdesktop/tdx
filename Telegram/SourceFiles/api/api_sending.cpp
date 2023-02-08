@@ -523,12 +523,7 @@ void SendPreparedAlbumIfReady(
 			tl_bool(false)), // only_preview
 		tl_vector(std::move(contents))
 	)).done([=](const TLmessages &result) {
-		const auto type = NewMessageType::Unread;
-		for (const auto &message : result.data().vmessages().v) {
-			if (message) {
-				session->data().processMessage(*message, type);
-			}
-		}
+		// They should've been added by updates.
 	}).fail([=](const Error &error) {
 		const auto code = error.code;
 		//if (error.type() == qstr("MESSAGE_EMPTY")) {
@@ -545,9 +540,12 @@ void SendExistingDocument(
 		MessageToSend &&message,
 		not_null<DocumentData*> document,
 		std::optional<MsgId> localMessageId) {
-	SendPreparedMessage(message.action, MessageContentFromExisting(
-		document,
-		std::move(message.textWithTags)));
+	SendPreparedMessage(
+		message.action,
+		MessageContentFromExisting(
+			document,
+			std::move(message.textWithTags)),
+		localMessageId);
 #if 0 // mtp
 	const auto inputMedia = [=] {
 		return MTP_inputMediaDocument(
@@ -573,9 +571,10 @@ void SendExistingPhoto(
 		MessageToSend &&message,
 		not_null<PhotoData*> photo,
 		std::optional<MsgId> localMessageId) {
-	SendPreparedMessage(message.action, MessageContentFromExisting(
-		photo,
-		std::move(message.textWithTags)));
+	SendPreparedMessage(
+		message.action,
+		MessageContentFromExisting(photo, std::move(message.textWithTags)),
+		localMessageId);
 #if 0 // mtp
 	const auto inputMedia = [=] {
 		return MTP_inputMediaPhoto(
@@ -639,9 +638,7 @@ bool SendDice(MessageToSend &message) {
 		MessageReplyTo(action),
 		MessageSendOptions(peer, action),
 		tl_inputMessageDice(tl_string(emoji), tl_bool(action.clearDraft))
-	)).done([=](const TLmessage &result) {
-		session->data().processMessage(result, NewMessageType::Unread);
-	}).fail([=](const Error &error) {
+	)).fail([=](const Error &error) {
 		const auto code = error.code;
 		//if (error.type() == qstr("MESSAGE_EMPTY")) {
 		//	lastMessage->destroy();
@@ -1062,7 +1059,8 @@ TLint53 MessageThreadId(
 
 void SendPreparedMessage(
 		const SendAction &action,
-		TLinputMessageContent content) {
+		TLinputMessageContent content,
+		std::optional<MsgId> localMessageId) {
 	const auto history = action.history;
 	const auto peer = history->peer;
 	const auto topicRootId = action.replyTo ? action.topicRootId : 0;
@@ -1079,11 +1077,10 @@ void SendPreparedMessage(
 		tl_int53(action.replyTo.bare),
 		MessageSendOptions(peer, action),
 		std::move(content)
-	)).done([=](const TLmessage &result) {
+	)).done([=] {
 		if (clearCloudDraft) {
 			history->finishSavingCloudDraftNow(topicRootId);
 		}
-		session->data().processMessage(result, NewMessageType::Unread);
 	}).fail([=](const Error &error) {
 		const auto code = error.code;
 		//if (error.type() == qstr("MESSAGE_EMPTY")) {
