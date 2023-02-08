@@ -79,6 +79,7 @@ public:
 		const std::shared_ptr<FilePrepareResult> &file,
 		Fn<void(ReadyFileWithThumbnail)> ready);
 
+#if 0 // mtp
 	[[nodiscard]] rpl::producer<UploadedMedia> photoReady() const {
 		return _photoReady.events();
 	}
@@ -111,6 +112,7 @@ public:
 	[[nodiscard]] rpl::producer<FullMsgId> nonPremiumDelays() const {
 		return _nonPremiumDelays.events();
 	}
+#endif
 
 	void unpause();
 #if 0 // mtp
@@ -175,6 +177,7 @@ private:
 
 	std::vector<Entry> _queue;
 
+#if 0 // mtp
 	base::flat_map<mtpRequestId, Request> _requests;
 	std::vector<int> _sentPerDcIndex;
 
@@ -183,8 +186,10 @@ private:
 	crl::time _latestDcIndexAdded = 0;
 	crl::time _latestDcIndexRemoved = 0;
 	std::vector<Request> _pendingFromRemovedDcIndices;
+#endif
 
 	FullMsgId _pausedId;
+#if 0 // mtp
 	base::Timer _nextTimer, _stopSessionsTimer;
 
 	rpl::event_stream<UploadedMedia> _photoReady;
@@ -197,6 +202,7 @@ private:
 	rpl::event_stream<FullMsgId> _documentFailed;
 	rpl::event_stream<FullMsgId> _secureFailed;
 	rpl::event_stream<FullMsgId> _nonPremiumDelays;
+#endif
 
 	base::flat_map<FileId, std::shared_ptr<Tdb::FileGenerator>> _uploads;
 

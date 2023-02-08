@@ -2803,7 +2803,7 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateNewMessage &data) {
 		owner.processMessage(data.vmessage(), NewMessageType::Unread);
 	}, [&](const TLDupdateMessageSendAcknowledged &data) {
-		// We don't show sent checkmark while the message only was ack-ed.
+		// later show sent checkmark while the message only was ack-ed.
 	}, [&](const TLDupdateMessageSendSucceeded &data) {
 		const auto oldMessageId = MsgId(data.vold_message_id().v);
 		owner.processMessage(data.vmessage(), oldMessageId);

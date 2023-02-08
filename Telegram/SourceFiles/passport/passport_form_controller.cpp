@@ -2302,7 +2302,7 @@ void FormController::updateFile(const Tdb::TLDfile &data) {
 	const auto fileInEdit = findEditFile(key);
 
 	if (remote.vis_uploading_completed().v) {
-	} else if (remote.vis_uploading_active().v) {
+	} else {
 		if (fileInEdit) {
 			fileInEdit->uploadData->status.set(
 				LoadStatus::Status::InProgress,

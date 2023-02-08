@@ -143,6 +143,7 @@ public:
 		const Tdb::TLnotificationSound &data);
 	void setFromTdb(const Tdb::TLnotificationSound &data);
 	void setSimpleFromTdb(const Tdb::TLfile &data, SimpleDocumentType type);
+	void applyTdbFile(const Tdb::TLfile &file);
 
 	[[nodiscard]] FileId tdbFileId() const;
 

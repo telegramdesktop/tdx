@@ -53,9 +53,10 @@ using Data::kPhotoSizeCount;
 }
 
 struct Sizes {
-	ImageWithLocation small;
-	ImageWithLocation thumbnail;
-	ImageWithLocation large;
+	const TLphotoSize *small = nullptr;
+	const TLphotoSize *thumbnail = nullptr;
+	ImageWithLocation thumbnailProgressive;
+	const TLphotoSize *large = nullptr;
 };
 [[nodiscard]] Sizes LookupSizes(const TLvector<TLphotoSize> &data) {
 	const auto &sizes = data.v;
@@ -81,20 +82,15 @@ struct Sizes {
 	};
 	const auto image = [&](const QByteArray &levels) {
 		const auto i = find(levels);
-		return (i == sizes.end())
-			? ImageWithLocation()
-			: Images::FromPhotoSize(*i);
+		return (i != sizes.end()) ? &*i : nullptr;
 	};
 	return {
-		.small = (progressive
-			? ImageWithLocation()
-			: image("sa"_q)),
-		.thumbnail = (progressive
+		.small = (progressive ? nullptr : image("sa"_q)),
+		.thumbnail = (progressive ? nullptr : image("mbsa"_q)),
+		.thumbnailProgressive = (progressive
 			? Images::FromProgressiveSize(*i, 1)
-			: image("mbsa"_q)),
-		.large = (progressive
-			? Images::FromPhotoSize(*i)
-			: image("ydxncwmbsai"_q)),
+			: ImageWithLocation()),
+		.large = (progressive ? &*i : image("ydxncwmbsai"_q)),
 	};
 }
 
@@ -163,19 +159,22 @@ void PhotoData::setFromTdb(const TLphoto &data) {
 	const auto &fields = data.data();
 	setHasAttachedStickers(fields.vhas_stickers().v);
 	auto sizes = LookupSizes(fields.vsizes());
-	if (!sizes.large.location.valid()) {
+	if (!sizes.large) {
 		return;
 	}
 	updateImages(
 		(fields.vminithumbnail()
 			? fields.vminithumbnail()->data().vdata().v
 			: QByteArray()),
-		sizes.small,
-		sizes.thumbnail,
-		sizes.large,
+		Images::FromPhotoSize(sizes.small),
+		(sizes.thumbnail
+			? Images::FromPhotoSize(sizes.thumbnail)
+			: sizes.thumbnailProgressive),
+		Images::FromPhotoSize(sizes.large),
 		ImageWithLocation(),
 		ImageWithLocation(),
 		crl::time());
+	applyTdbFile(sizes.large->data().vphoto());
 }
 
 void PhotoData::setFromTdb(const TLchatPhoto &data) {
@@ -184,16 +183,18 @@ void PhotoData::setFromTdb(const TLchatPhoto &data) {
 	_dateOrExtendedVideoDuration = fields.vadded_date().v;
 
 	const auto sizes = LookupSizes(fields.vsizes());
-	if (!sizes.large.location.valid()) {
+	if (!sizes.large) {
 		return;
 	}
 	updateImages(
 		(fields.vminithumbnail()
 			? fields.vminithumbnail()->data().vdata().v
 			: QByteArray()),
-		sizes.small,
-		sizes.thumbnail,
-		sizes.large,
+		Images::FromPhotoSize(sizes.small),
+		(sizes.thumbnail
+			? Images::FromPhotoSize(sizes.thumbnail)
+			: sizes.thumbnailProgressive),
+		Images::FromPhotoSize(sizes.large),
 		(fields.vsmall_animation()
 			? Images::FromAnimationSize(*fields.vsmall_animation())
 			: ImageWithLocation()),
@@ -245,6 +246,22 @@ void PhotoData::setFromTdb(const TLchatPhotoInfo &data) {
 		ImageWithLocation(),
 		ImageWithLocation(),
 		crl::time());
+	applyTdbFile(fields.vbig());
+}
+
+void PhotoData::applyTdbFile(const Tdb::TLfile &file) {
+	const auto size = file.data().vsize().v;
+	const auto &remote = file.data().vremote().data();
+	if (!remote.vis_uploading_completed().v) {
+		if (!uploadingData) {
+			uploadingData = std::make_unique<Data::UploadState>(size);
+		}
+		uploadingData->offset = remote.vuploaded_size().v;
+		_owner->requestPhotoViewRepaint(this);
+	} else if (uploadingData) {
+		uploadingData = nullptr;
+		_owner->requestPhotoViewRepaint(this);
+	}
 }
 
 Data::Session &PhotoData::owner() const {
@@ -574,6 +591,11 @@ void PhotoData::updateImages(
 		const ImageWithLocation &videoSmall,
 		const ImageWithLocation &videoLarge,
 		crl::time videoStartTime) {
+	_owner->photoFileIdUpdated(
+		this,
+		_images[PhotoSizeIndex(PhotoSize::Large)].location.tdbFileId(),
+		large.location.tdbFileId());
+
 	if (!inlineThumbnailBytes.isEmpty()
 		&& _inlineThumbnailBytes.isEmpty()) {
 		_inlineThumbnailBytes = inlineThumbnailBytes;

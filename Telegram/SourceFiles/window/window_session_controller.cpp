@@ -2631,8 +2631,15 @@ void SessionController::cancelUploadLayer(not_null<HistoryItem*> item) {
 		if (const auto item = data.message(itemId)) {
 			if (!item->isEditingMedia()) {
 				const auto history = item->history();
+				history->session().sender().request(TLdeleteMessages(
+					peerToTdbChat(history->peer->id),
+					tl_vector<TLint53>(1, tl_int53(item->id.bare)),
+					tl_bool(true)
+				)).send();
+#if 0 // mtp
 				item->destroy();
 				history->requestChatListMessage();
+#endif
 			} else {
 				item->returnSavedMedia();
 				session().uploader().cancel(item->fullId());
