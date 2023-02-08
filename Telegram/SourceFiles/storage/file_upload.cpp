@@ -782,12 +782,20 @@ void Uploader::cancelAll() {
 }
 
 void Uploader::pause(const FullMsgId &msgId) {
+	if (!_pausedId && msgId) {
+		_api->sender().request(TLsetNetworkType(
+			tl_networkTypeNone()
+		)).send();
+	}
 	_pausedId = msgId;
 }
 
 void Uploader::unpause() {
+	if (_pausedId) {
+		_api->sender().request(TLsetNetworkType(std::nullopt)).send();
+	}
 	_pausedId = FullMsgId();
-#if 0 // todo
+#if 0 // mtp
 	sendNext();
 #endif
 }
