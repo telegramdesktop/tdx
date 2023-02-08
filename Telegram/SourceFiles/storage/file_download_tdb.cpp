@@ -34,6 +34,30 @@ TdbFileLoader::TdbFileLoader(
 	LoadFromCloudSetting fromCloud,
 	bool autoLoading,
 	uint8 cacheTag)
+: TdbFileLoader(
+	session,
+	[fileId](Fn<void(FileId)> callback) { if (callback) callback(fileId); },
+	type,
+	toFile,
+	loadSize,
+	fullSize,
+	toCache,
+	fromCloud,
+	autoLoading,
+	cacheTag) {
+}
+
+TdbFileLoader::TdbFileLoader(
+	not_null<Main::Session*> session,
+	Fn<void(Fn<void(FileId)>)> fileIdGenerator,
+	LocationType type,
+	const QString &toFile,
+	int64 loadSize,
+	int64 fullSize,
+	LoadToCacheSetting toCache,
+	LoadFromCloudSetting fromCloud,
+	bool autoLoading,
+	uint8 cacheTag)
 : FileLoader(
 	session,
 	toFile,
@@ -44,7 +68,7 @@ TdbFileLoader::TdbFileLoader(
 	fromCloud,
 	autoLoading,
 	cacheTag)
-, _fileId(fileId) {
+, _fileIdGenerator(std::move(fileIdGenerator)) {
 }
 
 TdbFileLoader::~TdbFileLoader() {
@@ -67,6 +91,16 @@ void TdbFileLoader::startLoading() {
 
 void TdbFileLoader::sendRequest() {
 	cancelRequest();
+
+	if (!_fileId) {
+		_requestId = -1;
+		_fileIdGenerator([=](FileId id) {
+			_requestId = 0;
+			_fileId = id;
+			sendRequest();
+		});
+		return;
+	}
 	_requestId = session().sender().request(TLdownloadFile(
 		tl_int32(_fileId),
 		tl_int32(1),
@@ -204,7 +238,10 @@ std::optional<MediaKey> TdbFileLoader::fileLocationKey() const {
 }
 
 void TdbFileLoader::cancelRequest() {
-	if (_requestId) {
+	if (_requestId < 0) {
+		_requestId = 0;
+		_fileIdGenerator(nullptr);
+	} else if (_requestId) {
 		session().sender().request(base::take(_requestId)).cancel();
 	}
 	_loadingLifetime.destroy();
@@ -218,11 +255,44 @@ void TdbFileLoader::cancelHook() {
 	_proxy = nullptr;
 	if (_requestId || _loadingLifetime) {
 		cancelRequest();
-		if (!session().loggingOut()) {
+		if (_fileId && !session().loggingOut()) {
 			session().sender().request(TLcancelDownloadFile(
 				tl_int32(_fileId),
 				tl_bool(false)
 			)).send();
 		}
 	}
+}
+
+Fn<void(Fn<void(FileId)>)> MapFileIdGenerator(
+		not_null<Main::Session*> session,
+		const GeoPointLocation &location) {
+	struct State {
+		Fn<void(FileId)> callback;
+		RequestId requestId = 0;
+	};
+	return [session, state = std::make_shared<State>(), location](
+			Fn<void(FileId)> callback) {
+		state->callback = std::move(callback);
+		if (!state->callback) {
+			session->sender().request(base::take(state->requestId)).cancel();
+		} else if (!state->requestId) {
+			state->requestId = session->sender().request(
+				TLgetMapThumbnailFile(
+					tl_location(
+						tl_double(location.lat),
+						tl_double(location.lon),
+						tl_double(0)),
+					tl_int32(location.zoom),
+					tl_int32(location.width),
+					tl_int32(location.height),
+					tl_int32(location.scale),
+					tl_int53(0)) // later chat_id
+			).done([=](const TLDfile &result) {
+				state->callback(result.vid().v);
+			}).fail([=] {
+				state->callback(0);
+			}).send();
+		}
+	};
 }
