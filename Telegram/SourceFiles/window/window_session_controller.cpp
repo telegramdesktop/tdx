@@ -2654,13 +2654,17 @@ void SessionController::cancelUploadLayer(not_null<HistoryItem*> item) {
 		close();
 	};
 
-	show(Ui::MakeConfirmBox({
+	const auto box = show(Ui::MakeConfirmBox({
 		.text = tr::lng_selected_cancel_sure_this(),
 		.confirmed = stopUpload,
 		.cancelled = continueUpload,
 		.confirmText = tr::lng_box_yes(),
 		.cancelText = tr::lng_box_no(),
 	}));
+
+	QObject::connect(box.data(), &QObject::destroyed, [=] {
+		session().uploader().unpause();
+	});
 }
 
 void SessionController::showSection(

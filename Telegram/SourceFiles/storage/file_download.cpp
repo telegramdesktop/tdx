@@ -520,7 +520,7 @@ std::unique_ptr<FileLoader> CreateFileLoader(
 			cacheTag);
 #endif
 	}, [&](const GeoPointLocation &data) {
-#if 0 // todo
+#if 0 // mtp
 		result = std::make_unique<mtpFileLoader>(
 			session,
 			data,
@@ -530,6 +530,17 @@ std::unique_ptr<FileLoader> CreateFileLoader(
 			autoLoading,
 			cacheTag);
 #endif
+		result = std::make_unique<TdbFileLoader>(
+			session,
+			MapFileIdGenerator(session, data),
+			UnknownFileLocation,
+			QString(),
+			loadSize,
+			fullSize,
+			LoadToCacheAsWell,
+			fromCloud,
+			autoLoading,
+			cacheTag);
 	}, [&](const PlainUrlLocation &data) {
 		result = std::make_unique<webFileLoader>(
 			session,
