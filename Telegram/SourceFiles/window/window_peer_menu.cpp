@@ -134,9 +134,7 @@ void ShareBotGame(
 		tl_inputMessageGame(
 			peerToTdbChat(bot->id),
 			tl_string(shortName))
-	)).done([=](const TLmessage &result) {
-		history->owner().processMessage(result, NewMessageType::Unread);
-	}).fail([=](const Error &error) {
+	)).fail([=](const Error &error) {
 		history->session().api().sendMessageFail(
 			error.message,
 			history->peer);

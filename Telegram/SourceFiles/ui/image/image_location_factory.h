@@ -51,7 +51,7 @@ namespace Images {
 	QByteArray bytes = QByteArray());
 [[nodiscard]] ImageLocation FromWebDocument(const MTPWebDocument &document);
 
-[[nodiscard]] ImageWithLocation FromPhotoSize(const Tdb::TLphotoSize &size);
+[[nodiscard]] ImageWithLocation FromPhotoSize(const Tdb::TLphotoSize *size);
 [[nodiscard]] ImageWithLocation FromTdbFile(
 	const Tdb::TLfile &file,
 	int width,

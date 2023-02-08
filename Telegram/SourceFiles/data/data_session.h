@@ -644,6 +644,11 @@ public:
 		const MTPWebDocument &data,
 		const ImageLocation &thumbnailLocation);
 #endif
+	void photoFileIdUpdated(
+		not_null<PhotoData*> photo,
+		FileId was,
+		FileId now);
+	[[nodiscard]] PhotoData *photoByFileId(FileId id) const;
 
 	[[nodiscard]] not_null<DocumentData*> document(DocumentId id);
 #if 0 // mtp
@@ -675,6 +680,11 @@ public:
 		const ImageLocation &thumbnailLocation,
 		const ImageLocation &videoThumbnailLocation);
 #endif
+	void documentFileIdUpdated(
+		not_null<DocumentData*> document,
+		FileId was,
+		FileId now);
+	[[nodiscard]] DocumentData *documentByFileId(FileId id)	const;
 
 	[[nodiscard]] not_null<DocumentData*> venueIconDocument(
 		const QString &icon);
@@ -1143,12 +1153,14 @@ private:
 	std::unordered_map<
 		PhotoId,
 		std::unique_ptr<PhotoData>> _photos;
+	std::unordered_map<FileId, not_null<PhotoData*>> _photoByFileId;
 	std::unordered_map<
 		not_null<const PhotoData*>,
 		base::flat_set<not_null<HistoryItem*>>> _photoItems;
 	std::unordered_map<
 		DocumentId,
 		std::unique_ptr<DocumentData>> _documents;
+	std::unordered_map<FileId, not_null<DocumentData*>> _documentByFileId;
 	std::unordered_map<
 		not_null<const DocumentData*>,
 		base::flat_set<not_null<HistoryItem*>>> _documentItems;

@@ -386,8 +386,11 @@ ImageWithLocation FromVideoSize(
 	});
 }
 
-ImageWithLocation FromPhotoSize(const TLphotoSize &size) {
-	const auto &data = size.data();
+ImageWithLocation FromPhotoSize(const TLphotoSize *size) {
+	if (!size) {
+		return ImageWithLocation();
+	}
+	const auto &data = size->data();
 	return FromTdbFile(data.vphoto(), data.vwidth().v, data.vheight().v);
 }
 

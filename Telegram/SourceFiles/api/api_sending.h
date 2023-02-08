@@ -69,7 +69,8 @@ void SendConfirmedFile(
 
 void SendPreparedMessage(
 	const SendAction &action,
-	Tdb::TLinputMessageContent content);
+	Tdb::TLinputMessageContent content,
+	std::optional<MsgId> localMessageId = std::nullopt);
 
 [[nodiscard]] std::optional<Tdb::TLmessageSchedulingState> ScheduledToTL(
 	TimeId scheduled);

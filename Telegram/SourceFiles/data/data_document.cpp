@@ -42,7 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "tdb/tdb_tl_scheme.h"
 #include "ui/image/image_location_factory.h"
-
+#include "storage/file_upload.h"
 #include "storage/file_download_tdb.h"
 #include "media/streaming/media_streaming_loader_tdb.h"
 #include <xxhash.h>
@@ -943,8 +943,29 @@ void DocumentData::updateThumbnails(
 }
 
 void DocumentData::setTdbLocation(const TLfile &file) {
+	const auto was = _tdbFile.fileId;
 	_tdbFile = TdbFileLocation(file);
+	_owner->documentFileIdUpdated(this, was, _tdbFile.fileId);
+	applyTdbFile(file);
+}
+
+void DocumentData::applyTdbFile(const TLfile &file) {
 	size = file.data().vsize().v;
+	const auto &remote = file.data().vremote().data();
+	if (!remote.vis_uploading_completed().v) {
+		if (!uploadingData) {
+			uploadingData = std::make_unique<Data::UploadState>(size);
+		}
+		uploadingData->offset = remote.vuploaded_size().v;
+		_owner->requestDocumentViewRepaint(this);
+	} else if (uploadingData) {
+		uploadingData = nullptr;
+		_owner->requestDocumentViewRepaint(this);
+	}
+	const auto &local = file.data().vlocal().data();
+	if (local.vis_downloading_completed().v && !local.vpath().v.isEmpty()) {
+		_location = Core::FileLocation(local.vpath().v);
+	}
 }
 
 FileId DocumentData::tdbFileId() const {
