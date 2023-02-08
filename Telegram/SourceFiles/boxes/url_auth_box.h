@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/layers/box_content.h"
 
+namespace Tdb {
+class TLDloginUrlInfoRequestConfirmation;
+} // namespace Tdb
+
 class HistoryItem;
 struct HistoryMessageMarkupButton;
 
@@ -31,6 +35,7 @@ protected:
 	void prepare() override;
 
 private:
+#if 0 // mtp
 	static void Request(
 		const MTPDurlAuthResultRequest &request,
 		not_null<const HistoryItem*> message,
@@ -38,6 +43,17 @@ private:
 		int column);
 	static void Request(
 		const MTPDurlAuthResultRequest &request,
+		not_null<Main::Session*> session,
+		const QString &url,
+		QVariant context);
+#endif
+	static void Request(
+		const Tdb::TLDloginUrlInfoRequestConfirmation &request,
+		not_null<const HistoryItem*> message,
+		int row,
+		int column);
+	static void Request(
+		const Tdb::TLDloginUrlInfoRequestConfirmation &request,
 		not_null<Main::Session*> session,
 		const QString &url,
 		QVariant context);
