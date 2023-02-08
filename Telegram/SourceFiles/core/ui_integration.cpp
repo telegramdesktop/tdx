@@ -42,6 +42,7 @@ namespace {
 
 using namespace Tdb;
 
+#if 0 // mtp
 const auto kGoodPrefix = u"https://"_q;
 const auto kBadPrefix = u"http://"_q;
 
@@ -105,6 +106,7 @@ const auto kBadPrefix = u"http://"_q;
 	UrlAuthBox::Activate(&account.session(), good, context);
 	return true;
 }
+#endif
 
 [[nodiscard]] QString OpenGLCheckFilePath() {
 	return cWorkingDir() + "tdata/opengl_crash_check";
@@ -232,18 +234,35 @@ std::shared_ptr<ClickHandler> UiIntegration::createLinkHandler(
 bool UiIntegration::handleUrlClick(
 		const QString &url,
 		const QVariant &context) {
+	const auto isEmail = UrlClickHandler::IsEmail(url);
+	const auto isInternal = !isEmail
+		&& url.startsWith(u"internal:"_q, Qt::CaseInsensitive);
 	const auto window = context.value<ClickHandlerContext>().sessionWindow;
-	const auto sender = window.get()
-		? &window->session().sender()
+	const auto session = (isEmail || isInternal)
+		? nullptr
+		: window.get()
+		? &window->session()
+		: Core::App().domain().started()
+		? (Core::App().domain().active().sessionExists()
+			? &Core::App().domain().active().session()
+			: nullptr)
+		: nullptr;
+	const auto sender = (isEmail || isInternal)
+		? nullptr
+		: session
+		? &session->sender()
 		: Core::App().domain().started()
 		? &Core::App().domain().active().sender()
 		: nullptr;
+	const auto my = context.value<ClickHandlerContext>();
+	const auto skip = my.skipBotAutoLogin;
+	const auto confirm = my.mayShowConfirmation;
 	if (sender) {
-		const auto fallback = [=] {
-			if (UrlClickHandler::IsEmail(url)) {
-				File::OpenEmailLink(url);
-			} else if (url.startsWith(u"internal:"_q, Qt::CaseInsensitive)) {
-				Core::App().openInternalUrl(url, context);
+		const auto fallback = [=, weak = base::make_weak(session)] {
+			if (const auto strong = skip ? nullptr : weak.get()) {
+				UrlAuthBox::Activate(strong, url, context);
+			} else if (confirm) {
+				HiddenUrlClickHandler::Confirm(url, context, true);
 			} else {
 				File::OpenUrl(url);
 			}
@@ -258,6 +277,7 @@ bool UiIntegration::handleUrlClick(
 		return true;
 	}
 
+#if 0 // mtp
 	const auto local = Core::TryConvertUrlToLocal(url);
 	if (Core::InternalPassportLink(local)) {
 		return true;
@@ -266,11 +286,9 @@ bool UiIntegration::handleUrlClick(
 	if (UrlClickHandler::IsEmail(url)) {
 		File::OpenEmailLink(url);
 		return true;
-#if 0 // mtp
 	} else if (local.startsWith(u"tg://"_q, Qt::CaseInsensitive)) {
 		Core::App().openLocalUrl(local, context);
 		return true;
-#endif
 	} else if (local.startsWith(u"internal:"_q, Qt::CaseInsensitive)) {
 		Core::App().openInternalUrl(local, context);
 		return true;
@@ -289,6 +307,16 @@ bool UiIntegration::handleUrlClick(
 	if (skip || !BotAutoLogin(url, domain, context)) {
 		File::OpenUrl(
 			UrlWithAutoLoginToken(url, std::move(parsed), domain, context));
+	}
+#endif
+	if (isEmail) {
+		File::OpenEmailLink(url);
+	} else if (isInternal) {
+		Core::App().openInternalUrl(url, context);
+	} else if (confirm) {
+		HiddenUrlClickHandler::Confirm(url, context, false);
+	} else {
+		File::OpenUrl(url);
 	}
 	return true;
 }
