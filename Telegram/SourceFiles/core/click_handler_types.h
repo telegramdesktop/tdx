@@ -77,6 +77,8 @@ public:
 
 	TextEntity getTextEntity() const override;
 
+	static void Confirm(QString url, QVariant context, bool force = true);
+
 };
 
 class UserData;
