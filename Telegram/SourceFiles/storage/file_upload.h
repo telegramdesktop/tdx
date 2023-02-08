@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class ApiWrap;
 struct FileLoadResult;
 struct SendMediaReady;
+class PhotoData;
+class DocumentData;
 
 namespace Api {
 enum class SendProgressType;
@@ -86,6 +88,7 @@ public:
 		const std::shared_ptr<FileLoadResult> &file,
 		Fn<void(ReadyFileWithThumbnail)> ready);
 
+#if 0 // mtp
 	rpl::producer<UploadedMedia> photoReady() const {
 		return _photoReady.events();
 	}
@@ -113,6 +116,7 @@ public:
 	rpl::producer<FullMsgId> secureFailed() const {
 		return _secureFailed.events();
 	}
+#endif
 
 	void unpause();
 #if 0 // mtp
@@ -144,14 +148,17 @@ private:
 		int progress = 0);
 
 	const not_null<ApiWrap*> _api;
+#if 0 // mtp
 	base::flat_map<mtpRequestId, QByteArray> requestsSent;
 	base::flat_map<mtpRequestId, int32> docRequestsSent;
 	base::flat_map<mtpRequestId, int32> dcMap;
 	uint32 sentSize = 0; // FileSize: Right now any file size fits 32 bit.
 	uint32 sentSizes[MTP::kUploadSessionsCount] = { 0 };
+#endif
 
 	FullMsgId uploadingId;
 	FullMsgId _pausedId;
+#if 0 // mtp
 	std::map<FullMsgId, File> queue;
 	base::Timer _nextTimer, _stopSessionsTimer;
 
@@ -164,6 +171,7 @@ private:
 	rpl::event_stream<FullMsgId> _photoFailed;
 	rpl::event_stream<FullMsgId> _documentFailed;
 	rpl::event_stream<FullMsgId> _secureFailed;
+#endif
 
 	base::flat_map<FileId, std::shared_ptr<Tdb::FileGenerator>> _uploads;
 

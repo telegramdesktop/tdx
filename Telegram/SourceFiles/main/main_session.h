@@ -19,6 +19,7 @@ class TLuser;
 class Account;
 class Sender;
 class TLDupdateOption;
+class TLmessage;
 } // namespace Tdb
 
 namespace Api {
