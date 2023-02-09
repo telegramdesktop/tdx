@@ -168,7 +168,7 @@ void SendProgressManager::send(const Key &key, int progress) {
 		case Type::ChooseLocation: return tl_chatActionChoosingLocation();
 		case Type::ChooseContact: return tl_chatActionChoosingContact();
 		case Type::PlayGame: return tl_chatActionStartPlayingGame();
-		//case Type::Speaking: ... // todo
+		//case Type::Speaking: ... // mtp
 		case Type::ChooseSticker: return tl_chatActionChoosingSticker();
 		default: return tl_chatActionTyping();
 		}
