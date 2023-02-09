@@ -71,6 +71,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_reply_markup.h"
 #include "data/data_document.h"
 #include "data/data_forum_topic.h"
+#include "window/window_lock_widgets.h"
 
 namespace Api {
 namespace {
@@ -3154,7 +3155,10 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateLanguagePackStrings &data) {
 		Lang::CurrentCloudManager().apply(data);
 	}, [&](const TLDupdateTermsOfService &data) {
-		// todo
+		session().lockByTerms(Window::TermsLock::FromTL(
+			&session(),
+			data.vterms_of_service().data(),
+			data.vterms_of_service_id().v.toUtf8()));
 	}, [&](const TLDupdateUsersNearby &data) {
 	}, [&](const TLDupdateAttachmentMenuBots &data) {
 		session().attachWebView().apply(data);
