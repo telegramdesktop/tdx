@@ -3515,6 +3515,7 @@ void GroupCall::audioLevelsUpdated(const tgcalls::GroupLevelsUpdate &data) {
 		if (level <= kSpeakLevelThreshold) {
 			continue;
 		}
+#if 0 // mtp
 		if (me
 			&& voice
 			&& (!_lastSendProgressUpdate
@@ -3524,6 +3525,7 @@ void GroupCall::audioLevelsUpdated(const tgcalls::GroupLevelsUpdate &data) {
 				_history,
 				Api::SendProgressType::Speaking);
 		}
+#endif
 
 		check = true;
 		const auto i = _lastSpoke.find(ssrc);
