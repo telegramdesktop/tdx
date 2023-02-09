@@ -330,10 +330,11 @@ TermsLock TermsLock::FromMTP(
 
 TermsLock TermsLock::FromTL(
 		Main::Session *session,
-		const Tdb::TLDtermsOfService &data) {
+		const Tdb::TLDtermsOfService &data,
+		QByteArray id) {
 	const auto minAge = data.vmin_user_age().v;
 	return {
-		{}, // mtp
+		bytes::make_vector(id),
 		Api::FormattedTextFromTdb(data.vtext()),
 		(minAge ? std::make_optional(minAge) : std::nullopt),
 		data.vshow_popup().v
