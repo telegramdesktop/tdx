@@ -96,7 +96,8 @@ struct TermsLock {
 #endif
 	static TermsLock FromTL(
 		Main::Session *session,
-		const Tdb::TLDtermsOfService &data);
+		const Tdb::TLDtermsOfService &data,
+		QByteArray id = {});
 
 };
 
