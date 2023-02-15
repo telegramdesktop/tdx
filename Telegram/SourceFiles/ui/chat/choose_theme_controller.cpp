@@ -31,6 +31,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 #include "styles/style_window.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+
 #include <QtWidgets/QApplication>
 
 namespace Ui {
@@ -296,7 +299,11 @@ void ChooseThemeController::initButtons() {
 					// Remember while changes propagate through event loop.
 					_controller->pushLastUsedChatTheme(chosen->theme);
 				}
-#if 0 // todo
+				_peer->session().sender().request(Tdb::TLsetChatTheme(
+					peerToTdbChat(_peer->id),
+					Tdb::tl_string(now)
+				)).send();
+#if 0 // mtp
 				const auto api = &_peer->session().api();
 				api->request(MTPmessages_SetChatWallPaper(
 					MTP_flags(0),
