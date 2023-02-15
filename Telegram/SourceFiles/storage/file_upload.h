@@ -75,9 +75,9 @@ public:
 	void upload(
 		const FullMsgId &msgId,
 		const std::shared_ptr<FileLoadResult> &file);
-#endif
 
 	void cancel(const FullMsgId &msgId);
+#endif
 	void pause(const FullMsgId &msgId);
 	void confirm(const FullMsgId &msgId);
 
