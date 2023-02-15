@@ -75,9 +75,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 
 #include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
 
 namespace HistoryView {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kSaveDraftTimeout = crl::time(1000);
 constexpr auto kSaveDraftAnywayTimeout = 5 * crl::time(1000);
@@ -272,7 +275,39 @@ void WebpageProcessor::updatePreview() {
 
 void WebpageProcessor::getWebPagePreview() {
 	const auto links = _previewLinks;
-#if 0 // todo
+	_previewRequest = _api.request(TLgetWebPagePreview(
+		tl_formattedText(tl_string(links), tl_vector<TLtextEntity>())
+	)).done([=](const TLwebPage &result, mtpRequestId requestId) {
+		_previewRequest = 0;
+
+		if (requestId == _previewRequest) {
+			_previewRequest = 0;
+		}
+		const auto page = _history->owner().processWebpage(result);
+		_previewCache.insert({ links, page->id });
+		auto &till = page->pendingTill;
+		if (till > 0 && till <= base::unixtime::now()) {
+			till = -1;
+		}
+		if (links == _previewLinks
+			&& _previewState == Data::PreviewState::Allowed) {
+			_previewData = (page->id && page->pendingTill >= 0)
+				? page.get()
+				: nullptr;
+			updatePreview();
+		}
+	}).fail([=](const Error &error) {
+		_previewRequest = 0;
+		if (error.code == 404) {
+			_previewCache.insert({ links, 0 });
+			if (links == _previewLinks
+				&& _previewState == Data::PreviewState::Allowed) {
+				_previewData = nullptr;
+				updatePreview();
+			}
+		}
+	}).send();
+#if 0 // mtp
 	_previewRequest = _api.request(
 		MTPmessages_GetWebPagePreview(
 			MTP_flags(0),
@@ -1142,9 +1177,10 @@ ComposeControls::~ComposeControls() {
 	saveFieldToHistoryLocalDraft();
 	unregisterDraftSources();
 	setTabbedPanel(nullptr);
-#if 0 // todo
+#if 0 // mtp
 	session().api().request(_inlineBotResolveRequestId).cancel();
 #endif
+	session().sender().request(_inlineBotResolveRequestId).cancel();
 }
 
 Main::Session &ComposeControls::session() const {
@@ -3235,18 +3271,19 @@ void ComposeControls::updateInlineBotQuery() {
 	const auto query = ParseInlineBotQuery(&session(), _field);
 	if (_inlineBotUsername != query.username) {
 		_inlineBotUsername = query.username;
+#if 0 // mtp
 		auto &api = session().api();
-		if (_inlineBotResolveRequestId) {
-#if 0 // todo
-			api.request(_inlineBotResolveRequestId).cancel();
 #endif
+		auto &api = session().sender();
+		if (_inlineBotResolveRequestId) {
+			api.request(_inlineBotResolveRequestId).cancel();
 			_inlineBotResolveRequestId = 0;
 		}
 		if (query.lookingUpBot) {
 			_inlineBot = nullptr;
 			_inlineLookingUpBot = true;
 			const auto username = _inlineBotUsername;
-#if 0 // todo
+#if 0 // mtp
 			_inlineBotResolveRequestId = api.request(
 				MTPcontacts_ResolveUsername(MTP_string(username))
 			).done([=](const MTPcontacts_ResolvedPeer &result) {
@@ -3276,12 +3313,32 @@ void ComposeControls::updateInlineBotQuery() {
 				}
 
 			}).fail([=] {
+#endif
+			_inlineBotResolveRequestId = api.request(TLsearchPublicChat(
+				tl_string(username)
+			)).done([=](const TLchat &result) {
+				const auto peer = session().data().processPeer(result);
+				const auto user = peer->asUser();
+				const auto resolvedBot = (user
+					&& user->isBot()
+					&& !user->botInfo->inlinePlaceholder.isEmpty())
+					? user
+					: nullptr;
+				_inlineBotResolveRequestId = 0;
+				const auto query = ParseInlineBotQuery(&session(), _field);
+				if (_inlineBotUsername == query.username) {
+					applyInlineBotQuery(
+						query.lookingUpBot ? resolvedBot : query.bot,
+						query.query);
+				} else {
+					clearInlineBot();
+				}
+			}).fail([=](const Error &error) {
 				_inlineBotResolveRequestId = 0;
 				if (username == _inlineBotUsername) {
 					clearInlineBot();
 				}
 			}).send();
-#endif
 		} else {
 			applyInlineBotQuery(query.bot, query.query);
 		}
