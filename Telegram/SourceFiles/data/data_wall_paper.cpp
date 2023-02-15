@@ -104,7 +104,8 @@ using Ui::MaybeColorFromSerialized;
 #endif
 
 [[nodiscard]] std::vector<QColor> ColorsFromTL(
-		const TLbackgroundFill &fill) {
+		const TLbackgroundFill &fill,
+		bool invertTopBottom = false) {
 	auto result = std::vector<QColor>();
 	const auto push = [&](const TLint32 &value) {
 		if (const auto color = MaybeColorFromSerialized(value.v)) {
@@ -117,6 +118,9 @@ using Ui::MaybeColorFromSerialized;
 		result.reserve(2);
 		push(data.vtop_color());
 		push(data.vbottom_color());
+		if (invertTopBottom && result.size() == 2) {
+			std::swap(result[0], result[1]);
+		}
 	}, [&](const TLDbackgroundFillFreeformGradient &data) {
 		const auto &list = data.vcolors().v;
 		result.reserve(list.size());
@@ -952,3 +956,13 @@ bool IsTestingEditorWallPaper(const WallPaper &paper) {
 
 } // namespace details
 } // namespace Data
+
+namespace Ui {
+
+std::vector<QColor> ColorsFromFill(
+		const Tdb::TLbackgroundFill &fill,
+		bool invertTopBottom) {
+	return Data::ColorsFromTL(fill, invertTopBottom);
+}
+
+} // namespace Ui

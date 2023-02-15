@@ -65,8 +65,9 @@ bool Account::consumeUpdate(const TLupdate &update) {
 		const auto i = _generators.find(conversion);
 		if (i != end(_generators)) {
 			i->second->start(id);
-#if 0 // todo
 		} else if (conversion == "#url#") {
+			const auto t = data.voriginal_path().v;
+#if 0 // todo
 			download(data.voriginal_path().v);
 #endif
 		} else {
