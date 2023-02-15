@@ -425,6 +425,7 @@ std::shared_ptr<FilePrepareResult> PrepareThemeMedia(
 	result->thumb = thumbnail;
 	result->thumbname = "thumb.jpg";
 	result->setThumbData(thumbnailBytes);
+#if 0 // mtp
 	result->document = MTP_document(
 		MTP_flags(0),
 		MTP_long(id),
@@ -437,6 +438,7 @@ std::shared_ptr<FilePrepareResult> PrepareThemeMedia(
 		MTPVector<MTPVideoSize>(),
 		MTP_int(dcId),
 		MTP_vector<MTPDocumentAttribute>(attributes));
+#endif
 	return result;
 }
 
@@ -616,8 +618,8 @@ Fn<void()> SavePreparedTheme(
 		state->generating = false;
 #if 0 // tdlib todo
 		api->request(base::take(state->requestId)).cancel();
-#endif
 		session->uploader().cancel(state->id);
+#endif
 		state->lifetime.destroy();
 	};
 }

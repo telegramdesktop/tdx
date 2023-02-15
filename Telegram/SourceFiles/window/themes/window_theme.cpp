@@ -42,6 +42,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 
 #include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_file_generator.h"
 
 #include <QtCore/QBuffer>
 #include <QtCore/QJsonDocument>
@@ -575,18 +577,23 @@ void ChatBackground::refreshThemeWatcher() {
 
 void ChatBackground::checkUploadWallPaper() {
 	if (!_session) {
+		_wallPaperUploadGenerator = nullptr;
 		_wallPaperUploadLifetime = rpl::lifetime();
 		_wallPaperUploadId = FullMsgId();
 		_wallPaperRequestId = 0;
 		return;
 	}
+#if 0 // mtp
 	if (const auto id = base::take(_wallPaperUploadId)) {
 		_session->uploader().cancel(id);
 	}
+#endif
 	if (const auto id = base::take(_wallPaperRequestId)) {
-#if 0 // todo
+#if 0 // mtp
 		_session->api().request(id).cancel();
 #endif
+		_session->sender().request(id).cancel();
+		_wallPaperUploadGenerator = nullptr;
 	}
 	if (!Data::IsCustomWallPaper(_paper)
 		|| _original.isNull()
@@ -594,7 +601,26 @@ void ChatBackground::checkUploadWallPaper() {
 		return;
 	}
 
-#if 0 // todo
+	const auto prepared = PrepareWallPaper({}, _original);
+	_wallPaperUploadGenerator = std::make_unique<FileGenerator>(
+		&_session->tdb(),
+		prepared->content,
+		prepared->filename);
+	_wallPaperRequestId = _session->sender().request(TLsetDefaultBackground(
+		tl_inputBackgroundLocal(_wallPaperUploadGenerator->inputFile()),
+		_paper.tlType(),
+		tl_bool(IsNightMode())
+	)).done([=](const TLbackground &result) {
+		_wallPaperUploadGenerator = nullptr;
+		if (const auto paper = Data::WallPaper::Create(_session, result)) {
+			setPaper(*paper);
+			writeNewBackgroundSettings();
+			_updates.fire({ BackgroundUpdate::Type::New, tile() });
+		}
+	}).fail([=](const Error &error) {
+		_wallPaperUploadGenerator = nullptr;
+	}).send();
+#if 0 // mtp
 	const auto ready = PrepareWallPaper(_session->mainDcId(), _original);
 	const auto documentId = ready->id;
 	_wallPaperUploadId = FullMsgId(
@@ -1606,6 +1632,7 @@ std::shared_ptr<FilePrepareResult> PrepareWallPaper(
 		result->thumb = thumbnails.front().second.image;
 		result->thumbbytes = thumbnails.front().second.bytes;
 	}
+#if 0 // mtp
 	result->document = MTP_document(
 		MTP_flags(0),
 		MTP_long(id),
@@ -1618,6 +1645,7 @@ std::shared_ptr<FilePrepareResult> PrepareWallPaper(
 		MTPVector<MTPVideoSize>(),
 		MTP_int(dcId),
 		MTP_vector<MTPDocumentAttribute>(attributes));
+#endif
 	return result;
 }
 
