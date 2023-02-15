@@ -1408,7 +1408,7 @@ void HistoryWidget::updateInlineBotQuery() {
 			_inlineBot = nullptr;
 			_inlineLookingUpBot = true;
 			const auto username = _inlineBotUsername;
-#if 0 // todo
+#if 0 // mtp
 			_inlineBotResolveRequestId = _api.request(MTPcontacts_ResolveUsername(
 				MTP_string(username)
 			)).done([=](const MTPcontacts_ResolvedPeer &result) {
@@ -1437,12 +1437,32 @@ void HistoryWidget::updateInlineBotQuery() {
 					clearInlineBot();
 				}
 			}).fail([=](const MTP::Error &error) {
+#endif
+			_inlineBotResolveRequestId = _api.request(TLsearchPublicChat(
+				tl_string(username)
+			)).done([=](const TLchat &result) {
+				const auto peer = session().data().processPeer(result);
+				const auto user = peer->asUser();
+				const auto resolvedBot = (user
+					&& user->isBot()
+					&& !user->botInfo->inlinePlaceholder.isEmpty())
+					? user
+					: nullptr;
+				_inlineBotResolveRequestId = 0;
+				const auto query = parseInlineBotQuery();
+				if (_inlineBotUsername == query.username) {
+					applyInlineBotQuery(
+						query.lookingUpBot ? resolvedBot : query.bot,
+						query.query);
+				} else {
+					clearInlineBot();
+				}
+			}).fail([=](const Error &error) {
 				_inlineBotResolveRequestId = 0;
 				if (username == _inlineBotUsername) {
 					clearInlineBot();
 				}
 			}).send();
-#endif
 		} else {
 			applyInlineBotQuery(query.bot, query.query);
 		}
@@ -4407,7 +4427,11 @@ void HistoryWidget::checkSuggestToGigagroup() {
 	InvokeQueued(_list, [=] {
 		if (!controller()->isLayerShown()) {
 			group->owner().setSuggestToGigagroup(group, false);
-#if 0 // todo
+			group->session().sender().request(TLhideSuggestedAction(
+				tl_suggestedActionConvertToBroadcastGroup(
+					tl_int53(peerToChannel(group->id).bare))
+			)).send();
+#if 0 // mtp
 			group->session().api().request(MTPhelp_DismissSuggestion(
 				group->input,
 				MTP_string("convert_to_gigagroup")
@@ -7652,6 +7676,7 @@ void HistoryWidget::requestPreview(bool force) {
 	)).done([=](const TLwebPage &result, mtpRequestId requestId) {
 		gotPreview(links, result, requestId);
 	}).fail([=](const Error &error) {
+		_previewRequest = 0;
 		if (error.code == 404) {
 			_previewCache.insert(links, 0);
 			if (links == _previewLinks
