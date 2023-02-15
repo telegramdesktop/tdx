@@ -392,24 +392,25 @@ QString WallPaper::shareUrl(not_null<Main::Session*> session) const {
 }
 #endif
 
+TLbackgroundType WallPaper::tlType() const {
+	const auto moving = false;
+	return isPattern()
+		? tl_backgroundTypePattern(
+			FillToTL(_backgroundColors, _rotation),
+			tl_int32(std::abs(_intensity)),
+			tl_bool(_intensity < 0),
+			tl_bool(moving))
+		: _backgroundColors.empty()
+		? tl_backgroundTypeWallpaper(tl_bool(_blurred), tl_bool(moving))
+		: tl_backgroundTypeFill(FillToTL(_backgroundColors, _rotation));
+}
+
 void WallPaper::requestShareUrl(
 		not_null<Main::Session*> session,
 		Fn<void(QString)> done) const {
-	const auto type = [&] {
-		const auto moving = false;
-		return isPattern()
-			? tl_backgroundTypePattern(
-				FillToTL(_backgroundColors, _rotation),
-				tl_int32(std::abs(_intensity)),
-				tl_bool(_intensity < 0),
-				tl_bool(moving))
-			: _backgroundColors.empty()
-			? tl_backgroundTypeWallpaper(tl_bool(_blurred), tl_bool(moving))
-			: tl_backgroundTypeFill(FillToTL(_backgroundColors, _rotation));
-	}();
 	session->sender().request(TLgetBackgroundUrl(
 		tl_string(_slug),
-		type
+		tlType()
 	)).done([=](const TLDhttpUrl &result) {
 		done(result.vurl().v);
 	}).send();

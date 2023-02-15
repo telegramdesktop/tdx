@@ -72,7 +72,9 @@ public:
 #endif
 
 	void pause(FullMsgId itemId);
+#if 0 // mtp
 	void cancel(FullMsgId itemId);
+#endif
 	void cancelAll();
 
 	void start(
