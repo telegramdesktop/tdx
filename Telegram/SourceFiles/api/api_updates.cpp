@@ -3172,6 +3172,22 @@ void Updates::applyUpdate(const TLupdate &update) {
 		handleEmojiInteraction(data);
 	}, [&](const TLDupdateAnimationSearchParameters &data) {
 	}, [&](const TLDupdateSuggestedActions &data) {
+		auto suggestionsToGigagroup = base::flat_map<int64, bool>();
+		for (const auto &action : data.vadded_actions().v) {
+			action.match([&](
+					const TLDsuggestedActionConvertToBroadcastGroup &data) {
+				suggestionsToGigagroup[data.vsupergroup_id().v] = true;
+			}, [](const auto &) {});
+		}
+		for (const auto &action : data.vremoved_actions().v) {
+			action.match([&](
+					const TLDsuggestedActionConvertToBroadcastGroup &data) {
+				suggestionsToGigagroup[data.vsupergroup_id().v] = false;
+			}, [](const auto &) {});
+		}
+		for (const auto &[id, value] : suggestionsToGigagroup) {
+			owner.setSuggestToGigagroup(owner.channel(id), value);
+		}
 	}, [&](const TLDupdateChatPendingJoinRequests &data) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
 		if (const auto peer = owner.peerLoaded(peerId)) {

@@ -331,10 +331,6 @@ Data::Usernames Usernames::FromTL(const Tdb::TLusernames *usernames) {
 			});
 		}
 	}
-	if (result.size() == 1 && result.front().editable) {
-		// We return non empty only if there is at least one non-editable.
-		return {};
-	}
 	return result;
 }
 
