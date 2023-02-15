@@ -10,6 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "data/data_wall_paper.h"
 
+namespace Tdb {
+class TLDupdateChatThemes;
+class TLchatTheme;
+} // namespace Tdb
+
 class DocumentData;
 
 namespace Main {
@@ -58,6 +63,10 @@ struct CloudTheme {
 		const MTPTheme &data,
 		bool parseSettings = false);
 #endif
+	static CloudTheme Parse(
+		not_null<Main::Session*> session,
+		const Tdb::TLchatTheme &theme,
+		bool);
 };
 
 class CloudThemes final {
@@ -90,6 +99,7 @@ public:
 #if 0 // mtp
 	void applyUpdate(const MTPTheme &theme);
 #endif
+	void applyUpdate(const Tdb::TLDupdateChatThemes &data);
 
 	void resolve(
 		not_null<Window::Controller*> controller,
@@ -132,7 +142,10 @@ private:
 		Fn<void(std::shared_ptr<Data::DocumentMedia>)> callback);
 	void invokeForLoaded(LoadingDocument &value);
 
+#if 0 // mtp
 	void parseChatThemes(const QVector<MTPTheme> &list);
+#endif
+	void parseChatThemes(const QVector<Tdb::TLchatTheme> &list);
 
 	const not_null<Main::Session*> _session;
 	uint64 _hash = 0;
