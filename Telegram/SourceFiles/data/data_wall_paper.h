@@ -13,6 +13,7 @@ class Image;
 
 namespace Tdb {
 class TLbackground;
+class TLbackgroundFill;
 } // namespace Tdb
 
 namespace Main {
@@ -24,6 +25,10 @@ namespace Ui {
 [[nodiscard]] QColor ColorFromSerialized(MTPint serialized);
 [[nodiscard]] std::optional<QColor> MaybeColorFromSerialized(
 	const tl::conditional<MTPint> &mtp);
+
+[[nodiscard]] std::vector<QColor> ColorsFromFill(
+	const Tdb::TLbackgroundFill &fill,
+	bool invertTopBottom = false);
 
 } // namespace Ui
 
