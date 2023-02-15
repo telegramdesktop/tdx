@@ -89,9 +89,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 
 #include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
 
 namespace HistoryView {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kSaveDraftTimeout = crl::time(1000);
 constexpr auto kSaveDraftAnywayTimeout = 5 * crl::time(1000);
@@ -922,9 +925,10 @@ ComposeControls::~ComposeControls() {
 	saveFieldToHistoryLocalDraft();
 	unregisterDraftSources();
 	setTabbedPanel(nullptr);
-#if 0 // todo
+#if 0 // mtp
 	session().api().request(_inlineBotResolveRequestId).cancel();
 #endif
+	session().sender().request(_inlineBotResolveRequestId).cancel();
 }
 
 Main::Session &ComposeControls::session() const {
@@ -3205,18 +3209,19 @@ void ComposeControls::updateInlineBotQuery() {
 	const auto query = ParseInlineBotQuery(&session(), _field);
 	if (_inlineBotUsername != query.username) {
 		_inlineBotUsername = query.username;
+#if 0 // mtp
 		auto &api = session().api();
-		if (_inlineBotResolveRequestId) {
-#if 0 // todo
-			api.request(_inlineBotResolveRequestId).cancel();
 #endif
+		auto &api = session().sender();
+		if (_inlineBotResolveRequestId) {
+			api.request(_inlineBotResolveRequestId).cancel();
 			_inlineBotResolveRequestId = 0;
 		}
 		if (query.lookingUpBot) {
 			_inlineBot = nullptr;
 			_inlineLookingUpBot = true;
 			const auto username = _inlineBotUsername;
-#if 0 // todo
+#if 0 // mtp
 			_inlineBotResolveRequestId = api.request(
 				MTPcontacts_ResolveUsername(MTP_string(username))
 			).done([=](const MTPcontacts_ResolvedPeer &result) {
@@ -3246,12 +3251,32 @@ void ComposeControls::updateInlineBotQuery() {
 				}
 
 			}).fail([=] {
+#endif
+			_inlineBotResolveRequestId = api.request(TLsearchPublicChat(
+				tl_string(username)
+			)).done([=](const TLchat &result) {
+				const auto peer = session().data().processPeer(result);
+				const auto user = peer->asUser();
+				const auto resolvedBot = (user
+					&& user->isBot()
+					&& !user->botInfo->inlinePlaceholder.isEmpty())
+					? user
+					: nullptr;
+				_inlineBotResolveRequestId = 0;
+				const auto query = ParseInlineBotQuery(&session(), _field);
+				if (_inlineBotUsername == query.username) {
+					applyInlineBotQuery(
+						query.lookingUpBot ? resolvedBot : query.bot,
+						query.query);
+				} else {
+					clearInlineBot();
+				}
+			}).fail([=](const Error &error) {
 				_inlineBotResolveRequestId = 0;
 				if (username == _inlineBotUsername) {
 					clearInlineBot();
 				}
 			}).send();
-#endif
 		} else {
 			applyInlineBotQuery(query.bot, query.query);
 		}
