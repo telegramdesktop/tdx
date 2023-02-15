@@ -53,7 +53,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QClipboard>
 #include <QtGui/QGuiApplication>
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kMaxWallPaperSlugLength = 255;
 
@@ -834,7 +839,12 @@ void BackgroundPreviewBox::applyForEveryone() {
 		&& Data::IsCloudWallPaper(_paper);
 	_controller->content()->setChatBackground(_paper, std::move(_full));
 	if (install) {
-#if 0 // todo
+		_controller->session().sender().request(TLsetBackground(
+			tl_inputBackgroundRemote(tl_int64(_paper.id())),
+			_paper.tlType(),
+			tl_bool(Window::Theme::IsNightMode())
+		)).send();
+#if 0 // mtp
 		_controller->session().api().request(MTPaccount_InstallWallPaper(
 			_paper.mtpInput(&_controller->session()),
 			_paper.mtpSettings()
