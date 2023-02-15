@@ -1336,6 +1336,7 @@ not_null<PeerData*> Session::processPeer(const TLchat &dialog) {
 	}
 	result->setActionBar(data.vaction_bar());
 	result->setMessagesTTL(data.vmessage_auto_delete_time().v);
+	result->setThemeEmoji(data.vtheme_name().v);
 
 	if (const auto sender = data.vmessage_sender_id()) {
 		session().sendAsPeers().setChosen(result, peerFromSender(*sender));

@@ -3151,7 +3151,7 @@ void Updates::applyUpdate(const TLupdate &update) {
 		session().api().ringtones().applyUpdate();
 	}, [&](const TLDupdateSelectedBackground &data) {
 	}, [&](const TLDupdateChatThemes &data) {
-		// todo
+		session().data().cloudThemes().applyUpdate(data);
 	}, [&](const TLDupdateLanguagePackStrings &data) {
 		Lang::CurrentCloudManager().apply(data);
 	}, [&](const TLDupdateTermsOfService &data) {
