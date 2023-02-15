@@ -758,13 +758,11 @@ void Uploader::maybeSend() {
 		_nextTimer.callOnce(kUploadRequestInterval);
 	}
 }
-#endif
 
 void Uploader::cancel(FullMsgId itemId) {
-#if 0 // todo
 	failed(itemId);
-#endif
 }
+#endif
 
 void Uploader::cancelAll() {
 #if 0 // mtp

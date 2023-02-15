@@ -924,9 +924,11 @@ MediaPhoto::MediaPhoto(
 }
 
 MediaPhoto::~MediaPhoto() {
+#if 0 // mtp
 	if (uploading() && !Core::Quitting()) {
 		parent()->history()->session().uploader().cancel(parent()->fullId());
 	}
+#endif
 	parent()->history()->owner().unregisterPhotoItem(_photo, parent());
 }
 
@@ -1132,9 +1134,11 @@ MediaFile::MediaFile(
 }
 
 MediaFile::~MediaFile() {
+#if 0 // mtp
 	if (uploading() && !Core::Quitting()) {
 		parent()->history()->session().uploader().cancel(parent()->fullId());
 	}
+#endif
 	parent()->history()->owner().unregisterDocumentItem(
 		_document,
 		parent());
