@@ -14,6 +14,7 @@ class Image;
 namespace Tdb {
 class TLbackground;
 class TLbackgroundFill;
+class TLbackgroundType;
 } // namespace Tdb
 
 namespace Main {
@@ -75,6 +76,7 @@ public:
 #if 0 // mtp
 	[[nodiscard]] QString shareUrl(not_null<Main::Session*> session) const;
 #endif
+	[[nodiscard]] Tdb::TLbackgroundType tlType() const;
 	[[nodiscard]] void requestShareUrl(
 		not_null<Main::Session*> session,
 		Fn<void(QString)> done) const;

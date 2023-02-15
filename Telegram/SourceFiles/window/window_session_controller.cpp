@@ -2660,7 +2660,9 @@ void SessionController::cancelUploadLayer(not_null<HistoryItem*> item) {
 #endif
 			} else {
 				item->returnSavedMedia();
+#if 0 // mtp
 				session().uploader().cancel(item->fullId());
+#endif
 			}
 			data.sendHistoryChangeNotifications();
 		}

@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Tdb {
 class TLthemeParameters;
+class FileGenerator;
 } // namespace Tdb
 
 class QFileSystemWatcher;
@@ -294,6 +295,7 @@ private:
 	bool _tileForRevert = false;
 
 	std::vector<AdjustableColor> _adjustableColors;
+	std::unique_ptr<Tdb::FileGenerator> _wallPaperUploadGenerator;
 	FullMsgId _wallPaperUploadId;
 	mtpRequestId _wallPaperRequestId = 0;
 	rpl::lifetime _wallPaperUploadLifetime;
