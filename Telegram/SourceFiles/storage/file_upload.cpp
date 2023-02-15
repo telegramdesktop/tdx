@@ -749,17 +749,15 @@ void Uploader::sendNext() {
 	}
 	_nextTimer.callOnce(kUploadRequestInterval);
 }
-#endif
 
 void Uploader::cancel(const FullMsgId &msgId) {
-#if 0 // todo
 	if (uploadingId == msgId) {
 		currentFailed();
 	} else {
 		queue.erase(msgId);
 	}
-#endif
 }
+#endif
 
 void Uploader::cancelAll() {
 #if 0 // mtp

@@ -327,7 +327,9 @@ FnMut<void()> HandleAsError(
 	}
 	LogError(type, requestId, *error);
 	if (!fail) {
-		return nullptr;
+		// If we parsed error, we must return not nullptr.
+		// Otherwise we will crash trying to parse response.
+		return [] {};
 	}
 	return[
 		fail = std::move(fail),
