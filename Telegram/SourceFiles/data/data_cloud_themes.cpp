@@ -21,13 +21,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Data {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kFirstReloadTimeout = 10 * crl::time(1000);
 constexpr auto kReloadTimeout = 3600 * crl::time(1000);
 
 bool IsTestingColors/* = false*/;
+
+[[nodiscard]] uint64 ChatThemeId(const QString &emoticon) {
+	auto result = uint64(1);
+	for (const auto ch : emoticon) {
+		result = (result * 31) + ch.unicode();
+	}
+	return result;
+}
 
 } // namespace
 
@@ -121,6 +133,46 @@ CloudTheme CloudTheme::Parse(
 	});
 }
 #endif
+CloudTheme CloudTheme::Parse(
+		not_null<Main::Session*> session,
+		const TLchatTheme &theme,
+		bool) {
+	const auto &data = theme.data();
+	const auto emoticon = data.vname().v;
+	const auto parse = [&](Type type) {
+		const auto &settings = (type == CloudThemeType::Dark)
+			? data.vdark_settings()
+			: data.vlight_settings();
+		const auto &fields = settings.data();
+		const auto hasOutAccent = fields.voutgoing_message_accent_color().v
+			&& (fields.voutgoing_message_accent_color().v
+				!= fields.vaccent_color().v);;
+		return Settings{
+			.paper = (fields.vbackground()
+				? WallPaper::Create(session, *fields.vbackground())
+				: std::nullopt),
+			.accentColor = Ui::ColorFromSerialized(fields.vaccent_color()),
+			.outgoingAccentColor = (hasOutAccent
+				? Ui::ColorFromSerialized(
+					fields.voutgoing_message_accent_color())
+				: std::optional<QColor>()),
+			.outgoingMessagesColors = Ui::ColorsFromFill(
+				fields.voutgoing_message_fill(),
+				true),
+		};
+	};
+	auto settings = base::flat_map<Type, Settings>();
+	settings.emplace(Type::Dark, parse(Type::Dark));
+	settings.emplace(Type::Light, parse(Type::Light));
+	return {
+		.id = ChatThemeId(emoticon),
+		.emoticon = emoticon,
+		.settings = {
+			{ Type::Dark, parse(Type::Dark) },
+			{ Type::Light, parse(Type::Light) },
+		},
+	};
+}
 
 QString CloudThemes::Format() {
 	static const auto kResult = QString::fromLatin1("tdesktop");
@@ -217,6 +269,11 @@ void CloudThemes::applyUpdate(const MTPTheme &theme) {
 	scheduleReload();
 }
 #endif
+
+void CloudThemes::applyUpdate(const TLDupdateChatThemes &data) {
+	parseChatThemes(data.vchat_themes().v);
+	_chatThemesUpdates.fire({});
+}
 
 void CloudThemes::resolve(
 		not_null<Window::Controller*> controller,
@@ -375,7 +432,7 @@ void CloudThemes::refreshChatThemes() {
 	if (_chatThemesRequestId) {
 		return;
 	}
-#if 0 // todo
+#if 0 // mtp
 	_chatThemesRequestId = _session->api().request(MTPaccount_GetChatThemes(
 		MTP_long(_chatThemesHash)
 	)).done([=](const MTPaccount_Themes &result) {
@@ -586,13 +643,14 @@ std::optional<CloudTheme> CloudThemes::updateThemeFromLink(
 
 #if 0 // mtp
 void CloudThemes::parseChatThemes(const QVector<MTPTheme> &list) {
+#endif
+void CloudThemes::parseChatThemes(const QVector<TLchatTheme> &list) {
 	_chatThemes.clear();
 	_chatThemes.reserve(list.size());
 	for (const auto &theme : list) {
 		_chatThemes.push_back(CloudTheme::Parse(_session, theme, true));
 	}
 }
-#endif
 
 void CloudThemes::checkCurrentTheme() {
 	const auto &object = Window::Theme::Background()->themeObject();
