@@ -21,6 +21,7 @@ class TLDmessageForwardInfo;
 class TLmessageInteractionInfo;
 class TLmessageReaction;
 class TLunreadReaction;
+class TLDmessageAnimatedEmoji;
 } // namespace Tdb
 
 class HiddenSenderInfo;
@@ -681,6 +682,7 @@ private:
 		const QVector<Tdb::TLunreadReaction> &list);
 	void setMedia(const Tdb::TLmessageContent &content);
 	void setContent(const Tdb::TLmessageContent &content);
+	void setAnimatedEmojiText(const Tdb::TLDmessageAnimatedEmoji &data);
 #if 0 // mtp
 	static void FillForwardedInfo(
 		CreateConfig &config,
