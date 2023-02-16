@@ -13,6 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <crl/crl_object_on_queue.h>
 
+namespace Tdb {
+class TLDupdateAnimationSearchParameters;
+} // namespace Tdb
+
 class HistoryItem;
 class DocumentData;
 
@@ -79,7 +83,9 @@ public:
 	void remove(not_null<const ViewElement*> view);
 
 	[[nodiscard]] Sticker stickerForEmoji(EmojiPtr emoji);
+#if 0 // mtp
 	[[nodiscard]] Sticker stickerForEmoji(const IsolatedEmoji &emoji);
+#endif
 	[[nodiscard]] std::shared_ptr<LargeEmojiImage> image(EmojiPtr emoji);
 
 	[[nodiscard]] EmojiPtr chooseInteractionEmoji(
@@ -102,6 +108,19 @@ public:
 		QByteArray data,
 		QString filepath,
 		EffectType type);
+
+	struct GifSection {
+		EmojiPtr emoji = nullptr;
+		DocumentData *document = nullptr;
+
+		friend inline constexpr auto operator<=>(
+			GifSection,
+			GifSection) = default;
+	};
+	void gifSectionsRefresh(
+		const Tdb::TLDupdateAnimationSearchParameters &data);
+	[[nodiscard]] auto gifSectionsValue() const
+		-> rpl::producer<std::vector<GifSection>>;
 
 private:
 	class ImageLoader;
@@ -133,10 +152,14 @@ private:
 		const QVector<MTPStickerPack> &packs) const
 		-> base::flat_map<uint64, base::flat_set<int>>;
 #endif
+	void gifSectionsPush();
 	void refreshAll();
 	void refreshItems(EmojiPtr emoji);
 	void refreshItems(const base::flat_set<not_null<ViewElement*>> &list);
 	void refreshItems(const base::flat_set<not_null<HistoryItem*>> &items);
+
+	void request(EmojiPtr emoji);
+	base::flat_set<EmojiPtr> _requested;
 
 	const not_null<Main::Session*> _session;
 	base::flat_map<EmojiPtr, not_null<DocumentData*>> _map;
@@ -159,6 +182,10 @@ private:
 		std::weak_ptr<Lottie::FrameProvider>> _sharedProviders;
 
 	rpl::event_stream<> _refreshed;
+
+	rpl::variable<std::vector<GifSection>> _gifSections;
+	std::vector<GifSection> _gifSectionsEmojiList;
+	base::flat_map<EmojiPtr, mtpRequestId> _gifSectionsResolves;
 
 	rpl::lifetime _lifetime;
 

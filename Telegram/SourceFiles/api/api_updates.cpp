@@ -72,6 +72,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_forum_topic.h"
 #include "window/window_lock_widgets.h"
+#include "chat_helpers/stickers_emoji_pack.h"
 
 namespace Api {
 namespace {
@@ -3176,6 +3177,7 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateAnimatedEmojiMessageClicked &data) {
 		handleEmojiInteraction(data);
 	}, [&](const TLDupdateAnimationSearchParameters &data) {
+		session().emojiStickersPack().gifSectionsRefresh(data);
 	}, [&](const TLDupdateSuggestedActions &data) {
 		auto suggestionsToGigagroup = base::flat_map<int64, bool>();
 		for (const auto &action : data.vadded_actions().v) {

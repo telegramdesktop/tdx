@@ -32,8 +32,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QBuffer>
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+
 namespace Stickers {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kRefreshTimeout = 7200 * crl::time(1000);
 constexpr auto kEmojiCachesCount = 4;
@@ -98,7 +103,9 @@ QSize LargeEmojiImage::Size() {
 
 EmojiPack::EmojiPack(not_null<Main::Session*> session)
 : _session(session) {
+#if 0 // mtp
 	refresh();
+#endif
 
 	session->data().viewRemoved(
 	) | rpl::filter([](not_null<const ViewElement*> view) {
@@ -157,6 +164,7 @@ auto EmojiPack::stickerForEmoji(EmojiPtr emoji) -> Sticker {
 		return { i->second.get(), nullptr };
 	}
 	if (!emoji->colored()) {
+		request(emoji);
 		return {};
 	}
 	const auto j = _map.find(emoji->original());
@@ -164,9 +172,27 @@ auto EmojiPack::stickerForEmoji(EmojiPtr emoji) -> Sticker {
 		const auto index = emoji->variantIndex(emoji);
 		return { j->second.get(), ColorReplacements(index) };
 	}
+	request(emoji->original());
 	return {};
 }
 
+void EmojiPack::request(EmojiPtr emoji) {
+	if (!_requested.emplace(emoji).second) {
+		return;
+	}
+	_session->sender().request(TLgetAnimatedEmoji(
+		tl_string(emoji->id())
+	)).done([=](const TLanimatedEmoji &result) {
+		const auto &data = result.data();
+		if (const auto &sticker = data.vsticker()) {
+			const auto document = _session->data().processDocument(*sticker);
+			_map.emplace(emoji, document);
+			_refreshed.fire({});
+		}
+	}).send();
+}
+
+#if 0 // mtp
 auto EmojiPack::stickerForEmoji(const IsolatedEmoji &emoji) -> Sticker {
 	Expects(!emoji.empty());
 
@@ -177,6 +203,7 @@ auto EmojiPack::stickerForEmoji(const IsolatedEmoji &emoji) -> Sticker {
 	}
 	return {};
 }
+#endif
 
 std::shared_ptr<LargeEmojiImage> EmojiPack::image(EmojiPtr emoji) {
 	const auto i = _images.emplace(
@@ -321,11 +348,11 @@ std::unique_ptr<Lottie::SinglePlayer> EmojiPack::effectPlayer(
 	return std::make_unique<Lottie::SinglePlayer>(std::move(shared), request);
 }
 
+#if 0 // mtp
 void EmojiPack::refresh() {
 	if (_requestId) {
 		return;
 	}
-#if 0 // todo
 	_requestId = _session->api().request(MTPmessages_GetStickerSet(
 		MTP_inputStickerSetAnimatedEmoji(),
 		MTP_int(0) // hash
@@ -341,8 +368,8 @@ void EmojiPack::refresh() {
 		_requestId = 0;
 		refreshDelayed();
 	}).send();
-#endif
 }
+#endif
 
 void EmojiPack::refreshAnimations() {
 	if (_animationsRequestId) {
@@ -529,12 +556,92 @@ base::flat_map<uint64, not_null<DocumentData*>> EmojiPack::collectStickers(
 	}
 	return result;
 }
-#endif
 
 void EmojiPack::refreshDelayed() {
 	base::call_delayed(kRefreshTimeout, _session, [=] {
 		refresh();
 	});
+}
+#endif
+
+void EmojiPack::gifSectionsRefresh(
+		const Tdb::TLDupdateAnimationSearchParameters &data) {
+	const auto &list = data.vemojis().v;
+	auto &sender = _session->sender();
+	auto old = base::take(_gifSectionsEmojiList);
+	_gifSectionsEmojiList.reserve(list.size());
+	for (const auto &text : list) {
+		if (const auto emoji = Ui::Emoji::Find(text.v)) {
+			const auto i = ranges::find(old, emoji, &GifSection::emoji);
+			if (i != end(old) && i->document) {
+				_gifSectionsEmojiList.push_back(*i);
+				continue;
+			}
+			_gifSectionsEmojiList.push_back({ emoji, nullptr });
+			if (_gifSectionsResolves.contains(emoji)) {
+				continue;
+			}
+			const auto finish = [=] {
+				_gifSectionsResolves.remove(emoji);
+				if (_gifSectionsResolves.empty()) {
+					gifSectionsPush();
+				}
+			};
+			const auto requestId = sender.request(TLgetAnimatedEmoji(
+				text
+			)).done([=](const TLDanimatedEmoji &data) {
+				auto &owner = _session->data();
+				if (const auto entry = data.vsticker()) {
+					const auto document = owner.processDocument(*entry);
+					if (document->sticker()) {
+						const auto i = ranges::find(
+							_gifSectionsEmojiList,
+							emoji,
+							&GifSection::emoji);
+						if (i != end(_gifSectionsEmojiList)) {
+							i->document = document;
+						}
+					}
+				}
+				finish();
+			}).fail([=](const Error &error) {
+				finish();
+			}).send();
+			_gifSectionsResolves[emoji] = requestId;
+		}
+	}
+	for (auto i = begin(_gifSectionsResolves)
+		; i != end(_gifSectionsResolves)
+		;) {
+		const auto requested = ranges::contains(
+			_gifSectionsEmojiList,
+			i->first,
+			&GifSection::emoji);
+		if (!requested) {
+			sender.request(i->second).cancel();
+			i = _gifSectionsResolves.erase(i);
+		} else {
+			++i;
+		}
+	}
+	if (_gifSectionsResolves.empty()) {
+		gifSectionsPush();
+	}
+}
+
+void EmojiPack::gifSectionsPush() {
+	Expects(_gifSectionsResolves.empty());
+
+	_gifSectionsEmojiList.erase(ranges::remove(
+		_gifSectionsEmojiList,
+		nullptr,
+		&GifSection::document
+	), end(_gifSectionsEmojiList));
+	_gifSections = _gifSectionsEmojiList;
+}
+
+rpl::producer<std::vector<EmojiPack::GifSection>> EmojiPack::gifSectionsValue() const {
+	return _gifSections.value();
 }
 
 const Lottie::ColorReplacements *ReplacementsByFitzpatrickType(int type) {
