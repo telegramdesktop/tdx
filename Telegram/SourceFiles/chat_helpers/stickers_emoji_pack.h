@@ -164,4 +164,7 @@ private:
 
 };
 
+[[nodiscard]] const Lottie::ColorReplacements *ReplacementsByFitzpatrickType(
+	int type);
+
 } // namespace Stickers

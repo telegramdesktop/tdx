@@ -87,10 +87,14 @@ CustomEmoji::CustomEmoji(
 		for (const auto &element : line) {
 			if (useCustomEmoji) {
 				_lines.back().push_back(
+					element.entityData.isEmpty()
+					? nullptr :
 					manager->create(
 						element.entityData,
 						[=] { parent->customEmojiRepaint(); },
 						tag));
+			} else if (element.entityData.isEmpty()) {
+				_lines.back().push_back(DocumentId());
 			} else {
 				const auto &data = element.entityData;
 				const auto id = Data::ParseCustomEmojiData(data);
@@ -242,6 +246,9 @@ void CustomEmoji::paintElement(
 	if (const auto sticker = std::get_if<StickerPtr>(&element)) {
 		paintSticker(p, x, y, sticker->get(), context);
 	} else if (const auto custom = std::get_if<CustomPtr>(&element)) {
+		if (!custom->get()) {
+			return;
+		}
 		paintCustom(p, x, y, custom->get(), context);
 	}
 }

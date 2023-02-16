@@ -537,4 +537,11 @@ void EmojiPack::refreshDelayed() {
 	});
 }
 
+const Lottie::ColorReplacements *ReplacementsByFitzpatrickType(int type) {
+	if (type < 2 || type > 6) {
+		return nullptr;
+	}
+	return ColorReplacements(type - 1);
+}
+
 } // namespace Stickers

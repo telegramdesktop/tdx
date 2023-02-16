@@ -75,6 +75,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tdb/tdb_tl_scheme.h"
 #include "data/data_document.h"
 #include "api/api_transcribes.h"
+#include "chat_helpers/stickers_emoji_pack.h"
 
 namespace {
 
@@ -5347,6 +5348,23 @@ void HistoryItem::setContent(const TLmessageContent &content) {
 	});
 }
 
+void HistoryItem::setAnimatedEmojiText(const TLDmessageAnimatedEmoji &data) {
+	auto text = TextWithEntities{ data.vemoji().v };
+	if (const auto sticker = data.vanimated_emoji().data().vsticker()) {
+		sticker->data().vfull_type().match([&](
+				const TLDstickerFullTypeCustomEmoji &data) {
+			text.entities.push_back({
+				EntityType::CustomEmoji,
+				0,
+				int(text.text.size()),
+				QString::number(
+						uint64(data.vcustom_emoji_id().v)),
+			});
+		}, [](const auto &) {});
+	}
+	setText(std::move(text));
+}
+
 std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 		not_null<HistoryItem*> item,
 		const TLmessageContent &content) {
@@ -5452,11 +5470,11 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 			Data::LocationPoint(data.vlocation()));
 	}, [&](const TLDmessageVenue &data) -> Result {
 		const auto &fields = data.vvenue().data();
-		return std::make_unique<Data::MediaLocation>(
-			item,
-			Data::LocationPoint(fields.vlocation()),
-			fields.vtitle().v,
-			fields.vaddress().v);
+	return std::make_unique<Data::MediaLocation>(
+		item,
+		Data::LocationPoint(fields.vlocation()),
+		fields.vtitle().v,
+		fields.vaddress().v);
 	}, [&](const TLDmessageContact &data) -> Result {
 		const auto &fields = data.vcontact().data();
 		return std::make_unique<Data::MediaContact>(
@@ -5485,13 +5503,15 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 			item,
 			Data::ComputeCallData(data));
 	}, [&](const TLDmessageAnimatedEmoji &data) -> Result {
-		// todo
-		if (const auto sticker = data.vanimated_emoji().data().vsticker()) {
-			return std::make_unique<Data::MediaFile>(
-				item,
-				owner.processDocument(*sticker),
-				skipPremiumEffectDefault,
-				hasSpoilerDefault);
+		const auto &fields = data.vanimated_emoji().data();
+		item->AddComponents(HistoryMessageAnimatedEmoji::Bit());
+		const auto animatedEmoji = item->Get<HistoryMessageAnimatedEmoji>();
+		animatedEmoji->size = fields.vsticker_width().v;
+		animatedEmoji->replacements
+			= Stickers::ReplacementsByFitzpatrickType(
+				fields.vfitzpatrick_type().v);
+		if (const auto sticker = fields.vsticker()) {
+			animatedEmoji->document = owner.processDocument(*sticker);
 		}
 		return nullptr;
 	}, [&](const TLDmessageStory &data) -> Result {
