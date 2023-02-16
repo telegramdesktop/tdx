@@ -43,6 +43,17 @@ class Document;
 class TranscribeButton;
 } // namespace HistoryView
 
+namespace Lottie {
+struct ColorReplacements;
+} // namespace Lottie
+
+struct HistoryMessageAnimatedEmoji
+	: public RuntimeComponent<HistoryMessageAnimatedEmoji, HistoryItem> {
+	DocumentData *document = nullptr;
+	const Lottie::ColorReplacements *replacements = nullptr;
+	int size = 0;
+};
+
 struct HistoryMessageVia : public RuntimeComponent<HistoryMessageVia, HistoryItem> {
 	void create(not_null<Data::Session*> owner, UserId userId);
 	void resize(int32 availw) const;
