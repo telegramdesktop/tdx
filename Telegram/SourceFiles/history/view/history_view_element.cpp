@@ -801,8 +801,31 @@ void Element::refreshMedia(Element *replacing) {
 		&& Core::App().settings().largeEmoji()
 		&& !item->isSponsored()) {
 		const auto emoji = isolatedEmoji();
+#if 0 // mtp
 		const auto emojiStickers = &history()->session().emojiStickersPack();
+#endif
 		const auto skipPremiumEffect = false;
+		if (const auto animated = data()->Get<HistoryMessageAnimatedEmoji>()) {
+			if (const auto document = animated->document) {
+				_media = std::make_unique<UnwrappedMedia>(
+					this,
+					std::make_unique<Sticker>(
+						this,
+						document,
+						skipPremiumEffect,
+						replacing,
+						animated->replacements));
+			} else {
+				// Single unknown custom emoji.
+				_media = std::make_unique<UnwrappedMedia>(
+					this,
+					std::make_unique<CustomEmoji>(
+						this,
+						Ui::Text::OnlyCustomEmoji{
+							{ { { QString() } } }
+						}));
+			}
+#if 0 // mtp
 		if (const auto sticker = emojiStickers->stickerForEmoji(emoji)) {
 			auto content = std::make_unique<Sticker>(
 				this,
@@ -814,6 +837,7 @@ void Element::refreshMedia(Element *replacing) {
 			_media = std::make_unique<UnwrappedMedia>(
 				this,
 				std::move(content));
+#endif
 		} else {
 			_media = std::make_unique<UnwrappedMedia>(
 				this,
