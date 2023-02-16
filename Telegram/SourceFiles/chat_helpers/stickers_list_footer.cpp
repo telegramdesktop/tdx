@@ -116,6 +116,13 @@ std::optional<EmojiSection> SetIdEmojiSection(uint64 id) {
 
 rpl::producer<std::vector<GifSection>> GifSectionsValue(
 		not_null<Main::Session*> session) {
+	return session->emojiStickersPack().gifSectionsValue(
+	) | rpl::map([](std::vector<Stickers::EmojiPack::GifSection> &&list) {
+		return list | ranges::views::transform([](auto &&section) {
+			return GifSection{ section.document, section.emoji };
+		}) | ranges::to_vector;
+	});
+#if 0 // mtp
 	const auto config = &session->appConfig();
 	return config->value(
 	) | rpl::map([=] {
@@ -146,6 +153,7 @@ rpl::producer<std::vector<GifSection>> GifSectionsValue(
 			}) | ranges::to_vector;
 		}) | rpl::distinct_until_changed();
 	}) | rpl::flatten_latest();
+#endif
 }
 
 [[nodiscard]] std::vector<EmojiPtr> SearchEmoji(
