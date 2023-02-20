@@ -4367,6 +4367,9 @@ void HistoryItem::setContent(const TLmessageContent &content) {
 		} else if constexpr (TLDmessageAnimatedEmoji::Is<T>()) {
 			setMedia(content);
 			setAnimatedEmojiText(data);
+		} else if constexpr (TLDmessageGame::Is<T>()) {
+			setMedia(content);
+			setFormattedText(data.vgame().data().vtext());
 		} else if constexpr (TLDmessageAnimation::Is<T>()
 			|| TLDmessageAudio::Is<T>()
 			|| TLDmessageDocument::Is<T>()
@@ -4381,7 +4384,6 @@ void HistoryItem::setContent(const TLmessageContent &content) {
 			|| TLDmessageVenue::Is<T>()
 			|| TLDmessageContact::Is<T>()
 			|| TLDmessageDice::Is<T>()
-			|| TLDmessageGame::Is<T>()
 			|| TLDmessagePoll::Is<T>()
 			|| TLDmessageInvoice::Is<T>()
 			|| TLDmessageCall::Is<T>()) {
