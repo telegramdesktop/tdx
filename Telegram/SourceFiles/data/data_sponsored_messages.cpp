@@ -19,8 +19,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "ui/text/text_utilities.h" // Ui::Text::RichLangValue.
 
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
+#include "core/local_url_handlers.h"
+
 namespace Data {
 namespace {
+
+using namespace Tdb;
+constexpr auto kSmallUserpicSize = 160;
 
 constexpr auto kRequestTimeLimit = 5 * 60 * crl::time(1000);
 
@@ -209,7 +216,15 @@ void SponsoredMessages::request(not_null<History*> history, Fn<void()> done) {
 	}
 	const auto channel = history->peer->asChannel();
 	Assert(channel != nullptr);
-#if 0 // todo - chatInviteHash = link.internalLinkTypeChatInvite.invite_link
+	request.requestId = _session->sender().request(
+		TLgetChatSponsoredMessages(peerToTdbChat(channel->id))
+	).done([=](const TLsponsoredMessages &result) {
+		parse(history, result);
+		if (done) {
+			done();
+		}
+	}).send();
+#if 0 // mtp - chatInviteHash = link.internalLinkTypeChatInvite.invite_link
 	request.requestId = _session->api().request(
 		MTPchannels_GetSponsoredMessages(
 			channel->inputChannel)
@@ -224,10 +239,12 @@ void SponsoredMessages::request(not_null<History*> history, Fn<void()> done) {
 #endif
 }
 
-#if 0 // mtp
 void SponsoredMessages::parse(
 		not_null<History*> history,
+#if 0 // mtp
 		const MTPmessages_sponsoredMessages &list) {
+#endif
+		const Tdb::TLsponsoredMessages &list) {
 	auto &request = _requests[history];
 	request.lastReceived = crl::now();
 	request.requestId = 0;
@@ -235,9 +252,12 @@ void SponsoredMessages::parse(
 		_clearTimer.callOnce(kRequestTimeLimit * 2);
 	}
 
+	list.match([&](const TLDsponsoredMessages &data) {
+#if 0 // mtp
 	list.match([&](const MTPDmessages_sponsoredMessages &data) {
 		_session->data().processUsers(data.vusers());
 		_session->data().processChats(data.vchats());
+#endif
 
 		const auto &messages = data.vmessages().v;
 		auto &list = _data.emplace(history, List()).first->second;
@@ -246,23 +266,34 @@ void SponsoredMessages::parse(
 		for (const auto &message : messages) {
 			append(history, list, message);
 		}
+#if 0 // mtp
 		if (const auto postsBetween = data.vposts_between()) {
 			list.postsBetween = postsBetween->v;
+#endif
+		if (const auto postsBetween = data.vmessages_between().v) {
+			list.postsBetween = postsBetween;
 			list.state = State::InjectToMiddle;
 		} else {
 			list.state = State::AppendToEnd;
 		}
+#if 0 // mtp
 	}, [](const MTPDmessages_sponsoredMessagesEmpty &) {
+#endif
 	});
 }
 
 void SponsoredMessages::append(
 		not_null<History*> history,
 		List &list,
+#if 0 // mtp
 		const MTPSponsoredMessage &message) {
+#endif
+		const TLsponsoredMessage &message) {
 	const auto &data = message.data();
+#if 0 // mtp
 	const auto randomId = data.vrandom_id().v;
 	const auto hash = qs(data.vchat_invite_hash().value_or_empty());
+#endif
 	const auto makeFrom = [&](
 			not_null<PeerData*> peer,
 			bool exactPost = false) {
@@ -275,15 +306,21 @@ void SponsoredMessages::append(
 			.isChannel = (channel != nullptr),
 			.isPublic = (channel && channel->isPublic()),
 			.isExactPost = exactPost,
+			.isRecommended = data.vis_recommended().v,
+			.userpic = {.location = peer->userpicLocation() },
+			.isForceUserpicDisplay = data.vshow_chat_photo().v,
+#if 0 // mtp
 			.isRecommended = data.is_recommended(),
 			.isForceUserpicDisplay = data.is_show_peer_photo(),
 			.buttonText = qs(data.vbutton_text().value_or_empty()),
 			.canReport = data.is_can_report(),
+#endif
 		};
 	};
 	const auto externalLink = data.vwebpage()
 		? qs(data.vwebpage()->data().vurl())
 		: QString();
+#if 0 // mtp
 	const auto from = [&]() -> SponsoredFrom {
 		if (const auto webpage = data.vwebpage()) {
 			const auto &data = webpage->data();
@@ -375,9 +412,63 @@ void SponsoredMessages::append(
 		.sponsorInfo = std::move(sponsorInfo),
 		.additionalInfo = std::move(additionalInfo),
 	};
+#endif
+	const auto from = [&]() -> SponsoredFrom {
+		const auto exactPost = data.vlink().has_value()
+			&& (data.vlink()->type() == id_internalLinkTypeMessage);
+		if (const auto peerId = peerFromTdbChat(data.vsponsor_chat_id())) {
+			return makeFrom(_session->data().peer(peerId), exactPost);
+		}
+		const auto &info = data.vsponsor_chat_info()->data();
+		if (const auto peerId = peerFromTdbChat(info.vchat_id())) {
+			return makeFrom(_session->data().peer(peerId), exactPost);
+		}
+		auto userpic = info.vphoto()
+			? Images::FromTdbFile(
+				info.vphoto()->data().vsmall(),
+				kSmallUserpicSize,
+				kSmallUserpicSize)
+			: ImageWithLocation{};
+		auto result = SponsoredFrom{
+			.title = info.vtitle().v,
+			.isPublic = info.vis_public().v,
+			.userpic = std::move(userpic),
+			.isForceUserpicDisplay = message.data().vshow_chat_photo().v,
+		};
+		info.vtype().match([&](const TLDchatTypeSupergroup &data) {
+			result.isBroadcast = data.vis_channel().v;
+			result.isMegagroup = !result.isBroadcast;
+			result.isChannel = true;
+		}, [](const auto &) {});
+		return result;
+	}();
+	Assert(data.vcontent().type() == id_messageText);
+	const auto invoke = data.vlink()
+		? [=, link = *data.vlink()](QVariant context) {
+			return Core::HandleLocalUrl(link, context);
+		} : Fn<bool(QVariant)>();
+	auto sponsorInfo = !data.vsponsor_info().v.isEmpty()
+		? tr::lng_sponsored_info_submenu(
+			tr::now,
+			lt_text,
+			{ .text = data.vsponsor_info().v },
+			Ui::Text::RichLangValue)
+		: TextWithEntities();
+	auto additionalInfo = TextWithEntities{ data.vadditional_info().v };
+	auto sharedMessage = SponsoredMessage{
+		.randomId = (QByteArray::number(history->peer->id.value)
+			+ '_'
+			+ QByteArray::number(data.vmessage_id().v)),
+		.from = from,
+		.textWithEntities = Api::FormattedTextFromTdb(
+			data.vcontent().c_messageText().vtext()),
+		.history = history,
+		.invoke = invoke,
+		.sponsorInfo = std::move(sponsorInfo),
+		.additionalInfo = std::move(additionalInfo),
+	};
 	list.entries.push_back({ nullptr, {}, std::move(sharedMessage) });
 }
-#endif
 
 void SponsoredMessages::clearItems(not_null<History*> history) {
 	const auto it = _data.find(history);
@@ -446,7 +537,9 @@ SponsoredMessages::Details SponsoredMessages::lookupDetails(
 		return {};
 	}
 	const auto &data = entryPtr->sponsored;
+#if 0 // mtp
 	const auto &hash = data.chatInviteHash;
+#endif
 
 	using InfoList = std::vector<TextWithEntities>;
 	auto info = (!data.sponsorInfo.text.isEmpty()
@@ -457,10 +550,13 @@ SponsoredMessages::Details SponsoredMessages::lookupDetails(
 		: !data.additionalInfo.text.isEmpty()
 		? InfoList{ data.additionalInfo }
 		: InfoList{};
+#if 0 // mtp
 	return {
 		.hash = hash.isEmpty() ? std::nullopt : std::make_optional(hash),
 		.peer = data.from.peer,
 		.msgId = data.msgId,
+#endif
+	return {
 		.info = std::move(info),
 		.externalLink = data.externalLink,
 		.isForceUserpicDisplay = data.from.isForceUserpicDisplay,
@@ -473,6 +569,9 @@ SponsoredMessages::Details SponsoredMessages::lookupDetails(
 			: QString(),
 		.botLinkInfo = data.from.botLinkInfo,
 		.canReport = data.from.canReport,
+
+		.peer = entryPtr->sponsored.from.peer,
+		.invoke = entryPtr->sponsored.invoke,
 	};
 }
 

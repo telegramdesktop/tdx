@@ -14,6 +14,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class History;
 
+namespace Tdb {
+class TLsponsoredMessage;
+class TLsponsoredMessages;
+} // namespace Tdb
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -63,8 +68,11 @@ struct SponsoredMessage {
 	SponsoredFrom from;
 	TextWithEntities textWithEntities;
 	History *history = nullptr;
+	Fn<bool(QVariant)> invoke;
+#if 0 // mtp
 	MsgId msgId;
 	QString chatInviteHash;
+#endif
 	QString externalLink;
 	TextWithEntities sponsorInfo;
 	TextWithEntities additionalInfo;
@@ -78,15 +86,20 @@ public:
 		InjectToMiddle,
 	};
 	struct Details {
+#if 0 // mtp
 		std::optional<QString> hash;
 		PeerData *peer = nullptr;
 		MsgId msgId;
+#endif
 		std::vector<TextWithEntities> info;
 		QString externalLink;
 		bool isForceUserpicDisplay = false;
 		QString buttonText;
 		std::optional<Window::PeerByLinkInfo> botLinkInfo;
 		bool canReport = false;
+
+		PeerData *peer = nullptr;
+		Fn<bool(QVariant)> invoke;
 	};
 	using RandomId = QByteArray;
 	explicit SponsoredMessages(not_null<Session*> owner);
@@ -136,15 +149,19 @@ private:
 		crl::time lastReceived = 0;
 	};
 
-#if 0 // mtp
 	void parse(
 		not_null<History*> history,
+#if 0 // mtp
 		const MTPmessages_sponsoredMessages &list);
+#endif
+		const Tdb::TLsponsoredMessages &list);
 	void append(
 		not_null<History*> history,
 		List &list,
+#if 0 // mtp
 		const MTPSponsoredMessage &message);
 #endif
+		const Tdb::TLsponsoredMessage &message);
 	void clearOldRequests();
 
 	const Entry *find(const FullMsgId &fullId) const;
