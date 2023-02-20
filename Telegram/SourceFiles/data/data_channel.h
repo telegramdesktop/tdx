@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Tdb {
 class TLDsupergroupFullInfo;
+class TLchatLocation;
 } // namespace Tdb
 
 struct ChannelLocation {
@@ -399,6 +400,7 @@ public:
 #if 0 // mtp
 	void setLocation(const MTPChannelLocation &data);
 #endif
+	void setLocation(const Tdb::TLchatLocation *location);
 	[[nodiscard]] const ChannelLocation *getLocation() const;
 
 	void setLinkedChat(ChannelData *linked);

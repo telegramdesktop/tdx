@@ -253,11 +253,14 @@ bool ChannelData::canHaveInviteLink() const {
 
 #if 0 // mtp
 void ChannelData::setLocation(const MTPChannelLocation &data) {
+#endif
+void ChannelData::setLocation(const TLchatLocation *location) {
 	if (!mgInfo) {
 		return;
 	}
 	const auto was = mgInfo->getLocation();
 	const auto wasValue = was ? *was : ChannelLocation();
+#if 0 // mtp
 	data.match([&](const MTPDchannelLocation &data) {
 		data.vgeo_point().match([&](const MTPDgeoPoint &point) {
 			mgInfo->setLocation({
@@ -270,6 +273,16 @@ void ChannelData::setLocation(const MTPChannelLocation &data) {
 	}, [&](const MTPDchannelLocationEmpty &) {
 		mgInfo->setLocation(ChannelLocation());
 	});
+#endif
+	if (location) {
+		const auto &data = location->data();
+		mgInfo->setLocation({
+			data.vaddress().v,
+			Data::LocationPoint(data.vlocation())
+		});
+	} else {
+		mgInfo->setLocation(ChannelLocation());
+	}
 	const auto now = mgInfo->getLocation();
 	const auto nowValue = now ? *now : ChannelLocation();
 	if (was != now || (was && wasValue != nowValue)) {
@@ -278,7 +291,6 @@ void ChannelData::setLocation(const MTPChannelLocation &data) {
 			UpdateFlag::ChannelLocation);
 	}
 }
-#endif
 
 const ChannelLocation *ChannelData::getLocation() const {
 	return mgInfo ? mgInfo->getLocation() : nullptr;
@@ -1412,19 +1424,14 @@ void ApplyChannelUpdate(
 			base::unixtime::now() + int(std::round(in * 1000)) - channel->slowmodeSeconds());
 	}
 
-	// todo
-	//if (const auto invite = update.vinvite_link()) {
-	//	channel->session().api().inviteLinks().setMyPermanent(
-	//		channel,
-	//		*invite);
-	//} else {
-	//	channel->session().api().inviteLinks().clearMyPermanent(channel);
-	//}
-	//if (const auto location = update.vlocation()) {
-	//	channel->setLocation(*location);
-	//} else {
-	//	channel->setLocation(MTP_channelLocationEmpty());
-	//}
+	if (const auto invite = update.vinvite_link()) {
+		channel->session().api().inviteLinks().setMyPermanent(
+			channel,
+			*invite);
+	} else {
+		channel->session().api().inviteLinks().clearMyPermanent(channel);
+	}
+	channel->setLocation(update.vlocation());
 
 	const auto linkedChatId = peerToChannel(
 		peerFromTdbChat(update.vlinked_chat_id()));
