@@ -1175,8 +1175,28 @@ not_null<UserData*> Session::processUser(const TLuser &user) {
 		updateFlags |= UpdateFlag::CanShareContact;
 	}
 
-	result->setFlags((result->flags() & ~UserDataFlag::Premium)
-		| (data.vis_premium().v ? UserDataFlag::Premium : UserDataFlag(0)));
+	using Flag = UserDataFlag;
+	const auto setting = Flag::Premium
+		| Flag::Verified
+		| Flag::SomeRequirePremiumToWrite
+		| Flag::RequirePremiumToWriteKnown;
+	const auto flags = (result->flags() & ~setting)
+		| (data.vis_premium().v ? Flag::Premium : Flag())
+		| (data.vis_verified().v ? Flag::Verified : Flag())
+		| (data.vrestricts_new_chats().v
+			? (Flag::SomeRequirePremiumToWrite
+				| (result->someRequirePremiumToWrite()
+					? (result->requirePremiumToWriteKnown()
+						? Flag::RequirePremiumToWriteKnown
+						: Flag())
+					: Flag()))
+			: Flag());
+	result->setFlags(flags);
+	result->setStoriesState(data.vhas_unread_active_stories().v
+		? PeerData::StoriesState::HasUnread
+		: data.vhas_active_stories().v
+		? PeerData::StoriesState::HasRead
+		: PeerData::StoriesState::None);
 
 	if (minimal) {
 		if (!result->isMinimalLoaded()) {
@@ -1213,7 +1233,10 @@ not_null<UserData*> Session::processUser(const TLuser &user) {
 		_peerDecorationsUpdated.fire_copy(result);
 	}
 	if (const auto &status = data.vemoji_status()) {
-		result->setEmojiStatus(status->data().vcustom_emoji_id().v);
+		const auto &data = status->data();
+		result->setEmojiStatus(
+			data.vcustom_emoji_id().v,
+			data.vexpiration_date().v);
 	} else {
 		result->setEmojiStatus(0);
 	}
@@ -1492,8 +1515,16 @@ not_null<ChannelData*> Session::processChannel(
 		result->setRestrictions({ flags, data.vbanned_until_date().v });
 	});
 	result->setFlags(flags);
+	result->setStoriesState(data.vhas_unread_active_stories().v
+		? PeerData::StoriesState::HasUnread
+		: data.vhas_active_stories().v
+		? PeerData::StoriesState::HasRead
+		: PeerData::StoriesState::None);
 
-	result->setMembersCount(data.vmember_count().v);
+	result->updateLevelHint(data.vboost_level().v);
+	if (const auto count = data.vmember_count().v) {
+		result->setMembersCount(count);
+	}
 	const auto newUsernames = Api::Usernames::FromTL(data.vusernames());
 	const auto userName = (newUsernames.empty() || !newUsernames[0].active)
 		? QString()
@@ -5333,6 +5364,20 @@ void Session::dialogsRowReplaced(DialogsRowReplacement replacement) {
 auto Session::dialogsRowReplacements() const
 -> rpl::producer<DialogsRowReplacement> {
 	return _dialogsRowReplacements.events();
+}
+
+void Session::serviceNotification(const TextWithEntities &message) {
+	_session->sender().request(TLaddLocalMessage(
+		peerToTdbChat(PeerData::kServiceNotificationsId),
+		tl_messageSenderUser(
+			tl_int53(peerToUser(PeerData::kServiceNotificationsId).bare)),
+		std::nullopt,
+		tl_bool(true),
+		tl_inputMessageText(
+			Api::FormattedTextToTdb(message),
+			std::nullopt,
+			tl_bool(false))
+	)).send();
 }
 
 #if 0 // mtp
