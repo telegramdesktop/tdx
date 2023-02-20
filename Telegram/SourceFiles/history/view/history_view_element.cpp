@@ -1043,10 +1043,16 @@ ClickHandlerPtr Element::fromLink() const {
 				const auto details = sponsored.lookupDetails(itemId);
 				if (!details.externalLink.isEmpty()) {
 					File::OpenUrl(details.externalLink);
+				} else if (const auto peer = details.peer) {
+					window->showPeerInfo(peer);
+				} else if (const auto &invoke = details.invoke) {
+					invoke(context.other);
+#if 0 // mtp
 				} else if (const auto &hash = details.hash) {
 					Api::CheckChatInvite(window, *hash);
 				} else if (const auto peer = details.peer) {
 					window->showPeerInfo(peer);
+#endif
 				}
 			}
 		});
