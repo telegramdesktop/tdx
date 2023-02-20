@@ -69,7 +69,8 @@ std::unique_ptr<Changelogs> Changelogs::Create(
 void Changelogs::requestCloudLogs() {
 	_chatsSubscription.destroy();
 
-#if 0 // todo
+	addLocalLogs();
+#if 0 // tdlib todo
 	const auto callback = [this](const MTPUpdates &result) {
 		_session->api().applyUpdates(result);
 
@@ -119,12 +120,10 @@ void Changelogs::addLocalLogs() {
 }
 
 void Changelogs::addLocalLog(const QString &text) {
-#if 0 // todo
 	auto textWithEntities = TextWithEntities{ text };
 	TextUtilities::ParseEntities(textWithEntities, TextParseLinks);
 	_session->data().serviceNotification(textWithEntities);
 	_addedSomeLocal = true;
-#endif
 };
 
 void Changelogs::addBetaLogs() {
