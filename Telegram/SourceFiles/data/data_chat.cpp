@@ -630,23 +630,9 @@ void ApplyChatUpdate(
 void ApplyChatUpdate(
 		not_null<ChatData*> chat,
 		const TLDbasicGroupFullInfo &update) {
-	//update.vmembers(); // todo
-	//ApplyChatUpdate(chat, update.vparticipants());
+	ApplyChatUpdate(chat, update.vmembers().v);
 
 	chat->creator = UserId(update.vcreator_user_id());
-	//if (const auto call = update.vcall()) {
-	//	chat->setGroupCall(*call);
-	//} else {
-	//	chat->clearGroupCall();
-	//}
-	//if (const auto as = update.vgroupcall_default_join_as()) {
-	//	chat->setGroupCallDefaultJoinAs(peerFromMTP(*as));
-	//} else {
-	//	chat->setGroupCallDefaultJoinAs(0);
-	//}
-
-	//TTL of messages goes from updates.
-
 	{
 		auto &&commands = ranges::views::all(
 			update.vbot_commands().v
@@ -668,21 +654,73 @@ void ApplyChatUpdate(
 	if (const auto photo = update.vphoto()) {
 		chat->setPhotoFull(*photo);
 	}
-	//if (const auto invite = update.vinvite_link()) { // todo
-	//	chat->session().api().inviteLinks().setMyPermanent(chat, *invite);
-	//} else {
-	//	chat->session().api().inviteLinks().clearMyPermanent(chat);
-	//}
-	//if (const auto pinned = update.vpinned_msg_id()) {
-	//	SetTopPinnedMessageId(chat, pinned->v);
-	//}
-	//chat->checkFolder(update.vfolder_id().value_or_empty());
+	if (const auto invite = update.vinvite_link()) {
+		chat->session().api().inviteLinks().setMyPermanent(chat, *invite);
+	} else {
+		chat->session().api().inviteLinks().clearMyPermanent(chat);
+	}
 	chat->fullUpdated();
 	chat->setAbout(update.vdescription().v);
+}
 
-	//chat->session().api().applyNotifySettings(
-	//	MTP_inputNotifyPeer(chat->input),
-	//	update.vnotify_settings());
+void ApplyChatUpdate(
+		not_null<ChatData*> chat,
+		const QVector<TLchatMember> &update) {
+	const auto session = &chat->session();
+	if (update.isEmpty()) {
+		chat->count = -1;
+		chat->invalidateParticipants();
+		return;
+	}
+	chat->count = update.size();
+	chat->participants.clear();
+	chat->invitedByMe.clear();
+	chat->admins.clear();
+	chat->setAdminRights(ChatAdminRights());
+	const auto selfUserId = session->userId();
+	for (const auto &participant : update) {
+		const auto &data = participant.data();
+		const auto userId = peerFromSender(data.vmember_id());
+		const auto userPeer = chat->owner().peerLoaded(userId);
+		const auto user = userPeer ? userPeer->asUser() : nullptr;
+		if (!user) {
+			--chat->count;
+			continue;
+		}
+		chat->participants.emplace(user);
+		const auto inviterId = UserId(data.vinviter_user_id().v);
+		if (inviterId == selfUserId) {
+			chat->invitedByMe.insert(user);
+		}
+		data.vstatus().match([&](const TLDchatMemberStatusCreator &data) {
+			chat->creator = peerToUser(userId);
+		}, [&](const TLDchatMemberStatusAdministrator &data) {
+			chat->admins.emplace(user);
+			if (user->isSelf()) {
+				chat->setAdminRights(
+					chat->defaultAdminRights(user).flags);
+			}
+		}, [](const auto &) {
+		});
+	}
+	if (chat->participants.empty()) {
+		return;
+	}
+	if (const auto history = chat->owner().historyLoaded(chat)) {
+		if (history->lastKeyboardFrom) {
+			const auto i = ranges::find(
+				chat->participants,
+				history->lastKeyboardFrom,
+				&UserData::id);
+			if (i == end(chat->participants)) {
+				history->clearLastKeyboard();
+			}
+		}
+	}
+	chat->refreshBotStatus();
+	session->changes().peerUpdated(
+		chat,
+		UpdateFlag::Members | UpdateFlag::Admins);
 }
 
 } // namespace Data

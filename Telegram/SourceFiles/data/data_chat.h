@@ -15,6 +15,7 @@ enum class ChatAdminRight;
 
 namespace Tdb {
 class TLDbasicGroupFullInfo;
+class TLchatMember;
 } // namespace Tdb
 
 enum class ChatDataFlag {
@@ -255,5 +256,8 @@ void ApplyChatUpdate(
 void ApplyChatUpdate(
 	not_null<ChatData*> chat,
 	const Tdb::TLDbasicGroupFullInfo &update);
+void ApplyChatUpdate(
+	not_null<ChatData*> chat,
+	const QVector<Tdb::TLchatMember> &update);
 
 } // namespace Data
