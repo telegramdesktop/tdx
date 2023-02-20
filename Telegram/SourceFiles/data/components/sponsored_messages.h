@@ -14,6 +14,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class History;
 
+namespace Tdb {
+class TLsponsoredMessage;
+class TLsponsoredMessages;
+} // namespace Tdb
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -138,15 +143,19 @@ private:
 		crl::time lastReceived = 0;
 	};
 
-#if 0 // mtp
 	void parse(
 		not_null<History*> history,
+#if 0 // mtp
 		const MTPmessages_sponsoredMessages &list);
+#endif
+		const Tdb::TLsponsoredMessages &list);
 	void append(
 		not_null<History*> history,
 		List &list,
+#if 0 // mtp
 		const MTPSponsoredMessage &message);
 #endif
+		const Tdb::TLsponsoredMessage &message);
 	void clearOldRequests();
 
 	const Entry *find(const FullMsgId &fullId) const;
