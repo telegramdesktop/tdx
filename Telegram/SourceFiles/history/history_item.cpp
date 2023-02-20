@@ -5155,7 +5155,6 @@ void HistoryItem::setContent(const TLmessageContent &content) {
 			|| TLDmessageVenue::Is<T>()
 			|| TLDmessageContact::Is<T>()
 			|| TLDmessageDice::Is<T>()
-			|| TLDmessageGame::Is<T>()
 			|| TLDmessagePoll::Is<T>()
 			|| TLDmessageCall::Is<T>()
 			|| TLDmessagePremiumGiveaway::Is<T>()
