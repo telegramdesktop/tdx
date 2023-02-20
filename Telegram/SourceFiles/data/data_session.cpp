@@ -1091,7 +1091,7 @@ not_null<UserData*> Session::processUser(const TLuser &user) {
 	auto minimal = false;
 
 	using UpdateFlag = PeerUpdate::Flag;
-	auto flags = UpdateFlag::None | UpdateFlag::None;
+	auto updateFlags = UpdateFlag::None | UpdateFlag::None;
 
 	const auto canShareThisContact = result->canShareThisContactFast();
 
@@ -1108,7 +1108,7 @@ not_null<UserData*> Session::processUser(const TLuser &user) {
 	const auto phoneChanged = (result->phone() != data.vphone_number().v);
 	if (phoneChanged) {
 		result->setPhone(data.vphone_number().v);
-		flags |= UpdateFlag::PhoneNumber;
+		updateFlags |= UpdateFlag::PhoneNumber;
 	}
 	const auto isSelf = (UserId(data.vid().v) == session().userId());
 	const auto showPhone = !result->isServiceUser()
@@ -1171,11 +1171,21 @@ not_null<UserData*> Session::processUser(const TLuser &user) {
 	});
 	result->setIsContact(data.vis_contact().v);
 	if (canShareThisContact != result->canShareThisContactFast()) {
-		flags |= UpdateFlag::CanShareContact;
+		updateFlags |= UpdateFlag::CanShareContact;
 	}
 
-	result->setFlags((result->flags() & ~UserDataFlag::Premium)
-		| (data.vis_premium().v ? UserDataFlag::Premium : UserDataFlag(0)));
+	using Flag = UserDataFlag;
+	const auto setting = Flag::Premium
+		| Flag::Verified;
+	const auto flags = (result->flags() & ~setting)
+		| (data.vis_premium().v ? Flag::Premium : Flag())
+		| (data.vis_verified().v ? Flag::Verified : Flag());
+	result->setFlags(flags);
+	result->setStoriesState(data.vhas_unread_active_stories().v
+		? UserData::StoriesState::HasUnread
+		: data.vhas_active_stories().v
+		? UserData::StoriesState::HasRead
+		: UserData::StoriesState::None);
 
 	if (minimal) {
 		if (!result->isMinimalLoaded()) {
@@ -1192,16 +1202,19 @@ not_null<UserData*> Session::processUser(const TLuser &user) {
 		oldOnlineTill);
 	if (oldOnlineTill != newOnlineTill) {
 		result->onlineTill = newOnlineTill;
-		flags |= UpdateFlag::OnlineStatus;
+		updateFlags |= UpdateFlag::OnlineStatus;
 	}
 	if (const auto &status = data.vemoji_status()) {
-		result->setEmojiStatus(status->data().vcustom_emoji_id().v);
+		const auto &data = status->data();
+		result->setEmojiStatus(
+			data.vcustom_emoji_id().v,
+			data.vexpiration_date().v);
 	} else {
 		result->setEmojiStatus(0);
 	}
 
-	if (flags) {
-		session().changes().peerUpdated(result, flags);
+	if (updateFlags) {
+		session().changes().peerUpdated(result, updateFlags);
 	}
 	return result;
 }
@@ -5114,6 +5127,20 @@ void Session::dialogsRowReplaced(DialogsRowReplacement replacement) {
 auto Session::dialogsRowReplacements() const
 -> rpl::producer<DialogsRowReplacement> {
 	return _dialogsRowReplacements.events();
+}
+
+void Session::serviceNotification(const TextWithEntities &message) {
+	_session->sender().request(TLaddLocalMessage(
+		peerToTdbChat(PeerData::kServiceNotificationsId),
+		tl_messageSenderUser(
+			tl_int53(peerToUser(PeerData::kServiceNotificationsId).bare)),
+		std::nullopt,
+		tl_bool(true),
+		tl_inputMessageText(
+			Api::FormattedTextToTdb(message),
+			std::nullopt,
+			tl_bool(false))
+	)).send();
 }
 
 #if 0 // mtp
