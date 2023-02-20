@@ -133,6 +133,13 @@ inline auto WebPageToPhrase(not_null<WebPageData*> webpage) {
 				my.itemId);
 			if (!details.externalLink.isEmpty()) {
 				File::OpenUrl(details.externalLink);
+			} else if (const auto &invoke = details.invoke) {
+				invoke(context.other);
+			} else if (details.peer) {
+				controller->showPeerHistory(
+					details.peer,
+					Window::SectionShow::Way::Forward);
+#if 0 // mtp
 			} else if (details.hash) {
 				Api::CheckChatInvite(controller, *details.hash);
 			} else if (details.peer) {
@@ -140,6 +147,7 @@ inline auto WebPageToPhrase(not_null<WebPageData*> webpage) {
 					details.peer,
 					Window::SectionShow::Way::Forward,
 					details.msgId);
+#endif
 			}
 		});
 	}
