@@ -539,7 +539,6 @@ void Templates::update() {
 void Templates::updateRequestFinished(QNetworkReply *reply) {
 	reply->deleteLater();
 
-#if 0 // todo
 	const auto path = [&] {
 		for (const auto &[file, sent] : _updates->requests) {
 			if (sent == reply) {
@@ -599,8 +598,7 @@ void Templates::updateRequestFinished(QNetworkReply *reply) {
 			_updates->requests.erase(path);
 			checkUpdateFinished();
 		});
-		});
-#endif
+	});
 }
 
 void Templates::checkUpdateFinished() {
