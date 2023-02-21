@@ -341,7 +341,6 @@ void Step::createSession(const TLuser &self) {
 	// "this" is already deleted here by creating the main widget.
 	account->local().writeMtpData();
 	auto &session = account->session();
-	//session.data().chatsFilters().setPreloaded(filters); // todo
 	if (hasFilters) {
 		session.data().chatsFilters().apply(filters);
 		session.saveSettingsDelayed();

@@ -937,7 +937,7 @@ void SetupUnreadReactionsMenu(
 		const auto peer = thread->peer();
 		const auto rootId = topic ? topic->rootId() : 0;
 		peer->session().sender().request(TLreadAllChatReactions(
-			peerToTdbChat(peer->id) // todo topics
+			peerToTdbChat(peer->id) // tdlib todo topics
 		)).done(done).fail(done).send();
 #if 0 // mtp
 		using Flag = MTPmessages_ReadReactions::Flag;

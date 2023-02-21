@@ -224,6 +224,16 @@ Session::Session(
 #endif
 	_api->requestDefaultNotifySettings();
 
+	constexpr auto kMax = 5; // later Core::App().notifications().maxCount();
+	sender().request(TLsetOption(
+		tl_string("notification_group_count_max"_q),
+		tl_optionValueInteger(tl_int64(kMax))
+	)).send();
+	sender().request(TLsetOption(
+		tl_string("notification_group_size_max"_q),
+		tl_optionValueInteger(tl_int64(kMax))
+	)).send();
+
 	Core::App().downloadManager().trackSession(this);
 }
 

@@ -226,7 +226,9 @@ public:
 	[[nodiscard]] UserData *getMessageBot() const;
 	[[nodiscard]] bool isHistoryEntry() const;
 	[[nodiscard]] bool isAdminLogEntry() const;
+#if 0 // mtp
 	[[nodiscard]] bool isFromScheduled() const;
+#endif
 	[[nodiscard]] bool isScheduled() const;
 	[[nodiscard]] bool isSponsored() const;
 	[[nodiscard]] bool skipNotification() const;
@@ -403,6 +405,9 @@ public:
 		bool wasAlready);
 	void updateReactions(const MTPMessageReactions *reactions);
 #endif
+	void setIsSilent(bool silent);
+	void setHideNotificationText(bool hide);
+	[[nodiscard]] bool hideNotificationText() const;
 
 	void overrideMedia(std::unique_ptr<Data::Media> media);
 

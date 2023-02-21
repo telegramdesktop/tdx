@@ -1146,7 +1146,7 @@ void GenerateItems(
 	};
 
 	const auto createChangePhoto = [&](const LogPhoto &action) {
-#if 0 // doLater
+#if 0 // todo
 		action.vnew_photo().match([&](const MTPDphoto &data) {
 			const auto photo = history->owner().processPhoto(data);
 			const auto text = (channel->isMegagroup()
