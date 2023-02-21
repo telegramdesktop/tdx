@@ -317,6 +317,8 @@ enum class MessageFlag : uint64 {
 
 	// If not set then we need to refresh _displayFrom value.
 	DisplayFromChecked    = (1ULL << 40),
+
+	HideNotificationText  = (1ULL << 63), // added for tdlib
 };
 inline constexpr bool is_flag_type(MessageFlag) { return true; }
 using MessageFlags = base::flags<MessageFlag>;
