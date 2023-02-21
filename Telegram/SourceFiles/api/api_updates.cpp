@@ -2933,6 +2933,7 @@ void Updates::applyUpdate(const TLupdate &update) {
 		// later online count for all chats
 	}, [&](const TLDupdateNotification &data) {
 	}, [&](const TLDupdateNotificationGroup &data) {
+		Core::App().notifications().process(&session(), data);
 	}, [&](const TLDupdateActiveNotifications &data) {
 	}, [&](const TLDupdateHavePendingNotifications &data) {
 	}, [&](const TLDupdateDeleteMessages &data) {

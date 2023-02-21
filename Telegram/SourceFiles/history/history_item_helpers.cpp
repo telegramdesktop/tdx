@@ -98,7 +98,7 @@ MessageFlags FlagsFromTdb(const TLDmessage &data) {
 	return sendingOrFailedFlag
 		| (int(sendingOrFailedFlag) ? Flag::Local : Flag())
 		| (data.vscheduling_state()
-			? Flag::IsOrWasScheduled // todo was scheduled, but now isn't?
+			? Flag::IsOrWasScheduled
 			: Flag::HistoryEntry)
 		| (data.vis_outgoing().v ? Flag::Outgoing : Flag())
 		| (data.vcan_be_saved().v ? Flag() : Flag::NoForwards)
@@ -106,15 +106,13 @@ MessageFlags FlagsFromTdb(const TLDmessage &data) {
 			? (Flag::MentionsMe | Flag::MediaIsUnread)
 			: Flag())
 		| (mediaUnread ? Flag::MediaIsUnread : Flag())
-		//| ((flags & MTP::f_silent) ? Flag::Silent : Flag()) // todo
 		| (data.vis_channel_post().v ? Flag::Post : Flag())
 		| (data.vcan_be_deleted_for_all_users().v
 			? Flag::CanDeleteForAll
 			: Flag())
 		| (data.vcan_be_edited().v ? Flag::CanEdit : Flag())
 		| (data.vis_pinned().v ? Flag::Pinned : Flag())
-		//| ((flags & MTP::f_from_id) ? Flag::HasFromId : Flag()) // todo
-		| (data.vreply_to_message_id().v ? Flag::HasReplyInfo : Flag())
+		| (data.vreply_to() ? Flag::HasReplyInfo : Flag())
 		| (data.vreply_markup() ? Flag::HasReplyMarkup : Flag())
 		| (data.vcan_get_added_reactions().v
 			? Flag::CanViewReactions
