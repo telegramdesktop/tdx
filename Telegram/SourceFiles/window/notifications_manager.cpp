@@ -38,6 +38,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "ui/text/text_utilities.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 #include <QtGui/QWindow>
 
 #if __has_include(<gio/gio.hpp>)
@@ -47,6 +49,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Window {
 namespace Notifications {
 namespace {
+
+using namespace Tdb;
 
 // not more than one sound in 500ms from one peer - grouping
 constexpr auto kMinimalDelay = crl::time(100);
@@ -241,9 +245,12 @@ System::SkipState System::computeSkipState(
 				|| notifySettings->sound(thread).none),
 		};
 	};
+#if 0 // mtp
 	const auto showForMuted = messageType
 		&& item->out()
 		&& item->isFromScheduled();
+#endif
+	const auto showForMuted = messageType && item->out();
 	const auto notifyBy = messageType
 		? item->specialNotificationPeer()
 		: notification.reactionSender;
@@ -863,6 +870,65 @@ void System::playSound(not_null<Main::Session*> session, DocumentId id) {
 	lookupSound(&session->data(), id)->playOnce();
 }
 
+void System::process(
+		not_null<Main::Session*> session,
+		const TLDupdateNotificationGroup &data) {
+	const auto groupId = data.vnotification_group_id().v;
+	for (const auto &id : data.vremoved_notification_ids().v) {
+		clearFromTdb({ groupId, id.v });
+	}
+	const auto peerId = peerFromTdbChat(data.vchat_id());
+	const auto soundId = data.vnotification_sound_id().v;
+	for (const auto &entry : data.vadded_notifications().v) {
+		const auto &data = entry.data();
+		const auto tdbId = FullTdbId{ groupId, data.vid().v };
+		const auto silent = data.vis_silent().v;
+		data.vtype().match([&](const TLDnotificationTypeNewMessage &data) {
+			const auto &fields = data.vmessage().data();
+			const auto fullId = ReactionNotificationId{
+				FullMsgId(peerId, fields.vid().v),
+				session->uniqueId(),
+			};
+			if (const auto item = session->data().message(fullId.itemId)) {
+				registerTdbId(tdbId, fullId);
+
+				item->setIsSilent(silent);
+				item->setHideNotificationText(!data.vshow_preview().v);
+				auto notification = Data::ItemNotification{
+					.item = item,
+					.type = Data::ItemNotificationType::Message,
+				};
+				item->history()->pushNotification(notification);
+				schedule(notification);
+			}
+		}, [](const auto &data) {
+		});
+	}
+}
+
+void System::registerTdbId(FullTdbId tdbId, ReactionNotificationId msgId) {
+	if (const auto was = _tdbIdByMsgId.take(msgId)) {
+		_msgIdByTdbId.remove(*was);
+	}
+	if (const auto was = _msgIdByTdbId.take(tdbId)) {
+		_tdbIdByMsgId.remove(*was);
+	}
+	_tdbIdByMsgId[msgId] = tdbId;
+	_msgIdByTdbId[tdbId] = msgId;
+}
+
+void System::clearFromTdb(FullTdbId tdbId) {
+	if (const auto was = _msgIdByTdbId.take(tdbId)) {
+		_tdbIdByMsgId.remove(*was); // later optimize don't search sessions.
+		if (const auto session = findSession(was->sessionId)) {
+			if (const auto item = session->data().message(was->itemId)) {
+				clearFromItem(item);
+				item->history()->removeNotification(item);
+			}
+		}
+	}
+}
+
 Manager::DisplayOptions Manager::getNotificationOptions(
 		HistoryItem *item,
 		Data::ItemNotificationType type) const {
@@ -876,11 +942,16 @@ Manager::DisplayOptions Manager::getNotificationOptions(
 	result.hideNameAndPhoto = hideEverything
 		|| (view > Core::Settings::NotifyView::ShowName);
 	result.hideMessageText = hideEverything
+		|| (item && item->hideNotificationText())
 		|| (view > Core::Settings::NotifyView::ShowPreview);
 	result.hideMarkAsRead = result.hideMessageText
 		|| (type != Data::ItemNotificationType::Message)
 		|| !item
+#if 0 // mtp
 		|| ((item->out() || peer->isSelf()) && item->isFromScheduled());
+#endif
+		|| item->out()
+		|| peer->isSelf();
 	result.hideReplyButton = result.hideMarkAsRead
 		|| (!Data::CanSendTexts(peer)
 			&& (!topic || !Data::CanSendTexts(topic)))
@@ -1175,8 +1246,11 @@ void NativeManager::doShowNotification(NotificationFields &&fields) {
 	}
 	const auto scheduled = !options.hideNameAndPhoto
 		&& !reactionFrom
+		&& (item->out() || peer->isSelf());
+#if 0 // mtp
 		&& (item->out() || peer->isSelf())
 		&& item->isFromScheduled();
+#endif
 	const auto topicWithChat = [&] {
 		const auto name = peer->name();
 		const auto topic = item->topic();
