@@ -335,6 +335,10 @@ enum class MessageFlag : uint64 {
 
 	SensitiveContent      = (1ULL << 47),
 	HasRestrictions       = (1ULL << 48),
+
+	PropertiesLoaded      = (1ULL << 61), // added for tdlib
+	SelfDestructImmediate = (1ULL << 62),
+	HideNotificationText  = (1ULL << 63),
 };
 inline constexpr bool is_flag_type(MessageFlag) { return true; }
 using MessageFlags = base::flags<MessageFlag>;

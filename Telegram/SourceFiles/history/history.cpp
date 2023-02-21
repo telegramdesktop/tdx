@@ -1353,6 +1353,7 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 		from->madeAction(item->date());
 	}
 	item->contributeToSlowmode();
+#if 0 // mtp
 	auto notification = Data::ItemNotification{
 		.item = item,
 		.type = Data::ItemNotificationType::Message,
@@ -1360,11 +1361,14 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 	if (item->showNotification()) {
 		item->notificationThread()->pushNotification(notification);
 	}
+#endif
 	owner().notifyNewItemAdded(item);
+#if 0 // mtp
 	const auto stillShow = item->showNotification(); // Could be read already.
 	if (stillShow) {
 		Core::App().notifications().schedule(notification);
 	}
+#endif
 	if (item->out()) {
 		if (item->isFromScheduled() && unreadCountRefreshNeeded(item->id)) {
 			if (unreadCountKnown()) {
@@ -1838,7 +1842,10 @@ std::optional<int> History::countStillUnreadLocal(MsgId readTillId) const {
 				for (const auto &message : block->messages) {
 					const auto item = message->data();
 					if (!item->isRegular()
+#if 0 // mtp
 						|| (item->out() && !item->isFromScheduled())) {
+#endif
+						|| item->out()) {
 						continue;
 					} else if (item->id > readTillId) {
 						break;
