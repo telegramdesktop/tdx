@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/type_traits.h"
 
+namespace Tdb {
+class TLDupdateNotificationGroup;
+} // namespace Tdb
+
 class History;
 
 namespace Data {
@@ -90,6 +94,14 @@ extern base::options::toggle OptionGNotification;
 
 class Manager;
 
+using TdbId = int32;
+struct FullTdbId {
+	int32 groupId = 0;
+	TdbId id = 0;
+
+	friend inline constexpr auto operator<=>(FullTdbId, FullTdbId) = default;
+};
+
 class System final {
 public:
 	System();
@@ -117,6 +129,10 @@ public:
 	void notifySettingsChanged(ChangeType type);
 
 	void playSound(not_null<Main::Session*> session, DocumentId id);
+
+	void process(
+		not_null<Main::Session*> session,
+		const Tdb::TLDupdateNotificationGroup &data);
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
@@ -163,6 +179,9 @@ private:
 		}
 	};
 
+	void registerTdbId(FullTdbId tdbId, ReactionNotificationId msgId);
+	void clearFromTdb(FullTdbId tdbId);
+
 	void clearForThreadIf(Fn<bool(not_null<Data::Thread*>)> predicate);
 
 	[[nodiscard]] SkipState skipNotification(
@@ -183,6 +202,9 @@ private:
 		DocumentId id);
 
 	void registerThread(not_null<Data::Thread*> thread);
+
+	base::flat_map<ReactionNotificationId, FullTdbId> _tdbIdByMsgId;
+	base::flat_map<FullTdbId, ReactionNotificationId> _msgIdByTdbId;
 
 	base::flat_map<
 		not_null<Data::Thread*>,

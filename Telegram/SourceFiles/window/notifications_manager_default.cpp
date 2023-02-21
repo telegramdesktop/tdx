@@ -96,7 +96,10 @@ Manager::QueuedNotification::QueuedNotification(NotificationFields &&fields)
 , item((fields.forwardedCount < 2) ? fields.item.get() : nullptr)
 , forwardedCount(fields.forwardedCount)
 , fromScheduled(reaction.empty() && (fields.item->out() || peer->isSelf())
+#if 0 // mtp
 	&& fields.item->isFromScheduled()) {
+#endif
+) {
 }
 
 QPixmap Manager::hiddenUserpicPlaceholder() const {
