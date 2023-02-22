@@ -160,9 +160,11 @@ void Folder::indexNameParts() {
 void Folder::registerOne(not_null<History*> history) {
 	if (_chatsList.indexed()->size() == 1) {
 		updateChatListSortPosition();
+#if 0 // mtp
 		if (!_chatsList.cloudUnreadKnown()) {
 			owner().histories().requestDialogEntry(this);
 		}
+#endif
 	} else {
 		updateChatListEntry();
 	}
@@ -348,9 +350,12 @@ int Folder::storiesUnreadCount() const {
 }
 
 void Folder::requestChatListMessage() {
+#if 0 // mtp
 	if (!chatListMessageKnown()) {
 		owner().histories().requestDialogEntry(this);
 	}
+#endif
+	Unexpected("Chat list message is always known for folders.");
 }
 
 #if 0 // mtp
