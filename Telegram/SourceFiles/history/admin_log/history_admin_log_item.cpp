@@ -1146,8 +1146,11 @@ void GenerateItems(
 	};
 
 	const auto createChangePhoto = [&](const LogPhoto &action) {
-#if 0 // todo
+#if 0 // mtp
 		action.vnew_photo().match([&](const MTPDphoto &data) {
+#endif
+		if (const auto newPhoto = action.vnew_photo()) {
+			const auto &data = *newPhoto;
 			const auto photo = history->owner().processPhoto(data);
 			const auto text = (channel->isMegagroup()
 				? tr::lng_admin_log_changed_photo_group
@@ -1157,7 +1160,10 @@ void GenerateItems(
 					fromLinkText,
 					Ui::Text::WithEntities);
 			addSimpleServiceMessage(text, MsgId(), photo);
+		} else {
+#if 0 // mtp
 		}, [&](const MTPDphotoEmpty &data) {
+#endif
 			const auto text = (channel->isMegagroup()
 				? tr::lng_admin_log_removed_photo_group
 				: tr::lng_admin_log_removed_photo_channel)(
@@ -1166,6 +1172,8 @@ void GenerateItems(
 					fromLinkText,
 					Ui::Text::WithEntities);
 			addSimpleServiceMessage(text);
+		}
+#if 0 // mtp
 		});
 #endif
 	};
