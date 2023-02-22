@@ -538,7 +538,35 @@ void ChannelData::setViewAsMessagesFlag(bool enabled) {
 }
 
 void ChannelData::markForbidden() {
-#if 0 // todo
+	auto wasInChannel = amIn();
+	auto wasViewAdmins = canViewAdmins();
+	auto wasViewMembers = canViewMembers();
+	auto wasAddMembers = canAddMembers();
+
+	setFlags(this->flags() | ChannelDataFlag::Forbidden);
+	if (hasAdminRights()) {
+		setAdminRights(ChatAdminRights());
+	}
+	if (hasRestrictions()) {
+		setRestrictions(ChatRestrictionsInfo());
+	}
+	clearUserpic();
+	date = 0;
+	setMembersCount(0);
+
+	auto flags = UpdateFlag(0) | UpdateFlag(0);
+	if (wasInChannel != amIn()) {
+		flags |= UpdateFlag::ChannelAmIn;
+	}
+	if (wasViewAdmins != canViewAdmins()
+		|| wasViewMembers != canViewMembers()
+		|| wasAddMembers != canAddMembers()) {
+		flags |= UpdateFlag::Rights;
+	}
+	if (flags) {
+		session().changes().peerUpdated(this, flags);
+	}
+#if 0 // mtp
 	owner().processChat(MTP_channelForbidden(
 		MTP_flags(isMegagroup()
 			? MTPDchannelForbidden::Flag::f_megagroup

@@ -907,7 +907,7 @@ void ChatParticipants::requestSelf(not_null<ChannelData*> channel) {
 				data.vinviter_user_id().v,
 				data.vjoined_chat_date().v,
 				false);
-#if 0 // doLater
+#if 0 // tdlib todo wants to add the local 'joined' service message in tdlib.
 				data.is_via_invite());
 #endif
 		}, [&](const TLDchatMemberStatusCreator &) {
