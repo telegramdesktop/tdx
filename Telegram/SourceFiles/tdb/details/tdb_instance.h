@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Tdb {
 class Error;
 class TLupdate;
+class TLdisableProxy;
+class TLaddProxy;
 } // namespace Tdb
 
 namespace Tdb::details {
@@ -105,6 +107,8 @@ public:
 	[[nodiscard]] rpl::producer<TLupdate> updates() const;
 	void logout();
 	void reset();
+
+	void setProxy(std::variant<TLdisableProxy, TLaddProxy> value);
 
 	// Synchronous requests. Use with care!!
 	// If request will use the network or even disk it may freeze the app.
