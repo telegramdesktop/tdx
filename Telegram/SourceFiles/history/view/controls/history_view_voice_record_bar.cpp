@@ -101,7 +101,7 @@ enum class FilterType {
 
 [[nodiscard]] not_null<DocumentData*> DummyDocument(
 		not_null<Data::Session*> owner) {
-#if 0 // todo
+#if 0 // mtp
 	return owner->document(
 		base::RandomValue<DocumentId>(),
 		uint64(0),
