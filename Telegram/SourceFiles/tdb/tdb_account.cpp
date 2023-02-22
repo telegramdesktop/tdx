@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tdb/tdb_account.h"
 
 #include "tdb/tdb_file_generator.h"
+#include "tdb/tdb_files_downloader.h"
 #include "tdb/tdb_options.h"
 
 namespace Tdb {
@@ -15,7 +16,8 @@ namespace Tdb {
 Account::Account(AccountConfig &&config)
 : _instance(std::move(config))
 , _sender(&_instance)
-, _options(std::make_unique<Options>(&_sender)) {
+, _options(std::make_unique<Options>(&_sender))
+, _downloader(std::make_unique<FilesDownloader>(this)) {
 	_instance.updates(
 	) | rpl::start_with_next([=](TLupdate &&update) {
 		if (!consumeUpdate(update)) {
@@ -66,10 +68,7 @@ bool Account::consumeUpdate(const TLupdate &update) {
 		if (i != end(_generators)) {
 			i->second->start(id);
 		} else if (conversion == "#url#") {
-			const auto t = data.voriginal_path().v;
-#if 0 // todo
-			download(data.voriginal_path().v);
-#endif
+			_downloader->start(id, data.voriginal_path().v);
 		} else {
 			_sender.request(TLfinishFileGeneration(
 				data.vgeneration_id(),
@@ -83,6 +82,8 @@ bool Account::consumeUpdate(const TLupdate &update) {
 		if (i != end(_generations)) {
 			i->second->finish();
 			_generations.erase(i);
+		} else {
+			_downloader->finish(id);
 		}
 		return true;
 	}, [&](const TLDupdateOption &data) {
