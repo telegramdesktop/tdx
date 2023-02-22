@@ -285,8 +285,13 @@ void Entry::updateChatListSortPosition(
 void Entry::refreshChatListSortPositionFromTdb(
 		FilterId filterId,
 		uint64 order) {
+	const auto fixedIndex = filterId ? 0 : fixedOnTopIndex();
 	const auto index = order ? lookupPinnedIndex(filterId) : 0;
-	const auto sortKey = index ? PinnedDialogPos(index) : order;
+	const auto sortKey = fixedIndex
+		? FixedOnTopDialogPos(fixedIndex)
+		: index
+		? PinnedDialogPos(index)
+		: order;
 	if (filterId) {
 		if (order) {
 			_sortKeyInFilterMap[filterId] = sortKey;
