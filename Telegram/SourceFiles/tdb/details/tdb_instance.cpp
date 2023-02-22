@@ -268,6 +268,8 @@ public:
 	void logout();
 	void reset();
 
+	void setProxy(std::variant<TLdisableProxy, TLaddProxy> value);
+
 private:
 	struct QueuedRequest {
 		ExternalGenerator request;
@@ -284,6 +286,7 @@ private:
 	void purgeInvalid();
 	void clearStale();
 	void started();
+	void setCurrentProxy();
 
 	const std::shared_ptr<Manager> _manager;
 	ClientManager::ClientId _id = 0;
@@ -291,6 +294,7 @@ private:
 	QMutex _activeRequestsMutex;
 	base::flat_set<RequestId> _activeRequests;
 	base::flat_map<RequestId, QueuedRequest> _queuedRequests;
+	std::variant<TLdisableProxy, TLaddProxy> _proxy;
 	rpl::event_stream<TLupdate> _updates;
 	std::atomic<State> _state = State::Working;
 	std::atomic<bool> _clearingStale = false;
@@ -756,6 +760,7 @@ void Instance::Client::started() {
 	}
 	_state = State::Working;
 	setIgnorePlatformRestrictions();
+	setCurrentProxy();
 	for (auto &[requestId, queued] : base::take(_queuedRequests)) {
 		sendToManager(
 			requestId,
@@ -831,6 +836,24 @@ void Instance::Client::reset() {
 	}
 	_state = State::Closing;
 	send(allocateRequestId(), TLdestroy(), nullptr, nullptr, true);
+}
+
+void Instance::Client::setProxy(std::variant<TLdisableProxy, TLaddProxy> value) {
+	_proxy = std::move(value);
+	if (_state == State::Working) {
+		setCurrentProxy();
+	}
+}
+
+void Instance::Client::setCurrentProxy() {
+	v::match(_proxy, [&](const auto &value) {
+		send(
+			allocateRequestId(),
+			base::duplicate(value),
+			nullptr,
+			nullptr,
+			true);
+	});
 }
 
 void Instance::Client::restart() {
@@ -985,6 +1008,10 @@ void Instance::logout() {
 
 void Instance::reset() {
 	_client->reset();
+}
+
+void Instance::setProxy(std::variant<TLdisableProxy, TLaddProxy> value) {
+	_client->setProxy(std::move(value));
 }
 
 void ExecuteExternal(
