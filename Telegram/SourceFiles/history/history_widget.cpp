@@ -3522,13 +3522,13 @@ void HistoryWidget::messagesReceived(
 #endif
 
 void HistoryWidget::messagesFailed(const Error &error, RequestId requestId) {
-	if (error.message == qstr("CHANNEL_PRIVATE") // todo
+	if (error.message == u"CHANNEL_PRIVATE"_q
 		&& _peer->isChannel()
 		&& _peer->asChannel()->invitePeekExpires()) {
 		_peer->asChannel()->privateErrorReceived();
-	} else if (error.message == qstr("CHANNEL_PRIVATE") // todo
-		|| error.message == qstr("CHANNEL_PUBLIC_GROUP_NA")
-		|| error.message == qstr("USER_BANNED_IN_CHANNEL")) {
+	} else if (error.message == u"CHANNEL_PRIVATE"_q
+		|| error.message == u"CHANNEL_PUBLIC_GROUP_NA"_q
+		|| error.message == u"USER_BANNED_IN_CHANNEL"_q) {
 		const auto was = _peer;
 		const auto controller = this->controller();
 		controller->showBackFromStack();
