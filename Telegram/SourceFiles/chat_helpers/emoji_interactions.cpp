@@ -22,6 +22,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "apiwrap.h"
 
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
+
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonArray>
 #include <QtCore/QJsonObject>
@@ -29,6 +32,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace ChatHelpers {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kMinDelay = crl::time(200);
 constexpr auto kAccumulateDelay = crl::time(1000);
@@ -52,20 +57,25 @@ EmojiInteractions::EmojiInteractions(not_null<Main::Session*> session)
 , _checkTimer([=] { check(); }) {
 	_session->changes().messageUpdates(
 		Data::MessageUpdate::Flag::Destroyed
+#if 0 // mtp
 		| Data::MessageUpdate::Flag::Edited
+#endif
 	) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
 		if (update.flags & Data::MessageUpdate::Flag::Destroyed) {
 			_outgoing.remove(update.item);
 			_incoming.remove(update.item);
+#if 0 // mtp
 		} else if (update.flags & Data::MessageUpdate::Flag::Edited) {
 			checkEdition(update.item, _outgoing);
 			checkEdition(update.item, _incoming);
+#endif
 		}
 	}, _lifetime);
 }
 
 EmojiInteractions::~EmojiInteractions() = default;
 
+#if 0 // mtp
 void EmojiInteractions::checkEdition(
 		not_null<HistoryItem*> item,
 		base::flat_map<not_null<HistoryItem*>, std::vector<Animation>> &map) {
@@ -76,6 +86,7 @@ void EmojiInteractions::checkEdition(
 		map.erase(i);
 	}
 }
+#endif
 
 void EmojiInteractions::startOutgoing(
 		not_null<const HistoryView::Element*> view) {
@@ -83,6 +94,43 @@ void EmojiInteractions::startOutgoing(
 	if (!item->isRegular() || !item->history()->peer->isUser()) {
 		return;
 	}
+	const auto emoticon = item->originalText().text;
+	const auto emoji = Ui::Emoji::Find(emoticon);
+	if (!emoji) {
+		return;
+	}
+	const auto itemId = item->fullId();
+	const auto id = _session->sender().request(TLclickAnimatedEmojiMessage(
+		peerToTdbChat(item->history()->peer->id),
+		tl_int53(item->id.bare)
+	)).done([=](const TLsticker &result, RequestId requestId) {
+		_outgoingRequests.remove(requestId);
+
+		const auto item = _session->data().message(itemId);
+		if (!item) {
+			return;
+		}
+		const auto document = _session->data().processDocument(result);
+		const auto media = document->createMediaView();
+		media->checkStickerLarge();
+		const auto now = crl::now();
+		auto &animations = _outgoing[item];
+		if (item->originalText().text != emoticon) {
+			// The message was edited, forget the old emoji.
+			animations.clear();
+		}
+		animations.push_back({
+			.emoticon = emoticon,
+			.emoji = emoji,
+			.document = document,
+			.media = media,
+			.scheduledAt = now,
+		});
+		check(now);
+	}).fail([=](const Error &error, RequestId requestId) {
+		_outgoingRequests.remove(requestId);
+	}).send();
+#if 0 // mtp
 	const auto &pack = _session->emojiStickersPack();
 	const auto emoticon = item->originalText().text;
 	const auto emoji = pack.chooseInteractionEmoji(emoticon);
@@ -120,6 +168,7 @@ void EmojiInteractions::startOutgoing(
 		.index = index,
 	});
 	check(now);
+#endif
 }
 
 #if 0 // mtp
@@ -220,6 +269,7 @@ void EmojiInteractions::startIncoming(
 void EmojiInteractions::seenOutgoing(
 		not_null<PeerData*> peer,
 		const QString &emoticon) {
+#if 0 // mtp
 	const auto &pack = _session->emojiStickersPack();
 	if (const auto i = _playsSent.find(peer); i != end(_playsSent)) {
 		if (const auto emoji = pack.chooseInteractionEmoji(emoticon)) {
@@ -231,6 +281,8 @@ void EmojiInteractions::seenOutgoing(
 			}
 		}
 	}
+#endif
+	_seen.fire({ peer, emoticon });
 }
 
 auto EmojiInteractions::checkAnimations(crl::time now) -> CheckResult {
@@ -305,6 +357,7 @@ void EmojiInteractions::sendAccumulatedOutgoing(
 	const auto till = ranges::find_if(animations, [&](const auto &animation) {
 		return !animation.startedAt || (animation.startedAt >= intervalEnd);
 	});
+#if 0 // mtp
 	auto bunch = EmojiInteractionsBunch();
 	bunch.interactions.reserve(till - from);
 	for (const auto &animation : ranges::make_subrange(from, till)) {
@@ -318,8 +371,6 @@ void EmojiInteractions::sendAccumulatedOutgoing(
 	}
 	const auto peer = item->history()->peer;
 	const auto emoji = from->emoji;
-	const auto requestId = 0;
-#if 0 // todo
 	const auto requestId = _session->api().request(MTPmessages_SetTyping(
 		MTP_flags(0),
 		peer->input,
@@ -337,8 +388,8 @@ void EmojiInteractions::sendAccumulatedOutgoing(
 			}
 		}
 	}).send();
-#endif
 	_playsSent[peer][emoji] = PlaySent{ .lastRequestId = requestId };
+#endif
 	animations.erase(from, till);
 }
 
@@ -391,7 +442,9 @@ void EmojiInteractions::check(crl::time now) {
 		now = crl::now();
 	}
 	checkSeenRequests(now);
+#if 0 // mtp
 	checkSentRequests(now);
+#endif
 	const auto result1 = checkAnimations(now);
 	const auto result2 = checkAccumulated(now);
 	const auto result = Combine(result1, result2);
@@ -400,8 +453,10 @@ void EmojiInteractions::check(crl::time now) {
 		_checkTimer.callOnce(result.nextCheckAt - now);
 	} else if (!_playStarted.empty()) {
 		_checkTimer.callOnce(kAccumulateSeenRequests);
+#if 0 // mtp
 	} else if (!_playsSent.empty()) {
 		_checkTimer.callOnce(kAcceptSeenSinceRequest);
+#endif
 	}
 	setWaitingForDownload(result.waitingForDownload);
 }
@@ -424,6 +479,7 @@ void EmojiInteractions::checkSeenRequests(crl::time now) {
 	}
 }
 
+#if 0 // mtp
 void EmojiInteractions::checkSentRequests(crl::time now) {
 	for (auto i = begin(_playsSent); i != end(_playsSent);) {
 		auto &animations = i->second;
@@ -442,6 +498,7 @@ void EmojiInteractions::checkSentRequests(crl::time now) {
 		}
 	}
 }
+#endif
 
 void EmojiInteractions::setWaitingForDownload(bool waiting) {
 	if (_waitingForDownload == waiting) {
@@ -466,7 +523,12 @@ void EmojiInteractions::playStarted(not_null<PeerData*> peer, QString emoji) {
 	if (i != end(map) && now - i->second < kAccumulateSeenRequests) {
 		return;
 	}
-#if 0 // todo
+	_session->sender().request(TLsendChatAction(
+		peerToTdbChat(peer->id),
+		tl_int53(0), // message_thread_id
+		tl_chatActionWatchingAnimations(tl_string(emoji))
+	)).send();
+#if 0 // mtp
 	_session->api().request(MTPmessages_SetTyping(
 		MTP_flags(0),
 		peer->input,

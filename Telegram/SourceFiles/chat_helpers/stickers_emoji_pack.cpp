@@ -222,6 +222,7 @@ std::shared_ptr<LargeEmojiImage> EmojiPack::image(EmojiPtr emoji) {
 	return result;
 }
 
+#if 0 // mtp
 EmojiPtr EmojiPack::chooseInteractionEmoji(
 		not_null<HistoryItem*> item) const {
 	return chooseInteractionEmoji(item->originalText().text);
@@ -273,6 +274,7 @@ bool EmojiPack::hasAnimationsFor(not_null<HistoryItem*> item) const {
 bool EmojiPack::hasAnimationsFor(const QString &emoticon) const {
 	return !animationsForEmoji(chooseInteractionEmoji(emoticon)).empty();
 }
+#endif
 
 std::unique_ptr<Lottie::SinglePlayer> EmojiPack::effectPlayer(
 		not_null<DocumentData*> document,
@@ -346,13 +348,11 @@ void EmojiPack::refresh() {
 		refreshDelayed();
 	}).send();
 }
-#endif
 
 void EmojiPack::refreshAnimations() {
 	if (_animationsRequestId) {
 		return;
 	}
-#if 0 // todo
 	_animationsRequestId = _session->api().request(MTPmessages_GetStickerSet(
 		MTP_inputStickerSetAnimatedEmojiAnimations(),
 		MTP_int(0) // hash
@@ -368,10 +368,8 @@ void EmojiPack::refreshAnimations() {
 		_animationsRequestId = 0;
 		refreshDelayed();
 	}).send();
-#endif
 }
 
-#if 0 // mtp
 void EmojiPack::applySet(const MTPDmessages_stickerSet &data) {
 	const auto stickers = collectStickers(data.vdocuments().v);
 	auto was = base::take(_map);
