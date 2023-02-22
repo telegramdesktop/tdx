@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_text_entities.h"
 #include "lang/lang_cloud_manager.h"
 #include "ui/boxes/confirm_box.h"
+#include "boxes/connection_box.h" // TypeToTL
 
 namespace Main {
 namespace {
@@ -188,14 +189,31 @@ void Account::prepareToStartAdded(
 void Account::watchProxyChanges() {
 	using ProxyChange = Core::Application::ProxyChange;
 
+
+	const auto apply = [&] {
+		const auto proxy = Core::App().settings().proxy().selected();
+		if (proxy && Core::App().settings().proxy().isEnabled()) {
+			_tdb->setProxy(Tdb::TLaddProxy(
+				Tdb::tl_string(proxy.host),
+				Tdb::tl_int32(proxy.port),
+				Tdb::tl_bool(true),
+				TypeToTL(proxy)
+			));
+		} else {
+			_tdb->setProxy(Tdb::TLdisableProxy());
+		}
+	};
+	apply();
 	Core::App().proxyChanges(
 	) | rpl::start_with_next([=](const ProxyChange &change) {
+		apply();
+#if 0 // mtp
 		const auto key = [&](const MTP::ProxyData &proxy) {
 			return (proxy.type == MTP::ProxyData::Type::Mtproto)
 				? std::make_pair(proxy.host, proxy.port)
 				: std::make_pair(QString(), uint32(0));
 		};
-#if 0 // todo
+
 		if (_mtp) {
 			_mtp->restart();
 			if (key(change.was) != key(change.now)) {

@@ -18,6 +18,10 @@ class Options;
 class FileGenerator;
 class FilesDownloader;
 
+class TLaddProxy;
+class TLdisableProxy;
+class TLupdate;
+
 class Account final {
 public:
 	explicit Account(AccountConfig &&config);
