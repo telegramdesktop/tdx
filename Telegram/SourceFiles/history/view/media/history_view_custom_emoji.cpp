@@ -142,6 +142,13 @@ void CustomEmoji::refreshInteractionLink() {
 	if (_lines.size() != 1 || _lines.front().size() != 1) {
 		return;
 	}
+	const auto weak = base::make_weak(this);
+	_interactionLink = std::make_shared<LambdaClickHandler>([weak] {
+		if (const auto that = weak.get()) {
+			that->interactionLinkClicked();
+		}
+	});
+#if 0 // mtp
 	const auto &pack = _parent->history()->session().emojiStickersPack();
 	const auto version = pack.animationsVersion();
 	if (_animationsCheckVersion == version) {
@@ -158,6 +165,7 @@ void CustomEmoji::refreshInteractionLink() {
 	} else {
 		_interactionLink = nullptr;
 	}
+#endif
 }
 
 ClickHandlerPtr CustomEmoji::link() {
