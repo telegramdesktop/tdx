@@ -397,7 +397,10 @@ auto HistoryMessageMarkupData::buttonData(
 	}, [&](const TLDinlineKeyboardButtonTypeBuy &data) {
 		return ButtonData{ Type::Buy };
 	}, [&](const TLDinlineKeyboardButtonTypeUser &data) {
-		return ButtonData{ Type::Default }; // todo
+		return ButtonData{
+			Type::UserProfile,
+			QByteArray::number(data.vuser_id().v),
+		};
 	}, [&](const TLDinlineKeyboardButtonTypeWebApp &data) {
 		return ButtonData{ Type::WebView, data.vurl().v.toUtf8() };
 	}, [&](const TLDinlineKeyboardButtonTypeCopyText &data) {

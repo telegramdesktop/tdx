@@ -1447,9 +1447,9 @@ void ApplyChannelUpdate(
 
 	channel->setSlowmodeSeconds(update.vslow_mode_delay().v);
 	if (const auto in = update.vslow_mode_delay_expires_in().v; in > 0.) {
-		// todo better slowmode management
+		// later better slowmode management
 		channel->growSlowmodeLastMessage(
-			base::unixtime::now() + int(std::round(in * 1000)) - channel->slowmodeSeconds());
+			base::unixtime::now() + int(base::SafeRound(in * 1000)) - channel->slowmodeSeconds());
 	}
 
 	if (const auto invite = update.vinvite_link()) {
