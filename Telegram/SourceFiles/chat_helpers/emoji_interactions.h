@@ -93,10 +93,12 @@ private:
 		bool incoming = false;
 		int index = 0;
 	};
+#if 0 // mtp
 	struct PlaySent {
 		mtpRequestId lastRequestId = 0;
 		crl::time lastDoneReceivedAt = 0;
 	};
+#endif
 	struct CheckResult {
 		crl::time nextCheckAt = 0;
 		bool waitingForDownload = false;
@@ -119,10 +121,12 @@ private:
 	void setWaitingForDownload(bool waiting);
 
 	void checkSeenRequests(crl::time now);
+#if 0 // mtp
 	void checkSentRequests(crl::time now);
 	void checkEdition(
 		not_null<HistoryItem*> item,
 		base::flat_map<not_null<HistoryItem*>, std::vector<Animation>> &map);
+#endif
 
 	const not_null<Main::Session*> _session;
 
@@ -133,15 +137,19 @@ private:
 	base::flat_map<
 		not_null<PeerData*>,
 		base::flat_map<QString, crl::time>> _playStarted;
+#if 0 // mtp
 	base::flat_map<
 		not_null<PeerData*>,
 		base::flat_map<not_null<EmojiPtr>, PlaySent>> _playsSent;
+#endif
 	rpl::event_stream<EmojiInteractionSeen> _seen;
 
 	bool _waitingForDownload = false;
 	rpl::lifetime _downloadCheckLifetime;
 
 	rpl::lifetime _lifetime;
+
+	base::flat_set<mtpRequestId> _outgoingRequests;
 
 };
 

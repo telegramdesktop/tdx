@@ -82,6 +82,7 @@ public:
 #endif
 	[[nodiscard]] std::shared_ptr<LargeEmojiImage> image(EmojiPtr emoji);
 
+#if 0 // mtp
 	[[nodiscard]] EmojiPtr chooseInteractionEmoji(
 		not_null<HistoryItem*> item) const;
 	[[nodiscard]] EmojiPtr chooseInteractionEmoji(
@@ -96,6 +97,7 @@ public:
 	[[nodiscard]] rpl::producer<> refreshed() const {
 		return _refreshed.events();
 	}
+#endif
 
 	[[nodiscard]] std::unique_ptr<Lottie::SinglePlayer> effectPlayer(
 		not_null<DocumentData*> document,
@@ -121,8 +123,8 @@ private:
 
 	void refresh();
 	void refreshDelayed();
-	void refreshAnimations();
 #if 0 // mtp
+	void refreshAnimations();
 	void applySet(const MTPDmessages_stickerSet &data);
 	void applyPack(
 		const MTPDstickerPack &data,
