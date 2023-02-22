@@ -861,7 +861,13 @@ void Histories::deleteMessagesByDates(
 		TimeId minDate,
 		TimeId maxDate,
 		bool revoke) {
-#if 0 // todo
+	history->session().sender().request(TLdeleteChatMessagesByDate(
+		peerToTdbChat(history->peer->id),
+		tl_int32(minDate),
+		tl_int32(maxDate),
+		tl_bool(revoke)
+	)).send();
+#if 0 // mtp
 	sendRequest(history, RequestType::Delete, [=](Fn<void()> finish) {
 		const auto peer = history->peer;
 		using Flag = MTPmessages_DeleteHistory::Flag;
