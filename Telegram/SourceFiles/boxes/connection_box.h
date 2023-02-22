@@ -13,6 +13,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/connection_abstract.h"
 #include "mtproto/mtproto_proxy_data.h"
 
+#include "tdb/tdb_sender.h"
+
+namespace Tdb {
+class TLproxy;
+class TLproxyType;
+} // namespace Tdb
+
 namespace Ui {
 class Show;
 class BoxContent;
@@ -95,8 +102,13 @@ private:
 		int id = 0;
 		ProxyData data;
 		bool deleted = false;
+#if 0 // mtp
 		Checker checker;
 		Checker checkerv6;
+#endif
+		int tdbId = 0;
+		mtpRequestId addRequestId = 0;
+		mtpRequestId checkRequestId = 0;
 		ItemState state = ItemState::Checking;
 		int ping = 0;
 
@@ -111,6 +123,8 @@ private:
 	void refreshChecker(Item &item);
 	void setupChecker(int id, const Checker &checker);
 
+	void addToTdb(Item &item);
+	void resolveTdb();
 	void replaceItemWith(
 		std::vector<Item>::iterator which,
 		std::vector<Item>::iterator with);
@@ -120,6 +134,7 @@ private:
 
 	const not_null<Main::Account*> _account;
 	Core::SettingsProxy &_settings;
+	Tdb::Sender _sender;
 	int _idCounter = 0;
 	std::vector<Item> _list;
 	rpl::event_stream<ItemView> _views;
@@ -132,4 +147,9 @@ private:
 
 	rpl::lifetime _lifetime;
 
+	mtpRequestId _listRequestId = 0;
+
 };
+
+[[nodiscard]] MTP::ProxyData FromTL(const Tdb::TLproxy &value);
+[[nodiscard]] Tdb::TLproxyType TypeToTL(const MTP::ProxyData &value);

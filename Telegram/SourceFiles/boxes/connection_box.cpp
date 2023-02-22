@@ -45,10 +45,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 #include "styles/style_menu_icons.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
 
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kSaveSettingsDelayedTimeout = crl::time(1000);
 
@@ -648,7 +653,14 @@ void ProxiesBox::setupTopButton() {
 
 			using namespace qthelp;
 			const auto options = RegExOption::CaseInsensitive;
+#if 0 // mtp
 			for (const auto &[expression, _] : Core::LocalUrlHandlers()) {
+#endif
+			const auto proxyurls = std::array{
+				u"^socks/?\\?(.+)(#|$)"_q,
+				u"^proxy/?\\?(.+)(#|$)"_q,
+			};
+			for (const auto &expression : proxyurls) {
 				const auto midExpression = base::StringViewMid(
 					expression,
 					1);
@@ -1166,6 +1178,7 @@ void ProxyBox::addLabel(
 ProxiesBoxController::ProxiesBoxController(not_null<Main::Account*> account)
 : _account(account)
 , _settings(Core::App().settings().proxy())
+, _sender(&account->sender())
 , _saveTimer([] { Local::writeSettings(); }) {
 	_list = ranges::views::all(
 		_settings.list()
@@ -1182,9 +1195,45 @@ ProxiesBoxController::ProxiesBoxController(not_null<Main::Account*> account)
 		}
 	}, _lifetime);
 
+#if 0 // mtp
 	for (auto &item : _list) {
 		refreshChecker(item);
 	}
+#endif
+	resolveTdb();
+}
+
+void ProxiesBoxController::resolveTdb() {
+	_listRequestId = _sender.request(TLgetProxies(
+	)).done([=](const TLproxies &result) {
+		auto enabled = ProxyData();
+		for (const auto &proxy : result.data().vproxies().v) {
+			const auto value = FromTL(proxy);
+			const auto i = ranges::find(_list, value, &Item::data);
+			if (i != end(_list)) {
+				i->tdbId = proxy.data().vid().v;
+				refreshChecker(*i);
+			}
+			if (proxy.data().vis_enabled().v) {
+				enabled = value;
+			}
+		}
+		const auto selected = _settings.selected();
+		for (auto &item : _list) {
+			const auto data = item.data;
+			const auto active = (data == selected) && _settings.isEnabled();
+			if (!item.tdbId) {
+				addToTdb(item);
+			} else if (active && data != enabled) {
+				_sender.request(TLenableProxy(
+					tl_int32(item.tdbId)
+				)).send();
+			}
+		}
+		if (!_settings.isEnabled() && enabled != ProxyData()) {
+			_sender.request(TLdisableProxy()).send();
+		}
+	}).send();
 }
 
 void ProxiesBoxController::ShowApplyConfirmation(
@@ -1276,8 +1325,56 @@ auto ProxiesBoxController::proxySettingsValue() const
 	) | rpl::distinct_until_changed();
 }
 
+void ProxiesBoxController::addToTdb(Item &item) {
+	const auto &data = item.data;
+	const auto active = _settings.isEnabled()
+		&& (data == _settings.selected());
+	_sender.request(item.addRequestId).cancel();
+	item.addRequestId = _sender.request(TLaddProxy(
+		tl_string(data.host),
+		tl_int32(data.port),
+		tl_bool(active),
+		TypeToTL(data)
+	)).done([=](const TLproxy &result) {
+		const auto i = ranges::find(_list, data, &Item::data);
+		if (i != end(_list)) {
+			i->addRequestId = 0;
+			i->tdbId = result.data().vid().v;
+			refreshChecker(*i);
+		}
+	}).send();
+}
+
 void ProxiesBoxController::refreshChecker(Item &item) {
-#if 0 // todo
+	Expects(item.tdbId != 0);
+	Expects(!item.addRequestId);
+
+	const auto id = item.tdbId;
+	item.state = ItemState::Checking;
+	_sender.request(item.checkRequestId).cancel();
+	item.checkRequestId = _sender.request(TLpingProxy(
+		tl_int32(item.tdbId)
+	)).done([=](const TLDseconds &result) {
+		const auto i = ranges::find(_list, id, &Item::tdbId);
+		if (i != end(_list)) {
+			i->checkRequestId = 0;
+			if (i->state == ItemState::Checking) {
+				i->state = ItemState::Available;
+				i->ping = int(base::SafeRound(result.vseconds().v * 1000));
+				updateView(*i);
+			}
+		}
+	}).fail([=] {
+		const auto i = ranges::find(_list, id, &Item::tdbId);
+		if (i != end(_list)) {
+			i->checkRequestId = 0;
+			if (i->state == ItemState::Checking) {
+				i->state = ItemState::Unavailable;
+				updateView(*i);
+			}
+		}
+	}).send();
+#if 0 // mtp
 	using Variants = MTP::DcOptions::Variants;
 	const auto type = (item.data.type == Type::Http)
 		? Variants::Http
@@ -1339,6 +1436,7 @@ void ProxiesBoxController::refreshChecker(Item &item) {
 #endif
 }
 
+#if 0 // mtp
 void ProxiesBoxController::setupChecker(int id, const Checker &checker) {
 	using Connection = MTP::details::AbstractConnection;
 	const auto pointer = checker.get();
@@ -1370,6 +1468,7 @@ void ProxiesBoxController::setupChecker(int id, const Checker &checker) {
 	pointer->connect(pointer, &Connection::disconnected, failed);
 	pointer->connect(pointer, &Connection::error, failed);
 }
+#endif
 
 object_ptr<Ui::BoxContent> ProxiesBoxController::CreateOwningBox(
 		not_null<Main::Account*> account) {
@@ -1459,6 +1558,10 @@ void ProxiesBoxController::setDeleted(int id, bool deleted) {
 				_lastSelectedProxyUsed = false;
 			}
 		}
+
+		if (item->tdbId) {
+			_sender.request(TLremoveProxy(tl_int32(item->tdbId))).send();
+		}
 	} else {
 		auto &proxies = _settings.list();
 		if (ranges::find(proxies, item->data) == end(proxies)) {
@@ -1533,7 +1636,18 @@ void ProxiesBoxController::replaceItemValue(
 	Assert(i != end(proxies));
 	*i = proxy;
 	which->data = proxy;
-	refreshChecker(*which);
+	if (which->tdbId) {
+		_sender.request(TLeditProxy(
+			tl_int32(which->tdbId),
+			tl_string(proxy.host),
+			tl_int32(proxy.port),
+			tl_bool(true),
+			TypeToTL(proxy)
+		)).send();
+		refreshChecker(*which);
+	} else if (which->addRequestId) {
+		addToTdb(*which);
+	}
 
 	applyItem(which->id);
 	saveDelayed();
@@ -1571,8 +1685,8 @@ void ProxiesBoxController::addNewItem(const ProxyData &proxy) {
 	proxies.push_back(proxy);
 
 	_list.push_back({ ++_idCounter, proxy });
-	refreshChecker(_list.back());
 	applyItem(_list.back().id);
+	addToTdb(_list.back());
 }
 
 bool ProxiesBoxController::setProxySettings(ProxyData::Settings value) {
@@ -1637,9 +1751,15 @@ void ProxiesBoxController::updateView(const Item &item) {
 		Unexpected("Proxy type in ProxiesBoxController::updateView.");
 	}();
 	const auto state = [&] {
+		using State = Main::Account::ConnectionState;
 		if (!selected || !_settings.isEnabled()) {
 			return item.state;
+#if 0 // mtp
 		} else if (_account->mtp().dcstate() == MTP::ConnectedState) {
+			return ItemState::Online;
+#endif
+		} else if (_account->connectionState() == State::Ready
+			|| _account->connectionState() == State::Updating) {
 			return ItemState::Online;
 		}
 		return ItemState::Connecting;
@@ -1684,4 +1804,40 @@ ProxiesBoxController::~ProxiesBoxController() {
 			QCoreApplication::instance(),
 			[] { Local::writeSettings(); });
 	}
+}
+
+MTP::ProxyData FromTL(const Tdb::TLproxy &value) {
+	const auto &fields = value.data();
+	auto result = ProxyData{
+		.host = fields.vserver().v,
+		.port = uint32(fields.vport().v),
+	};
+	fields.vtype().match([&](const TLDproxyTypeHttp &data) {
+		result.type = ProxyData::Type::Http;
+		result.user = data.vusername().v;
+		result.password = data.vpassword().v;
+	}, [&](const TLDproxyTypeSocks5 &data) {
+		result.type = ProxyData::Type::Socks5;
+		result.user = data.vusername().v;
+		result.password = data.vpassword().v;
+	}, [&](const TLDproxyTypeMtproto &data) {
+		result.type = ProxyData::Type::Mtproto;
+		result.password = data.vsecret().v;
+	});
+	return result;
+}
+
+TLproxyType TypeToTL(const MTP::ProxyData &value) {
+	Expects(value.type != MTP::ProxyData::Type::None);
+
+	return (value.type == MTP::ProxyData::Type::Http)
+		? tl_proxyTypeHttp(
+			tl_string(value.user),
+			tl_string(value.password),
+			tl_bool(false)) // http_only
+		: (value.type == MTP::ProxyData::Type::Socks5)
+		? tl_proxyTypeSocks5(
+			tl_string(value.user),
+			tl_string(value.password))
+		: tl_proxyTypeMtproto(tl_string(value.password));
 }
