@@ -1187,6 +1187,11 @@ void Updates::handleSendActionUpdate(
 	if (!from || !from->isUser() || from->isSelf()) {
 		return;
 	}
+	if (action.type() == id_chatActionWatchingAnimations) {
+		const auto &data = action.c_chatActionWatchingAnimations();
+		handleEmojiInteraction(peer, data.vemoji().v);
+		return;
+	}
 	session().data().sendActionManager().registerFor(
 		history,
 		rootId,
