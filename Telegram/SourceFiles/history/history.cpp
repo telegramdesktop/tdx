@@ -1894,12 +1894,16 @@ void History::applyInboxReadUpdate(
 		MsgId upTo,
 		int stillUnread,
 		int32 channelPts) {
+	Expects(folderId == (folder() ? folder()->id() : 0));
+
+#if 0 // mtp
 	const auto folder = folderId ? owner().folderLoaded(folderId) : nullptr;
 	if (folder && this->folder() != folder) {
 		// If history folder is unknown or not synced, request both.
 		owner().histories().requestDialogEntry(this);
 		owner().histories().requestDialogEntry(folder);
 	}
+#endif
 	if (_inboxReadBefore.value_or(1) <= upTo) {
 #if 0 // mtp
 		if (!peer->isChannel() || peer->asChannel()->pts() == channelPts) {
