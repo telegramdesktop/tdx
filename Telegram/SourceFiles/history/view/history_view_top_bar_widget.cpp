@@ -65,6 +65,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 #include "styles/style_menu_icons.h"
 
+#include "main/main_account.h"
+
 #include <QtGui/QWindow>
 
 namespace HistoryView {
@@ -253,10 +255,14 @@ Main::Session &TopBarWidget::session() const {
 }
 
 void TopBarWidget::updateConnectingState() {
-#if 0 // todo
+#if 0 // mtp
 	const auto state = _controller->session().mtp().dcstate();
 	const auto exposed = window()->windowHandle()->isExposed();
 	if (state == MTP::ConnectedState || !exposed) {
+#endif
+	const auto state = _controller->session().account().connectionState();
+	using State = Main::Account::ConnectionState;
+	if (state == State::Ready || state == State::Updating) {
 		if (_connecting) {
 			_connecting = nullptr;
 			update();
@@ -268,7 +274,6 @@ void TopBarWidget::updateConnectingState() {
 		_connecting->start();
 		update();
 	}
-#endif
 }
 
 void TopBarWidget::connectingAnimationCallback() {
