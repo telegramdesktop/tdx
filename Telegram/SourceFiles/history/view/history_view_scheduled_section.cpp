@@ -774,14 +774,14 @@ void ScheduledWidget::edit(
 		}
 	}
 
+#if 0 // mtp
 	lifetime().add([=] {
 		if (!*saveEditMsgRequestId) {
 			return;
 		}
-#if 0 // todo
 		session().api().request(base::take(*saveEditMsgRequestId)).cancel();
-#endif
 	});
+#endif
 
 	const auto done = [=](mtpRequestId requestId) {
 		if (requestId == *saveEditMsgRequestId) {
