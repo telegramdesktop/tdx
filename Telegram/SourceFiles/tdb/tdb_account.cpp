@@ -28,6 +28,10 @@ Account::Account(AccountConfig &&config)
 
 Account::~Account() = default;
 
+void Account::setProxy(std::variant<TLdisableProxy, TLaddProxy> value) {
+	_instance.setProxy(std::move(value));
+}
+
 void Account::logout() {
 	_instance.logout();
 }
