@@ -39,6 +39,24 @@ constexpr auto kRequestTimeLimit = 5 * 60 * crl::time(1000);
 	return (received > 0) && (received + kRequestTimeLimit > crl::now());
 }
 
+[[nodiscard]] QByteArray SerializeRandomId(
+		not_null<History*> history,
+		int64 id) {
+	return QByteArray::number(history->peer->id.value)
+		+ '_'
+		+ QByteArray::number(id);
+}
+
+[[nodiscard]] FullMsgId DeserializeRandomId(const QByteArray &randomId) {
+	const auto list = randomId.split('_');
+	if (list.size() != 2) {
+		return FullMsgId();
+	}
+	const auto peerId = PeerId(list[0].toLongLong());
+	const auto msgId = MsgId(list[1].toLongLong());
+	return FullMsgId(peerId, msgId);
+}
+
 } // namespace
 
 SponsoredMessages::SponsoredMessages(not_null<Main::Session*> session)
@@ -55,12 +73,14 @@ SponsoredMessages::~SponsoredMessages() {
 void SponsoredMessages::clear() {
 	_lifetime.destroy();
 	for (const auto &request : base::take(_requests)) {
-#if 0 // todo
+		_session->sender().request(request.second.requestId).cancel();
+#if 0 // mtp
 		_session->api().request(request.second.requestId).cancel();
 #endif
 	}
 	for (const auto &request : base::take(_viewRequests)) {
-#if 0 // todo
+		_session->sender().request(request.second.requestId).cancel();
+#if 0 // mtp
 		_session->api().request(request.second.requestId).cancel();
 #endif
 	}
@@ -238,7 +258,6 @@ void SponsoredMessages::request(not_null<History*> history, Fn<void()> done) {
 		if (done) {
 			done();
 		}
-	}).send();
 #if 0 // mtp - chatInviteHash = link.internalLinkTypeChatInvite.invite_link
 	request.requestId = _session->api().request(
 		MTPchannels_GetSponsoredMessages(channel->inputChannel)
@@ -247,10 +266,10 @@ void SponsoredMessages::request(not_null<History*> history, Fn<void()> done) {
 		if (done) {
 			done();
 		}
+#endif
 	}).fail([=] {
 		_requests.remove(history);
 	}).send();
-#endif
 }
 
 void SponsoredMessages::parse(
@@ -427,57 +446,36 @@ void SponsoredMessages::append(
 		}
 	}
 #endif
-	const auto from = [&]() -> SponsoredFrom {
-		const auto exactPost = data.vlink().has_value()
-			&& (data.vlink()->type() == id_internalLinkTypeMessage);
-		if (const auto peerId = peerFromTdbChat(data.vsponsor_chat_id())) {
-			return makeFrom(_session->data().peer(peerId), exactPost);
-		}
-		const auto &info = data.vsponsor_chat_info()->data();
-		if (const auto peerId = peerFromTdbChat(info.vchat_id())) {
-			return makeFrom(_session->data().peer(peerId), exactPost);
-		}
-		auto userpic = info.vphoto()
-			? Images::FromTdbFile(
-				info.vphoto()->data().vsmall(),
-				kSmallUserpicSize,
-				kSmallUserpicSize)
-			: ImageWithLocation{};
-		auto result = SponsoredFrom{
-			.title = info.vtitle().v,
-			.isPublic = info.vis_public().v,
-			.userpic = std::move(userpic),
-			.isForceUserpicDisplay = message.data().vshow_chat_photo().v,
-		};
-		info.vtype().match([&](const TLDchatTypeSupergroup &data) {
-			result.isBroadcast = data.vis_channel().v;
-			result.isMegagroup = !result.isBroadcast;
-			result.isChannel = true;
-		}, [](const auto &) {});
-		return result;
-	}();
+	const auto &sponsor = data.vsponsor().data();
+	const auto from = SponsoredFrom{
+		.title = qs(data.vtitle()),
+		.link = qs(sponsor.vurl()),
+		.buttonText = qs(data.vbutton_text()),
+		.photoId = sponsor.vphoto()
+			? history->session().data().processPhoto(*sponsor.vphoto())->id
+			: PhotoId(0),
+		.backgroundEmojiId = uint64(data.vbackground_custom_emoji_id().v),
+		.colorIndex = uint8(data.vaccent_color_id().v),
+		.isLinkInternal = !UrlRequiresConfirmation(qs(sponsor.vurl())),
+		.isRecommended = data.vis_recommended().v,
+		.canReport = data.vcan_be_reported().v,
+	};
 	Assert(data.vcontent().type() == id_messageText);
-	const auto invoke = data.vlink()
-		? [=, link = *data.vlink()](QVariant context) {
-			return Core::HandleLocalUrl(link, context);
-		} : Fn<bool(QVariant)>();
-	auto sponsorInfo = !data.vsponsor_info().v.isEmpty()
+	auto sponsorInfo = !sponsor.vinfo().v.isEmpty()
 		? tr::lng_sponsored_info_submenu(
 			tr::now,
 			lt_text,
-			{ .text = data.vsponsor_info().v },
+			{ .text = sponsor.vinfo().v },
 			Ui::Text::RichLangValue)
 		: TextWithEntities();
 	auto additionalInfo = TextWithEntities{ data.vadditional_info().v };
 	auto sharedMessage = SponsoredMessage{
-		.randomId = (QByteArray::number(history->peer->id.value)
-			+ '_'
-			+ QByteArray::number(data.vmessage_id().v)),
+		.randomId = SerializeRandomId(history, data.vmessage_id().v),
 		.from = from,
 		.textWithEntities = Api::FormattedTextFromTdb(
 			data.vcontent().c_messageText().vtext()),
 		.history = history,
-		.invoke = invoke,
+		.link = from.link,
 		.sponsorInfo = std::move(sponsorInfo),
 		.additionalInfo = std::move(additionalInfo),
 	};
@@ -529,7 +527,16 @@ void SponsoredMessages::view(const FullMsgId &fullId) {
 	}
 	const auto channel = entryPtr->item->history()->peer->asChannel();
 	Assert(channel != nullptr);
-#if 0 // todo test maybe is viewd already
+	const auto [peerId, realId] = DeserializeRandomId(randomId);
+	Assert(peerId == channel->id);
+	Assert(realId != 0);
+	request.requestId = _session->sender().request(TLviewMessages(
+		peerToTdbChat(peerId),
+		tl_vector<TLint53>(1, tl_int53(realId.bare)),
+		tl_messageSourceChatHistory(),
+		tl_bool(false)
+	)).send();
+#if 0 // mtp
 	request.requestId = _session->api().request(
 		MTPchannels_ViewSponsoredMessage(
 			channel->inputChannel,
@@ -572,9 +579,6 @@ SponsoredMessages::Details SponsoredMessages::lookupDetails(
 		.colorIndex = data.from.colorIndex,
 		.isLinkInternal = data.from.isLinkInternal,
 		.canReport = data.from.canReport,
-
-		.peer = entryPtr->sponsored.from.peer,
-		.invoke = entryPtr->sponsored.invoke,
 	};
 }
 
@@ -586,6 +590,14 @@ void SponsoredMessages::clicked(
 	if (!entryPtr) {
 		return;
 	}
+	const auto id = DeserializeRandomId(entryPtr->sponsored.randomId);
+	_session->sender().request(TLclickChatSponsoredMessage(
+		peerToTdbChat(id.peer),
+		tl_int53(id.msg.bare),
+		tl_bool(isMedia),
+		tl_bool(isFullscreen)
+	)).send();
+#if 0 // mtp
 	const auto randomId = entryPtr->sponsored.randomId;
 	const auto channel = entryPtr->item->history()->peer->asChannel();
 	Assert(channel != nullptr);
@@ -597,14 +609,20 @@ void SponsoredMessages::clicked(
 		channel->inputChannel,
 		MTP_bytes(randomId)
 	)).send();
+#endif
 }
 
 
 auto SponsoredMessages::createReportCallback(const FullMsgId &fullId)
 -> Fn<void(SponsoredReportResult::Id, Fn<void(SponsoredReportResult)>)> {
+#if 0 // mtp
 	using TLChoose = MTPDchannels_sponsoredMessageReportResultChooseOption;
 	using TLAdsHidden = MTPDchannels_sponsoredMessageReportResultAdsHidden;
 	using TLReported = MTPDchannels_sponsoredMessageReportResultReported;
+#endif
+	using TLChoose = TLDreportChatSponsoredMessageResultOptionRequired;
+	using TLAdsHidden = TLDreportChatSponsoredMessageResultAdsHidden;
+	using TLReported = TLDreportChatSponsoredMessageResultOk;
 	using Result = SponsoredReportResult;
 
 	struct State final {
@@ -645,6 +663,49 @@ auto SponsoredMessages::createReportCallback(const FullMsgId &fullId)
 			return;
 		}
 
+		const auto id = DeserializeRandomId(entry->sponsored.randomId);
+		state->requestId = _session->sender().request(
+			TLreportChatSponsoredMessage(
+				peerToTdbChat(id.peer),
+				tl_int53(id.msg.bare),
+				tl_bytes(optionId))
+		).done([=](
+				const TLreportChatSponsoredMessageResult &result,
+				mtpRequestId requestId) {
+			if (state->requestId != requestId) {
+				return;
+			}
+			state->requestId = 0;
+			done(result.match([&](const TLChoose &data) {
+				const auto t = qs(data.vtitle());
+				auto list = Result::Options();
+				list.reserve(data.voptions().v.size());
+				for (const auto &tl : data.voptions().v) {
+					list.emplace_back(Result::Option{
+						.id = tl.data().vid().v,
+						.text = qs(tl.data().vtext()),
+					});
+				}
+				return Result{ .options = std::move(list), .title = t };
+			}, [](const TLAdsHidden &data) -> Result {
+				return { .result = Result::FinalStep::Hidden };
+			}, [&](const TLReported &data) -> Result {
+				erase();
+				if (optionId == Result::Id("1")) { // I don't like it.
+					return { .result = Result::FinalStep::Silence };
+				}
+				return { .result = Result::FinalStep::Reported };
+			}, [&](const TLDreportChatSponsoredMessageResultPremiumRequired &) {
+				return Result{ .result = Result::FinalStep::Premium };
+			}, [&](const TLDreportChatSponsoredMessageResultFailed &) {
+				erase();
+				return Result{ .result = Result::FinalStep::Silence };
+			}));
+		}).fail([=](const Error &error) {
+			state->requestId = 0;
+			done({ .error = error.message });
+		}).send();
+#if 0 // mtp
 		state->requestId = _session->api().request(
 			MTPchannels_ReportSponsoredMessage(
 				channel->inputChannel,
@@ -685,6 +746,7 @@ auto SponsoredMessages::createReportCallback(const FullMsgId &fullId)
 				done({ .error = error.type() });
 			}
 		}).send();
+#endif
 	};
 }
 
