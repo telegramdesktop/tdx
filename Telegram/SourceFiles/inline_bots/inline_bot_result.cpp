@@ -107,9 +107,6 @@ std::unique_ptr<Result> Result::Create(
 		return std::make_unique<Result>(session, Creator{ queryId, type });
 	};
 
-#if 0 // todo invoice
-#endif
-
 	return tlData.match([&](const TLDinlineQueryResultArticle &data) {
 		auto result = createResult(Type::Article);
 
