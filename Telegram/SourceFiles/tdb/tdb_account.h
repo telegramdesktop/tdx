@@ -16,6 +16,7 @@ using AccountConfig = details::InstanceConfig;
 
 class Options;
 class FileGenerator;
+class FilesDownloader;
 
 class Account final {
 public:
@@ -56,6 +57,7 @@ private:
 	std::unique_ptr<Options> _options;
 	rpl::event_stream<TLupdate> _updates;
 
+	std::unique_ptr<FilesDownloader> _downloader;
 	base::flat_map<QString, not_null<FileGenerator*>> _generators;
 	base::flat_map<int64, not_null<FileGenerator*>> _generations;
 
