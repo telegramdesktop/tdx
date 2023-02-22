@@ -59,7 +59,9 @@ struct FormDetails {
 	QString url;
 #if 0 // goodToRemove
 	QString nativeProvider;
+#endif
 	QString termsBotUsername;
+#if 0 // mtp
 	QByteArray nativeParamsJson;
 #endif
 	UserId botId = 0;

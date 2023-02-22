@@ -885,6 +885,8 @@ void Form::processReceipt(const TLDpaymentReceipt &data) {
 }
 
 void Form::processInvoice(const TLDinvoice &data) {
+	const auto recurringTermsUrl
+		= data.vrecurring_payment_terms_of_service_url().v;
 	_invoice = Ui::Invoice{
 		.cover = std::move(_invoice.cover),
 
@@ -903,9 +905,13 @@ void Form::processInvoice(const TLDinvoice &data) {
 		.isPhoneRequested = data.vneed_phone_number().v,
 		.isEmailRequested = data.vneed_email_address().v,
 		.isShippingAddressRequested = data.vneed_shipping_address().v,
+		.isRecurring = !recurringTermsUrl.isEmpty(),
 		.isFlexible = data.vis_flexible().v,
 		.isTest = data.vis_test().v,
 
+		.termsUrl = (!recurringTermsUrl.isEmpty()
+			? recurringTermsUrl
+			: data.vterms_of_service_url().v),
 		.phoneSentToProvider = data.vsend_phone_number_to_provider().v,
 		.emailSentToProvider = data.vsend_email_address_to_provider().v,
 	};
@@ -928,6 +934,7 @@ void Form::processDetails(const TLDpaymentForm &data) {
 	if (const auto botId = _details.botId) {
 		if (const auto bot = _session->data().userLoaded(botId)) {
 			_invoice.cover.seller = bot->name();
+			_details.termsBotUsername = bot->username();
 		}
 	}
 	if (const auto providerId = _details.providerId) {
