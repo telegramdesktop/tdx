@@ -66,7 +66,9 @@ public:
 	void readClientSideMessage(not_null<HistoryItem*> item);
 	void sendPendingReadInbox(not_null<History*> history);
 
+#if 0 // mtp
 	void requestDialogEntry(not_null<Data::Folder*> folder);
+#endif
 	void requestDialogEntry(
 		not_null<History*> history,
 		Fn<void()> callback = nullptr);

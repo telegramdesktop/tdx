@@ -328,13 +328,13 @@ void Histories::readClientSideMessage(not_null<HistoryItem*> item) {
 	}
 }
 
+#if 0 // mtp
 void Histories::requestDialogEntry(not_null<Data::Folder*> folder) {
 	if (_dialogFolderRequests.contains(folder)) {
 		return;
 	}
 	_dialogFolderRequests.emplace(folder);
 
-#if 0 // todo
 	auto peers = QVector<MTPInputDialogPeer>(
 		1,
 		MTP_inputDialogPeerFolder(MTP_int(folder->id())));
@@ -346,8 +346,8 @@ void Histories::requestDialogEntry(not_null<Data::Folder*> folder) {
 	}).fail([=] {
 		_dialogFolderRequests.remove(folder);
 	}).send();
-#endif
 }
+#endif
 
 void Histories::requestDialogEntry(
 		not_null<History*> history,

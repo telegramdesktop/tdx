@@ -160,9 +160,11 @@ void Folder::indexNameParts() {
 void Folder::registerOne(not_null<History*> history) {
 	if (_chatsList.indexed()->size() == 1) {
 		updateChatListSortPosition();
+#if 0 // mtp
 		if (!_chatsList.cloudUnreadKnown()) {
 			owner().histories().requestDialogEntry(this);
 		}
+#endif
 	} else {
 		updateChatListEntry();
 	}
