@@ -890,9 +890,16 @@ void SetupUnreadMentionsMenu(
 		const auto peer = thread->peer();
 		const auto topic = thread->asTopic();
 		const auto rootId = topic ? topic->rootId() : 0;
-		peer->session().sender().request(TLreadAllChatMentions( // todo topics
-			peerToTdbChat(peer->id)
-		)).done(done).fail(done).send();
+		if (rootId) {
+			peer->session().sender().request(TLreadAllMessageThreadMentions(
+				peerToTdbChat(peer->id),
+				tl_int53(rootId.bare)
+			)).done(done).fail(done).send();
+		} else {
+			peer->session().sender().request(TLreadAllChatMentions(
+				peerToTdbChat(peer->id)
+			)).done(done).fail(done).send();
+		}
 #if 0 // mtp
 		using Flag = MTPmessages_ReadMentions::Flag;
 		peer->session().api().request(MTPmessages_ReadMentions(
@@ -936,9 +943,16 @@ void SetupUnreadReactionsMenu(
 		const auto topic = thread->asTopic();
 		const auto peer = thread->peer();
 		const auto rootId = topic ? topic->rootId() : 0;
-		peer->session().sender().request(TLreadAllChatReactions(
-			peerToTdbChat(peer->id) // tdlib todo topics
-		)).done(done).fail(done).send();
+		if (rootId) {
+			peer->session().sender().request(TLreadAllMessageThreadReactions(
+				peerToTdbChat(peer->id),
+				tl_int53(rootId.bare)
+			)).done(done).fail(done).send();
+		} else {
+			peer->session().sender().request(TLreadAllChatReactions(
+				peerToTdbChat(peer->id)
+			)).done(done).fail(done).send();
+		}
 #if 0 // mtp
 		using Flag = MTPmessages_ReadReactions::Flag;
 		peer->session().api().request(MTPmessages_ReadReactions(
