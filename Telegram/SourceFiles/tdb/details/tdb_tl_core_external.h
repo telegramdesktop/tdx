@@ -19,4 +19,10 @@ using ExternalResponse = const ::td::td_api::Object*;
 using ExternalGenerator = Fn<ExternalRequest()>;
 using ExternalCallback = FnMut<FnMut<void()>(uint64, ExternalResponse)>;
 
+template <typename Request>
+[[nodiscard]] ExternalGenerator tl_to_generator(Request &&);
+
+template <typename Response>
+[[nodiscard]] Response tl_from(ExternalResponse);
+
 } // namespace Tdb

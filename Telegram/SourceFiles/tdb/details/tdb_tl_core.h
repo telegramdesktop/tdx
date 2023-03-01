@@ -154,12 +154,6 @@ inline bool operator!=(const TLstring &a, const TLstring &b) {
 	return a.v != b.v;
 }
 
-template <typename Request>
-[[nodiscard]] ExternalGenerator tl_to_generator(Request &&);
-
-template <typename Response>
-[[nodiscard]] Response tl_from(ExternalResponse);
-
 template <typename T>
 struct is_TLvector : std::bool_constant<false> {
 };
