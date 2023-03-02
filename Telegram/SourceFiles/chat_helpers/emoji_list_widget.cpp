@@ -584,8 +584,10 @@ void EmojiListWidget::applyNextSearchQuery() {
 		return;
 	}
 	_searchQuery = _nextSearchQuery;
+#if 0 // mtp
 	std::swap(_searchEmoji, _searchEmojiPrevious);
 	_searchEmoji.clear();
+#endif
 	const auto finish = [&](bool searching = true) {
 		if (!_searchMode && !searching) {
 			return;
@@ -594,6 +596,7 @@ void EmojiListWidget::applyNextSearchQuery() {
 		clearSelection();
 		if (modeChanged) {
 			_searchMode = searching;
+			invalidate_weak_ptrs(&_searchGuard);
 		}
 		if (!searching) {
 			_searchResults.clear();
@@ -607,11 +610,20 @@ void EmojiListWidget::applyNextSearchQuery() {
 		updateSelected();
 	};
 	if (_searchQuery.empty()) {
+		std::swap(_searchEmoji, _searchEmojiPrevious);
+		_searchEmoji.clear();
 		finish(false);
 		return;
 	}
+	const auto callback = crl::guard(&_searchGuard, [=](
+		const std::vector<EmojiPtr> &plain) {
+
+	std::swap(_searchEmoji, _searchEmojiPrevious);
 	const auto guard = gsl::finally([&] { finish(); });
+#if 0 // mtp
 	auto plain = collectPlainSearchResults();
+#endif
+	_searchEmoji = { begin(plain), end(plain) };
 	if (_searchEmoji == _searchEmojiPrevious) {
 		return;
 	}
@@ -627,6 +639,12 @@ void EmojiListWidget::applyNextSearchQuery() {
 			});
 		}
 	}
+
+	});
+	_searchRequestId = SearchEmoji(
+		_searchRequestId,
+		_searchQuery,
+		callback);
 }
 
 void EmojiListWidget::showPreview() {
@@ -638,9 +656,11 @@ void EmojiListWidget::showPreview() {
 	}
 }
 
+#if 0 // mtp
 std::vector<EmojiPtr> EmojiListWidget::collectPlainSearchResults() {
 	return SearchEmoji(_searchQuery, _searchEmoji);
 }
+#endif
 
 void EmojiListWidget::appendPremiumSearchResults() {
 	const auto test = session().isTestMode();
