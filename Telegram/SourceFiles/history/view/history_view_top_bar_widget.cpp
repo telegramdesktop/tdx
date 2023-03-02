@@ -1108,7 +1108,9 @@ void TopBarWidget::updateControlsVisibility() {
 	const auto callsEnabled = [&] {
 		if (const auto peer = _activeChat.key.peer()) {
 			if (const auto user = peer->asUser()) {
-				return !user->isSelf() && !user->isBot();
+				return !user->isSelf()
+					&& !user->isBot()
+					&& !user->isServiceUser();
 			}
 		}
 		return false;
