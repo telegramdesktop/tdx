@@ -1503,24 +1503,30 @@ void ApplyChannelUpdate(
 		if (channel->mgInfo->setBotCommands(std::move(commands))) {
 			channel->owner().botCommandsChanged(channel);
 		}
-
-		//update.vsticker_set_id();// todo
-		//const auto stickerSet = update.vstickerset();
-		//const auto set = stickerSet ? &stickerSet->c_stickerSet() : nullptr;
-		//const auto newSetId = (set ? set->vid().v : 0);
-		//const auto oldSetId = (channel->mgInfo->stickerSet.type() == mtpc_inputStickerSetID)
-		//	? channel->mgInfo->stickerSet.c_inputStickerSetID().vid().v
-		//	: 0;
-		//const auto stickersChanged = (canEditStickers != channel->canEditStickers())
-		//	|| (oldSetId != newSetId);
-		//if (oldSetId != newSetId) {
-		//	channel->mgInfo->stickerSet = set
-		//		? MTP_inputStickerSetID(set->vid(), set->vaccess_hash())
-		//		: MTP_inputStickerSetEmpty();
-		//}
-		//if (stickersChanged) {
-		//	session->changes().peerUpdated(channel, UpdateFlag::StickersSet);
-		//}
+		{
+			const auto newSetId = uint64(update.vsticker_set_id().v);
+			const auto oldSetId = channel->mgInfo->stickerSet.id;
+			const auto stickersChanged = (canEditStickers != channel->canEditStickers())
+				|| (oldSetId != newSetId);
+			if (oldSetId != newSetId) {
+				channel->mgInfo->stickerSet = StickerSetIdentifier{
+					.id = newSetId,
+				};
+			}
+			if (stickersChanged) {
+				session->changes().peerUpdated(channel, UpdateFlag::StickersSet);
+			}
+		}
+		{
+			const auto newSetId = uint64(update.vcustom_emoji_sticker_set_id().v);
+			const auto oldSetId = channel->mgInfo->emojiSet.id;
+			if (oldSetId != newSetId) {
+				channel->mgInfo->emojiSet = StickerSetIdentifier{
+					.id = newSetId,
+				};
+				session->changes().peerUpdated(channel, UpdateFlag::EmojiSet);
+			}
+		}
 	}
 	channel->fullUpdated();
 

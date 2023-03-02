@@ -587,7 +587,10 @@ BottomInfo::Data BottomInfoDataFromMessage(not_null<Message*> message) {
 		if (views->views.count >= 0) {
 			result.views = views->views.count;
 		}
+#if 0 // mtp
 		if (views->replies.count >= 0 && !views->commentsMegagroupId) {
+#endif
+		if (views->replies.count >= 0 && !item->isPost()) {
 			result.replies = views->replies.count;
 		}
 		if (views->forwardsCount > 0) {

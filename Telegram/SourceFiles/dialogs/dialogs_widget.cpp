@@ -89,6 +89,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "tdb/tdb_sender.h"
 #include "tdb/tdb_tl_scheme.h"
+#include "data/data_saved_messages.h"
 
 #include <QtCore/QMimeData>
 #include <QtGui/QTextBlock>
@@ -2167,17 +2168,22 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 		if (inPeer) {
 			const auto topic = searchInTopic();
 			const auto type = SearchRequestType::PeerFromStart;
+			const auto sublist = _openedForum
+				? nullptr
+				: _searchState.inChat.sublist();
+			const auto fromPeer = sublist ? nullptr : _searchQueryFrom;
 			_searchRequest = _api.request(TLsearchChatMessages(
-				peerToTdbChat(peer->id), // todo topics
-				tl_string(q),
-				(_searchQueryFrom
-					? peerToSender(_searchQueryFrom->id)
+				peerToTdbChat(inPeer->id),
+				tl_string(_searchQuery),
+				(fromPeer
+					? peerToSender(fromPeer->id)
 					: std::optional<TLmessageSender>()),
 				tl_int53(0), // from_message_id
 				tl_int32(0), // offset
 				tl_int32(kSearchPerPage),
 				std::nullopt, // filter
-				tl_int53(topic ? topic->rootId().bare : 0)
+				tl_int53(topic ? topic->rootId().bare : 0),
+				tl_int53(session().data().savedMessages().sublistId(sublist))
 			)).done([=](const TLfoundChatMessages &result) {
 				_searchRequest = 0;
 				searchReceived(type, result);
@@ -2239,6 +2245,18 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 #endif
 		} else if (_searchState.tab == ChatSearchTab::PublicPosts) {
 			const auto type = SearchRequestType::FromStart;
+			_searchRequest = _api.request(TLsearchPublicMessagesByTag(
+				tl_string(_searchState.query.trimmed().mid(1)),
+				tl_string(), // offset
+				tl_int32(kSearchPerPage)
+			)).done([=](const TLfoundMessages &result) {
+				_searchRequest = 0;
+				searchReceived(type, result);
+			}).fail([=] {
+				_searchRequest = 0;
+				_searchFull = true;
+			}).send();
+#if 0 // mtp
 			_searchRequest = session().api().request(MTPchannels_SearchPosts(
 				MTP_string(_searchState.query.trimmed().mid(1)),
 				MTP_int(0), // offset_rate
@@ -2251,12 +2269,14 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 				searchFailed(type, error, _searchRequest);
 			}).send();
 			_searchQueries.emplace(_searchRequest, _searchQuery);
+#endif
 		} else {
 			const auto type = SearchRequestType::FromStart;
 			_searchRequest = _api.request(TLsearchMessages(
 				(session().settings().skipArchiveInSearch()
 					? tl_chatListMain()
 					: std::optional<TLchatList>()),
+				tl_bool(false), // only_in_channels
 				tl_string(_searchQuery),
 				tl_string(), // offset
 				tl_int32(kSearchPerPage),
@@ -2328,7 +2348,7 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 #endif
 			_peerSearchQueries.emplace(_peerSearchRequest, _peerSearchQuery);
 		}
-		if (searchCache) {
+		if (inCache) {
 			auto i = _cloudChatsCache.find(query);
 			if (i != _cloudChatsCache.end()) {
 				_cloudChatsQuery = query;
@@ -2469,17 +2489,23 @@ void Widget::searchMore() {
 		return;
 	} else if (!_searchFull) {
 		if (const auto peer = searchInPeer()) {
+			const auto topic = searchInTopic();
+			const auto sublist = _openedForum
+				? nullptr
+				: _searchState.inChat.sublist();
+			const auto fromPeer = sublist ? nullptr : _searchQueryFrom;
 			_searchRequest = _api.request(TLsearchChatMessages(
 				peerToTdbChat(peer->id),
 				tl_string(_searchQuery),
-				(_searchQueryFrom
-					? peerToSender(_searchQueryFrom->id)
+				(fromPeer
+					? peerToSender(fromPeer->id)
 					: std::optional<TLmessageSender>()),
 				tl_int53(_nextSearchMessageId.bare),
 				tl_int32(0), // offset
 				tl_int32(kSearchPerPage),
 				std::nullopt, // filter
-				tl_int53(0) // message_thread_id
+				tl_int53(topic ? topic->rootId().bare : 0),
+				tl_int53(session().data().savedMessages().sublistId(sublist))
 			)).done([=](const TLfoundChatMessages &result) {
 				_searchRequest = 0;
 				searchReceived(SearchRequestType::PeerFromOffset, result);
@@ -2549,6 +2575,7 @@ void Widget::searchMore() {
 				(session().settings().skipArchiveInSearch()
 					? tl_chatListMain()
 					: std::optional<TLchatList>()),
+				tl_bool(false), // only_in_channels
 				tl_string(_searchQuery),
 				tl_string(_nextSearchOffset),
 				tl_int32(kSearchPerPage),
@@ -2608,7 +2635,8 @@ void Widget::searchMore() {
 			tl_int32(0), // offset
 			tl_int32(kSearchPerPage),
 			std::nullopt, // filter
-			tl_int53(0) // message_thread_id
+			tl_int53(0), // message_thread_id
+			tl_int53(0) // saved_messages_topic_id
 		)).done([=](const TLfoundChatMessages &result) {
 			_searchRequest = 0;
 			searchReceived(type, result);

@@ -773,7 +773,9 @@ auto PhotoData::createStreamingLoader(
 		return std::make_unique<Media::Streaming::LoaderTdb>(
 			&session().tdb(),
 			tdb->fileId,
-			TdbFileLocation::BigFileBaseCacheKey(id, tdb->hash),
+			TdbFileLocation::BigFileBaseCacheKey(
+				tdb->hash,
+				kTdbLocationTypePhoto),
 			videoByteSize(large));
 	}
 	return nullptr;

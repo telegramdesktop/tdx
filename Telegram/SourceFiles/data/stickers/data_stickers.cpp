@@ -654,7 +654,8 @@ void Stickers::requestSetToPushFaved(
 		}
 		setIsFaved(nullptr, document, std::move(list));
 	};
-#if 0 // todo
+	addAnyway({});
+#if 0 // mtp
 	session().api().request(MTPmessages_GetStickerSet(
 		Data::InputStickerSet(document->sticker()->set),
 		MTP_int(0) // hash
