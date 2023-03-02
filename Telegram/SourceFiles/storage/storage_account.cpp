@@ -1655,6 +1655,7 @@ Cache::Database::Settings Account::cacheBigFileSettings() const {
 void Account::writeStickerSet(
 		QDataStream &stream,
 		const Data::StickersSet &set) {
+#if 0 // mtp
 	using SetFlag = Data::StickersSetFlag;
 	const auto writeInfo = [&](int count) {
 		stream
@@ -1694,6 +1695,7 @@ void Account::writeStickerSet(
 			stream << quint64(sticker->id);
 		}
 	}
+#endif
 }
 
 // In generic method _writeStickerSets() we look through all the sets and call a
@@ -1710,6 +1712,7 @@ void Account::writeStickerSets(
 		FileKey &stickersKey,
 		CheckSet checkSet,
 		const Data::StickersSetsOrder &order) {
+#if 0 // mtp
 	using SetFlag = Data::StickersSetFlag;
 
 	const auto &sets = _owner->session().data().stickers().sets();
@@ -1794,12 +1797,14 @@ void Account::writeStickerSets(
 
 	FileWriteDescriptor file(stickersKey, _basePath);
 	file.writeEncrypted(data, _localKey);
+#endif
 }
 
 void Account::readStickerSets(
 		FileKey &stickersKey,
 		Data::StickersSetsOrder *outOrder,
 		Data::StickersSetFlags readingFlags) {
+#if 0 // mtp
 	using SetFlag = Data::StickersSetFlag;
 
 	FileReadDescriptor stickers;
@@ -2035,9 +2040,11 @@ void Account::readStickerSets(
 			}
 		}
 	}
+#endif
 }
 
 void Account::writeInstalledStickers() {
+#if 0 // mtp
 	using SetFlag = Data::StickersSetFlag;
 
 	writeStickerSets(_installedStickersKey, [](const Data::StickersSet &set) {
@@ -2062,9 +2069,11 @@ void Account::writeInstalledStickers() {
 		}
 		return StickerSetCheckResult::Write;
 	}, _owner->session().data().stickers().setsOrder());
+#endif
 }
 
 void Account::writeFeaturedStickers() {
+#if 0 // mtp
 	using SetFlag = Data::StickersSetFlag;
 
 	writeStickerSets(_featuredStickersKey, [](const Data::StickersSet &set) {
@@ -2084,9 +2093,11 @@ void Account::writeFeaturedStickers() {
 		}
 		return StickerSetCheckResult::Write;
 	}, _owner->session().data().stickers().featuredSetsOrder());
+#endif
 }
 
 void Account::writeFeaturedCustomEmoji() {
+#if 0 // mtp
 	using SetFlag = Data::StickersSetFlag;
 
 	writeStickerSets(_featuredCustomEmojiKey, [](const Data::StickersSet &set) {
@@ -2100,6 +2111,7 @@ void Account::writeFeaturedCustomEmoji() {
 		}
 		return StickerSetCheckResult::Write;
 	}, _owner->session().data().stickers().featuredEmojiSetsOrder());
+#endif
 }
 
 void Account::writeRecentStickers() {
@@ -2190,6 +2202,7 @@ void Account::writeInstalledCustomEmoji() {
 }
 
 void Account::importOldRecentStickers() {
+#if 0 // mtp
 	using SetFlag = Data::StickersSetFlag;
 
 	if (!_recentStickersKeyOld) {
@@ -2307,9 +2320,11 @@ void Account::importOldRecentStickers() {
 	ClearKey(_recentStickersKeyOld, _basePath);
 	_recentStickersKeyOld = 0;
 	writeMapDelayed();
+#endif
 }
 
 void Account::readInstalledStickers() {
+#if 0 // mtp
 	if (!_installedStickersKey) {
 		return importOldRecentStickers();
 	}
@@ -2319,9 +2334,11 @@ void Account::readInstalledStickers() {
 		_installedStickersKey,
 		&_owner->session().data().stickers().setsOrderRef(),
 		Data::StickersSetFlag::Installed);
+#endif
 }
 
 void Account::readFeaturedStickers() {
+#if 0 // mtp
 	readStickerSets(
 		_featuredStickersKey,
 		&_owner->session().data().stickers().featuredSetsOrderRef(),
@@ -2338,6 +2355,7 @@ void Account::readFeaturedStickers() {
 		}
 	}
 	_owner->session().data().stickers().setFeaturedSetsUnreadCount(unreadCount);
+#endif
 }
 
 void Account::readFeaturedCustomEmoji() {
@@ -2396,6 +2414,7 @@ void Account::readInstalledCustomEmoji() {
 }
 
 void Account::writeSavedGifs() {
+#if 0 // mtp
 	const auto &saved = _owner->session().data().stickers().savedGifs();
 	if (saved.isEmpty()) {
 		if (_savedGifsKey) {
@@ -2421,9 +2440,11 @@ void Account::writeSavedGifs() {
 		FileWriteDescriptor file(_savedGifsKey, _basePath);
 		file.writeEncrypted(data, _localKey);
 	}
+#endif
 }
 
 void Account::readSavedGifs() {
+#if 0 // mtp
 	if (!_savedGifsKey) return;
 
 	FileReadDescriptor gifs;
@@ -2462,6 +2483,7 @@ void Account::readSavedGifs() {
 
 		saved.push_back(document);
 	}
+#endif
 }
 
 void Account::writeRecentHashtagsAndBots() {
