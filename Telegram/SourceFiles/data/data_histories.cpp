@@ -532,17 +532,48 @@ void Histories::requestGroupAround(not_null<HistoryItem*> item) {
 	const auto id = item->id;
 	const auto key = GroupRequestKey{ history, item->topicRootId() };
 	const auto i = _chatListGroupRequests.find(key);
-#if 0 // todo
 	if (i != end(_chatListGroupRequests)) {
 		if (i->second.aroundId == id) {
 			return;
 		} else {
+#if 0 // mtp
 			cancelRequest(i->second.requestId);
+#endif
+			session().sender().request(i->second.requestId).cancel();
 			_chatListGroupRequests.erase(i);
 		}
 	}
 	constexpr auto kMaxAlbumCount = 10;
 
+	const auto requestId = session().sender().request(TLgetChatHistory(
+		peerToTdbChat(history->peer->id),
+		tl_int53(id.bare),
+		tl_int32(0),
+		tl_int32(kMaxAlbumCount - 1),
+		tl_bool(false)
+	)).done([=](const TLDmessages &data) {
+		auto items = std::vector<not_null<HistoryItem*>>();
+		items.reserve(data.vmessages().v.size() + 1);
+		for (const auto &message : data.vmessages().v) {
+			if (message) {
+				items.push_back(_owner->processMessage(
+					*message,
+					NewMessageType::Existing));
+			}
+		}
+		if (const auto item = history->owner().message(history->peer, id)) {
+			if (!ranges::contains(items, not_null{ item })) {
+				items.push_back(item);
+			}
+		}
+		_chatListGroupRequests.remove(key);
+		history->migrateToOrMe()->applyChatListGroup(
+			history->peer->id,
+			std::move(items));
+	}).fail([=] {
+		_chatListGroupRequests.remove(key);
+	}).send();
+#if 0 // mtp
 	const auto requestId = sendRequest(history, RequestType::History, [=](
 			Fn<void()> finish) {
 		return session().api().request(MTPmessages_GetHistory(
@@ -568,10 +599,10 @@ void Histories::requestGroupAround(not_null<HistoryItem*> item) {
 			finish();
 		}).send();
 	});
+#endif
 	_chatListGroupRequests.emplace(
 		key,
 		ChatListGroupRequest{ .aroundId = id, .requestId = requestId });
-#endif
 }
 
 void Histories::sendPendingReadInbox(not_null<History*> history) {

@@ -448,7 +448,10 @@ public:
 
 	void applyChatListGroup(
 		PeerId dataPeerId,
+#if 0 // mtp
 		const MTPmessages_Messages &data);
+#endif
+		std::vector<not_null<HistoryItem*>> items);
 
 	void forgetScrollState() {
 		scrollTopItem = nullptr;
