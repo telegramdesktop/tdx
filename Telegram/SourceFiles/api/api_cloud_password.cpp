@@ -264,7 +264,7 @@ rpl::producer<CloudPassword::SetOk, QString> CloudPassword::set(
 		}).fail([=](const Error &error) {
 			consumer.put_error_copy(error.message);
 		}).send();
-#if 0 // doLater
+#if 0 // doLater handleFloodErrors.
 		// }).handleFloodErrors().send();
 #endif
 
@@ -511,7 +511,7 @@ rpl::producer<rpl::no_value, QString> CloudPassword::confirmEmail(
 		}).fail([=](const Error &error) {
 			consumer.put_error_copy(error.message);
 		}).send();
-#if 0 // doLater
+#if 0 // doLater handleFloodErrors.
 		// }).handleFloodErrors().send();
 #endif
 #if 0 // goodToRemove
@@ -799,7 +799,7 @@ auto CloudPassword::checkRecoveryEmailAddressCode(const QString &code)
 			}).fail([=](const Error &error) {
 				consumer.put_error_copy(error.message);
 			}).send();
-#if 0 // doLater
+#if 0 // doLater handleFloodErrors.
 			// }).handleFloodErrors().send();
 #endif
 		} else {
