@@ -466,6 +466,9 @@ inline bool operator>=(
 	return !(a < b);
 }
 
+inline constexpr auto kTdbLocationTypePhoto = 0x01;
+inline constexpr auto kTdbLocationTypeDocument = 0x02;
+inline constexpr auto kTdbLocationTypeStickerSetThumb = 0x03;
 struct TdbFileLocation {
 	TdbFileLocation() = default;
 	explicit TdbFileLocation(const Tdb::TLfile &data);
@@ -474,8 +477,8 @@ struct TdbFileLocation {
 	uint64 hash = 0;
 
 	[[nodiscard]] static Storage::Cache::Key BigFileBaseCacheKey(
-		uint64 documentId,
-		uint64 remoteLocationHash);
+		uint64 remoteLocationHash,
+		int tdbLocationType);
 };
 
 inline bool operator==(

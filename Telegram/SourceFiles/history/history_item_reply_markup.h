@@ -155,12 +155,16 @@ private:
 
 struct HistoryMessageRepliesData {
 	HistoryMessageRepliesData() = default;
+#if 0 // mtp
 	explicit HistoryMessageRepliesData(const MTPMessageReplies *data);
+#endif
 
 	explicit HistoryMessageRepliesData(const Tdb::TLmessageReplyInfo *data);
 
 	std::vector<PeerId> recentRepliers;
+#if 0 // mtp always relates to current linked_chat_id
 	ChannelId channelId = 0;
+#endif
 	MsgId readMaxId = 0;
 	MsgId maxId = 0;
 	int repliesCount = 0;

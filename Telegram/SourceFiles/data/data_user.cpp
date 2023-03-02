@@ -826,13 +826,12 @@ void ApplyUserUpdate(
 		: update.vcan_be_called().v
 		? UserData::CallsStatus::Enabled
 		: UserData::CallsStatus::Disabled);
-	user->setAbout(update.vbio() // later use tdlib entities
-		? update.vbio()->data().vtext().v
+	user->setAbout(update.vbot_info()
+		? update.vbot_info()->data().vshare_text().v
+		: update.vbio()
+		? update.vbio()->data().vtext().v // later use tdlib entities
 		: QString());
-	//update.vshare_text(); // todo
 	user->setCommonChatsCount(update.vgroup_in_common_count().v);
-	//user->checkFolder(update.vfolder_id().value_or_empty());
-	//user->setThemeEmoji(qs(update.vtheme_emoticon().value_or_empty()));
 
 	if (const auto info = user->botInfo.get()) {
 		const auto &tlInfo = update.vbot_info();

@@ -1227,19 +1227,37 @@ void HistoryItem::setCommentsPossibleMaxId(MsgId possibleMaxId) {
 
 bool HistoryItem::areCommentsUnread() const {
 	const auto views = Get<HistoryMessageViews>();
+#if 0 // mtp
 	if (!views
 		|| !views->commentsMegagroupId
 		|| !checkCommentsLinkedChat(views->commentsMegagroupId)) {
+#endif
+	if (!views) {
+		return false;
+	}
+	const auto channel = _history->peer->asChannel();
+	if (!channel
+		|| !channel->linkedChatKnown()
+		|| !(channel->flags() & ChannelDataFlag::HasLink)) {
+		return false;
+	}
+	const auto linked = channel->linkedChat();
+	if (!linked) {
 		return false;
 	}
 	const auto till = views->commentsInboxReadTillId;
 	if (views->commentsInboxReadTillId < 2 || views->commentsMaxId <= till) {
 		return false;
 	}
+#if 0 // mtp
 	const auto group = views->commentsMegagroupId
 		? _history->owner().historyLoaded(
 			peerFromChannel(views->commentsMegagroupId))
 		: _history.get();
+#endif
+	const auto group = (linked == _history->peer)
+		? _history.get()
+		: _history->owner().historyLoaded(linked->id);
 	return !group || (views->commentsMaxId > group->inboxReadTillId());
 }
 
@@ -1263,7 +1281,9 @@ void HistoryItem::setCommentsItemId(FullMsgId id) {
 		if (const auto channelId = peerToChannel(id.peer)) {
 			if (views->commentsMegagroupId != channelId) {
 				views->commentsMegagroupId = channelId;
+#if 0 // mtp
 				_history->owner().requestItemResize(this);
+#endif
 			}
 			views->commentsRootId = id.msg;
 		}
@@ -3176,7 +3196,9 @@ void HistoryItem::setReplies(HistoryMessageRepliesData &&data) {
 	}
 	const auto &repliers = data.recentRepliers;
 	const auto count = data.repliesCount;
+#if 0 // mtp
 	const auto channelId = data.channelId;
+#endif
 	const auto readTillId = data.readMaxId
 		? std::max({
 			views->commentsInboxReadTillId.bare,
@@ -3188,7 +3210,10 @@ void HistoryItem::setReplies(HistoryMessageRepliesData &&data) {
 	const auto countsChanged = (views->replies.count != count)
 		|| (views->commentsInboxReadTillId != readTillId)
 		|| (views->commentsMaxId != maxId);
+#if 0 // mtp
 	const auto megagroupChanged = (views->commentsMegagroupId != channelId);
+#endif
+	const auto megagroupChanged = false;
 	const auto recentChanged = (views->recentRepliers != repliers);
 	if (!countsChanged && !megagroupChanged && !recentChanged) {
 		return;
@@ -3198,7 +3223,9 @@ void HistoryItem::setReplies(HistoryMessageRepliesData &&data) {
 		views->recentRepliers = repliers;
 	}
 	const auto wasUnread = areCommentsUnread();
+#if 0 // mtp
 	views->commentsMegagroupId = channelId;
+#endif
 	views->commentsInboxReadTillId = readTillId;
 	views->commentsMaxId = maxId;
 	if (wasUnread != areCommentsUnread()) {
@@ -3225,7 +3252,10 @@ void HistoryItem::clearReplies() {
 void HistoryItem::refreshRepliesText(
 		not_null<HistoryMessageViews*> views,
 		bool forceResize) {
+#if 0 // mtp
 	if (views->commentsMegagroupId) {
+#endif
+	if (isPost() && views->replies.count >= 0) {
 		views->replies.text = (views->replies.count > 0)
 			? tr::lng_comments_open_count(
 				tr::now,
@@ -3265,7 +3295,10 @@ void HistoryItem::changeRepliesCount(int delta, PeerId replier) {
 		return;
 	}
 	views->replies.count = std::max(views->replies.count + delta, 0);
+#if 0 // mtp
 	if (replier && views->commentsMegagroupId) {
+#endif
+	if (replier && isPost() && views->replies.count >= 0) {
 		if (delta < 0) {
 			views->recentRepliers.erase(
 				ranges::remove(views->recentRepliers, replier),
@@ -3393,9 +3426,11 @@ int HistoryItem::viewsCount() const {
 
 int HistoryItem::repliesCount() const {
 	if (const auto views = Get<HistoryMessageViews>()) {
+#if 0 // mtp
 		if (!checkCommentsLinkedChat(views->commentsMegagroupId)) {
 			return 0;
 		}
+#endif
 		return std::max(views->replies.count, 0);
 	}
 	return 0;
@@ -3403,8 +3438,11 @@ int HistoryItem::repliesCount() const {
 
 bool HistoryItem::repliesAreComments() const {
 	if (const auto views = Get<HistoryMessageViews>()) {
+#if 0 // mtp
 		return (views->commentsMegagroupId != 0)
 			&& checkCommentsLinkedChat(views->commentsMegagroupId);
+#endif
+		return isPost() && views->replies.count >= 0;
 	}
 	return false;
 }
@@ -3914,7 +3952,9 @@ void HistoryItem::createComponents(CreateConfig &&config) {
 			if (const auto broadcast = _history->peer->asBroadcast()) {
 				if (const auto linked = broadcast->linkedChat()) {
 					config.replies.isNull = false;
+#if 0 // mtp
 					config.replies.channelId = peerToChannel(linked->id);
+#endif
 				}
 			}
 		}
