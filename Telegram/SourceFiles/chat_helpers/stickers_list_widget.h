@@ -458,6 +458,8 @@ private:
 	base::Timer _searchRequestTimer;
 	QString _searchQuery, _searchNextQuery;
 	mtpRequestId _searchRequestId = 0;
+	mtpRequestId _searchEmojiRequestId = 0;
+	base::has_weak_ptr _searchEmojiGuard;
 
 	rpl::event_stream<FileChosen> _chosen;
 	rpl::event_stream<> _scrollUpdated;

@@ -55,6 +55,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 
 #include "tdb/tdb_tl_scheme.h"
+#include "chat_helpers/emoji_keywords.h"
 
 #include <QtWidgets/QApplication>
 
@@ -660,6 +661,8 @@ void StickersListWidget::cancelSetsSearch() {
 		_api.request(requestId).cancel();
 	}
 	_searchRequestTimer.cancel();
+	_searchEmojiRequestId = 0;
+	invalidate_weak_ptrs(&_searchEmojiGuard);
 	_searchQuery = _searchNextQuery = QString();
 	_filteredStickers.clear();
 	_filterStickersCornerEmoji.clear();
@@ -2848,7 +2851,22 @@ void StickersListWidget::applySearchQuery(std::vector<QString> &&query) {
 			QString b) {
 		return a.isEmpty() ? b : (a + ' ' + b);
 	});
+	if (text.trimmed().isEmpty()) {
+		cancelSetsSearch();
+		return;
+	}
+	using Result = EmojiKeywords::Result;
+	const auto callback = crl::guard(&_searchEmojiGuard, [=](
+			const std::vector<EmojiPtr> &result) {
+		searchForSets(text, result);
+	});
+	_searchEmojiRequestId = SearchEmoji(
+		_searchEmojiRequestId,
+		query,
+		callback);
+#if 0 // mtp
 	searchForSets(std::move(text), SearchEmoji(query, set));
+#endif
 }
 
 void StickersListWidget::displaySet(uint64 setId) {

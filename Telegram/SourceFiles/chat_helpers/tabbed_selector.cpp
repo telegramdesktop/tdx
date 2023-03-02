@@ -342,7 +342,10 @@ std::unique_ptr<Ui::TabbedSearch> MakeSearch(
 			Ui::SearchWithGroups::IconSizeOverride())
 	});
 
+#if 0 // mtp
 	result->queryValue(
+#endif
+	result->debouncedQueryValue(
 	) | rpl::skip(1) | rpl::start_with_next(
 		std::move(callback),
 		parent->lifetime());

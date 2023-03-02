@@ -22,8 +22,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtGui/QGuiApplication>
 
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
+
 namespace ChatHelpers {
 namespace {
+
+using namespace Tdb;
+constexpr auto kMaxQueryLength = 64;
 
 constexpr auto kRefreshEach = 60 * 60 * crl::time(1000); // 1 hour.
 constexpr auto kKeepNotUsedLangPacksCount = 4;
@@ -33,6 +39,7 @@ using namespace Ui::Emoji;
 
 using Result = EmojiKeywords::Result;
 
+#if 0 // mtp
 struct LangPackEmoji {
 	EmojiPtr emoji = nullptr;
 	QString text;
@@ -164,6 +171,7 @@ void WriteLocalCache(const QString &id, const LangPackData &data) {
 		}
 	}
 }
+#endif
 
 [[nodiscard]] QString NormalizeQuery(const QString &query) {
 	return query.toLower();
@@ -173,6 +181,7 @@ void WriteLocalCache(const QString &id, const LangPackData &data) {
 	return key.toLower().trimmed();
 }
 
+#if 0 // mtp
 void AppendFoundEmoji(
 		std::vector<Result> &result,
 		const QString &label,
@@ -196,6 +205,7 @@ void AppendFoundEmoji(
 	});
 	result.insert(end(result), add.begin(), add.end());
 }
+#endif
 
 void AppendLegacySuggestions(
 		std::vector<Result> &result,
@@ -241,6 +251,7 @@ void AppendLegacySuggestions(
 	result.insert(end(result), add.begin(), add.end());
 }
 
+#if 0 // mtp
 void ApplyDifference(
 		LangPackData &data,
 		const QVector<MTPEmojiKeyword> &keywords,
@@ -302,9 +313,11 @@ void ApplyDifference(
 		data.maxKeyLength = *ranges::max_element(lengths);
 	}
 }
+#endif
 
 } // namespace
 
+#if 0 // mtp
 class EmojiKeywords::LangPack final {
 public:
 	using Delegate = details::EmojiKeywordsLangPackDelegate;
@@ -356,11 +369,9 @@ EmojiKeywords::LangPack::LangPack(
 
 EmojiKeywords::LangPack::~LangPack() {
 	if (_requestId) {
-#if 0 // todo
 		if (const auto api = _delegate->api()) {
 			api->request(_requestId).cancel();
 		}
-#endif
 	}
 }
 
@@ -398,7 +409,6 @@ void EmojiKeywords::LangPack::refresh() {
 		return;
 	}
 	_state = State::Requested;
-#if 0 // todo
 	const auto send = [&](auto &&request) {
 		return api->request(
 			std::move(request)
@@ -417,7 +427,6 @@ void EmojiKeywords::LangPack::refresh() {
 			MTP_int(_data.version)))
 		: send(MTPmessages_GetEmojiKeywords(
 			MTP_string(_id)));
-#endif
 }
 
 void EmojiKeywords::LangPack::applyDifference(
@@ -502,6 +511,7 @@ std::vector<Result> EmojiKeywords::LangPack::query(
 int EmojiKeywords::LangPack::maxQueryLength() const {
 	return _data.maxKeyLength;
 }
+#endif
 
 EmojiKeywords::EmojiKeywords() {
 	crl::on_main(&_guard, [=] {
@@ -534,6 +544,7 @@ void EmojiKeywords::handleSessionChanges() {
 
 void EmojiKeywords::apiChanged(ApiWrap *api) {
 	_api = api;
+#if 0 // mtp
 	if (_api) {
 		crl::on_main(&_api->session(), crl::guard(&_guard, [=] {
 			Lang::CurrentCloudManager().firstLanguageSuggestion(
@@ -551,9 +562,11 @@ void EmojiKeywords::apiChanged(ApiWrap *api) {
 	for (const auto &[language, item] : _data) {
 		item->apiChanged();
 	}
+#endif
 }
 
 void EmojiKeywords::refresh() {
+#if 0 // mtp
 	auto list = languages();
 	if (_localList != list) {
 		_localList = std::move(list);
@@ -561,6 +574,7 @@ void EmojiKeywords::refresh() {
 	} else {
 		refreshFromRemoteList();
 	}
+#endif
 }
 
 std::vector<QString> EmojiKeywords::languages() {
@@ -605,6 +619,7 @@ void EmojiKeywords::refreshInputLanguages() {
 	}
 }
 
+#if 0 // mtp
 rpl::producer<> EmojiKeywords::refreshed() const {
 	return _refreshed.events();
 }
@@ -650,6 +665,98 @@ std::vector<Result> EmojiKeywords::queryMine(
 		bool exact) const {
 	return ApplyVariants(PrioritizeRecent(this->query(query, exact)));
 }
+#endif
+
+mtpRequestId EmojiKeywords::requestMine(
+		const QString &query,
+		Fn<void(std::vector<Result>)> callback,
+		mtpRequestId previousId,
+		bool exact) {
+	const auto normalized = NormalizeQuery(query);
+	if (normalized.isEmpty()) {
+		return {};
+	}
+	if (previousId) {
+		const auto i = _requests.find(previousId);
+		if (i != end(_requests)) {
+			if (i->second.normalizedQuery == normalized) {
+				i->second.callback = std::move(callback);
+				return previousId;
+			}
+			if (_api) {
+				_api->sender().request(previousId).cancel();
+			}
+			_requests.erase(i);
+		}
+	}
+	if (!_api || normalized.isEmpty()) {
+		crl::on_main([=] { callback({}); });
+		return 0;
+	}
+	const auto list = languages();
+	auto langs = list | ranges::views::transform([](const QString &id) {
+		return tl_string(id);
+	}) | ranges::to<QVector>();
+	const auto requestId = _api->sender().preallocateId();
+	_requests.emplace(requestId, Request{
+		.query = query,
+		.normalizedQuery = normalized,
+		.callback = std::move(callback),
+	});
+	const auto send = [&](auto &&request, auto &&parse) {
+		using Response = std::decay_t<decltype(request)>::ResponseType;
+		_api->sender().request(
+			std::move(request),
+			requestId
+		).done([=](const Response &result) {
+			const auto request = _requests.take(requestId);
+			if (!request) {
+				return;
+			}
+			auto cloud = parse(result);
+			if (!exact) {
+				AppendLegacySuggestions(cloud, request->query);
+			}
+			request->callback(ApplyVariants(PrioritizeRecent(std::move(cloud))));
+		}).fail([=] {
+			if (const auto request = _requests.take(requestId)) {
+				request->callback({});
+			}
+		}).send();
+	};
+	if (exact) {
+		send(TLgetKeywordEmojis(
+			tl_string(normalized),
+			tl_vector<TLstring>(std::move(langs))
+		), [](const TLemojis &result) {
+			const auto &list = result.data().vemojis().v;
+			auto cloud = std::vector<Result>();
+			cloud.reserve(list.size());
+			for (const auto &emoji : list) {
+				if (const auto found = Find(emoji.v)) {
+					cloud.push_back(Result{ found });
+				}
+			}
+			return cloud;
+		});
+	} else {
+		send(TLsearchEmojis(
+			tl_string(normalized),
+			tl_vector<TLstring>(std::move(langs))
+		), [](const TLemojiKeywords &result) {
+			const auto &list = result.data().vemoji_keywords().v;
+			auto cloud = std::vector<Result>();
+			cloud.reserve(list.size());
+			for (const auto &emoji : list) {
+				if (const auto found = Find(emoji.data().vemoji().v)) {
+					cloud.push_back(Result{ found });
+				}
+			}
+			return cloud;
+		});
+	}
+	return requestId;
+}
 
 std::vector<Result> EmojiKeywords::PrioritizeRecent(
 		std::vector<Result> list) {
@@ -684,6 +791,7 @@ std::vector<Result> EmojiKeywords::ApplyVariants(std::vector<Result> list) {
 }
 
 int EmojiKeywords::maxQueryLength() const {
+#if 0 // mtp
 	if (_data.empty()) {
 		return 0;
 	}
@@ -691,15 +799,17 @@ int EmojiKeywords::maxQueryLength() const {
 		return pair.second->maxQueryLength();
 	});
 	return *ranges::max_element(lengths);
+#endif
+	return kMaxQueryLength;
 }
 
+#if 0 // mtp
 void EmojiKeywords::refreshRemoteList() {
 	if (!_api) {
 		_localList.clear();
 		setRemoteList({});
 		return;
 	}
-#if 0 // todo
 	_api->request(base::take(_langsRequestId)).cancel();
 	auto languages = QVector<MTPstring>();
 	for (const auto &id : _localList) {
@@ -719,7 +829,6 @@ void EmojiKeywords::refreshRemoteList() {
 	}).fail([=] {
 		_langsRequestId = 0;
 	}).send();
-#endif
 }
 
 void EmojiKeywords::setRemoteList(std::vector<QString> &&list) {
@@ -761,5 +870,6 @@ void EmojiKeywords::refreshFromRemoteList() {
 		}
 	}
 }
+#endif
 
 } // namespace ChatHelpers
