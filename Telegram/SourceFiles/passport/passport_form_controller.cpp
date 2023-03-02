@@ -3735,7 +3735,7 @@ bool FormController::parseForm(const MTPaccount_AuthorizationForm &result) {
 
 bool FormController::parseForm(
 		const Tdb::TLDpassportAuthorizationForm &data) {
-#if 0 // doLater
+#if 0 // mtp
 	session().data().processUsers(data.vusers());
 #endif
 

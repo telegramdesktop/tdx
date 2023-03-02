@@ -98,6 +98,11 @@ void Account::start(std::unique_ptr<MTP::Config> config) {
 	watchProxyChanges();
 	watchSessionChanges();
 
+	style::ShortAnimationPlaying(
+	) | rpl::start_with_next([=, raw = _tdb.get()](bool playing) {
+		raw->setPaused(playing);
+	}, _tdb->lifetime());
+
 	if (_session) {
 		sender().request(
 			Tdb::TLgetMe()
