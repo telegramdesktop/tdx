@@ -52,10 +52,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 #include "styles/style_menu_icons.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 #include <QtWidgets/QApplication>
 
 namespace ChatHelpers {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kCollapsedRows = 3;
 constexpr auto kAppearDuration = 0.3;
@@ -605,8 +609,10 @@ void EmojiListWidget::applyNextSearchQuery() {
 		return;
 	}
 	_searchQuery = _nextSearchQuery;
+#if 0 // mtp
 	std::swap(_searchEmoji, _searchEmojiPrevious);
 	_searchEmoji.clear();
+#endif
 	const auto finish = [&](bool searching = true) {
 		if (!_searchMode && !searching) {
 			return;
@@ -615,6 +621,7 @@ void EmojiListWidget::applyNextSearchQuery() {
 		clearSelection();
 		if (modeChanged) {
 			_searchMode = searching;
+			invalidate_weak_ptrs(&_searchGuard);
 		}
 		if (!searching) {
 			_searchResults.clear();
@@ -631,11 +638,20 @@ void EmojiListWidget::applyNextSearchQuery() {
 		updateSelected();
 	};
 	if (_searchQuery.empty()) {
+		std::swap(_searchEmoji, _searchEmojiPrevious);
+		_searchEmoji.clear();
 		finish(false);
 		return;
 	}
+	const auto callback = crl::guard(&_searchGuard, [=](
+		const std::vector<EmojiPtr> &plain) {
+
+	std::swap(_searchEmoji, _searchEmojiPrevious);
 	const auto guard = gsl::finally([&] { finish(); });
+#if 0 // mtp
 	auto plain = collectPlainSearchResults();
+#endif
+	_searchEmoji = { begin(plain), end(plain) };
 	if (_searchEmoji == _searchEmojiPrevious) {
 		return;
 	}
@@ -651,6 +667,12 @@ void EmojiListWidget::applyNextSearchQuery() {
 			});
 		}
 	}
+
+	});
+	_searchRequestId = SearchEmoji(
+		_searchRequestId,
+		_searchQuery,
+		callback);
 }
 
 void EmojiListWidget::showPreview() {
@@ -662,9 +684,11 @@ void EmojiListWidget::showPreview() {
 	}
 }
 
+#if 0 // mtp
 std::vector<EmojiPtr> EmojiListWidget::collectPlainSearchResults() {
 	return SearchEmoji(_searchQuery, _searchEmoji);
 }
+#endif
 
 void EmojiListWidget::appendPremiumSearchResults() {
 	const auto test = session().isTestMode();
@@ -2440,11 +2464,16 @@ void EmojiListWidget::refreshMegagroupStickers(
 		return;
 	}
 	_megagroupSetIdRequested = set.id;
+#if 0 // mtp
 	_api.request(MTPmessages_GetStickerSet(
 		Data::InputStickerSet(set),
 		MTP_int(0) // hash
 	)).done([=](const MTPmessages_StickerSet &result) {
 		result.match([&](const MTPDmessages_stickerSet &data) {
+#endif
+	_api.request(TLgetStickerSet(
+		tl_int64(set.id)
+	)).done([=](const TLstickerSet &data) {
 			if (const auto set = session().data().stickers().feedSetFull(data)) {
 				refreshCustom();
 				if (set->id == _megagroupSetIdRequested) {
@@ -2453,9 +2482,11 @@ void EmojiListWidget::refreshMegagroupStickers(
 					LOG(("API Error: Got different set."));
 				}
 			}
+#if 0 // mtp
 		}, [](const MTPDmessages_stickerSetNotModified &) {
 			LOG(("API Error: Unexpected messages.stickerSetNotModified."));
 		});
+#endif
 	}).send();
 }
 

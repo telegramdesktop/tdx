@@ -156,6 +156,7 @@ rpl::producer<std::vector<GifSection>> GifSectionsValue(
 #endif
 }
 
+#if 0 // mtp
 [[nodiscard]] std::vector<EmojiPtr> SearchEmoji(
 		const std::vector<QString> &query,
 		base::flat_set<EmojiPtr> &outResultSet) {
@@ -192,6 +193,54 @@ rpl::producer<std::vector<GifSection>> GifSectionsValue(
 		}
 	}
 	return result;
+}
+#endif
+
+mtpRequestId SearchEmoji(
+		mtpRequestId previousId,
+		const std::vector<QString> &query,
+		Fn<void(std::vector<EmojiPtr>)> callback) {
+	auto result = std::vector<EmojiPtr>();
+	const auto callOnMain = [&] {
+		crl::on_main([=, result = std::move(result)]() mutable {
+			callback(std::move(result));
+		});
+	};
+	const auto pushPlain = [&](EmojiPtr emoji) {
+		if (ranges::contains(result, emoji)) {
+			return;
+		}
+		if (const auto original = emoji->original(); original != emoji) {
+			if (ranges::contains(result, original)) {
+				return;
+			}
+		}
+		result.push_back(emoji);
+	};
+	auto refreshed = false;
+	auto &keywords = Core::App().emojiKeywords();
+	for (const auto &entry : query) {
+		if (const auto emoji = Ui::Emoji::Find(entry)) {
+			pushPlain(emoji);
+			if (result.size() >= kEmojiSearchLimit) {
+				callOnMain();
+				return 0;
+			}
+		} else if (!entry.isEmpty()) {
+			using Result = EmojiKeywords::Result;
+			const auto done = [=](std::vector<Result> list) {
+				if (list.size() > kEmojiSearchLimit) {
+					list.resize(kEmojiSearchLimit);
+				}
+				callback(list | ranges::views::transform(
+					&Result::emoji
+				) | ranges::to_vector);
+			};
+			return keywords.requestMine(entry, done, previousId);
+		}
+	}
+	callOnMain();
+	return 0;
 }
 
 StickerIcon::StickerIcon(uint64 setId) : setId(setId) {
