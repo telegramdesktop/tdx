@@ -1772,7 +1772,7 @@ bool Widget::searchMessages(bool searchCache) {
 			const auto topic = searchInTopic();
 			const auto type = SearchRequestType::PeerFromStart;
 			_searchRequest = _api.request(TLsearchChatMessages(
-				peerToTdbChat(peer->id), // todo topics
+				peerToTdbChat(peer->id),
 				tl_string(q),
 				(_searchQueryFrom
 					? peerToSender(_searchQueryFrom->id)
@@ -2119,6 +2119,7 @@ void Widget::searchMore() {
 	}
 	if (!_searchFull) {
 		if (const auto peer = searchInPeer()) {
+			const auto topic = searchInTopic();
 			_searchRequest = _api.request(TLsearchChatMessages(
 				peerToTdbChat(peer->id),
 				tl_string(_searchQuery),
@@ -2129,7 +2130,7 @@ void Widget::searchMore() {
 				tl_int32(0), // offset
 				tl_int32(kSearchPerPage),
 				std::nullopt, // filter
-				tl_int53(0) // message_thread_id
+				tl_int53(topic ? topic->rootId().bare : 0)
 			)).done([=](const TLfoundChatMessages &result) {
 				_searchRequest = 0;
 				searchReceived(SearchRequestType::PeerFromOffset, result);
