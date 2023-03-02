@@ -279,7 +279,9 @@ private:
 	void unloadCustomIn(const SectionInfo &info);
 
 	void setupSearch();
+#if 0 // mtp
 	[[nodiscard]] std::vector<EmojiPtr> collectPlainSearchResults();
+#endif
 	void appendPremiumSearchResults();
 	void ensureLoaded(int section);
 	void updateSelected();
@@ -438,6 +440,8 @@ private:
 	base::flat_set<EmojiPtr> _searchEmojiPrevious;
 	base::flat_set<DocumentId> _searchCustomIds;
 	std::vector<RecentOne> _searchResults;
+	mtpRequestId _searchRequestId = 0;
+	base::has_weak_ptr _searchGuard;
 	bool _searchMode = false;
 
 	int _rowsTop = 0;
