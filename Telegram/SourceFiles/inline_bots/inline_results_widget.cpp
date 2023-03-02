@@ -527,7 +527,7 @@ void Widget::onInlineRequest() {
 			_inlineRequestId = 0;
 		}
 	}).send();
-#if 0 // doLater
+#if 0 // doLater handleAllErrors.
 	}).handleAllErrors().send();
 #endif
 }

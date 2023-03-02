@@ -62,7 +62,7 @@ BlockedPeers::Slice TLToSlice(const TLDmessageSenders &data) {
 	slice.list.reserve(data.vsenders().v.size());
 	for (const auto &sender : data.vsenders().v) {
 		const auto peerId = peerFromSender(sender);
-#if 0 // doLater
+#if 0 // mtp
 		owner.processUsers(data.vusers());
 		owner.processChats(data.vchats());
 #endif

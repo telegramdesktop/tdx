@@ -327,7 +327,7 @@ void Application::run() {
 		PowerSaving::SetForceAll(saving && !ignore);
 	}, _lifetime);
 
-#if 0 // todo pause handling responses / updates
+#if 0 // mtp
 	style::ShortAnimationPlaying(
 	) | rpl::start_with_next([=](bool playing) {
 		if (playing) {

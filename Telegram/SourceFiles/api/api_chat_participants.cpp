@@ -679,8 +679,6 @@ void ChatParticipants::add(
 					done(false);
 				}
 			}).send();
-#if 0 // doLater Perhaps afterDelay(kSmallDelayMs) can be ignored.
-#endif
 		}
 	} else if (const auto channel = peer->asChannel()) {
 		const auto hasBot = ranges::any_of(users, &UserData::isBot);
