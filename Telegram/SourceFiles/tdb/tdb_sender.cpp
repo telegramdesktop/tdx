@@ -9,9 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Tdb {
 
-Sender::RequestBuilder::RequestBuilder(not_null<Sender*> sender) noexcept
+Sender::RequestBuilder::RequestBuilder(
+	not_null<Sender*> sender,
+	RequestId id) noexcept
 : _sender(sender)
-, _requestId(_sender->_instance->allocateRequestId()) {
+, _requestId(id) {
 }
 
 auto Sender::RequestBuilder::takeOnFail() noexcept -> FailHandler {

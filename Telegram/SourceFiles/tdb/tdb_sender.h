@@ -27,7 +27,9 @@ class Sender final {
 		static constexpr bool IsCallable
 			= rpl::details::is_callable_plain_v<Args...>;
 
-		explicit RequestBuilder(not_null<Sender*> sender) noexcept;
+		explicit RequestBuilder(
+			not_null<Sender*> sender,
+			RequestId id) noexcept;
 		RequestBuilder(RequestBuilder &&other) = default;
 
 		template <typename Result, typename Handler>
@@ -117,8 +119,9 @@ public:
 		friend class Sender;
 		SpecificRequestBuilder(
 			not_null<Sender*> sender,
+			RequestId id,
 			Request &&request) noexcept
-		: RequestBuilder(sender)
+		: RequestBuilder(sender, id)
 		, _request(std::move(request)) {
 		}
 		SpecificRequestBuilder(SpecificRequestBuilder &&other) = default;
@@ -220,10 +223,15 @@ public:
 		typename Request,
 		typename = typename Request::ResponseType>
 	[[nodiscard]] SpecificRequestBuilder<Request> request(
-		Request &&request) noexcept;
+		Request &&request,
+		RequestId preallocatedId = 0) noexcept;
 	[[nodiscard]] SentRequestWrap request(RequestId requestId) noexcept;
 	[[nodiscard]] auto requestCanceller() noexcept;
 	void requestCancellingDiscard() noexcept;
+
+	[[nodiscard]] RequestId preallocateId() const {
+		return _instance->allocateRequestId();
+	}
 
 private:
 	class RequestWrap {
@@ -292,12 +300,17 @@ private:
 };
 
 template <typename Request, typename>
-Sender::SpecificRequestBuilder<Request> Sender::request(Request &&request) noexcept {
+Sender::SpecificRequestBuilder<Request> Sender::request(
+		Request &&request,
+		RequestId preallocatedId) noexcept {
 	static_assert(
 		!std::is_reference_v<Request> && !std::is_const_v<Request>,
 		"You're supposed to pass non-const rvalue referenced request: "
 		"'request(TLsmth())' or 'auto r = TLsmth(); request(std::move(r))'");
-	return SpecificRequestBuilder<Request>(this, std::move(request));
+	return SpecificRequestBuilder<Request>(
+		this,
+		(preallocatedId ? preallocatedId : _instance->allocateRequestId()),
+		std::move(request));
 }
 
 inline Sender::SentRequestWrap Sender::request(RequestId requestId) noexcept {
