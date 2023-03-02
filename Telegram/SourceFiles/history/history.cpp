@@ -2884,7 +2884,10 @@ void History::setFakeChatListMessageFrom(const MTPmessages_Messages &data) {
 
 void History::applyChatListGroup(
 		PeerId dataPeerId,
+#if 0 // mtp
 		const MTPmessages_Messages &data) {
+#endif
+		std::vector<not_null<HistoryItem*>> items) {
 	if (!isEmpty()
 		|| !_chatListMessage
 		|| !*_chatListMessage
@@ -2895,6 +2898,7 @@ void History::applyChatListGroup(
 		return;
 	}
 	// Apply loaded album as a last slice.
+#if 0 // mtp
 	const auto processMessages = [&](const MTPVector<MTPMessage> &messages) {
 		auto items = std::vector<not_null<HistoryItem*>>();
 		items.reserve(messages.v.size());
@@ -2904,6 +2908,7 @@ void History::applyChatListGroup(
 				items.push_back(message);
 			}
 		}
+#endif
 		if (!ranges::contains(items, not_null(*_lastMessage))
 			|| !ranges::contains(items, not_null(*_chatListMessage))) {
 			return;
@@ -2913,11 +2918,13 @@ void History::applyChatListGroup(
 		addCreatedOlderSlice(items);
 		checkLocalMessages();
 		checkLastMessage();
+#if 0 // mtp
 	};
 	data.match([&](const MTPDmessages_messagesNotModified &) {
 	}, [&](const auto &data) {
 		processMessages(data.vmessages());
 	});
+#endif
 }
 
 HistoryItem *History::lastMessage() const {
