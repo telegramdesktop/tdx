@@ -502,6 +502,7 @@ bool HistoryMessageMarkupData::isTrivial() const {
 		&& !(flags & ~ReplyMarkupFlag::IsNull);
 }
 
+#if 0 // mtp
 HistoryMessageRepliesData::HistoryMessageRepliesData(
 		const MTPMessageReplies *data) {
 	if (!data) {
@@ -521,6 +522,7 @@ HistoryMessageRepliesData::HistoryMessageRepliesData(
 	isNull = false;
 	pts = fields.vreplies_pts().v;
 }
+#endif
 
 HistoryMessageRepliesData::HistoryMessageRepliesData(
 		const TLmessageReplyInfo *data) {
@@ -534,7 +536,6 @@ HistoryMessageRepliesData::HistoryMessageRepliesData(
 		recentRepliers.push_back(peerFromSender(sender));
 	}
 	repliesCount = fields.vreply_count().v;
-	//channelId = ChannelId(fields.vchannel_id().value_or_empty()); // todo
 	readMaxId = fields.vlast_read_inbox_message_id().v;
 	maxId = fields.vlast_message_id().v;
 	isNull = false;
