@@ -4215,6 +4215,8 @@ void HistoryItem::createComponentsHelper(HistoryItemCommonFields &&fields) {
 }
 
 void HistoryItem::createServiceFromTdb(const TLmessageContent &content) {
+	const auto topicId = topicRootId();
+
 	clearDependencyMessage();
 	auto replyToMsgId = MsgId();
 	auto replyInPeerId = PeerId();
