@@ -22,7 +22,7 @@ Manager::Manager() = default;
 Manager::~Manager() = default;
 
 void Manager::start(not_null<PeerData*> peer) {
-#if 0 // todo export
+#if 0 // tdlib todo export
 	start(&peer->session(), peer->input);
 #endif
 }

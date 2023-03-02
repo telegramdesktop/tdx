@@ -126,6 +126,7 @@ public:
 	[[nodiscard]] QString cacheBigFilePath() const;
 	[[nodiscard]] Cache::Database::Settings cacheBigFileSettings() const;
 
+	// later remove
 	void writeInstalledStickers();
 	void writeFeaturedStickers();
 	void writeRecentStickers();
@@ -245,6 +246,7 @@ private:
 		details::FileReadDescriptor &draft,
 		quint64 draftPeerSerialized);
 
+	// later remove
 	void writeStickerSet(
 		QDataStream &stream,
 		const Data::StickersSet &set);

@@ -705,9 +705,9 @@ TdbFileLocation::TdbFileLocation(const TLfile &data)
 }
 
 Storage::Cache::Key TdbFileLocation::BigFileBaseCacheKey(
-		uint64 entityId,
-		uint64 remoteLocationHash) {
-	return { entityId, remoteLocationHash & ~0xFFULL };
+		uint64 remoteLocationHash,
+		int tdbLocationType) {
+	return { remoteLocationHash, uint64(uint32(tdbLocationType)) << 32 };
 }
 
 InMemoryKey inMemoryKey(const StorageFileLocation &location) {
