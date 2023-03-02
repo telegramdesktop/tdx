@@ -3849,6 +3849,8 @@ void HistoryItem::createComponentsHelper(HistoryItemCommonFields &&fields) {
 }
 
 void HistoryItem::createServiceFromTdb(const TLmessageContent &content) {
+	const auto topicId = topicRootId();
+
 	clearDependencyMessage();
 	auto replyToMsgId = MsgId();
 	auto replyInPeerId = PeerId();
@@ -3977,6 +3979,10 @@ void HistoryItem::createServiceFromTdb(const TLmessageContent &content) {
 			? replyInPeerId
 			: 0;
 		dependent->msgId = replyToMsgId;
+		if (dependent->topicPost
+			&& topicId != Data::ForumTopic::kGeneralId) {
+			dependent->topId = topicId;
+		}
 		if (!updateServiceDependent()) {
 			RequestDependentMessageItem(
 				this,
