@@ -382,7 +382,7 @@ QString FormatImageSizeText(const QSize &size) {
 		+ QString::number(size.height());
 }
 
-#if 0 // doLater Don't let to use Ui::FormatPhone for now.
+#if 0 // mtp Don't let to use Ui::FormatPhone for now.
 QString FormatPhone(QString phone) {
 	if (phone.isEmpty()) {
 		return QString();

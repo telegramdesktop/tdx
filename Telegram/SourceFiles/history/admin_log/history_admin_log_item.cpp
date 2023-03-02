@@ -2026,7 +2026,7 @@ void GenerateItems(
 		addSimpleServiceMessage(text);
 	};
 
-#if 0 // doLater
+#if 0 // later
 	const auto createSendMessage = [&](const LogSendMessage &data) {
 		const auto realId = ExtractRealMsgId(data.vmessage());
 		const auto text = tr::lng_admin_log_sent_message(
@@ -2604,7 +2604,7 @@ void GenerateItems(
 		createChangeHistoryTTL,
 		createParticipantJoinByRequest,
 		createToggleNoForwards,
-#if 0 // doLater
+#if 0 // later
 		createSendMessage,
 #endif
 		createChangeAvailableReactions,

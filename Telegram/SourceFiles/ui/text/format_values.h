@@ -24,7 +24,7 @@ inline constexpr auto FileStatusSizeFailed = 0xFFFFFFF2LL;
 [[nodiscard]] QString FormatGifAndSizeText(qint64 size);
 [[nodiscard]] QString FormatPlayedText(qint64 played, qint64 duration);
 [[nodiscard]] QString FormatImageSizeText(const QSize &size);
-#if 0 // doLater
+#if 0 // mtp
 [[nodiscard]] QString FormatPhone(QString phone);
 #endif
 [[nodiscard]] QString FormatTTL(float64 ttl);

@@ -1552,12 +1552,10 @@ void InnerWidget::suggestRestrictParticipant(
 				_channel->owner().processUsers(participant.vusers());
 				auto type = participant.vparticipant().type();
 				if (type == mtpc_channelParticipantBanned) {
-#if 0 // doLater
 					auto &banned = participant.vparticipant().c_channelParticipantBanned();
 					editRestrictions(
 						false,
 						ChatRestrictionsInfo(banned.vbanned_rights()));
-#endif
 				} else {
 					auto hasAdminRights = (type == mtpc_channelParticipantAdmin)
 						|| (type == mtpc_channelParticipantCreator);
