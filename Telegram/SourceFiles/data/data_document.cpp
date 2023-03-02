@@ -1169,7 +1169,9 @@ PhotoData *DocumentData::goodThumbnailPhoto() const {
 
 Storage::Cache::Key DocumentData::bigFileBaseCacheKey() const {
 	if (_tdbFile.fileId) {
-		return TdbFileLocation::BigFileBaseCacheKey(id, _tdbFile.hash);
+		return TdbFileLocation::BigFileBaseCacheKey(
+			_tdbFile.hash,
+			kTdbLocationTypeDocument);
 	}
 	return hasRemoteLocation()
 		? StorageFileLocation(
@@ -1862,7 +1864,9 @@ auto DocumentData::createStreamingLoader(
 		return std::make_unique<Media::Streaming::LoaderTdb>(
 			&session().tdb(),
 			_tdbFile.fileId,
-			TdbFileLocation::BigFileBaseCacheKey(id, _tdbFile.hash),
+			TdbFileLocation::BigFileBaseCacheKey(
+				_tdbFile.hash,
+				kTdbLocationTypeDocument),
 			size);
 	}
 	return nullptr;
