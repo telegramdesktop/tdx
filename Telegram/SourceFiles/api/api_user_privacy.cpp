@@ -189,7 +189,7 @@ UserPrivacy::Rule TLToRules(const TLRules &rules, Data::Session &owner) {
 	// But it should be fine for all the apps
 	// that use the same subset of features.
 
-#if 0 // doLater
+#if 0 // mtp
 	owner.processUsers(data.vusers());
 	owner.processChats(data.vchats());
 #endif
