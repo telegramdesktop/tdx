@@ -108,6 +108,8 @@ public:
 	void logout();
 	void reset();
 
+	void setPaused(bool paused);
+
 	void setProxy(std::variant<TLdisableProxy, TLaddProxy> value);
 
 	// Synchronous requests. Use with care!!

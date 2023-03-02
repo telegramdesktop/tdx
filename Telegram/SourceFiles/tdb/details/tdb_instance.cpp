@@ -237,7 +237,9 @@ public:
 		ExternalCallback &&callback,
 		bool skipStateCheck = false);
 	void cancel(RequestId requestId);
-	[[nodiscard]] bool shouldInvokeHandler(RequestId requestId);
+	void invokeHandlerForRequest(
+		RequestId requestId,
+		FnMut<void()> &&handler);
 	void sendPreparedSync(
 		ExternalGenerator &&request,
 		ExternalCallback &&callback);
@@ -268,6 +270,8 @@ public:
 	void logout();
 	void reset();
 
+	void setPaused(bool paused);
+
 	void setProxy(std::variant<TLdisableProxy, TLaddProxy> value);
 
 private:
@@ -275,6 +279,11 @@ private:
 		ExternalGenerator request;
 		ExternalCallback callback;
 	};
+	struct PausedHandler {
+		RequestId requestId;
+		FnMut<void()> handler;
+	};
+	using PausedProcess = std::variant<TLupdate, PausedHandler>;
 
 	void restart();
 	void sendTdlibParameters();
@@ -287,6 +296,7 @@ private:
 	void clearStale();
 	void started();
 	void setCurrentProxy();
+	[[nodiscard]] bool shouldInvokeHandler(RequestId requestId);
 
 	const std::shared_ptr<Manager> _manager;
 	ClientManager::ClientId _id = 0;
@@ -296,8 +306,10 @@ private:
 	base::flat_map<RequestId, QueuedRequest> _queuedRequests;
 	std::variant<TLdisableProxy, TLaddProxy> _proxy;
 	rpl::event_stream<TLupdate> _updates;
+	std::vector<PausedProcess> _pausedProcesses;
 	std::atomic<State> _state = State::Working;
 	std::atomic<bool> _clearingStale = false;
+	bool _paused = false;
 
 };
 
@@ -600,12 +612,9 @@ void Instance::Manager::handleResponseOnMain(
 		RequestId requestId,
 		FnMut<void()> &&handler) {
 	const auto i = _clients.find(clientId);
-	if (i == end(_clients)
-		|| !i->second->shouldInvokeHandler(requestId)
-		|| !handler) {
-		return;
+	if (i != end(_clients)) {
+		i->second->invokeHandlerForRequest(requestId, std::move(handler));
 	}
-	handler();
 }
 
 void Instance::Manager::clearBadOnce(const InstanceConfig &config) {
@@ -751,7 +760,22 @@ void Instance::Client::cancel(RequestId requestId) {
 
 bool Instance::Client::shouldInvokeHandler(RequestId requestId) {
 	QMutexLocker lock(&_activeRequestsMutex);
-	return _activeRequests.remove(requestId);
+	return _activeRequests.contains(requestId);
+}
+
+void Instance::Client::invokeHandlerForRequest(
+		RequestId requestId,
+		FnMut<void()> &&handler) {
+	if (!handler) {
+		[[maybe_unused]] const auto should = shouldInvokeHandler(requestId);
+	} else if (_paused) {
+		_pausedProcesses.push_back(PausedHandler{
+			requestId,
+			std::move(handler),
+		});
+	} else if (shouldInvokeHandler(requestId)) {
+		handler();
+	}
 }
 
 void Instance::Client::started() {
@@ -772,6 +796,10 @@ void Instance::Client::started() {
 void Instance::Client::handleUpdate(TLupdate &&update) {
 	Expects(_state != State::Purging);
 
+	if (_paused) {
+		_pausedProcesses.push_back(std::move(update));
+		return;
+	}
 	update.match([&](const TLDupdateAuthorizationState &data) {
 		data.vauthorization_state().match([](
 			const TLDauthorizationStateWaitTdlibParameters &) {
@@ -836,6 +864,26 @@ void Instance::Client::reset() {
 	}
 	_state = State::Closing;
 	send(allocateRequestId(), TLdestroy(), nullptr, nullptr, true);
+}
+
+void Instance::Client::setPaused(bool paused) {
+	if (_paused == paused) {
+		return;
+	} else if (paused) {
+		_paused = true;
+	} else {
+		_paused = false;
+		for (auto &process : base::take(_pausedProcesses)) {
+			if (const auto update = std::get_if<TLupdate>(&process)) {
+				handleUpdate(std::move(*update));
+			} else {
+				auto &paused = v::get<PausedHandler>(process);
+				if (shouldInvokeHandler(paused.requestId)) {
+					paused.handler();
+				}
+			}
+		}
+	}
 }
 
 void Instance::Client::setProxy(std::variant<TLdisableProxy, TLaddProxy> value) {
@@ -909,6 +957,8 @@ void Instance::Client::sendTdlibParameters() {
 
 void Instance::Client::purgeInvalid() {
 	_state = State::Purging;
+	_pausedProcesses.clear();
+	_paused = false;
 	const auto id = _id;
 	const auto key = ClientKey(_config);
 	const auto weak = std::weak_ptr(_manager);
@@ -1008,6 +1058,10 @@ void Instance::logout() {
 
 void Instance::reset() {
 	_client->reset();
+}
+
+void Instance::setPaused(bool paused) {
+	_client->setPaused(paused);
 }
 
 void Instance::setProxy(std::variant<TLdisableProxy, TLaddProxy> value) {

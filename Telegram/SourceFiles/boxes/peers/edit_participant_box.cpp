@@ -611,7 +611,7 @@ void EditAdminBox::transferOwnership() {
 		TLcanTransferOwnership()
 	).done([=](const TLcanTransferOwnershipResult &result) {
 		_checkTransferRequestId = 0;
-		// doLater Can be simplified.
+		// later Can be simplified.
 		const auto error = result.match([](
 			const TLDcanTransferOwnershipResultOk &) {
 			return QString();

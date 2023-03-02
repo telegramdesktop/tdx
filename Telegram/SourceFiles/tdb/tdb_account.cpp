@@ -64,6 +64,10 @@ void Account::unregisterFileGeneration(
 	_generations.remove(id);
 }
 
+void Account::setPaused(bool paused) {
+	_instance.setPaused(paused);
+}
+
 bool Account::consumeUpdate(const TLupdate &update) {
 	return update.match([&](const TLDupdateFileGenerationStart &data) {
 		const auto &conversion = data.vconversion().v;

@@ -49,6 +49,8 @@ public:
 		int64 id,
 		not_null<FileGenerator*> generator);
 
+	void setPaused(bool paused);
+
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
 	}
