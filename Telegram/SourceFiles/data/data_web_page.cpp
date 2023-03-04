@@ -126,6 +126,79 @@ WebPageCollage ExtractCollage(
 }
 #endif
 
+WebPageCollage ExtractCollage(
+		not_null<Data::Session*> owner,
+		const QVector<TLpageBlock> &items) {
+	const auto count = items.size();
+	if (count < 2) {
+		return {};
+	}
+	const auto bad = ranges::find_if(items, [](uint32 type) {
+		return (type != id_pageBlockPhoto) && (type != id_pageBlockVideo);
+	}, &TLpageBlock::type);
+	if (bad != items.end()) {
+		return {};
+	}
+
+	auto result = WebPageCollage();
+	result.items.reserve(count);
+	for (const auto &item : items) {
+		const auto good = item.match([&](const TLDpageBlockPhoto &data) {
+			if (const auto found = data.vphoto()) {
+				const auto photo = owner->processPhoto(*found);
+				if (photo->isNull()) {
+					return false;
+				}
+				result.items.emplace_back(photo);
+				return true;
+			}
+			return false;
+		}, [&](const TLDpageBlockVideo &data) {
+			if (const auto found = data.vvideo()) {
+				const auto document = owner->processDocument(*found);
+				if (!document->isVideoFile()) {
+					return false;
+				}
+				result.items.emplace_back(document);
+				return true;
+			}
+			return false;
+		}, [](const auto &) -> bool {
+			Unexpected("Type of block in Collage.");
+		});
+		if (!good) {
+			return {};
+		}
+	}
+	return result;
+}
+
+WebPageCollage ExtractCollage(
+		not_null<Data::Session*> owner,
+		const TLDwebPageInstantView &data) {
+	for (const auto &block : data.vpage_blocks().v) {
+		switch (block.type()) {
+		case id_pageBlockPhoto:
+		case id_pageBlockVideo:
+		case id_pageBlockCover:
+		case id_pageBlockEmbedded:
+		case id_pageBlockEmbeddedPost:
+		case id_pageBlockAudio:
+			return WebPageCollage();
+		case id_pageBlockSlideshow:
+			return ExtractCollage(
+				owner,
+				block.c_pageBlockSlideshow().vpage_blocks().v);
+		case id_pageBlockCollage:
+			return ExtractCollage(
+				owner,
+				block.c_pageBlockCollage().vpage_blocks().v);
+		default: break;
+		}
+	}
+	return WebPageCollage();
+}
+
 } // namespace
 
 WebPageType ParseWebPageType(
@@ -248,10 +321,34 @@ void WebPageData::setFromTdb(const TLwebPage &data) {
 			: fields.vvoice_note()
 			? _owner->processDocument(*fields.vvoice_note()).get()
 			: nullptr),
-		WebPageCollage(), // todo
 		fields.vduration().v,
 		fields.vauthor().v,
+		fields.vhas_large_media().v,
 		0);
+
+	if (fields.vinstant_view_version().v > 0 && !_collageRequestId) {
+		const auto owner = _owner;
+		const auto sender = &_owner->session().sender();
+		const auto requestId = sender->preallocateId();
+		const auto finish = [owner, id = id, requestId](auto &&collage) {
+			const auto that = owner->webpage(id);
+			if (that->_collageRequestId == requestId) {
+				that->_collageRequestId = -1;
+				if (!collage.items.empty()) {
+					that->setCollage(std::move(collage));
+				}
+			}
+		};
+		sender->request(TLgetWebPageInstantView(
+			fields.vurl(),
+			tl_bool(false) // force_full
+		), requestId).done([=](const TLDwebPageInstantView &data) {
+			finish(ExtractCollage(owner, data));
+		}).fail([finish] {
+			finish(WebPageCollage());
+		}).send();
+		_collageRequestId = requestId;
+	}
 }
 
 Data::Session &WebPageData::owner() const {
@@ -272,7 +369,9 @@ bool WebPageData::applyChanges(
 		FullStoryId newStoryId,
 		PhotoData *newPhoto,
 		DocumentData *newDocument,
+#if 0 // mtp
 		WebPageCollage &&newCollage,
+#endif
 		std::unique_ptr<Iv::Data> newIv,
 		int newDuration,
 		const QString &newAuthor,
@@ -309,7 +408,9 @@ bool WebPageData::applyChanges(
 	const auto hasTitle = !resultTitle.isEmpty() ? 1 : 0;
 	const auto hasDescription = !newDescription.text.isEmpty() ? 1 : 0;
 	if (newDocument
+#if 0 // mtp
 		|| !newCollage.items.empty()
+#endif
 		|| !newPhoto
 		|| (hasSiteName + hasTitle + hasDescription < 2)) {
 		newHasLargeMedia = false;
@@ -324,7 +425,9 @@ bool WebPageData::applyChanges(
 		&& storyId == newStoryId
 		&& photo == newPhoto
 		&& document == newDocument
+#if 0 // mtp
 		&& collage.items == newCollage.items
+#endif
 		&& (!iv == !newIv)
 		&& (!iv || iv->partial() == newIv->partial())
 		&& duration == newDuration
@@ -348,7 +451,9 @@ bool WebPageData::applyChanges(
 	storyId = newStoryId;
 	photo = newPhoto;
 	document = newDocument;
+#if 0 // mtp
 	collage = std::move(newCollage);
+#endif
 	iv = std::move(newIv);
 	duration = newDuration;
 	author = resultAuthor;
@@ -367,6 +472,14 @@ bool WebPageData::applyChanges(
 void WebPageData::replaceDocumentGoodThumbnail() {
 	if (document && photo) {
 		document->setGoodThumbnailPhoto(photo);
+	}
+}
+
+void WebPageData::setCollage(WebPageCollage &&newCollage) {
+	if (collage.items != newCollage.items) {
+		collage = std::move(newCollage);
+		++version;
+		_owner->notifyWebPageUpdateDelayed(this);
 	}
 }
 
