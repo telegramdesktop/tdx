@@ -4384,8 +4384,10 @@ void Session::webpageApplyFields(
 		storyId,
 		photo,
 		document,
+#if 0 // mtp
 		std::move(collage),
 		std::move(iv),
+#endif
 		std::move(stickerSet),
 		duration,
 		author,
