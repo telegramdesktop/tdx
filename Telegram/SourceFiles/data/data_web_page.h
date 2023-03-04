@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 
 namespace Tdb {
-class TLwebPage;
+class TLlinkPreview;
 } // namespace Tdb
 
 class ChannelData;
@@ -61,7 +61,9 @@ enum class WebPageType : uint8 {
 
 	Factcheck,
 };
+#if 0 // mtp
 [[nodiscard]] WebPageType ParseWebPageType(const MTPDwebPage &type);
+#endif
 [[nodiscard]] bool IgnoreIv(WebPageType type);
 
 struct WebPageCollage {
@@ -91,8 +93,8 @@ struct WebPageData {
 	WebPageData(not_null<Data::Session*> owner, const WebPageId &id);
 	~WebPageData();
 
-	[[nodiscard]] static WebPageId IdFromTdb(const Tdb::TLwebPage &data);
-	void setFromTdb(const Tdb::TLwebPage &data);
+	[[nodiscard]] static WebPageId IdFromTdb(const Tdb::TLlinkPreview &data);
+	void setFromTdb(const Tdb::TLlinkPreview &data);
 
 	[[nodiscard]] Data::Session &owner() const;
 	[[nodiscard]] Main::Session &session() const;
@@ -107,8 +109,10 @@ struct WebPageData {
 		FullStoryId newStoryId,
 		PhotoData *newPhoto,
 		DocumentData *newDocument,
+#if 0 // mtp
 		WebPageCollage &&newCollage,
 		std::unique_ptr<Iv::Data> newIv,
+#endif
 		std::unique_ptr<WebPageStickerSet> newStickerSet,
 		int newDuration,
 		const QString &newAuthor,
@@ -121,6 +125,9 @@ struct WebPageData {
 		ChannelData *channel,
 		const MTPmessages_Messages &result);
 #endif
+	void setIv(
+		std::unique_ptr<Iv::Data> newIv,
+		WebPageCollage &&newCollage);
 
 	[[nodiscard]] QString displayedSiteName() const;
 	[[nodiscard]] bool computeDefaultSmallMedia() const;
@@ -146,9 +153,11 @@ struct WebPageData {
 	uint32 hasLargeMedia : 1 = 0;
 	uint32 failed : 1 = 0;
 
+
 private:
 	void replaceDocumentGoodThumbnail();
 
 	const not_null<Data::Session*> _owner;
+	mtpRequestId _collageRequestId = 0;
 
 };
