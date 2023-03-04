@@ -84,7 +84,9 @@ struct WebPageData {
 		FullStoryId newStoryId,
 		PhotoData *newPhoto,
 		DocumentData *newDocument,
+#if 0 // mtp
 		WebPageCollage &&newCollage,
+#endif
 		int newDuration,
 		const QString &newAuthor,
 		int newPendingTill);
@@ -95,6 +97,7 @@ struct WebPageData {
 		ChannelData *channel,
 		const MTPmessages_Messages &result);
 #endif
+	void setCollage(WebPageCollage &&newCollage);
 
 	WebPageId id = 0;
 	WebPageType type = WebPageType::Article;
@@ -112,9 +115,11 @@ struct WebPageData {
 	int pendingTill = 0;
 	int version = 0;
 
+
 private:
 	void replaceDocumentGoodThumbnail();
 
 	const not_null<Data::Session*> _owner;
+	mtpRequestId _collageRequestId = 0;
 
 };
