@@ -97,6 +97,9 @@ class NotifySettings;
 class CustomEmojiManager;
 class Stories;
 
+struct PhotoLocalData;
+struct DocumentLocalData;
+
 struct RepliesReadTillUpdate {
 	FullMsgId id;
 	MsgId readTillId;
@@ -700,10 +703,12 @@ public:
 	[[nodiscard]] not_null<CloudImage*> location(
 		const LocationPoint &point);
 
+	not_null<PhotoData*> processPhoto(const PhotoLocalData &data);
 	not_null<PhotoData*> processPhoto(const Tdb::TLphoto &data);
 	not_null<PhotoData*> processPhoto(const Tdb::TLchatPhoto &data);
 	not_null<PhotoData*> processSmallPhoto(const Tdb::TLchatPhotoInfo &data);
 
+	not_null<DocumentData*> processDocument(const DocumentLocalData &data);
 	template <
 		typename T,
 		typename = std::enable_if_t<IsTdbDocument<T>()>>
@@ -949,7 +954,6 @@ private:
 	void documentApplyFields(
 		not_null<DocumentData*> document,
 		const MTPDdocument &data);
-#endif
 	void documentApplyFields(
 		not_null<DocumentData*> document,
 		const uint64 &access,
@@ -963,7 +967,6 @@ private:
 		bool isPremiumSticker,
 		int32 dc,
 		int64 size);
-#if 0 // mtp
 	DocumentData *documentFromWeb(
 		const MTPDwebDocument &data,
 		const ImageLocation &thumbnailLocation,
