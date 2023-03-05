@@ -52,10 +52,41 @@ class Loader;
 } // namespace Media
 
 namespace Data {
+
 class Session;
 class DocumentMedia;
 class ReplyPreview;
 enum class StickersType : uchar;
+
+struct DocumentLocalData {
+	DocumentId id = 0;
+
+	TimeId added = 0;
+	QString name;
+	QString mime;
+	int64 size = 0;
+
+	QImage thumb;
+	QString thumbName;
+	QByteArray thumbBytes;
+
+	QSize imageDimensions;
+	bool imageIsSticker = false;
+	bool imageAnimated = false;
+
+	QString audioTitle;
+	QString audioPerformer;
+	crl::time audioDuration = 0;
+
+	QSize videoDimensions;
+	crl::time videoDuration = 0;
+	bool videoSupportsStreaming = false;
+	bool videoIsGifv = false;
+
+	crl::time voiceDuration = 0;
+	QByteArray voiceWaveform;
+};
+
 } // namespace Data
 
 namespace Main {
@@ -144,14 +175,17 @@ public:
 	void setFromTdb(const Tdb::TLnotificationSound &data);
 	void setSimpleFromTdb(const Tdb::TLfile &data, SimpleDocumentType type);
 	void applyTdbFile(const Tdb::TLfile &file);
+	void setFromLocal(const Data::DocumentLocalData &data);
 
 	[[nodiscard]] FileId tdbFileId() const;
 
 	[[nodiscard]] Data::Session &owner() const;
 	[[nodiscard]] Main::Session &session() const;
 
+#if 0 // mtp
 	void setattributes(
 		const QVector<MTPDocumentAttribute> &attributes);
+#endif
 
 	void automaticLoadSettingsChanged();
 
@@ -382,7 +416,9 @@ private:
 		| Flag::StreamingMaybeNo;
 	static constexpr Flags kStreamingSupportedNo = Flags();
 
+#if 0 // mtp
 	friend class Serialize::Document;
+#endif
 
 	[[nodiscard]] LocationType locationType() const;
 	void validateLottieSticker();

@@ -432,7 +432,7 @@ void DocumentData::setFromTdb(const TLvideo &data) {
 	dimensions = QSize(fields.vwidth().v, fields.vheight().v);
 	type = VideoDocument;
 	_additional = nullptr;
-	_duration = fields.vduration().v;
+	_duration = fields.vduration().v * crl::time(1000);
 	if (fields.vhas_stickers().v) {
 		_flags |= Flag::HasAttachedStickers;
 	} else {
@@ -458,10 +458,9 @@ void DocumentData::setFromTdb(const TLaudio &data) {
 	dimensions = QSize();
 	type = SongDocument;
 	_additional = std::make_unique<SongData>();
-	_duration = -1; // For audio files duration in _additional.
+	_duration = fields.vduration().v * crl::time(1000);
 	_flags &= ~Flag::HasAttachedStickers;
 	const auto songData = song();
-	songData->duration = fields.vduration().v;
 	songData->title = fields.vtitle().v;
 	songData->performer = fields.vperformer().v;
 	if (!hasThumbnail()
@@ -510,7 +509,7 @@ void DocumentData::setFromTdb(const TLanimation &data) {
 	dimensions = QSize(fields.vwidth().v, fields.vheight().v);
 	type = AnimatedDocument;
 	_additional = nullptr;
-	_duration = fields.vduration().v;
+	_duration = fields.vduration().v * crl::time(1000);
 	if (fields.vhas_stickers().v) {
 		_flags |= Flag::HasAttachedStickers;
 	} else {
@@ -612,10 +611,9 @@ void DocumentData::setFromTdb(const TLvoiceNote &data) {
 	dimensions = QSize();
 	type = VoiceDocument;
 	_additional = std::make_unique<VoiceData>();
-	_duration = -1;
+	_duration = fields.vduration().v * crl::time(1000);
 	_flags &= ~Flag::HasAttachedStickers;
 	const auto voiceData = voice();
-	voiceData->duration = fields.vduration().v;
 	voiceData->waveform = documentWaveformDecode(fields.vwaveform().v);
 	voiceData->wavemax = voiceData->waveform.empty()
 		? uchar(0)
@@ -637,8 +635,7 @@ void DocumentData::setFromTdb(const TLvideoNote &data) {
 	dimensions = QSize(fields.vlength().v, fields.vlength().v);
 	type = RoundVideoDocument;
 	_additional = std::make_unique<RoundData>();
-	round()->duration = fields.vduration().v;
-	_duration = fields.vduration().v;
+	_duration = fields.vduration().v * crl::time(1000);
 	_flags &= ~Flag::HasAttachedStickers;
 }
 
@@ -670,6 +667,7 @@ Main::Session &DocumentData::session() const {
 	return _owner->session();
 }
 
+#if 0 // mtp
 void DocumentData::setattributes(
 		const QVector<MTPDocumentAttribute> &attributes) {
 	_duration = -1;
@@ -860,6 +858,7 @@ void DocumentData::setattributes(
 		setMaybeSupportsStreaming(true);
 	}
 }
+#endif
 
 void DocumentData::validateLottieSticker() {
 	if (type == FileDocument
@@ -967,6 +966,118 @@ void DocumentData::applyTdbFile(const TLfile &file) {
 	const auto &local = file.data().vlocal().data();
 	if (local.vis_downloading_completed().v && !local.vpath().v.isEmpty()) {
 		_location = Core::FileLocation(local.vpath().v);
+	}
+}
+
+void DocumentData::setFromLocal(const Data::DocumentLocalData &data) {
+	Expects(id == data.id);
+
+	_flags &= ~(Flag::ImageType
+		| Flag::HasAttachedStickers
+		| Flag::UseTextColor
+		| kStreamingSupportedMask);
+	_flags |= kStreamingSupportedUnknown;
+
+	type = FileDocument;
+
+	date = data.added;
+	setFileName(data.name);
+	setMimeString(data.mime);
+	size = data.size;
+
+	if (!data.thumb.isNull()) {
+		const auto isPremiumSticker = false;
+		updateThumbnails(
+			{},
+			ImageWithLocation{
+				.location = ImageLocation(
+					{.data = InMemoryLocation{.bytes = data.thumbBytes } },
+					data.thumb.width(),
+					data.thumb.height()),
+				.bytes = data.thumbBytes,
+				.preloaded = data.thumb,
+				.bytesCount = data.thumbBytes.size(),
+			},
+			{},
+			isPremiumSticker);
+	}
+
+	validateLottieSticker();
+
+	if (type == FileDocument) {
+		if (data.voiceDuration) {
+			type = VoiceDocument;
+			_additional = std::make_unique<VoiceData>();
+		} else if (data.audioDuration
+			|| !data.audioTitle.isEmpty()
+			|| !data.audioPerformer.isEmpty()) {
+			type = SongDocument;
+			_additional = std::make_unique<SongData>();
+		}
+	}
+	if (const auto voiceData = voice() ? voice() : round()) {
+		_duration = data.voiceDuration;
+		voiceData->waveform = documentWaveformDecode(data.voiceWaveform);
+		voiceData->wavemax = voiceData->waveform.empty()
+			? uchar(0)
+			: *ranges::max_element(voiceData->waveform);
+	} else if (const auto songData = song()) {
+		_duration = data.audioDuration;
+		songData->title = data.audioTitle;
+		songData->performer = data.audioPerformer;
+		refreshPossibleCoverThumbnail();
+	}
+
+	if (!data.imageDimensions.isEmpty()) {
+		dimensions = data.imageDimensions;
+	}
+	if (data.imageIsSticker) {
+		const auto was = type;
+		if (type == FileDocument || type == VideoDocument) {
+			type = StickerDocument;
+			_additional = std::make_unique<StickerData>();
+		}
+		if (const auto info = sticker()) {
+			info->setType = Data::StickersType::Stickers;
+		}
+	}
+	if (data.videoDuration > 0 || !data.videoDimensions.isEmpty()) {
+		if (type == FileDocument) {
+			type = VideoDocument;
+		} else if (const auto info = sticker()) {
+			info->type = StickerType::Webm;
+		}
+		_duration = data.videoDuration;
+		setMaybeSupportsStreaming(data.videoSupportsStreaming);
+		dimensions = data.videoDimensions;
+	}
+	if (data.imageAnimated || data.videoIsGifv) {
+		if (type == FileDocument
+			|| type == VideoDocument
+			|| (sticker() && sticker()->type != StickerType::Webm)) {
+			type = AnimatedDocument;
+			_additional = nullptr;
+		}
+	}
+
+	if (type == StickerDocument
+		&& ((size > Storage::kMaxStickerBytesSize)
+			|| (!sticker()->isLottie()
+				&& !GoodStickerDimensions(
+					dimensions.width(),
+					dimensions.height())))) {
+		type = FileDocument;
+		_additional = nullptr;
+	} else if (type == FileDocument
+		&& hasMimeType(u"video/webm"_q)
+		&& (size < Storage::kMaxStickerBytesSize)
+		&& GoodStickerDimensions(dimensions.width(), dimensions.height())) {
+		type = StickerDocument;
+		_additional = std::make_unique<StickerData>();
+		sticker()->type = StickerType::Webm;
+	}
+	if (isAudioFile() || isAnimation() || isVoiceMessage()) {
+		setMaybeSupportsStreaming(true);
 	}
 }
 
