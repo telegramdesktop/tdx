@@ -10,6 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/variant.h"
 #include "api/api_common.h"
 
+#include "data/data_photo.h"
+#include "data/data_document.h"
+
 namespace Ui {
 struct PreparedFileInformation;
 } // namespace Ui
@@ -247,8 +250,12 @@ struct FileLoadResult {
 	QImage goodThumbnail;
 	QByteArray goodThumbnailBytes;
 
+#if 0 // mtp
 	MTPPhoto photo;
 	MTPDocument document;
+#endif
+	Data::PhotoLocalData photo;
+	Data::DocumentLocalData document;
 
 	PreparedPhotoThumbs photoThumbs;
 	TextWithTags caption;
