@@ -205,6 +205,26 @@ void PhotoData::applyTdbFile(const Tdb::TLfile &file) {
 	}
 }
 
+void PhotoData::setFromLocal(const Data::PhotoLocalData &data) {
+	Expects(id == data.id);
+
+	const auto image = [&](char level) {
+		const auto proj = [&](const auto &pair) {
+			return pair.first;
+		};
+		const auto i = ranges::find(data.thumbs, level, proj);
+		return (i == data.thumbs.end())
+			? ImageWithLocation()
+			: Images::FromImageInMemory(
+				i->second.image,
+				"JPG",
+				i->second.bytes);
+	};
+
+	date = data.added;
+	updateImages({}, {}, image('m'), image('y'), {}, {}, {});
+}
+
 Data::Session &PhotoData::owner() const {
 	return *_owner;
 }
