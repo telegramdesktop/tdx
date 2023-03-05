@@ -3627,7 +3627,6 @@ not_null<DocumentData*> Session::processDocument(
 		return document(data.vid().v);
 	});
 }
-#endif
 
 not_null<DocumentData*> Session::document(
 		DocumentId id,
@@ -3659,7 +3658,6 @@ not_null<DocumentData*> Session::document(
 	return result;
 }
 
-#if 0 // mtp
 void Session::documentConvert(
 		not_null<DocumentData*> original,
 		const MTPDocument &data) {
@@ -3790,7 +3788,6 @@ void Session::documentApplyFields(
 		data.vdc_id().v,
 		data.vsize().v);
 }
-#endif
 
 void Session::documentApplyFields(
 		not_null<DocumentData*> document,
@@ -3826,6 +3823,7 @@ void Session::documentApplyFields(
 	}
 #endif
 }
+#endif
 
 void Session::documentFileIdUpdated(
 		not_null<DocumentData*> document,
@@ -4392,6 +4390,12 @@ not_null<Data::CloudImage*> Session::location(const LocationPoint &point) {
 			prepared)).first->second.get();
 }
 
+not_null<PhotoData*> Session::processPhoto(const PhotoLocalData &data) {
+	const auto result = photo(data.id);
+	result->setFromLocal(data);
+	return result;
+}
+
 not_null<PhotoData*> Session::processPhoto(const TLphoto &data) {
 	const auto result = photo(PhotoData::IdFromTdb(data));
 	result->setFromTdb(data);
@@ -4408,6 +4412,13 @@ not_null<PhotoData*> Session::processSmallPhoto(
 		const TLchatPhotoInfo &data) {
 	const auto result = photo(PhotoData::IdFromTdb(data));
 	result->setFromTdb(data);
+	return result;
+}
+
+not_null<DocumentData*> Session::processDocument(
+		const DocumentLocalData &data) {
+	const auto result = document(data.id);
+	result->setFromLocal(data);
 	return result;
 }
 
