@@ -47,6 +47,12 @@ enum class PhotoSize : uchar {
 	return static_cast<int>(size);
 }
 
+struct PhotoLocalData {
+	PhotoId id = 0;
+	TimeId added = 0;
+	PreparedPhotoThumbs thumbs;
+};
+
 } // namespace Data
 
 class PhotoData final {
@@ -61,6 +67,7 @@ public:
 	void setFromTdb(const Tdb::TLchatPhoto &data);
 	void setFromTdb(const Tdb::TLchatPhotoInfo &data);
 	void applyTdbFile(const Tdb::TLfile &file);
+	void setFromLocal(const Data::PhotoLocalData &data);
 
 	[[nodiscard]] Data::Session &owner() const;
 	[[nodiscard]] Main::Session &session() const;
