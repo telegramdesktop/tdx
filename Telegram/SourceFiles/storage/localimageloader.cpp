@@ -837,16 +837,24 @@ void FileLoadTask::process(Args &&args) {
 	}
 
 	PreparedPhotoThumbs photoThumbs;
+#if 0 // mtp
 	QVector<MTPPhotoSize> photoSizes;
+#endif
 	QImage goodThumbnail;
 	QByteArray goodThumbnailBytes;
 
+#if 0 // mtp
 	QVector<MTPDocumentAttribute> attributes(1, MTP_documentAttributeFilename(MTP_string(filename)));
+#endif
 
 	auto thumbnail = PreparedFileThumbnail();
 
+#if 0 // mtp
 	auto photo = MTP_photoEmpty(MTP_long(0));
 	auto document = MTP_documentEmpty(MTP_long(0));
+#endif
+	auto photo = Data::PhotoLocalData{ .added = base::unixtime::now() };
+	auto document = Data::DocumentLocalData{ .name = filename };
 
 	if (!isVoice) {
 		if (!_information) {
@@ -859,9 +867,14 @@ void FileLoadTask::process(Args &&args) {
 			duration = song->duration;
 			title = song->title;
 			performer = song->performer;
+#if 0 // mtp
 			const auto seconds = song->duration / 1000;
 			auto flags = MTPDdocumentAttributeAudio::Flag::f_title | MTPDdocumentAttributeAudio::Flag::f_performer;
 			attributes.push_back(MTP_documentAttributeAudio(MTP_flags(flags), MTP_int(seconds), MTP_string(song->title), MTP_string(song->performer), MTPstring()));
+#endif
+			document.audioDuration = duration;
+			document.audioTitle = title;
+			document.audioPerformer = performer;
 			thumbnail = PrepareFileThumbnail(std::move(song->cover));
 		} else if (auto video = std::get_if<Ui::PreparedFileInformation::Video>(
 				&_information->media)) {
@@ -872,13 +885,22 @@ void FileLoadTask::process(Args &&args) {
 			duration = video->duration;
 			if (video->isGifv && !_album) {
 				isGifv = true;
+#if 0 // mtp
 				attributes.push_back(MTP_documentAttributeAnimated());
+#endif
+				document.videoIsGifv = true;
 			}
+#if 0 // mtp
 			auto flags = MTPDdocumentAttributeVideo::Flags(0);
+#endif
 			if (video->supportsStreaming) {
 				isStreamingSupported = true;
+#if 0 // mtp
 				flags |= MTPDdocumentAttributeVideo::Flag::f_supports_streaming;
+#endif
+				document.videoSupportsStreaming = true;
 			}
+#if 0 // mtp
 			const auto realSeconds = video->duration / 1000.;
 			attributes.push_back(MTP_documentAttributeVideo(
 				MTP_flags(flags),
@@ -888,6 +910,9 @@ void FileLoadTask::process(Args &&args) {
 				MTPint(), // preload_prefix_size
 				MTPdouble(), // video_start_ts
 				MTPstring())); // video_codec
+#endif
+			document.videoDuration = duration;
+			document.videoDimensions = videoDimensions;
 
 			if (args.generateGoodThumbnail) {
 				goodThumbnail = video->thumbnail;
@@ -912,7 +937,10 @@ void FileLoadTask::process(Args &&args) {
 	const auto imageDimensions = fullimage.size();
 	if (!fullimage.isNull() && fullimage.width() > 0 && !isSong && !isVideo && !isVoice) {
 		auto w = fullimage.width(), h = fullimage.height();
+#if 0 // mtp
 		attributes.push_back(MTP_documentAttributeImageSize(MTP_int(w), MTP_int(h)));
+#endif
+		document.imageDimensions = QSize(w, h);
 
 		if (ValidateThumbDimensions(w, h)) {
 			isSticker = Core::IsMimeSticker(filemime)
@@ -921,11 +949,14 @@ void FileLoadTask::process(Args &&args) {
 					|| (_type == SendMediaType::File
 						&& GoodStickerDimensions(w, h)));
 			if (isSticker) {
+#if 0 // mtp
 				attributes.push_back(MTP_documentAttributeSticker(
 					MTP_flags(0),
 					MTP_string(),
 					MTP_inputStickerSetEmpty(),
 					MTPMaskCoords()));
+#endif
+				document.imageIsSticker = true;
 				if (isAnimation && args.generateGoodThumbnail) {
 					goodThumbnail = fullimage;
 					{
@@ -934,7 +965,10 @@ void FileLoadTask::process(Args &&args) {
 					}
 				}
 			} else if (isAnimation) {
+#if 0 // mtp
 				attributes.push_back(MTP_documentAttributeAnimated());
+#endif
+				document.imageAnimated = true;
 			} else if (filemime.startsWith(u"image/"_q)
 				&& _type != SendMediaType::File) {
 				if (Core::IsMimeSticker(filemime)) {
@@ -951,13 +985,17 @@ void FileLoadTask::process(Args &&args) {
 				filedata = ComputePhotoJpegBytes(full, fullimagebytes, fullimageformat);
 
 				photoThumbs.emplace('m', PreparedPhotoThumb{ .image = medium });
+#if 0 // mtp
 				photoSizes.push_back(MTP_photoSize(MTP_string("m"), MTP_int(medium.width()), MTP_int(medium.height()), MTP_int(0)));
+#endif
 
 				photoThumbs.emplace('y', PreparedPhotoThumb{
 					.image = full,
 					.bytes = filedata
 				});
+#if 0 // mtp
 				photoSizes.push_back(MTP_photoSize(MTP_string("y"), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0)));
+#endif
 
 #if 0 // mtp
 				photo = MTP_photo(
@@ -970,6 +1008,8 @@ void FileLoadTask::process(Args &&args) {
 					MTPVector<MTPVideoSize>(),
 					MTP_int(_dcId));
 #endif
+				photo.id = _id;
+				photo.thumbs = photoThumbs;
 
 				if (filesize < 0) {
 					filesize = _result->filesize = filedata.size();
@@ -988,6 +1028,21 @@ void FileLoadTask::process(Args &&args) {
 		_type = SendMediaType::File;
 	}
 
+	if (isVoice) {
+		document = Data::DocumentLocalData{
+			.voiceDuration = _duration,
+			.voiceWaveform = documentWaveformEncode5bit(_waveform),
+		};
+	}
+	if (isVoice || _type != SendMediaType::Photo) {
+		document.id = _id;
+		document.added = base::unixtime::now();
+		document.mime = filemime;
+		document.size = filesize;
+		document.thumb = thumbnail.image;
+		document.thumbName = thumbnail.name;
+		document.thumbBytes = thumbnail.bytes;
+	}
 #if 0 // mtp
 	if (isVoice) {
 		const auto seconds = _duration / 1000;

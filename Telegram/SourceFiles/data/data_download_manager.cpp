@@ -755,6 +755,15 @@ void DownloadManager::generateEntry(
 	Expects(!id.object);
 
 	const auto info = QFileInfo(id.path);
+	const auto data = Data::DocumentLocalData{
+		.id = base::RandomValue<DocumentId>(),
+		.added = TimeId(id.started / 1000),
+		.name = info.fileName(),
+		.mime = Core::MimeTypeForFile(info).name(),
+		.size = id.size,
+	};
+	const auto document = session->data().processDocument(data);
+#if 0 // mtp
 	const auto document = session->data().document(
 		base::RandomValue<DocumentId>(),
 		0, // accessHash
@@ -771,6 +780,7 @@ void DownloadManager::generateEntry(
 		false, // isPremiumSticker
 		0, // dc
 		id.size);
+#endif
 	document->setLocation(Core::FileLocation(info));
 	_generatedDocuments.emplace(document);
 

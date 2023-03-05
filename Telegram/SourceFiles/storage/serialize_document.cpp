@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "storage/serialize_document.h"
 
+#if 0 // mtp
 #include "storage/serialize_common.h"
 #include "storage/serialize_peer.h"
 #include "data/data_session.h"
@@ -305,3 +306,4 @@ int Document::sizeInStream(DocumentData *document) {
 }
 
 } // namespace Serialize
+#endif
