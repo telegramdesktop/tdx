@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#if 0 // mtp
 #include "data/data_document.h"
 
 namespace Serialize {
@@ -46,3 +47,4 @@ private:
 };
 
 } // namespace Serialize
+#endif

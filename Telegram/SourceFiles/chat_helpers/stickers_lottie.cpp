@@ -341,19 +341,20 @@ not_null<DocumentData*> GenerateLocalTgsSticker(
 	task.process({ .generateGoodThumbnail = false });
 	const auto result = task.peekResult();
 	Assert(result != nullptr);
-#if 0 // todo
+#if 0 // mtp
 	const auto document = session->data().processDocument(
 		result->document,
 		Images::FromImageInMemory(
 			result->thumb,
 			"WEBP",
 			result->thumbbytes));
+#endif
+	const auto document = session->data().processDocument(result->document);
 	document->setLocation(Core::FileLocation(path));
 
 	Ensures(document->sticker());
 	Ensures(document->sticker()->isLottie());
 	return document;
-#endif
 }
 
 } // namespace ChatHelpers
