@@ -71,6 +71,7 @@ struct InstanceConfig {
 	QString applicationVersion;
 	QString databaseDirectory;
 	QString filesDirectory;
+	QString langpackDirectory;
 	QByteArray encryptionKey;
 	bool testDc = false;
 };

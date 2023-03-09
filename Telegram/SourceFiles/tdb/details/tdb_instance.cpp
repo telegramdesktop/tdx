@@ -286,8 +286,8 @@ private:
 	using PausedProcess = std::variant<TLupdate, PausedHandler>;
 
 	void restart();
+	void sendInitialOptions();
 	void sendTdlibParameters();
-	void setIgnorePlatformRestrictions();
 	void sendToManager(
 		RequestId requestId,
 		ExternalGenerator &&request,
@@ -783,7 +783,6 @@ void Instance::Client::started() {
 		return;
 	}
 	_state = State::Working;
-	setIgnorePlatformRestrictions();
 	setCurrentProxy();
 	for (auto &[requestId, queued] : base::take(_queuedRequests)) {
 		sendToManager(
@@ -930,6 +929,7 @@ void Instance::Client::sendTdlibParameters() {
 	};
 	_clearingStale.wait(true);
 	_state = State::Starting;
+	sendInitialOptions();
 	send(
 		allocateRequestId(),
 		TLsetTdlibParameters(
@@ -1001,7 +1001,7 @@ void Instance::Client::clearStale() {
 	});
 }
 
-void Instance::Client::setIgnorePlatformRestrictions() {
+void Instance::Client::sendInitialOptions() {
 #if !defined OS_MAC_STORE && !defined OS_WIN_STORE
 	const auto ignore = true;
 #else // !OS_MAC_STORE && !OS_WIN_STORE
@@ -1013,7 +1013,18 @@ void Instance::Client::setIgnorePlatformRestrictions() {
 			tl_string("ignore_platform_restrictions"),
 			tl_optionValueBoolean(tl_bool(ignore))),
 		nullptr,
-		nullptr);
+		nullptr,
+		true);
+
+	const auto langpackPath = _config.langpackDirectory + u"/lang"_q;
+	send(
+		allocateRequestId(),
+		TLsetOption(
+			tl_string("language_pack_database_path"),
+			tl_optionValueString(tl_string(langpackPath))),
+		nullptr,
+		nullptr,
+		true);
 }
 
 Instance::Instance(InstanceConfig &&config)
