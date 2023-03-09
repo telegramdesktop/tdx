@@ -248,6 +248,8 @@ ConnectionState::ConnectionState(
 	}, _lifetime);
 }
 
+ConnectionState::~ConnectionState() = default;
+
 void ConnectionState::createWidget() {
 	_widget = base::make_unique_q<Widget>(_parent, _account, _currentLayout);
 	_widget->setVisible(!_forceHidden);
