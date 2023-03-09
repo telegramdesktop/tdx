@@ -228,6 +228,13 @@ void PhotoData::setFromLocal(const Data::PhotoLocalData &data) {
 	updateImages({}, {}, image('m'), image('y'), {}, {}, {});
 }
 
+uint64 PhotoData::persistentId() const {
+	constexpr auto large = PhotoSize::Large;
+	const auto tdb = std::get_if<TdbFileLocation>(
+		&location(large).file().data);
+	return tdb ? tdb->hash : id;
+}
+
 Data::Session &PhotoData::owner() const {
 	return *_owner;
 }
