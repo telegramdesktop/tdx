@@ -241,10 +241,6 @@ void CloudManager::init() {
 			});
 		}).send();
 	};
-	setDefaultValue(
-		"language_pack_database_path",
-		// doLater better.
-		Core::App().domain().active().local().libDatabasePath() + "/lang");
 	setDefaultValue("localization_target", Lang::CloudLangPackName());
 	setDefaultValue("language_pack_id", Lang::DefaultLanguageId());
 }
