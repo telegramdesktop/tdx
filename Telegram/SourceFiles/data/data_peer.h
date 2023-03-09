@@ -418,7 +418,9 @@ public:
 		return _about;
 	}
 
+#if 0 // mtp
 	void checkFolder(FolderId folderId);
+#endif
 
 	void setBarSettings(PeerBarSettings which) {
 		_barSettings.set(which);
