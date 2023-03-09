@@ -29,6 +29,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 
 #include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+#include "data/data_user.h"
 
 namespace Data {
 namespace {
@@ -383,7 +385,62 @@ void Histories::sendDialogRequests() {
 	if (_dialogRequestsPending.empty()) {
 		return;
 	}
-#if 0 // todo
+	const auto histories = ranges::views::all(
+		_dialogRequestsPending
+	) | ranges::views::transform([](const auto &pair) {
+		return pair.first;
+	}) | ranges::to_vector;
+
+	for (auto &[history, callbacks] : base::take(_dialogRequestsPending)) {
+		_dialogRequests.emplace(history, std::move(callbacks));
+
+		const auto peer = history->peer;
+		const auto fail = [=] {
+			dialogEntryApplied(history);
+		};
+		const auto done = [=](const TLchat &result) {
+			const auto gotPeer = session().data().processPeer(result);
+			Assert(peer == gotPeer);
+			if (history->lastServerMessageKnown()) {
+				dialogEntryApplied(history);
+			} else {
+				session().sender().request(TLgetChatHistory(
+					peerToTdbChat(peer->id),
+					tl_int53(0),
+					tl_int32(0),
+					tl_int32(10),
+					tl_bool(false) // only_local
+				)).done([=](const TLmessages &result) {
+					const auto &list = result.data().vmessages().v;
+					if (!list.empty() && list.front()) {
+						session().data().processMessage(
+							*list.front(),
+							NewMessageType::Last);
+					}
+					dialogEntryApplied(history);
+				}).fail(fail).send();
+			}
+		};
+		if (const auto user = peer->asUser()) {
+			session().sender().request(TLcreatePrivateChat(
+				tl_int53(peerToUser(user->id).bare),
+				tl_bool(false) // force
+			)).done(done).fail(fail).send();
+		} else if (const auto chat = peer->asChat()) {
+			session().sender().request(TLcreateBasicGroupChat(
+				tl_int53(peerToChat(chat->id).bare),
+				tl_bool(false) // force
+			)).done(done).fail(fail).send();
+		} else if (const auto channel = peer->asChannel()) {
+			session().sender().request(TLcreateSupergroupChat(
+				tl_int53(peerToChannel(channel->id).bare),
+				tl_bool(false) // force
+			)).done(done).fail(fail).send();
+		} else {
+			Unexpected("Chat type in Histories::sendDialogRequests.");
+		}
+	}
+#if 0 // mtp
 	const auto histories = ranges::views::all(
 		_dialogRequestsPending
 	) | ranges::views::transform([](const auto &pair) {
@@ -431,12 +488,13 @@ void Histories::sendDialogRequests() {
 #endif
 }
 
-#if 0 // mtp
 void Histories::dialogEntryApplied(not_null<History*> history) {
+#if 0 // mtp
 	const auto state = lookup(history);
 	if (state && state->postponedRequestEntry) {
 		return;
 	}
+#endif
 	history->dialogEntryApplied();
 	if (const auto callbacks = _dialogRequestsPending.take(history)) {
 		for (const auto &callback : *callbacks) {
@@ -448,12 +506,15 @@ void Histories::dialogEntryApplied(not_null<History*> history) {
 			callback();
 		}
 	}
+#if 0 // mtp
 	if (state && state->sentReadTill && state->sentReadDone) {
 		history->setInboxReadTill(base::take(state->sentReadTill));
 		checkEmptyState(history);
 	}
+#endif
 }
 
+#if 0 // mtp
 void Histories::applyPeerDialogs(const MTPmessages_PeerDialogs &dialogs) {
 	Expects(dialogs.type() == mtpc_messages_peerDialogs);
 
