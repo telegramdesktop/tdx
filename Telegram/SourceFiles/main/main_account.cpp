@@ -120,6 +120,8 @@ void Account::start(std::unique_ptr<MTP::Config> config) {
 
 std::unique_ptr<Tdb::Account> Account::createTdb() {
 	const auto key = domain().tdbKey();
+	const auto langpackPath = cWorkingDir() + u"tdata/lang"_q;
+	QDir().mkpath(langpackPath);
 	auto result = std::make_unique<Tdb::Account>(Tdb::AccountConfig{
 		.apiId = ApiId,
 		.apiHash = ApiHash,
@@ -129,6 +131,7 @@ std::unique_ptr<Tdb::Account> Account::createTdb() {
 		.applicationVersion = QString::fromLatin1(AppVersionStr),
 		.databaseDirectory = _local->libDatabasePath(),
 		.filesDirectory = _local->libFilesPath(),
+		.langpackDirectory = langpackPath,
 		.encryptionKey = QByteArray(
 			reinterpret_cast<const char*>(key.data()),
 			key.size()),
