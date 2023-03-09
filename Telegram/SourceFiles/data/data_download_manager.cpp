@@ -37,8 +37,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "styles/style_layers.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+
 namespace Data {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kClearLoadingTimeout = 5 * crl::time(1000);
 constexpr auto kMaxFileSize = 4000 * int64(1024 * 1024);
@@ -56,6 +61,11 @@ constexpr auto ByItem = [](const auto &entry) {
 constexpr auto ByDocument = [](const auto &entry) {
 	return entry.object.document;
 };
+
+template <typename Type>
+[[nodiscard]] uint64 IdFrom(Type *item) {
+	return item->persistentId();
+}
 
 [[nodiscard]] uint64 PeerAccessHash(not_null<PeerData*> peer) {
 	if (const auto user = peer->asUser()) {
@@ -308,8 +318,12 @@ void DownloadManager::addLoaded(
 	auto &data = sessionData(item);
 
 	const auto id = object.document
+#if 0 // mtp
 		? DownloadId{ object.document->id, DownloadType::Document }
 		: DownloadId{ object.photo->id, DownloadType::Photo };
+#endif
+		? DownloadId{ IdFrom(object.document), DownloadType::Document }
+		: DownloadId{ IdFrom(object.photo), DownloadType::Photo };
 	data.downloaded.push_back({
 		.download = id,
 		.started = started,
@@ -634,12 +648,17 @@ void DownloadManager::resolve(
 		|| data.resolveSentTotal >= kMaxResolvePerAttempt) {
 		return;
 	}
+#if 0 // mtp
 	struct Prepared {
 		uint64 peerAccessHash = 0;
 		QVector<MTPInputMessage> ids;
 	};
+#endif
 	auto &owner = session->data();
+#if 0 // mtp
 	auto prepared = base::flat_map<PeerId, Prepared>();
+#endif
+	auto prepared = base::flat_set<FullMsgId>();
 	auto last = begin(data.downloaded);
 	auto from = last + (data.resolveNeeded - data.resolveSentTotal);
 	for (auto i = from; i != last;) {
@@ -650,6 +669,7 @@ void DownloadManager::resolve(
 			// Mark as deleted.
 			id.path = QString();
 		} else if (!owner.message(id.itemId) && IsServerMsgId(msgId)) {
+#if 0 // mtp
 			const auto groupByPeer = peerIsChannel(id.itemId.peer)
 				? id.itemId.peer
 				: session->userPeerId();
@@ -658,6 +678,8 @@ void DownloadManager::resolve(
 				perPeer.peerAccessHash = id.peerAccessHash;
 			}
 			perPeer.ids.push_back(MTP_inputMessageID(MTP_int(msgId.bare)));
+#endif
+			prepared.emplace(id.itemId);
 		}
 		if (++data.resolveSentTotal >= kMaxResolvePerAttempt) {
 			break;
@@ -673,7 +695,16 @@ void DownloadManager::resolve(
 		--sessionData(session).resolveSentRequests;
 		check();
 	};
-#if 0 // todo
+	for (const auto &itemId : prepared) {
+		session->sender().request(TLgetMessage(
+			peerToTdbChat(itemId.peer),
+			tl_int53(itemId.msg.bare)
+		)).done([=](const TLmessage &result) {
+			session->data().processMessage(result, NewMessageType::Existing);
+			requestFinished();
+		}).fail(requestFinished).send();
+	}
+#if 0 // mtp
 	for (auto &[peer, perPeer] : prepared) {
 		if (const auto channelId = peerToChannel(peer)) {
 			session->api().request(MTPchannels_GetMessages(
@@ -716,10 +747,16 @@ void DownloadManager::resolveRequestsFinished(
 		const auto document = media ? media->document() : nullptr;
 		const auto photo = media ? media->photo() : nullptr;
 		if (i->download.type == DownloadType::Document
+#if 0 // mtp
 			&& (!document || document->id != i->download.objectId)) {
+#endif
+			&& (!document || IdFrom(document) != i->download.objectId)) {
 			generateEntry(session, *i);
 		} else if (i->download.type == DownloadType::Photo
+#if 0 // mtp
 			&& (!photo || photo->id != i->download.objectId)) {
+#endif
+			&& (!photo || IdFrom(photo) != i->download.objectId)) {
 			generateEntry(session, *i);
 		} else {
 			i->object = std::make_unique<DownloadObject>(DownloadObject{

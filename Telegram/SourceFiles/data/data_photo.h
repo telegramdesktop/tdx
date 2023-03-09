@@ -68,6 +68,7 @@ public:
 	void setFromTdb(const Tdb::TLchatPhotoInfo &data);
 	void applyTdbFile(const Tdb::TLfile &file);
 	void setFromLocal(const Data::PhotoLocalData &data);
+	[[nodiscard]] uint64 persistentId() const;
 
 	[[nodiscard]] Data::Session &owner() const;
 	[[nodiscard]] Main::Session &session() const;
