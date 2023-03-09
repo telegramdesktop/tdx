@@ -1085,6 +1085,10 @@ FileId DocumentData::tdbFileId() const {
 	return _tdbFile.fileId;
 }
 
+uint64 DocumentData::persistentId() const {
+	return _tdbFile.fileId ? _tdbFile.hash : id;
+}
+
 bool DocumentData::isWallPaper() const {
 	return (type == WallPaperDocument);
 }

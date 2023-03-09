@@ -178,6 +178,7 @@ public:
 	void setFromLocal(const Data::DocumentLocalData &data);
 
 	[[nodiscard]] FileId tdbFileId() const;
+	[[nodiscard]] uint64 persistentId() const;
 
 	[[nodiscard]] Data::Session &owner() const;
 	[[nodiscard]] Main::Session &session() const;
