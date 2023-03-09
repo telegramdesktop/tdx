@@ -356,7 +356,9 @@ public:
 		return _about;
 	}
 
+#if 0 // mtp
 	void checkFolder(FolderId folderId);
+#endif
 
 	void setSettings(PeerSettings which) {
 		_settings.set(which);
