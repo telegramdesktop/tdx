@@ -689,6 +689,7 @@ bool PeerData::setAbout(const QString &newAbout) {
 	return true;
 }
 
+#if 0 // mtp
 void PeerData::checkFolder(FolderId folderId) {
 	const auto folder = folderId
 		? owner().folderLoaded(folderId)
@@ -699,6 +700,7 @@ void PeerData::checkFolder(FolderId folderId) {
 		}
 	}
 }
+#endif
 
 void PeerData::setTranslationDisabled(bool disabled) {
 	const auto flag = disabled

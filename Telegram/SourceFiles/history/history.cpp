@@ -1420,9 +1420,11 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 		}
 	}
 	item->incrementReplyToTopCounter();
+#if 0 // mtp
 	if (!folderKnown()) {
 		owner().histories().requestDialogEntry(this);
 	}
+#endif
 	if (const auto topic = item->topic()) {
 		topic->applyItemAdded(item);
 	}
@@ -2748,6 +2750,7 @@ auto History::computeChatListMessageFromLast() const
 		return _lastMessage;
 	}
 
+#if 0 // tdlib todo what with migration message
 	// In migrated groups we want to skip essential message
 	// about migration in the chats list and display the last
 	// non-migration message from the original legacy group.
@@ -2788,6 +2791,7 @@ auto History::computeChatListMessageFromLast() const
 			? std::make_optional(from->chatListMessage())
 			: std::nullopt;
 	}
+#endif
 	return _lastMessage;
 }
 
@@ -3001,13 +3005,13 @@ bool History::shouldBeInChatList() const {
 	return !lastMessageKnown()
 		|| (lastMessage() != nullptr);
 }
-#endif
 
 void History::unknownMessageDeleted(MsgId messageId) {
 	if (_inboxReadBefore && messageId >= *_inboxReadBefore) {
 		owner().histories().requestDialogEntry(this);
 	}
 }
+#endif
 
 bool History::isServerSideUnread(not_null<const HistoryItem*> item) const {
 	Expects(item->isRegular());
@@ -3141,19 +3145,20 @@ void History::clearLastMessage() {
 	setNotLoadedAtBottom();
 }
 
-#if 0 // mtp
 void History::dialogEntryApplied() {
 	if (!lastServerMessageKnown()) {
 		setLastServerMessage(nullptr);
 	} else if (!lastMessageKnown()) {
 		setLastMessage(nullptr);
 	}
+#if 0 // mtp
 	if (peer->migrateTo()) {
 		return;
 	} else if (!chatListMessageKnown()) {
 		requestChatListMessage();
 		return;
 	}
+#endif
 	if (!chatListMessage()) {
 		clear(ClearType::Unload);
 		addNewerSlice({});
@@ -3182,7 +3187,6 @@ void History::dialogEntryApplied() {
 		}
 	}
 }
-#endif
 
 void History::cacheTopPromotion(
 		bool promoted,
