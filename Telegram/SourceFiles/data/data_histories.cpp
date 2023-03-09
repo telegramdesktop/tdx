@@ -500,7 +500,7 @@ void Histories::requestFakeChatListMessage(
 	}
 
 	_fakeChatListRequests.emplace(history);
-#if 0 // todo
+#if 0 // tdlib todo we can't make correct both message date and chat order :(
 	sendRequest(history, RequestType::History, [=](Fn<void()> finish) {
 		return session().api().request(MTPmessages_GetHistory(
 			history->peer->input,
