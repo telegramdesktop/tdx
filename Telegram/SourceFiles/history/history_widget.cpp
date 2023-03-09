@@ -2491,7 +2491,10 @@ void HistoryWidget::showHistory(
 				}
 			}
 		}
+#if 0 // mtp
 		if (!_history->folderKnown()) {
+#endif
+		if (!_history->unreadCountKnown()) {
 			session().data().histories().requestDialogEntry(_history);
 		}
 

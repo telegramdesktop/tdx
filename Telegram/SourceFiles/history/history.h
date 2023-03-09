@@ -296,7 +296,9 @@ public:
 	[[nodiscard]] HistoryItem *lastServerMessage() const;
 	[[nodiscard]] bool lastMessageKnown() const;
 	[[nodiscard]] bool lastServerMessageKnown() const;
+#if 0 // mtp
 	void unknownMessageDeleted(MsgId messageId);
+#endif
 	void applyDialogTopMessage(MsgId topMessageId);
 
 #if 0 // mtp
@@ -318,8 +320,8 @@ public:
 		int unreadCount,
 		MsgId maxInboxRead,
 		MsgId maxOutboxRead);
-	void dialogEntryApplied();
 #endif
+	void dialogEntryApplied();
 
 	void cacheTopPromotion(
 		bool promoted,

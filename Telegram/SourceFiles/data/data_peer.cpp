@@ -694,6 +694,7 @@ bool PeerData::setAbout(const QString &newAbout) {
 	return true;
 }
 
+#if 0 // mtp
 void PeerData::checkFolder(FolderId folderId) {
 	const auto folder = folderId
 		? owner().folderLoaded(folderId)
@@ -704,6 +705,7 @@ void PeerData::checkFolder(FolderId folderId) {
 		}
 	}
 }
+#endif
 
 void PeerData::clearBusinessBot() {
 	if (const auto details = _barDetails.get()) {
