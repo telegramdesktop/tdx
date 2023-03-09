@@ -105,15 +105,22 @@ bool SendActionPainter::updateNeedsAnimating(
 		return false;
 	}
 
+	const auto kMaxTime = std::numeric_limits<crl::time>::max();
 	const auto now = crl::now();
 	const auto emplaceAction = [&](
 			Type type,
 			crl::time duration,
 			int progress = 0) {
+#if 0 // mtp
 		_sendActions.emplace_or_assign(user, type, now + duration, progress);
+#endif
+		_sendActions.emplace_or_assign(user, type, kMaxTime, progress);
 	};
 	action.match([&](const TLSendActionTyping &) {
+#if 0 // mtp
 		_typing.emplace_or_assign(user, now + kStatusShowClientsideTyping);
+#endif
+		_typing.emplace_or_assign(user, kMaxTime);
 	}, [&](const TLSendActionRecordVideo &) {
 		emplaceAction(Type::RecordVideo, kStatusShowClientsideRecordVideo);
 	}, [&](const TLSendActionRecordAudio &) {
@@ -154,12 +161,16 @@ bool SendActionPainter::updateNeedsAnimating(
 			kStatusShowClientsideUploadFile,
 			data.vprogress().v);
 	}, [&](const TLSendActionPlayGame &) {
+#if 0 // mtp
 		const auto i = _sendActions.find(user);
 		if ((i == end(_sendActions))
 			|| (i->second.type == Type::PlayGame)
 			|| (i->second.until <= now)) {
+#endif
 			emplaceAction(Type::PlayGame, kStatusShowClientsidePlayGame);
+#if 0 // mtp
 		}
+#endif
 #if 0 // mtp
 	}, [&](const TLSendActionSpeaking &) {
 		_speaking.emplace_or_assign(
