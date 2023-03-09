@@ -27,6 +27,7 @@ public:
 		not_null<Ui::RpWidget*> parent,
 		not_null<Main::Account*> account,
 		rpl::producer<bool> shown);
+	~ConnectionState();
 
 	void raise();
 	void setForceHidden(bool hidden);
