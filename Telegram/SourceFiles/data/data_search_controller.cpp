@@ -119,6 +119,7 @@ std::optional<SearchRequest> PrepareSearchRequest(
 		: (direction == Data::LoadDirection::After)
 		? (kSharedMediaLimit - 1)
 		: kSharedMediaLimit;
+#if 0 // mtp
 	const auto offsetId = [&] {
 		switch (direction) {
 		case Data::LoadDirection::Before:
@@ -127,6 +128,10 @@ std::optional<SearchRequest> PrepareSearchRequest(
 		}
 		Unexpected("Direction in PrepareSearchRequest");
 	}();
+#endif
+	const auto offsetId = (messageId < 0 || messageId == ServerMaxMsgId - 1)
+		? MsgId()
+		: messageId;
 	const auto addOffset = [&] {
 		switch (direction) {
 		case Data::LoadDirection::Before: return 0;
