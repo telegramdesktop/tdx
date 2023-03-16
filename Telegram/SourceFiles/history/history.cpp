@@ -1970,7 +1970,10 @@ void History::outboxRead(not_null<const HistoryItem*> wasRead) {
 
 MsgId History::loadAroundId() const {
 	if (_unreadCount && *_unreadCount > 0 && _inboxReadBefore) {
+#if 0 // mtp
 		return *_inboxReadBefore;
+#endif
+		return inboxReadTillId(); // We can't return non-existent message id.
 	}
 	return MsgId(0);
 }
@@ -2025,9 +2028,11 @@ void History::setUnreadCount(int newUnreadCount) {
 				? blocks.back()->messages.back().get()
 				: nullptr;
 		}
+#if 0 // mtp
 		if (const auto last = msgIdForRead()) {
 			setInboxReadTill(last - 1);
 		}
+#endif
 	} else if (!newUnreadCount) {
 		_firstUnreadView = nullptr;
 		if (const auto last = msgIdForRead()) {
