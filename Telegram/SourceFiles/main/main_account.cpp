@@ -100,7 +100,10 @@ void Account::start(std::unique_ptr<MTP::Config> config) {
 
 	style::ShortAnimationPlaying(
 	) | rpl::start_with_next([=, raw = _tdb.get()](bool playing) {
-		raw->setPaused(playing);
+		_tdbPaused = playing;
+		crl::on_main(this, [=] {
+			raw->setPaused(_tdbPaused);
+		});
 	}, _tdb->lifetime());
 
 	if (_session) {
