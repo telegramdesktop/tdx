@@ -23,6 +23,10 @@ class TLmessageSendOptions;
 class TLmessageReplyTo;
 } // namespace Tdb
 
+namespace InlineBots {
+class Result;
+} // namespace InlineBots
+
 namespace Api {
 
 struct MessageToSend;
@@ -63,5 +67,11 @@ void SendPreparedMessage(
 
 [[nodiscard]] std::optional<Tdb::TLmessageSchedulingState> ScheduledToTL(
 	TimeId scheduled);
+
+void TryGenerateLocalInlineResultMessage(
+	not_null<UserData*> bot,
+	not_null<InlineBots::Result*> data,
+	const SendAction &action,
+	MsgId localId);
 
 } // namespace Api
