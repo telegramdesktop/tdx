@@ -2810,7 +2810,23 @@ void Updates::applyUpdate(const TLupdate &update) {
 			session().api().requestMoreDialogsIfNeeded();
 		}
 	}, [&](const TLDupdateNewMessage &data) {
-		owner.processMessage(data.vmessage(), NewMessageType::Unread);
+		auto oldMessageId = MsgId();
+		const auto &message = data.vmessage();
+		if (const auto state = message.data().vsending_state()) {
+			oldMessageId = state->match([](
+					const TLDmessageSendingStatePending &data) {
+				return data.vsending_id().v
+					? ClientMsgByIndex(data.vsending_id().v)
+					: MsgId();
+			}, [](const TLDmessageSendingStateFailed &data) {
+				return MsgId();
+			});
+		}
+		if (oldMessageId) {
+			owner.processMessage(message, oldMessageId);
+		} else {
+			owner.processMessage(message, NewMessageType::Unread);
+		}
 	}, [&](const TLDupdateMessageSendAcknowledged &data) {
 		// later show sent checkmark while the message only was ack-ed.
 	}, [&](const TLDupdateMessageSendSucceeded &data) {

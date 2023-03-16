@@ -73,11 +73,13 @@ class SendDataCommon : public SendData {
 public:
 	using SendData::SendData;
 
+#if 0 // mtp
 	struct SentMessageFields {
 		TextWithEntities text;
 		MTPMessageMedia media = MTP_messageMediaEmpty();
 	};
 	virtual SentMessageFields getSentMessageFields() const = 0;
+#endif
 
 	void addToHistory(
 		const Result *owner,
@@ -93,10 +95,6 @@ public:
 class SendDataTDLib : public SendDataCommon {
 public:
 	using SendDataCommon::SendDataCommon;
-
-	SentMessageFields getSentMessageFields() const override {
-		return {};
-	}
 
 	void addToHistory(
 		const Result *owner,
@@ -116,6 +114,7 @@ public:
 
 };
 
+#if 0 // mtp
 // Plain text message.
 class SendText : public SendDataCommon {
 public:
@@ -140,6 +139,7 @@ private:
 	EntitiesInText _entities;
 
 };
+#endif
 
 // Message with geo location point media.
 class SendGeo : public SendDataCommon {
@@ -173,7 +173,9 @@ public:
 		return true;
 	}
 
+#if 0 // mtp
 	SentMessageFields getSentMessageFields() const override;
+#endif
 
 	bool hasLocationCoords() const override {
 		return true;
@@ -226,7 +228,9 @@ public:
 		return true;
 	}
 
+#if 0 // mtp
 	SentMessageFields getSentMessageFields() const override;
+#endif
 
 	bool hasLocationCoords() const override {
 		return true;
@@ -259,7 +263,9 @@ public:
 		return (!_firstName.isEmpty() || !_lastName.isEmpty()) && !_phoneNumber.isEmpty();
 	}
 
+#if 0 // mtp
 	SentMessageFields getSentMessageFields() const override;
+#endif
 
 	QString getLayoutDescription(const Result *owner) const override;
 
@@ -362,6 +368,7 @@ private:
 
 };
 
+#if 0 // mtp
 class SendInvoice : public SendDataCommon {
 public:
 	SendInvoice(
@@ -383,6 +390,7 @@ private:
 	MTPMessageMedia _media;
 
 };
+#endif
 
 } // namespace internal
 } // namespace InlineBots
