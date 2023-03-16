@@ -190,6 +190,7 @@ private:
 	const not_null<Domain*> _domain;
 	const std::unique_ptr<Storage::Account> _local;
 	std::unique_ptr<Tdb::Account> _tdb;
+	bool _tdbPaused = false;
 
 	std::unique_ptr<MTP::Instance> _mtp;
 #if 0 // mtp
