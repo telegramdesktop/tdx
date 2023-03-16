@@ -4198,7 +4198,7 @@ void ApiWrap::forwardMessages(
 		}
 		return sender().request(TLforwardMessages(
 			peerToTdbChat(peer->id),
-			tl_int53(action.topicRootId.bare),
+			tl_int53(action.replyTo.topicRootId.bare),
 			peerToTdbChat(forwardFrom->id),
 			tl_vector<TLint53>(ids),
 			tl_messageSendOptions(
@@ -4883,15 +4883,23 @@ void ApiWrap::sendInlineResult(
 		std::optional<MsgId> localMessageId) {
 	sendAction(action);
 
+	if (localMessageId) {
+		Api::TryGenerateLocalInlineResultMessage(
+			bot,
+			data,
+			action,
+			*localMessageId);
+	}
 	const auto history = action.history;
 	const auto peer = history->peer;
-	const auto topicRootId = action.replyTo ? action.topicRootId : 0;
-
+	const auto localId = localMessageId.value_or(
+		bot->owner().nextLocalMessageId());
+	const auto sendingId = ClientMsgIndex(localId);
 	sender().request(TLsendInlineQueryResultMessage(
 		peerToTdbChat(peer->id),
-		tl_int53(topicRootId.bare),
-		tl_int53(action.replyTo.bare),
-		MessageSendOptions(peer, action),
+		tl_int53(action.replyTo.topicRootId.bare),
+		MessageReplyTo(action),
+		MessageSendOptions(peer, action, sendingId),
 		tl_int64(data->getQueryId()),
 		tl_string(data->getId()),
 		tl_bool(action.options.hideViaBot)
