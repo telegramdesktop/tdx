@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/components/scheduled_messages.h"
 #include "tdb/tdb_file_generator.h"
 #include "tdb/tdb_tl_scheme.h"
+#include "inline_bots/inline_bot_result.h"
 
 namespace Api {
 namespace {
@@ -534,12 +535,59 @@ void SendPreparedAlbumIfReady(
 	}).send();
 }
 
+template <typename Media>
+void GenerateLocalMediaMessage(
+		const MessageToSend &message,
+		not_null<Media*> media,
+		MsgId localId) {
+	const auto &action = message.action;
+	const auto history = action.history;
+	const auto peer = history->peer;
+	const auto session = &history->session();
+	auto flags = NewMessageFlags(peer);
+	if (action.replyTo) {
+		flags |= MessageFlag::HasReplyInfo;
+	}
+	const auto anonymousPost = peer->amAnonymous();
+	const auto silentPost = ShouldSendSilent(peer, action.options);
+	InnerFillMessagePostFlags(action.options, peer, flags);
+	const auto sendAs = action.options.sendAs;
+	const auto messageFromId = sendAs
+		? sendAs->id
+		: anonymousPost
+		? 0
+		: session->userPeerId();
+	const auto messagePostAuthor = peer->isBroadcast()
+		? session->user()->name()
+		: QString();
+	if (action.options.scheduled) {
+		flags |= MessageFlag::IsOrWasScheduled;
+	}
+	const auto viaBotId = UserId();
+	const auto caption = TextWithEntities{
+		message.textWithTags.text,
+		TextUtilities::ConvertTextTagsToEntities(message.textWithTags.tags)
+	};
+	history->addNewLocalMessage({
+		.id = localId,
+		.flags = flags,
+		.from = messageFromId,
+		.replyTo = action.replyTo,
+		.date = HistoryItem::NewMessageDate(action.options.scheduled),
+		.viaBotId = viaBotId,
+		.postAuthor = messagePostAuthor,
+	}, media, caption);
+}
+
 } // namespace
 
 void SendExistingDocument(
 		MessageToSend &&message,
 		not_null<DocumentData*> document,
 		std::optional<MsgId> localMessageId) {
+	if (localMessageId) {
+		GenerateLocalMediaMessage(message, document, *localMessageId);
+	}
 	SendPreparedMessage(
 		message.action,
 		MessageContentFromExisting(
@@ -571,6 +619,9 @@ void SendExistingPhoto(
 		MessageToSend &&message,
 		not_null<PhotoData*> photo,
 		std::optional<MsgId> localMessageId) {
+	if (localMessageId) {
+		GenerateLocalMediaMessage(message, photo, *localMessageId);
+	}
 	SendPreparedMessage(
 		message.action,
 		MessageContentFromExisting(photo, std::move(message.textWithTags)),
@@ -990,7 +1041,8 @@ void SendConfirmedFile(
 
 TLmessageSendOptions MessageSendOptions(
 		not_null<PeerData*> peer,
-		const SendAction &action) {
+		const SendAction &action,
+		int32 sendingId) {
 	return tl_messageSendOptions(
 		tl_bool(ShouldSendSilent(peer, action.options)),
 		tl_bool(false), // from_background
@@ -1063,7 +1115,7 @@ void SendPreparedMessage(
 		std::optional<MsgId> localMessageId) {
 	const auto history = action.history;
 	const auto peer = history->peer;
-	const auto topicRootId = action.replyTo ? action.topicRootId : 0;
+	const auto topicRootId = action.replyTo.topicRootId;
 	const auto clearCloudDraft = (content.type() == id_inputMessageText)
 		&& content.c_inputMessageText().vclear_draft().v;
 	if (clearCloudDraft) {
@@ -1071,11 +1123,14 @@ void SendPreparedMessage(
 		history->startSavingCloudDraft(topicRootId);
 	}
 	const auto session = &peer->session();
+	const auto localId = localMessageId.value_or(
+		peer->owner().nextLocalMessageId());
+	const auto sendingId = ClientMsgIndex(localId);
 	session->sender().request(TLsendMessage(
 		peerToTdbChat(peer->id),
 		tl_int53(topicRootId.bare),
-		tl_int53(action.replyTo.bare),
-		MessageSendOptions(peer, action),
+		MessageReplyTo(action),
+		MessageSendOptions(peer, action, sendingId),
 		std::move(content)
 	)).done([=] {
 		if (clearCloudDraft) {
@@ -1102,6 +1157,47 @@ std::optional<TLmessageSchedulingState> ScheduledToTL(TimeId scheduled) {
 	} else {
 		return tl_messageSchedulingStateSendAtDate(tl_int32(scheduled));
 	}
+}
+
+void TryGenerateLocalInlineResultMessage(
+		not_null<UserData*> bot,
+		not_null<InlineBots::Result*> data,
+		const SendAction &action,
+		MsgId localId) {
+	const auto history = action.history;
+	const auto peer = history->peer;
+	const auto session = &history->session();
+
+	auto flags = NewMessageFlags(peer);
+	if (action.replyTo) {
+		flags |= MessageFlag::HasReplyInfo;
+	}
+	const auto anonymousPost = peer->amAnonymous();
+	const auto silentPost = ShouldSendSilent(peer, action.options);
+	FillMessagePostFlags(action, peer, flags);
+	if (action.options.scheduled) {
+		flags |= MessageFlag::IsOrWasScheduled;
+	}
+	const auto sendAs = action.options.sendAs;
+	const auto messageFromId = sendAs
+		? sendAs->id
+		: anonymousPost ? PeerId()
+		: session->userPeerId();
+	const auto messagePostAuthor = peer->isBroadcast()
+		? session->user()->name()
+		: QString();
+
+	data->addToHistory(history, {
+		.id = localId,
+		.flags = flags,
+		.from = messageFromId,
+		.replyTo = action.replyTo,
+		.date = HistoryItem::NewMessageDate(action.options.scheduled),
+		.viaBotId = ((bot && !action.options.hideViaBot)
+			? peerToUser(bot->id)
+			: 0),
+		.postAuthor = messagePostAuthor,
+	});
 }
 
 } // namespace Api
