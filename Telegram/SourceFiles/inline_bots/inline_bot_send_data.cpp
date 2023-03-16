@@ -39,6 +39,7 @@ void SendDataCommon::addToHistory(
 		FullReplyTo replyTo,
 		const QString &postAuthor,
 		HistoryMessageMarkupData &&markup) const {
+#if 0 // mtp
 	auto fields = getSentMessageFields();
 	if (replyTo) {
 		flags |= MessageFlag::HasReplyInfo;
@@ -52,10 +53,9 @@ void SendDataCommon::addToHistory(
 		fromId,
 		postAuthor,
 		std::move(fields.text),
-#if 0 // todo nice sending
 		std::move(fields.media),
-#endif
 		std::move(markup));
+#endif
 }
 
 QString SendDataCommon::getErrorOnSend(
@@ -65,6 +65,7 @@ QString SendDataCommon::getErrorOnSend(
 	return Data::RestrictionError(history->peer, type).value_or(QString());
 }
 
+#if 0 // mtp
 SendDataCommon::SentMessageFields SendText::getSentMessageFields() const {
 	return { .text = { _message, _entities } };
 }
@@ -104,6 +105,7 @@ SendDataCommon::SentMessageFields SendContact::getSentMessageFields() const {
 		MTP_string(), // vcard
 		MTP_long(0)) }; // user_id
 }
+#endif
 
 QString SendContact::getLayoutDescription(const Result *owner) const {
 	auto result = SendData::getLayoutDescription(owner);
@@ -205,6 +207,7 @@ QString SendGame::getErrorOnSend(
 	return Data::RestrictionError(history->peer, type).value_or(QString());
 }
 
+#if 0 // mtp
 SendDataCommon::SentMessageFields SendInvoice::getSentMessageFields() const {
 	return { .media = _media };
 }
@@ -212,6 +215,7 @@ SendDataCommon::SentMessageFields SendInvoice::getSentMessageFields() const {
 QString SendInvoice::getLayoutDescription(const Result *owner) const {
 	return qs(_media.c_messageMediaInvoice().vdescription());
 }
+#endif
 
 } // namespace internal
 } // namespace InlineBots
