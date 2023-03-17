@@ -61,7 +61,6 @@ using namespace Tdb;
 
 #if 0 // goodToRemove
 constexpr auto kTmpPasswordReserveTime = TimeId(10);
-#endif
 
 [[nodiscard]] QString ValidatedInternalLinksDomain(
 		not_null<const Session*> session) {
@@ -81,6 +80,7 @@ constexpr auto kTmpPasswordReserveTime = TimeId(10);
 	}
 	return MTP::ConfigFields().internalLinksDomain;
 }
+#endif
 
 } // namespace
 
@@ -452,7 +452,10 @@ TextWithEntities Session::createInternalLink(
 
 TextWithEntities Session::createInternalLinkFull(
 		TextWithEntities query) const {
+#if 0 // mtp
 	return TextWithEntities::Simple(ValidatedInternalLinksDomain(this))
+#endif
+	return TextWithEntities::Simple(_account->internalLinksDomain())
 		.append(std::move(query));
 }
 
