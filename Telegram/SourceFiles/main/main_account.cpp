@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_cloud_manager.h"
 #include "ui/boxes/confirm_box.h"
 #include "boxes/connection_box.h" // TypeToTL
+#include "tdb/tdb_option.h"
 
 namespace Main {
 namespace {
@@ -59,7 +60,8 @@ Account::Account(
 : _domain(domain)
 , _local(std::make_unique<Storage::Account>(
 	this,
-	ComposeDataString(dataName, index))) {
+	ComposeDataString(dataName, index)))
+, _internalLinksDomain(u"https://t.me/"_q) {
 }
 
 Account::~Account() {
@@ -185,7 +187,11 @@ std::unique_ptr<Tdb::Account> Account::createTdb() {
 				Core::App().activeWindow()->show(Ui::MakeInformBox(text));
 			}
 		}, [&](const TLDupdateOption &data) {
-			Lang::CurrentCloudManager().apply(data);
+			if (data.vname().v == "t_me_url") {
+				_internalLinksDomain = OptionValue<QString>(data.vvalue());
+			} else {
+				Lang::CurrentCloudManager().apply(data);
+			}
 		}, [](const auto &) {
 		});
 	}, _lifetime);
@@ -441,6 +447,10 @@ Tdb::Options &Account::options() const {
 	Expects(_tdb != nullptr);
 
 	return _tdb->options();
+}
+
+QString Account::internalLinksDomain() const {
+	return _internalLinksDomain;
 }
 
 bool Account::testMode() const {
