@@ -1025,6 +1025,15 @@ void Instance::Client::sendInitialOptions() {
 		nullptr,
 		nullptr,
 		true);
+
+	send(
+		allocateRequestId(),
+		TLsetOption(
+			tl_string("use_pfs"),
+			tl_optionValueBoolean(tl_bool(true))),
+		nullptr,
+		nullptr,
+		true);
 }
 
 Instance::Instance(InstanceConfig &&config)
