@@ -98,6 +98,7 @@ public:
 	}
 	[[nodiscard]] Tdb::Sender &sender() const;
 	[[nodiscard]] Tdb::Options &options() const;
+	[[nodiscard]] QString internalLinksDomain() const;
 	[[nodiscard]] bool testMode() const;
 
 	[[nodiscard]] MTP::Instance &mtp() const {
@@ -199,6 +200,7 @@ private:
 	rpl::event_stream<MTPUpdates> _mtpUpdates;
 	rpl::event_stream<> _mtpNewSessionCreated;
 #endif
+	QString _internalLinksDomain;
 
 	std::unique_ptr<AppConfig> _appConfig;
 
