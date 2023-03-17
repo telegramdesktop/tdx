@@ -199,7 +199,6 @@ void LoaderTdb::addToQueue(int priority) {
 	if (_loadedTill < newOffset || newOffset < _requestedOffset) {
 		_loadedTill = newOffset;
 	}
-	LOG(("CANCELLING REQUEST %1 FOR: %2").arg(_requestId).arg(_requestedOffset));
 	_requestedOffset = newOffset;
 	_requestedLimit = newLimit;
 	_requestedPriority = newPriority;
@@ -211,12 +210,10 @@ void LoaderTdb::addToQueue(int priority) {
 		tl_int53(_requestedLimit),
 		tl_bool(false)
 	)).done([=](const TLfile &result) {
-		LOG(("GOT RESPONSE %1 FOR: %2").arg(_requestId).arg(_requestedOffset));
 		_requestId = 0;
 		apply(result);
 
 		if (!_requestId && haveSentRequests()) {
-			LOG(("SUBSCRIBED TO UPDATES"));
 			_account->updates(
 			) | rpl::start_with_next([=](const TLupdate &update) {
 				update.match([&](const TLDupdateFile &data) {
@@ -227,7 +224,6 @@ void LoaderTdb::addToQueue(int priority) {
 	}).fail([=](const Error &error) {
 		cancelOnFail();
 	}).send();
-	LOG(("SENT REQUEST %1 FOR: %2").arg(_requestId).arg(_requestedOffset));
 }
 
 void LoaderTdb::apply(const TLfile &file) {
@@ -236,7 +232,6 @@ void LoaderTdb::apply(const TLfile &file) {
 		return;
 	}
 
-	LOG(("HANDLING UPDATE WITH %1 FOR: %2").arg(_requestId).arg(_requestedOffset));
 	const auto &local = fields.vlocal().data();
 	const auto downloadedOffset = local.vdownload_offset().v;
 	const auto downloadedTill = downloadedOffset
