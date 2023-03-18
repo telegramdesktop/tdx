@@ -147,10 +147,10 @@ if [ "$BuildTarget" == "linux" ]; then
     fi
   fi
 
-  BackupPath="/media/psf/backup/tdesktop/$AppVersionStrMajor/$AppVersionStrFull/t$BuildTarget"
-  if [ ! -d "/media/psf/backup/tdesktop" ]; then
-    BackupPath="/mnt/c/Telegram/Projects/backup/tdesktop/$AppVersionStrMajor/$AppVersionStrFull/t$BuildTarget"
-    if [ ! -d "/mnt/c/Telegram/Projects/backup/tdesktop" ]; then
+  BackupPath="/media/psf/backup/tdx/$AppVersionStrMajor/$AppVersionStrFull/t$BuildTarget"
+  if [ ! -d "/media/psf/backup/tdx" ]; then
+    BackupPath="/mnt/c/Telegram/Projects/backup/tdx/$AppVersionStrMajor/$AppVersionStrFull/t$BuildTarget"
+    if [ ! -d "/mnt/c/Telegram/Projects/backup/tdx" ]; then
       Error "Backup folder not found!"
     fi
   fi
@@ -229,8 +229,8 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
     Error "Dropbox path not found!"
   fi
 
-  BackupPath="$HOME/Projects/backup/tdesktop/$AppVersionStrMajor/$AppVersionStrFull"
-  if [ ! -d "$HOME/Projects/backup/tdesktop" ]; then
+  BackupPath="$HOME/Projects/backup/tdx/$AppVersionStrMajor/$AppVersionStrFull"
+  if [ ! -d "$HOME/Projects/backup/tdx" ]; then
     Error "Backup path not found!"
   fi
 
