@@ -129,8 +129,8 @@ set "SignPath=%HomePath%\..\..\DesktopPrivate\Sign.bat"
 set "BinaryName=Telegram"
 set "DropboxSymbolsPath=Y:\Telegram\symbols"
 set "DropboxSymbolsPathFallback=%HomePath%\..\..\Dropbox\Telegram\symbols"
-set "FinalReleasePath=Z:\Projects\backup\tdesktop"
-set "FinalReleasePathFallback=%HomePath%\..\..\Projects\backup\tdesktop"
+set "FinalReleasePath=Z:\Projects\backup\tdx"
+set "FinalReleasePathFallback=%HomePath%\..\..\Projects\backup\tdx"
 
 if not exist %DropboxSymbolsPath% (
   if exist %DropboxSymbolsPathFallback% (
