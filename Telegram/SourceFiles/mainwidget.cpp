@@ -627,8 +627,8 @@ bool MainWidget::shareUrl(
 		text.text,
 		TextUtilities::ConvertEntitiesToTextTags(text.entities)
 	};
-	const auto full = text.text.size();
-	const auto newline = text.text.indexOf('\n');
+	const auto full = int(text.text.size());
+	const auto newline = int(text.text.indexOf('\n'));
 	const auto start = (containsLink && newline > 0) ? (newline + 1) : full;
 	const auto cursor = MessageCursor{ start, full, QFIXED_MAX };
 	const auto history = thread->owningHistory();
