@@ -395,10 +395,10 @@ void Histories::sendDialogRequests() {
 		_dialogRequests.emplace(history, std::move(callbacks));
 
 		const auto peer = history->peer;
-		const auto fail = [=] {
+		const auto fail = [=, history = history] {
 			dialogEntryApplied(history);
 		};
-		const auto done = [=](const TLchat &result) {
+		const auto done = [=, history = history](const TLchat &result) {
 			const auto gotPeer = session().data().processPeer(result);
 			Assert(peer == gotPeer);
 			if (history->lastServerMessageKnown()) {

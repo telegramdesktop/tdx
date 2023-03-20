@@ -3219,7 +3219,7 @@ void Updates::applyUpdate(const TLupdate &update) {
 		for (const auto &[id, value] : suggestionsToGigagroup) {
 			owner.setSuggestToGigagroup(owner.channel(id), value);
 		}
-	}, [&](const TLDupdateAutosaveSetting &data) {
+	}, [&](const TLDupdateAutosaveSettings &data) {
 	}, [&](const TLDupdateChatPendingJoinRequests &data) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
 		if (const auto peer = owner.peerLoaded(peerId)) {

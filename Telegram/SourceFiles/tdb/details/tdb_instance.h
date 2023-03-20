@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "tdb/details/tdb_tl_core_external.h"
+#include "tdb/tdb_error.h"
 #include "tdb/tdb_request_id.h"
 #include "base/expected.h"
 
