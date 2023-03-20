@@ -116,7 +116,6 @@ void Account::start(std::unique_ptr<MTP::Config> config) {
 				_session->validateSelf(result.data().vid().v);
 			}
 		}).fail([=](const Tdb::Error &error) {
-			_session;
 		}).send();
 	}
 }

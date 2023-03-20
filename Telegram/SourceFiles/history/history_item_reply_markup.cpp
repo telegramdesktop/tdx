@@ -65,7 +65,6 @@ using namespace Tdb;
 [[nodiscard]] RequestPeerQuery RequestPeerQueryFromTL(
 		const TLDkeyboardButtonTypeRequestChat &data) {
 	using Type = RequestPeerQuery::Type;
-	using Restriction = RequestPeerQuery::Restriction;
 	const auto restriction = [](const TLbool &is, const TLbool &no) {
 		using Restriction = RequestPeerQuery::Restriction;
 		return is.v

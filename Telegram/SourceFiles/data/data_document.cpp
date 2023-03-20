@@ -996,7 +996,7 @@ void DocumentData::setFromLocal(const Data::DocumentLocalData &data) {
 					data.thumb.height()),
 				.bytes = data.thumbBytes,
 				.preloaded = data.thumb,
-				.bytesCount = data.thumbBytes.size(),
+				.bytesCount = int(data.thumbBytes.size()),
 			},
 			{},
 			isPremiumSticker);

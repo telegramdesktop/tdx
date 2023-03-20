@@ -79,7 +79,7 @@ public:
 	[[nodiscard]] QString shareUrl(not_null<Main::Session*> session) const;
 #endif
 	[[nodiscard]] Tdb::TLbackgroundType tlType() const;
-	[[nodiscard]] void requestShareUrl(
+	void requestShareUrl(
 		not_null<Main::Session*> session,
 		Fn<void(QString)> done) const;
 
