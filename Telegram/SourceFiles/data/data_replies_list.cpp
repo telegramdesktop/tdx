@@ -848,9 +848,9 @@ bool RepliesList::processMessagesIsEmpty(const TLmessages &result) {
 	auto &owner = _history->owner();
 	const auto list = ranges::views::all(
 		result.data().vmessages().v
-	) | ranges::views::filter(
-		&std::optional<TLmessage>::has_value
-	) | ranges::to_vector;
+	) | ranges::views::filter([](const std::optional<TLmessage> &v) {
+		return v.has_value();
+	}) | ranges::to_vector;
 	const auto fullCount = result.data().vtotal_count().v;
 
 	if (list.empty()) {
