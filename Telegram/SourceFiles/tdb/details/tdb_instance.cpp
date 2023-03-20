@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "tdb/details/tdb_instance.h"
 
+#include "base/atomic.h"
 #include "base/debug_log.h"
 
 #include <QtCore/QMutex>
@@ -36,7 +37,9 @@ namespace api = td_api;
 	if (response->get_id() != api::error::ID) {
 		return std::nullopt;
 	}
-	return Error(tl_from<TLerror>(response));
+	const auto error = tl_from<TLerror>(response);
+	const auto &data = error.data();
+	return Error{ data.vcode().v, data.vmessage().v };
 }
 
 template <typename Message>
@@ -307,8 +310,8 @@ private:
 	std::variant<TLdisableProxy, TLaddProxy> _proxy;
 	rpl::event_stream<TLupdate> _updates;
 	std::vector<PausedProcess> _pausedProcesses;
-	std::atomic<State> _state = State::Working;
-	std::atomic<bool> _clearingStale = false;
+	base::atomic<State> _state = State::Working;
+	base::atomic<bool> _clearingStale = false;
 	bool _paused = false;
 
 };
@@ -726,14 +729,14 @@ void Instance::Client::sendPreparedSync(
 		callback(0, &error)();
 		return;
 	}
-	auto flag = std::atomic<bool>(false);
+	auto flag = base::atomic<bool>(false);
 	sendToManager(allocateRequestId(), std::move(request), [&, flag = &flag](
 			uint64 id,
 			ExternalResponse response) mutable {
 		// Don't send callback() result to the main thread, invoke instantly.
 		callback(id, std::move(response))();
 		*flag = true;
-		std::atomic_notify_all(flag);
+		atomic_notify_all(flag);
 		return FnMut<void()>();
 	});
 	flag.wait(false);
@@ -975,7 +978,7 @@ void Instance::Client::purgeInvalid() {
 			).arg(key));
 
 		*state = purged ? State::PurgeDone : State::PurgeFail;
-		std::atomic_notify_all(state);
+		atomic_notify_all(state);
 
 		crl::on_main([weak, id, key] {
 			if (const auto strong = weak.lock()) {
@@ -997,7 +1000,7 @@ void Instance::Client::clearStale() {
 			: PurgeDatabaseType::Test;
 		PurgeDatabase(config.databaseDirectory, purgeType);
 		*flag = false;
-		std::atomic_notify_all(flag);
+		atomic_notify_all(flag);
 	});
 }
 
