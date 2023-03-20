@@ -272,9 +272,9 @@ void TranslateTracker::requestSome() {
 			peerToTdbChat(id.peer),
 			tl_int53(id.msg.bare),
 			tl_string(to.twoLetterCode())
-		)).done([=](const TLformattedText &result) {
+		)).done([=, id = id](const TLformattedText &result) {
 			requestDone(id, to, Api::FormattedTextFromTdb(result));
-		}).fail([=] {
+		}).fail([=, id = id] {
 			requestDone(id, to, {});
 		}).send();
 		_requested.push_back({ id, requestId });
