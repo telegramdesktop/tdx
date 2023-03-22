@@ -874,7 +874,7 @@ void CloudManager::switchLangPackId(const Language &data) {
 
 void CloudManager::changeIdAndReInitConnection(const Language &data) {
 	_langpack.switchToId(data);
-#if 0 // doLater - TDLib connection
+#if 0 // mtp
 	if (_api) {
 		const auto mtproto = &_api->instance();
 		mtproto->reInitConnection(mtproto->mainDcId());

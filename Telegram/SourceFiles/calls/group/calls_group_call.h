@@ -193,8 +193,10 @@ struct ParticipantVideoParams;
 	const std::shared_ptr<ParticipantVideoParams> &params);
 [[nodiscard]] bool IsScreenPaused(
 	const std::shared_ptr<ParticipantVideoParams> &params);
+#if 0 // mtp
 [[nodiscard]] uint32 GetAdditionalAudioSsrc(
 	const std::shared_ptr<ParticipantVideoParams> &params);
+#endif
 
 class GroupCall final
 	: public base::has_weak_ptr
