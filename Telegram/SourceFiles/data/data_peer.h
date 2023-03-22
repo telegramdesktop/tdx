@@ -18,6 +18,7 @@ class PeerData;
 class UserData;
 class ChatData;
 class ChannelData;
+class SecretChatData;
 
 enum class ChatRestriction;
 
@@ -305,6 +306,16 @@ public:
 	[[nodiscard]] const ChatData *asChatNotMigrated() const;
 	[[nodiscard]] ChannelData *asChannelOrMigrated();
 	[[nodiscard]] const ChannelData *asChannelOrMigrated() const;
+
+	[[nodiscard]] bool isSecretChat() const;
+	[[nodiscard]] SecretChatData *asSecretChat();
+	[[nodiscard]] const SecretChatData *asSecretChat() const;
+	[[nodiscard]] UserData *secretChatUser() const;
+	[[nodiscard]] bool isOneOnOne() const {
+		return isUser() || isSecretChat();
+	}
+	[[nodiscard]] UserData *asOneOnOne();
+	[[nodiscard]] const UserData *asOneOnOne() const;
 
 	[[nodiscard]] ChatData *migrateFrom() const;
 	[[nodiscard]] ChannelData *migrateTo() const;

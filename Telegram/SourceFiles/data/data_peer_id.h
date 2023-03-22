@@ -7,13 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/assertion.h"
+
 using BareId = uint64;
 
 namespace tl {
+class int_type;
 class int64_type;
 } // namespace tl
 
 namespace Tdb {
+using TLint32 = tl::int_type;
 using TLint53 = tl::int64_type;
 class TLmessageSender;
 } // namespace Tdb
@@ -21,6 +25,16 @@ class TLmessageSender;
 struct PeerIdZeroHelper {
 };
 using PeerIdZero = void(PeerIdZeroHelper::*)();
+
+// Secret chats have negative ids. So we store them as
+// positive values with a special flag bit set to 1.
+inline constexpr uint8 kUserIdShift = 0;
+inline constexpr uint8 kChatIdShift = 1;
+inline constexpr uint8 kChannelIdShift = 2;
+inline constexpr uint8 kSecretChatIdShift = 3;
+inline constexpr uint8 kFakeChatIdShift = 0x7F;
+
+inline constexpr auto kSecretChatIdFlag = BareId(1) << 47;
 
 template <uint8 Shift>
 struct ChatIdType {
@@ -34,6 +48,18 @@ struct ChatIdType {
 	//constexpr ChatIdType(PeerIdZero) noexcept { // UserId id = 0;
 	//}
 	constexpr ChatIdType(BareId value) noexcept : bare(value) {
+		if constexpr (Shift == kSecretChatIdShift) {
+			const auto svalue = int64(value);
+			if (svalue < 0) {
+				if (svalue >= std::numeric_limits<int32>::min()) {
+					bare = BareId(-svalue) | kSecretChatIdFlag;
+				} else {
+					Unexpected("Large negative value in ChatIdType.");
+				}
+			}
+		} else if (value >= (BareId(1) << 48)) {
+			Unexpected("Large value in ChatIdType.");
+		}
 	}
 	constexpr ChatIdType(MTPlong value) noexcept : bare(value.v) {
 	}
@@ -105,10 +131,10 @@ bool operator>=(ChatIdType<Shift>, PeerIdZero) = delete;
 template <uchar Shift>
 bool operator>=(PeerIdZero, ChatIdType<Shift>) = delete;
 
-using UserId = ChatIdType<0>;
-using ChatId = ChatIdType<1>;
-using ChannelId = ChatIdType<2>;
-using FakeChatId = ChatIdType<0x7F>;
+using UserId = ChatIdType<kUserIdShift>;
+using ChatId = ChatIdType<kChatIdShift>;
+using ChannelId = ChatIdType<kChannelIdShift>;
+using FakeChatId = ChatIdType<kFakeChatIdShift>;
 
 struct PeerIdHelper {
 	BareId value = 0;
@@ -141,7 +167,18 @@ struct PeerId {
 
 	template <typename SomeChatIdType, BareId = SomeChatIdType::kShift>
 	[[nodiscard]] constexpr SomeChatIdType to() const noexcept {
-		return is<SomeChatIdType>() ? (value & kChatTypeMask) : 0;
+		if (!is<SomeChatIdType>()) {
+			return 0;
+		} else if constexpr (SomeChatIdType::kShift == kSecretChatIdShift) {
+			const auto result = (value & kChatTypeMask);
+			if (result & kSecretChatIdFlag) {
+				return uint64(-int64(result & ~kSecretChatIdFlag));
+			} else {
+				return result;
+			}
+		} else {
+			return (value & kChatTypeMask);
+		}
 	}
 
 	[[nodiscard]] constexpr explicit operator bool() const noexcept {
@@ -242,6 +279,21 @@ bool operator>=(PeerIdZero, PeerId) = delete;
 }
 
 [[nodiscard]] Tdb::TLint53 peerToTdbChat(PeerId id) noexcept;
+
+using SecretChatId = ChatIdType<kSecretChatIdShift>;
+[[nodiscard]] inline constexpr bool peerIsSecretChat(PeerId id) noexcept {
+	return id.is<SecretChatId>();
+}
+[[nodiscard]] inline constexpr PeerId peerFromSecretChat(
+		SecretChatId secretChatId) noexcept {
+	return secretChatId;
+}
+[[nodiscard]] inline constexpr SecretChatId peerToSecretChat(
+		PeerId id) noexcept {
+	return id.to<SecretChatId>();
+}
+[[nodiscard]] Tdb::TLint32 ToTdbSecretChatId(SecretChatId id) noexcept;
+[[nodiscard]] Tdb::TLint32 ToTdbSecretChatId(PeerId id) noexcept;
 
 [[nodiscard]] inline MTPlong peerToBareMTPInt(PeerId id) {
 	return MTP_long(id.value & PeerId::kChatTypeMask);

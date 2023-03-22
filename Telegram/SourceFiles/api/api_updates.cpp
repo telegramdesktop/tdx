@@ -3113,6 +3113,7 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateSupergroup &data) {
 		owner.processChannel(data.vsupergroup());
 	}, [&](const TLDupdateSecretChat &data) {
+		owner.processSecretChat(data.vsecret_chat());
 	}, [&](const TLDupdateUserFullInfo &data) {
 		::Data::ApplyUserUpdate(
 			owner.user(UserId(data.vuser_id())),

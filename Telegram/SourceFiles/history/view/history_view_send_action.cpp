@@ -305,6 +305,8 @@ bool SendActionPainter::updateNeedsAnimating(crl::time now, bool force) {
 		} else if (typingCount) {
 			newTypingString = _history->peer->isUser()
 				? tr::lng_typing(tr::now)
+				: _history->peer->isSecretChat()
+				? tr::lng_typing(tr::now)
 				: tr::lng_user_typing(
 					tr::now,
 					lt_user,

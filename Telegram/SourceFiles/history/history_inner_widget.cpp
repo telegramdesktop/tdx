@@ -551,6 +551,9 @@ void HistoryInner::setupSharingDisallowed() {
 	if (_peer->isUser()) {
 		_sharingDisallowed = false;
 		return;
+	} else if (_peer->isSecretChat()) {
+		_sharingDisallowed = false;
+		return;
 	}
 	const auto chat = _peer->asChat();
 	const auto channel = _peer->asChannel();

@@ -101,6 +101,8 @@ bool Provider::hasSelectRestriction() {
 rpl::producer<bool> Provider::hasSelectRestrictionChanges() {
 	if (_peer->isUser()) {
 		return rpl::never<bool>();
+	} else if (_peer->isSecretChat()) {
+		return rpl::never<bool>();
 	}
 	const auto chat = _peer->asChat();
 	const auto channel = _peer->asChannel();

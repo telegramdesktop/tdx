@@ -2459,6 +2459,9 @@ bool Message::hasFromPhoto() const {
 				return !hasOutLayout();
 			}
 		}
+		if (item->history()->peer->isSecretChat()) {
+			return false;
+		}
 		return !item->out() && !item->history()->peer->isUser();
 	} break;
 	case Context::ContactPreview:
@@ -3699,6 +3702,7 @@ bool Message::hasFromName() const {
 			if (const auto media = this->media()) {
 				return !media->hideFromName();
 			}
+			if (!peer->isSecretChat())
 			return true;
 		}
 		if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {

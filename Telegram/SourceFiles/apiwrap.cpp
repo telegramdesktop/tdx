@@ -1371,6 +1371,10 @@ void ApiWrap::requestWallPaper(
 }
 
 void ApiWrap::requestFullPeer(not_null<PeerData*> peer) {
+	if (const auto user = peer->secretChatUser()) {
+		requestFullPeer(user);
+		return;
+	}
 	if (_fullPeerRequests.contains(peer)) {
 		return;
 	}

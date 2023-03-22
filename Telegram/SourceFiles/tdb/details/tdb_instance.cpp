@@ -943,7 +943,7 @@ void Instance::Client::sendTdlibParameters() {
 			tl_bool(true), // use_file_database
 			tl_bool(true), // use_chat_info_database
 			tl_bool(true), // use_message_database
-			tl_bool(false), // use_secret_chats
+			tl_bool(true), // use_secret_chats
 			tl_int32(_config.apiId),
 			tl_string(_config.apiHash),
 			tl_string(_config.systemLanguageCode),
