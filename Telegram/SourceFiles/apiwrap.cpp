@@ -1395,7 +1395,7 @@ void ApiWrap::requestFullPeer(not_null<PeerData*> peer) {
 			)).done([=](const TLDuserFullInfo &data) {
 				Data::ApplyUserUpdate(user, data);
 				finish();
-#if 0 // doLater ?
+#if 0 // mtp
 				if (user == _session->user() && !_session->validateSelf(fields.vid().v)) {
 					constexpr auto kRequestUserAgainTimeout = crl::time(10000);
 					base::call_delayed(kRequestUserAgainTimeout, _session, [=] {

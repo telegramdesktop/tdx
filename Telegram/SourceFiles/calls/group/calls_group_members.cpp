@@ -725,7 +725,10 @@ void Members::Controller::updateRow(
 	const auto wasSounding = row->sounding();
 	const auto wasSsrc = was ? was->ssrc : 0;
 	const auto wasAdditionalSsrc = was
+		? was->screencastSsrc
+#if 0 // mtp
 		? GetAdditionalAudioSsrc(was->videoParams)
+#endif
 		: 0;
 	row->setSkipLevelUpdate(_skipRowLevelUpdate);
 	row->updateState(participant);
@@ -756,7 +759,10 @@ void Members::Controller::updateRowInSoundingMap(
 	const auto nowSounding = row->sounding();
 	const auto nowSsrc = participant ? participant->ssrc : 0;
 	const auto nowAdditionalSsrc = participant
+		? participant->screencastSsrc
+#if 0// mtp
 		? GetAdditionalAudioSsrc(participant->videoParams)
+#endif
 		: 0;
 	updateRowInSoundingMap(row, wasSounding, wasSsrc, nowSounding, nowSsrc);
 	updateRowInSoundingMap(
@@ -1348,7 +1354,10 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 		} else if (participant
 			&& (!isMe(participantPeer) || _peer->canManageGroupCall())
 			&& (participant->ssrc != 0
+				|| participant->screencastSsrc != 0)) {
+#if 0 // mtp
 				|| GetAdditionalAudioSsrc(participant->videoParams) != 0)) {
+#endif
 			addMuteActionsToContextMenu(
 				result,
 				participantPeer,

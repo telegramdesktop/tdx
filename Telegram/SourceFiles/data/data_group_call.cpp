@@ -880,7 +880,10 @@ void GroupCall::applyParticipant(
 			};
 			_participantPeerByAudioSsrc.erase(i->ssrc);
 			_participantPeerByAudioSsrc.erase(
+				i->screencastSsrc);
+#if 0 // mtp
 				GetAdditionalAudioSsrc(i->videoParams));
+#endif
 			_speakingByActiveFinishes.remove(participantPeer);
 			_participants.erase(i);
 			if (sliceSource != ApplySliceSource::FullReloaded) {
@@ -913,6 +916,7 @@ void GroupCall::applyParticipant(
 	const auto value = Participant{
 		.peer = participantPeer,
 		.videoParams = std::move(videoParams),
+		.screencastSsrc = uint32(data.vscreen_sharing_audio_source_id().v),
 		.ssrc = uint32(data.vaudio_source_id().v),
 		.volume = data.vvolume_level().v,
 		.sounding = canBeSpeaking && was && was->sounding,
@@ -942,8 +946,11 @@ void GroupCall::applyParticipant(
 				value.ssrc,
 				participantPeer);
 		}
+#if 0 // mtp
 		if (const auto additional = GetAdditionalAudioSsrc(
 				value.videoParams)) {
+#endif
+		if (const auto additional = value.screencastSsrc) {
 			_participantPeerByAudioSsrc.emplace(
 				additional,
 				participantPeer);
@@ -961,12 +968,17 @@ void GroupCall::applyParticipant(
 					participantPeer);
 			}
 		}
+#if 0 // mtp
 		if (GetAdditionalAudioSsrc(i->videoParams)
 			!= GetAdditionalAudioSsrc(value.videoParams)) {
 			_participantPeerByAudioSsrc.erase(
 				GetAdditionalAudioSsrc(i->videoParams));
 			if (const auto additional = GetAdditionalAudioSsrc(
 				value.videoParams)) {
+#endif
+		if (i->screencastSsrc != value.screencastSsrc) {
+			_participantPeerByAudioSsrc.erase(i->screencastSsrc);
+			if (const auto additional = value.screencastSsrc) {
 				_participantPeerByAudioSsrc.emplace(
 					additional,
 					participantPeer);
