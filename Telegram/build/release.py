@@ -193,57 +193,57 @@ files.append({
   'label': 'Source code (tar.gz, full)',
 })
 files.append({
-  'local': 'tsetup.' + version_full + '.exe',
-  'remote': 'tsetup.' + version_full + '.exe',
+  'local': 'tdx-win-x86.' + version_full + '.exe',
+  'remote': 'tdx-win-x86.' + version_full + '.exe',
   'backup_folder': 'tsetup',
   'mime': 'application/octet-stream',
   'label': 'Windows 32 bit: Installer',
 })
 files.append({
-  'local': 'tportable.' + version_full + '.zip',
-  'remote': 'tportable.' + version_full + '.zip',
+  'local': 'tdx-portable-win-x86.' + version_full + '.zip',
+  'remote': 'tdx-portable-win-x86.' + version_full + '.zip',
   'backup_folder': 'tsetup',
   'mime': 'application/zip',
   'label': 'Windows 32 bit: Portable',
 })
 files.append({
-  'local': 'tsetup-x64.' + version_full + '.exe',
-  'remote': 'tsetup-x64.' + version_full + '.exe',
+  'local': 'tdx-win-x64.' + version_full + '.exe',
+  'remote': 'tdx-win-x64.' + version_full + '.exe',
   'backup_folder': 'tx64',
   'mime': 'application/octet-stream',
   'label': 'Windows 64 bit: Installer',
 })
 files.append({
-  'local': 'tportable-x64.' + version_full + '.zip',
-  'remote': 'tportable-x64.' + version_full + '.zip',
+  'local': 'tdx-portable-win-x64.' + version_full + '.zip',
+  'remote': 'tdx-portable-win-x64.' + version_full + '.zip',
   'backup_folder': 'tx64',
   'mime': 'application/zip',
   'label': 'Windows 64 bit: Portable',
 })
 files.append({
-  'local': 'tsetup-arm64.' + version_full + '.exe',
-  'remote': 'tsetup-arm64.' + version_full + '.exe',
+  'local': 'tdx-win-arm.' + version_full + '.exe',
+  'remote': 'tdx-win-arm.' + version_full + '.exe',
   'backup_folder': 'tarm64',
   'mime': 'application/octet-stream',
   'label': 'Windows on ARM: Installer',
 })
 files.append({
-  'local': 'tportable-arm64.' + version_full + '.zip',
-  'remote': 'tportable-arm64.' + version_full + '.zip',
+  'local': 'tdx-portable-win-arm.' + version_full + '.zip',
+  'remote': 'tdx-portable-win-arm.' + version_full + '.zip',
   'backup_folder': 'tarm64',
   'mime': 'application/zip',
   'label': 'Windows on ARM: Portable',
 })
 files.append({
-  'local': 'tsetup.' + version_full + '.dmg',
-  'remote': 'tsetup.' + version_full + '.dmg',
+  'local': 'tdx-mac.' + version_full + '.dmg',
+  'remote': 'tdx-mac.' + version_full + '.dmg',
   'backup_folder': 'tmac',
   'mime': 'application/octet-stream',
   'label': 'macOS 10.13+: Installer',
 })
 files.append({
-  'local': 'tsetup.' + version_full + '.tar.xz',
-  'remote': 'tsetup.' + version_full + '.tar.xz',
+  'local': 'tdx-linux-x64.' + version_full + '.tar.xz',
+  'remote': 'tdx-linux-x64.' + version_full + '.tar.xz',
   'backup_folder': 'tlinux',
   'mime': 'application/octet-stream',
   'label': 'Linux 64 bit: Binary',
