@@ -45,8 +45,95 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 #include "styles/style_boxes.h"
 
+#include "data/data_secret_chat.h"
+
 namespace Info {
 namespace Profile {
+namespace {
+
+void SetupKeyHash(
+		not_null<Ui::VerticalLayout*> container,
+		not_null<SecretChatData*> secretChat) {
+	const auto skip = st::infoProfileCover.photoLeft;
+	const auto wrap = container->add(
+		object_ptr<Ui::RpWidget>(container),
+		{ skip, 0, skip, 0 });
+	static const auto kColors = std::array{
+		QColor(0xFF, 0xFF, 0xFF),
+		QColor(0xD5, 0xE6, 0xF3),
+		QColor(0x2D, 0x57, 0x75),
+		QColor(0x2F, 0x99, 0xC9),
+	};
+	struct State {
+		std::vector<std::vector<int>> indices;
+	};
+	const auto state = wrap->lifetime().make_state<State>();
+
+	secretChat->keyHashValue(
+	) | rpl::start_with_next([=](QByteArray key) {
+		Expects(key.isEmpty() || key.size() == 36);
+
+		const auto guard = gsl::finally([&] { wrap->update(); });
+		if (key.isEmpty()) {
+			state->indices.clear();
+			return;
+		}
+		state->indices.resize(12, std::vector<int>(12));
+		auto index = 0;
+		const auto put = [&](int value) {
+			const auto row = index / 12;
+			const auto column = index % 12;
+			state->indices[row][column] = value;
+			++index;
+		};
+		for (auto i = 0; i != 36; ++i) {
+			const auto value = uint8_t(key[i]);
+			const auto push = [&](int shift) {
+				put((value >> (shift * 2)) & 0x03);
+			};
+			for (auto j = 0; j != 4; ++j) {
+				push(j);
+			}
+		}
+	}, wrap->lifetime());
+
+	wrap->widthValue(
+	) | rpl::filter(
+		rpl::mappers::_1 > 0
+	) | rpl::start_with_next([=](int width) {
+		wrap->resize(wrap->width(), wrap->width());
+	}, wrap->lifetime());
+
+	wrap->paintRequest(
+	) | rpl::start_with_next([=] {
+		if (state->indices.empty()) {
+			return;
+		}
+		auto p = QPainter(wrap);
+		const auto width = wrap->width();
+		const auto height = wrap->height();
+		const auto w = width / float64(state->indices.size());
+		const auto h = height / float64(state->indices.front().size());
+		const auto round = [](float64 value) {
+			return int(base::SafeRound(value));
+		};
+		auto top = 0.;
+		for (const auto &row : state->indices) {
+			auto left = 0.;
+			for (const auto index : row) {
+				const auto x = round(left);
+				const auto y = round(top);
+				p.fillRect(
+					QRect(x, y, round(left + w) - x, round(top + h) - y),
+					kColors[index]);
+				left += w;
+			}
+			top += h;
+		}
+	}, wrap->lifetime());
+}
+
+} // namespace
 
 InnerWidget::InnerWidget(
 	QWidget *parent,
@@ -128,6 +215,9 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 	}
 	if (_peer->isChat() || _peer->isMegagroup()) {
 		setupMembers(result.data());
+	}
+	if (const auto secretChat = _peer->asSecretChat()) {
+		SetupKeyHash(result.data(), secretChat);
 	}
 	return result;
 }
