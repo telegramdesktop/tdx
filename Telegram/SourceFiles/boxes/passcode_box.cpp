@@ -469,7 +469,7 @@ void PasscodeBox::recoverPasswordDone(const QByteArray &newPasswordBytes) {
 	}
 	_setRequest = 0;
 	const auto weak = Ui::MakeWeak(this);
-#if 0 // doLater
+#if 0 // mtp
 	_newAuthorization.fire_copy(result);
 #endif
 	if (weak) {

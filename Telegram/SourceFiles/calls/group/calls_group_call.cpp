@@ -285,11 +285,16 @@ bool VideoEndpoint::rtmp() const noexcept {
 struct VideoParams {
 	std::string endpointId;
 	std::vector<tgcalls::MediaSsrcGroup> ssrcGroups;
+#if 0 // mtp
 	uint32 additionalSsrc = 0;
+#endif
 	bool paused = false;
 
 	[[nodiscard]] bool empty() const {
+#if 0 // mtp
 		return !additionalSsrc && (endpointId.empty() || ssrcGroups.empty());
+#endif
+		return endpointId.empty() || ssrcGroups.empty();
 	}
 	[[nodiscard]] explicit operator bool() const {
 		return !empty();
@@ -356,7 +361,7 @@ struct ParticipantVideoParams {
 	const auto &data = params->data();
 	result.paused = data.vis_paused().v;
 	result.endpointId = data.vendpoint_id().v.toStdString();
-#if 0 // doLater
+#if 0 // mtp
 	result.additionalSsrc = data.vaudio_source().value_or_empty();
 #endif
 	const auto &list = data.vsource_groups().v;
@@ -476,10 +481,12 @@ bool IsScreenPaused(const std::shared_ptr<ParticipantVideoParams> &params) {
 	return params && params->screen.paused;
 }
 
+#if 0 // mtp
 uint32 GetAdditionalAudioSsrc(
 		const std::shared_ptr<ParticipantVideoParams> &params) {
 	return params ? params->screen.additionalSsrc : 0;
 }
+#endif
 
 std::shared_ptr<ParticipantVideoParams> ParseVideoParams(
 #if 0 // goodToRemove
@@ -1251,7 +1258,10 @@ void GroupCall::join(CallId id) {
 		if (!update.now) {
 			_instance->removeSsrcs({
 				update.was->ssrc,
+				update.was->screencastSsrc,
+#if 0 // mtp
 				GetAdditionalAudioSsrc(update.was->videoParams),
+#endif
 			});
 		} else if (!_rtmp) {
 			updateInstanceVolume(update.was, *update.now);
@@ -3468,13 +3478,19 @@ void GroupCall::updateInstanceVolume(
 	const auto volumeChanged = was
 		? (was->volume != now.volume || was->mutedByMe != now.mutedByMe)
 		: nonDefault;
+#if 0 // mtp
 	const auto additionalSsrc = GetAdditionalAudioSsrc(now.videoParams);
+#endif
+	const auto additionalSsrc = now.screencastSsrc;
 	const auto set = now.ssrc
 		&& (volumeChanged || (was && was->ssrc != now.ssrc));
 	const auto additionalSet = additionalSsrc
 		&& (volumeChanged
+			|| (was && was->screencastSsrc != additionalSsrc));
+#if 0 // mtp
 			|| (was && (GetAdditionalAudioSsrc(was->videoParams)
 				!= additionalSsrc)));
+#endif
 	const auto localVolume = now.mutedByMe
 		? 0.
 		: (now.volume / float64(Group::kDefaultVolume));
