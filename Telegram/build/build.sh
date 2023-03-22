@@ -54,8 +54,8 @@ echo ""
 HomePath="$FullScriptPath/.."
 if [ "$BuildTarget" == "linux" ]; then
   echo "Building version $AppVersionStrFull for Linux 64bit.."
-  UpdateFile="tlinuxupd$AppVersion"
-  SetupFile="tsetup.$AppVersionStrFull.tar.xz"
+  UpdateFile="update-linux-x64-$AppVersion"
+  SetupFile="tdx-linux-x64.$AppVersionStrFull.tar.xz"
   ProjectPath="$HomePath/../out"
   ReleasePath="$ProjectPath/Release"
   BinaryName="Telegram"
@@ -82,8 +82,8 @@ elif [ "$BuildTarget" == "mac" ] ; then
   if [ "$AC_USERNAME" == "" ]; then
     Error "AC_USERNAME not found!"
   fi
-  UpdateFileAMD64="tmacupd$AppVersion"
-  UpdateFileARM64="tarmacupd$AppVersion"
+  UpdateFileAMD64="update-mac-x64-$AppVersion"
+  UpdateFileARM64="update-mac-arm-$AppVersion"
   if [ "$MacArch" == "arm64" ]; then
     UpdateFile="$UpdateFileARM64"
   elif [ "$MacArch" == "x86_64" ]; then
@@ -94,10 +94,10 @@ elif [ "$BuildTarget" == "mac" ] ; then
   BinaryName="Telegram"
   if [ "$MacArch" != "" ]; then
     BundleName="$BinaryName.$MacArch.app"
-    SetupFile="tsetup.$MacArch.$AppVersionStrFull.dmg"
+    SetupFile="tdx-mac-$MacArch.$AppVersionStrFull.dmg"
   else
     BundleName="$BinaryName.app"
-    SetupFile="tsetup.$AppVersionStrFull.dmg"
+    SetupFile="tdx-mac.$AppVersionStrFull.dmg"
   fi
 elif [ "$BuildTarget" == "macstore" ]; then
   if [ "$AlphaVersion" != "0" ]; then

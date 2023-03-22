@@ -108,9 +108,9 @@ set "HomePath=%FullScriptPath%.."
 set "ResourcesPath=%HomePath%\Resources"
 set "SolutionPath=%HomePath%\..\out"
 if %Build64% neq 0 (
-  set "UpdateFile=tx64upd%AppVersion%"
-  set "SetupFile=tsetup-x64.%AppVersionStrFull%.exe"
-  set "PortableFile=tportable-x64.%AppVersionStrFull%.zip"
+  set "UpdateFile=update-win-x64-%AppVersion%"
+  set "SetupFile=tdx-win-x64.%AppVersionStrFull%.exe"
+  set "PortableFile=tdx-portable-win-x64.%AppVersionStrFull%.zip"
   set "DumpSymsPath=%SolutionPath%\..\..\Libraries\win64\breakpad\src\tools\windows\dump_syms\Release\dump_syms.exe"
 ) else if %BuildARM% neq 0 (
   set "UpdateFile=tarm64upd%AppVersion%"
@@ -118,9 +118,9 @@ if %Build64% neq 0 (
   set "PortableFile=tportable-arm64.%AppVersionStrFull%.zip"
   set "DumpSymsPath=%SolutionPath%\..\..\Libraries\breakpad\src\tools\windows\dump_syms\Release\dump_syms.exe"
 ) else (
-  set "UpdateFile=tupdate%AppVersion%"
-  set "SetupFile=tsetup.%AppVersionStrFull%.exe"
-  set "PortableFile=tportable.%AppVersionStrFull%.zip"
+  set "UpdateFile=update-win-x86-%AppVersion%"
+  set "SetupFile=tdx-win-x86.%AppVersionStrFull%.exe"
+  set "PortableFile=tdx-portable-win-x86.%AppVersionStrFull%.zip"
   set "DumpSymsPath=%SolutionPath%\..\..\Libraries\breakpad\src\tools\windows\dump_syms\Release\dump_syms.exe"
 )
 set "ReleasePath=%SolutionPath%\Release"
@@ -178,7 +178,11 @@ if %AlphaVersion% neq 0 (
     echo Deploy folder for version %AppVersionStr% already exists!
     exit /b 1
   )
-  if exist %ReleasePath%\tupdate%AppVersion% (
+  if exist %ReleasePath%\update-win-x86-%AppVersion% (
+    echo Update file for version %AppVersion% already exists!
+    exit /b 1
+  )
+  if exist %ReleasePath%\update-win-x64-%AppVersion% (
     echo Update file for version %AppVersion% already exists!
     exit /b 1
   )

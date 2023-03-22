@@ -495,11 +495,11 @@ int main(int argc, char *argv[])
 	cout << "Signature verified!\n";
 	RSA_free(pbKey);
 #ifdef Q_OS_WIN
-	QString outName((targetwinarm ? QString("tarm64upd%1") : targetwin64 ? QString("tx64upd%1") : QString("tupdate%1")).arg(AlphaVersion ? AlphaVersion : version));
+	QString outName((targetwinarm ? QString("update-win-arm-%1") : targetwin64 ? QString("update-win-x64-%1") : QString("update-win-x86-%1")).arg(AlphaVersion ? AlphaVersion : version));
 #elif defined Q_OS_MAC
-	QString outName((targetarmac ? QString("tarmacupd%1") : QString("tmacupd%1")).arg(AlphaVersion ? AlphaVersion : version));
+	QString outName((targetarmac ? QString("update-mac-arm-%1") : QString("update-mac-x64-%1")).arg(AlphaVersion ? AlphaVersion : version));
 #else
-	QString outName(QString("tlinuxupd%1").arg(AlphaVersion ? AlphaVersion : version));
+	QString outName(QString("update-linux-x64-%1").arg(AlphaVersion ? AlphaVersion : version));
 #endif
 	if (AlphaVersion) {
 		outName += "_" + AlphaSignature;
