@@ -3824,6 +3824,9 @@ ItemPreview HistoryItem::toPreview(ToPreviewOptions options) const {
 		if (options.hideSender || isPostHidingAuthor() || isEmpty()) {
 			return {};
 		} else if (!_history->peer->isUser()) {
+			if (_history->peer->isSecretChat()) {
+				return {};
+			}
 			if (const auto from = displayFrom()) {
 				return fromSender(from);
 			}

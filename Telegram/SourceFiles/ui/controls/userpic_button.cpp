@@ -314,7 +314,10 @@ void UserpicButton::choosePhotoLocally() {
 					callback(type));
 			}));
 	};
+#if 0 // mtp
 	const auto user = _peer ? _peer->asUser() : nullptr;
+#endif
+	const auto user = _peer ? _peer->asOneOnOne() : nullptr;
 	const auto addUserpicBuilder = [&](ChosenType type) {
 		if (!_controller) {
 			return;

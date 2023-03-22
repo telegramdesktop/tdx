@@ -82,6 +82,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tdb/tdb_tl_scheme.h"
 #include "history/history_unread_things.h"
 #include "main/session/send_as_peers.h"
+#include "data/data_secret_chat.h"
 
 namespace Data {
 namespace {
@@ -452,6 +453,8 @@ not_null<PeerData*> Session::peer(PeerId id) {
 			return std::make_unique<ChatData>(this, id);
 		} else if (peerIsChannel(id)) {
 			return std::make_unique<ChannelData>(this, id);
+		} else if (peerIsSecretChat(id)) {
+			return std::make_unique<SecretChatData>(this, id);
 		}
 		Unexpected("Peer id type.");
 	}();
@@ -1249,9 +1252,19 @@ not_null<UserData*> Session::processUser(const TLuser &user) {
 
 not_null<PeerData*> Session::processPeer(const TLchat &dialog) {
 	const auto &data = dialog.data();
-	Assert(data.vtype().type() != id_chatTypeSecret);
 
 	const auto result = peer(peerFromTdbChat(data.vid()));
+	const auto checkId = data.vtype().match([](const TLDchatTypePrivate &d) {
+		return peerFromUser(d.vuser_id().v);
+	}, [](const TLDchatTypeBasicGroup &d) {
+		return peerFromChat(d.vbasic_group_id().v);
+	}, [](const TLDchatTypeSupergroup &d) {
+		return peerFromChannel(d.vsupergroup_id().v);
+	}, [](const TLDchatTypeSecret &d) {
+		return peerFromSecretChat(d.vsecret_chat_id().v);
+	});
+	Assert(result->id == checkId);
+
 	using UpdateFlag = Data::PeerUpdate::Flag;
 	auto updates = UpdateFlag::None | UpdateFlag::None;
 
@@ -1544,6 +1557,15 @@ not_null<ChannelData*> Session::processChannel(
 		session().changes().peerUpdated(result, updateFlags);
 	}
 
+	return result;
+}
+
+not_null<SecretChatData*> Session::processSecretChat(
+		const TLsecretChat &secretChat) {
+	const auto &data = secretChat.data();
+	const auto peerId = peerFromSecretChat(data.vid().v);
+	const auto result = this->peer(peerId)->asSecretChat();
+	result->update(data);
 	return result;
 }
 

@@ -24,6 +24,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_text_entity.h"
 #include "styles/style_dialogs.h"
 
+#include "data/data_secret_chat.h"
+#include "data/data_user.h"
+
 namespace {
 
 constexpr auto kEmojiLoopCount = 2;
@@ -151,6 +154,7 @@ void MessageView::prepare(
 		Data::Forum *forum,
 		Fn<void()> customEmojiRepaint,
 		ToPreviewOptions options) {
+	_secretStateUsed = false;
 	if (!forum) {
 		_topics = nullptr;
 	} else if (!_topics || _topics->forum() != forum) {
@@ -220,6 +224,37 @@ void MessageView::prepare(
 	} else {
 		_loadingContext = nullptr;
 	}
+}
+
+void MessageView::prepare(not_null<SecretChatData*> secretChat) {
+	const auto state = secretChat->state();
+	if (_secretStateUsed && !_textCache.isEmpty() && state == _secretState) {
+		return;
+	}
+	_secretStateUsed = true;
+	_secretState = state;
+	const auto text = (state == SecretChatState::Pending)
+		? (u"Waiting for "_q
+			+ secretChat->user()->shortName()
+			+ u" to come online..."_q)
+		: (state == SecretChatState::Closed)
+		? u"Secret chat is closed."_q
+		: secretChat->out()
+		? (secretChat->user()->shortName() + u" joined your secret chat."_q)
+		: u"You joined the secret chat"_q;
+	const auto context = Core::MarkedTextContext{
+		.session = &secretChat->session(),
+	};
+	_textCache.setMarkedText(
+		st::dialogsTextStyle,
+		DialogsPreviewText(Ui::Text::Colorized(text)),
+		DialogTextOptions(),
+		context);
+	_textCachedFor = nullptr;
+	_imagesCache = {};
+	_spoiler = nullptr;
+	_topics = nullptr;
+	_loadingContext = nullptr;
 }
 
 bool MessageView::isInTopicJump(int x, int y) const {

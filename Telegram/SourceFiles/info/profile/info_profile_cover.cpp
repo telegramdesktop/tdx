@@ -329,11 +329,18 @@ Cover::Cover(
 		_st.photo))
 , _changePersonal((role == Role::Info
 	|| topic
+#if 0 // mtp
 	|| !_peer->isUser()
 	|| _peer->isSelf()
 	|| _peer->asUser()->isBot())
 	? nullptr
 	: CreateUploadSubButton(this, _peer->asUser(), controller).get())
+#endif
+	|| !_peer->isOneOnOne()
+	|| _peer->isSelf()
+	|| _peer->asOneOnOne()->isBot())
+	? nullptr
+	: CreateUploadSubButton(this, _peer->asOneOnOne(), controller).get())
 , _iconButton(topic
 	? object_ptr<TopicIconButton>(this, controller, topic)
 	: nullptr)
@@ -517,7 +524,10 @@ void Cover::refreshUploadPhotoOverlay() {
 			return chat->canEditInformation();
 		} else if (const auto channel = _peer->asChannel()) {
 			return channel->canEditInformation();
+#if 0 // mtp
 		} else if (const auto user = _peer->asUser()) {
+#endif
+		} else if (const auto user = _peer->asOneOnOne()) {
 			return user->isSelf()
 				|| (user->isContact()
 					&& !user->isInaccessible()
@@ -597,7 +607,10 @@ void Cover::refreshUploadPhotoOverlay() {
 			: base::EventFilterResult::Continue;
 	});
 
+#if 0 // mtp
 	if (const auto user = _peer->asUser()) {
+#endif
+	if (const auto user = _peer->asOneOnOne()) {
 		_userpic->resetPersonalRequests(
 		) | rpl::start_with_next([=] {
 			user->session().api().peerPhoto().clearPersonal(user);
@@ -650,7 +663,10 @@ void Cover::refreshStatusText() {
 	auto statusText = [&]() -> TextWithEntities {
 		using namespace Ui::Text;
 		auto currentTime = base::unixtime::now();
+#if 0 // mtp
 		if (auto user = _peer->asUser()) {
+#endif
+		if (const auto user = _peer->asOneOnOne()) {
 			const auto result = Data::OnlineTextFull(user, currentTime);
 			const auto showOnline = Data::OnlineTextActive(user, currentTime);
 			const auto updateIn = Data::OnlineChangeTimeout(user, currentTime);

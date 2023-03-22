@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 
 namespace Tdb {
+class TLsecretChat;
 class TLbackground;
 class TLbackgrounds;
 class TLchat;
@@ -264,6 +265,8 @@ public:
 	not_null<ChatData*> processChat(const Tdb::TLbasicGroup &chat);
 	not_null<ChannelData*> processChannel(const Tdb::TLsupergroup &channel);
 
+	not_null<SecretChatData*> processSecretChat(
+		const Tdb::TLsecretChat &secretChat);
 #if 0 // mtp
 	// Returns last user, if there were any.
 	UserData *processUsers(const MTPVector<MTPUser> &data);

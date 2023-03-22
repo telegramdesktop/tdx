@@ -408,6 +408,11 @@ QString FormatPhone(QString phone) {
 }
 
 QString FormatTTL(float64 ttl) {
+	if (ttl < 3600) {
+		return (ttl < 60)
+			? tr::lng_seconds(tr::now, lt_count, int(ttl))
+			: tr::lng_minutes(tr::now, lt_count, int(ttl / 60));
+	}
 	if (ttl < 86400) {
 		return tr::lng_hours(tr::now, lt_count, int(ttl / 3600));
 	} else if (ttl < 86400 * 7) {
@@ -453,6 +458,11 @@ QString FormatTTLAfter(float64 ttl) {
 }
 
 QString FormatTTLTiny(float64 ttl) {
+	if (ttl < 3600) {
+		return (ttl < 60)
+			? tr::lng_seconds_tiny(tr::now, lt_count, int(ttl))
+			: tr::lng_minutes_tiny(tr::now, lt_count, int(ttl / 60));
+	}
 	return (ttl <= 3600 * 9)
 		? tr::lng_hours_tiny(tr::now, lt_count, int(ttl / 3600))
 		: (ttl <= (86400) * 6)
