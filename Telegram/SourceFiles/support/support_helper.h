@@ -15,6 +15,10 @@ namespace Tdb {
 class TLuserSupportInfo;
 } // namespace Tdb
 
+namespace Tdb {
+class TLuserSupportInfo;
+} // namespace Tdb
+
 class History;
 
 namespace Main {
@@ -83,9 +87,10 @@ private:
 	void occupyInDraft();
 	void reoccupy();
 
-#if 0 // mtp
 	void applyInfo(
 		not_null<UserData*> user,
+		const Tdb::TLuserSupportInfo &result);
+#if 0 // mtp
 		const MTPhelp_UserInfo &result);
 #endif
 	void showEditInfoBox(

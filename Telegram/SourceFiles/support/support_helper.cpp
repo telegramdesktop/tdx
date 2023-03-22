@@ -38,12 +38,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Main {
 class Session;
 } // namespace Main
 
 namespace Support {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kOccupyFor = TimeId(60);
 constexpr auto kReoccupyEach = 30 * crl::time(1000);
@@ -397,10 +401,14 @@ bool Helper::isOccupiedBySomeone(History *history) const {
 }
 
 void Helper::refreshInfo(not_null<UserData*> user) {
-#if 0 // tdlib todo
+#if 0 // mtp
 	_api.request(MTPhelp_GetUserInfo(
 		user->inputUser
 	)).done([=](const MTPhelp_UserInfo &result) {
+#endif
+	_api.request(TLgetUserSupportInfo(
+		tl_int53(peerToUser(user->id).bare)
+	)).done([=](const TLuserSupportInfo &result) {
 		applyInfo(user, result);
 		if (const auto controller = _userInfoEditPending.take(user)) {
 			if (const auto strong = controller->get()) {
@@ -408,13 +416,14 @@ void Helper::refreshInfo(not_null<UserData*> user) {
 			}
 		}
 	}).send();
-#endif
 }
 
-#if 0 // mtp
 void Helper::applyInfo(
 		not_null<UserData*> user,
+#if 0 // mtp
 		const MTPhelp_UserInfo &result) {
+#endif
+		const TLuserSupportInfo &result) {
 	const auto notify = [&] {
 		user->session().changes().peerUpdated(
 			user,
@@ -425,6 +434,19 @@ void Helper::applyInfo(
 			notify();
 		}
 	};
+	const auto &data = result.data();
+	auto info = UserInfo{
+		.author = data.vauthor().v,
+		.date = data.vdate().v,
+		.text = Api::FormattedTextFromTdb(data.vmessage()),
+	};
+	if (info.text.empty()) {
+		remove();
+	} else if (_userInformation[user] != info) {
+		_userInformation[user] = std::move(info);
+		notify();
+	}
+#if 0 // mtp
 	result.match([&](const MTPDhelp_userInfo &data) {
 		auto info = UserInfo();
 		info.author = qs(data.vauthor());
@@ -441,8 +463,8 @@ void Helper::applyInfo(
 	}, [&](const MTPDhelp_userInfoEmpty &) {
 		remove();
 	});
-}
 #endif
+}
 
 rpl::producer<UserInfo> Helper::infoValue(not_null<UserData*> user) const {
 	return user->session().changes().peerFlagsValue(
@@ -526,7 +548,7 @@ void Helper::saveInfo(
 		Ui::ItemTextDefaultOptions().flags);
 	TextUtilities::Trim(text);
 
-#if 0 // tdlib todo
+#if 0 // mtp
 	const auto entities = Api::EntitiesToMTP(
 		&user->session(),
 		text.entities,
@@ -536,12 +558,16 @@ void Helper::saveInfo(
 		MTP_string(text.text),
 		entities
 	)).done([=](const MTPhelp_UserInfo &result) {
+#endif
+	_userInfoSaving[user].requestId = _api.request(TLsetUserSupportInfo(
+		tl_int53(peerToUser(user->id).bare),
+		Api::FormattedTextToTdb(text)
+	)).done([=](const TLuserSupportInfo &result) {
 		applyInfo(user, result);
 		done(true);
 	}).fail([=] {
 		done(false);
 	}).send();
-#endif
 }
 
 Templates &Helper::templates() {
