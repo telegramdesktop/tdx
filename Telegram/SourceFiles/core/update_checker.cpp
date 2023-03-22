@@ -242,14 +242,7 @@ QString FindUpdateFile() {
 	const auto list = updates.entryInfoList(QDir::Files);
 	for (const auto &info : list) {
 		static const auto RegExp = QRegularExpression(
-			"^("
-			"tupdate|"
-			"tx64upd|"
-			"tarm64upd|"
-			"tmacupd|"
-			"tarmacupd|"
-			"tlinuxupd|"
-			")\\d+(_[a-z\\d]+)?$",
+			"^update-(win|mac|linux)-(x86|x64|arm)-\\d+(_[a-z\\d]+)?$",
 			QRegularExpression::CaseInsensitiveOption
 		);
 		if (RegExp.match(info.fileName()).hasMatch()) {
