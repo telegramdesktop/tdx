@@ -248,6 +248,10 @@ bool QrWidget::applyState(const TLauthorizationState &state) {
 	}, [&](const TLDauthorizationStateWaitOtherDeviceConfirmation &data) {
 		_qrLinks.fire_copy(data.vlink().v);
 		return true;
+	}, [&](const TLDauthorizationStateClosed &data) {
+		LOG(("Tdb Error: Got Closed state while authorizing."));
+		sendRequestCode();
+		return true;
 	}, [&](const auto &) {
 		return false;
 	});
