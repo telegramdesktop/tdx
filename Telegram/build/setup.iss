@@ -37,11 +37,11 @@ DisableProgramGroupPage=no
 #if MyBuildTarget == "win64"
   ArchitecturesAllowed="x64 arm64"
   ArchitecturesInstallIn64BitMode="x64 arm64"
-  OutputBaseFilename=tsetup-x64.{#MyAppVersionFull}
+  OutputBaseFilename=tdx-win-x64.{#MyAppVersionFull}
   #define ArchModulesFolder "x64"
   AppVerName={#MyAppName} {#MyAppVersion} 64bit
 #else
-  OutputBaseFilename=tsetup.{#MyAppVersionFull}
+  OutputBaseFilename=tdx-win-x86.{#MyAppVersionFull}
   #define ArchModulesFolder "x86"
   AppVerName={#MyAppName} {#MyAppVersion} 32bit
 #endif
