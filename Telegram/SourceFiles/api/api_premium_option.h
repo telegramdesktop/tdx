@@ -56,7 +56,7 @@ template<typename Option>
 			continue;
 		}
 #if 0 // mtp
-		const auto botUrl = !lnk // later internalLink types.
+		const auto botUrl = !lnk
 			? QString()
 			: (lnk->type() == Tdb::id_internalLinkTypeInvoice)
 			? ("https://t.me/$"
