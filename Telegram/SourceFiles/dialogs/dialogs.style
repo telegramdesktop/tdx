@@ -359,6 +359,12 @@ dialogsInaccessibleUserpic: icon {{ "dialogs/inaccessible_userpic", historyPeerU
 dialogsHiddenAuthorUserpic: icon {{ "dialogs/avatar_hidden", premiumButtonFg }};
 dialogsMyNotesUserpic: icon {{ "dialogs/avatar_notes", historyPeerUserpicFg }};
 
+dialogsSecretChatIcon: ThreeStateIcon {
+	icon: icon {{ "emoji/premium_lock", boxTextFgGood }};
+	over: icon {{ "emoji/premium_lock", boxTextFgGood }};
+	active: icon {{ "emoji/premium_lock", dialogsChatIconFgActive }};
+}
+
 dialogsSendStateSkip: 20px;
 dialogsSendingIcon: ThreeStateIcon {
 	icon: icon {{ "dialogs/dialogs_sending", dialogsSendingIconFg, point(8px, 4px) }};

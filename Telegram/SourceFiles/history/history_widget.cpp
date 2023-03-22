@@ -173,6 +173,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 
 #include "tdb/tdb_tl_scheme.h"
+#include "data/data_secret_chat.h"
 
 #include <QtGui/QWindow>
 #include <QtCore/QMimeData>
@@ -4633,6 +4634,27 @@ void HistoryWidget::showFinished() {
 
 void HistoryWidget::doneShow() {
 	_topBar->setAnimatingMode(false);
+	if (_peer && _list && _peer->isSecretChat()) {
+		_peer->asSecretChat()->flagsValue() | rpl::skip(
+			1
+		) | rpl::filter([](const SecretChatData::Flags::Change &update) {
+			using Flag = SecretChatDataFlag;
+			return update.diff & (Flag::Pending | Flag::Closed);
+		}) | rpl::start_with_next([=] {
+			const auto hadFocus = Ui::InFocusChain(this);
+			if (hadFocus) {
+				setFocus();
+			}
+			if (updateCanSendMessage()) {
+				updateControlsVisibility();
+				updateControlsGeometry();
+				if (hadFocus) {
+					setInnerFocus();
+				}
+			}
+			_history->updateChatListEntry();
+		}, _list->lifetime());
+	}
 	updateCanSendMessage();
 	updateBotKeyboard();
 	updateControlsVisibility();
@@ -6343,6 +6365,17 @@ int HistoryWidget::countAutomaticScrollTop() {
 }
 
 QString HistoryWidget::computeSendRestriction() const {
+	if (const auto secretChat = _peer ? _peer->asSecretChat() : nullptr) {
+		const auto state = secretChat->state();
+		if (state == SecretChatState::Pending) {
+			// secret langs
+			return u"restriction:Waiting for "_q
+				+ secretChat->user()->shortName()
+				+ u" to come online..."_q;
+		} else if (state == SecretChatState::Closed) {
+			return u"restriction:Secret chat is closed."_q;
+		}
+	}
 	if (const auto user = _peer ? _peer->asUser() : nullptr) {
 		if (user->meRequiresPremiumToWrite()
 			&& !user->session().premium()) {

@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_prepare.h"
 
 #include "tdb/tdb_tl_scheme.h"
+#include "data/data_secret_chat.h"
 
 #if 0 // goodToRemove
 namespace {
@@ -312,6 +313,9 @@ bool CanSendAnyOf(
 			}
 		}
 		return false;
+	} else if (const auto secretChat = peer->asSecretChat()) {
+		return (secretChat->state() == SecretChatState::Ready)
+			&& CanSendAnyOf(secretChat->user(), rights, forbidInForums);
 	}
 	Unexpected("Peer type in CanSendAnyOf.");
 }

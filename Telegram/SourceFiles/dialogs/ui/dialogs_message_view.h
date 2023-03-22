@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <any>
 
+enum class SecretChatState : uchar;
+
 class Image;
 class HistoryItem;
 enum class ImageRoundRadius;
@@ -62,6 +64,7 @@ public:
 		Data::Forum *forum,
 		Fn<void()> customEmojiRepaint,
 		ToPreviewOptions options);
+	void prepare(not_null<SecretChatData*> secretChat);
 
 	void paint(
 		Painter &p,
@@ -95,6 +98,10 @@ private:
 	mutable std::unique_ptr<LoadingContext> _loadingContext;
 	mutable const style::DialogsMiniIcon *_leftIcon = nullptr;
 	mutable bool _hasPlainLinkAtBegin = false;
+
+	SecretChatState _secretState = {};
+	int _secretNameVersion = 0;
+	bool _secretStateUsed = false;
 
 };
 

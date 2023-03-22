@@ -617,6 +617,8 @@ PRIVATE
     data/data_saved_sublist.h
     data/data_search_controller.cpp
     data/data_search_controller.h
+    data/data_secret_chat.cpp
+    data/data_secret_chat.h
     data/data_send_action.cpp
     data/data_send_action.h
     data/data_session.cpp

@@ -20,6 +20,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_prepare.h"
 #include "base/unixtime.h"
 
+#include "data/data_secret_chat.h"
+
 namespace Data {
 namespace {
 
@@ -301,6 +303,13 @@ inline auto DefaultRestrictionValue(
 						|| (flags & Flag::Creator)
 						|| (!(flags & Flag::Broadcast)
 							&& (rights & ~restricted)));
+			});
+	} else if (const auto secretChat = peer->asSecretChat()) {
+		return rpl::combine(
+			secretChat->flagsValue(),
+			CanSendAnyOfValue(secretChat->user(), rights, forbidInForums),
+			[](SecretChatData::Flags::Change flags, bool can) {
+				return (flags.value & SecretChatDataFlag::Ready) && can;
 			});
 	}
 	Unexpected("Peer type in Data::CanSendAnyOfValue.");
