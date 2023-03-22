@@ -9,38 +9,32 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "tdb/tdb_tl_scheme.h"
 
-PeerId peerFromTdbChat(Tdb::TLint53 id) noexcept {
-	//constexpr int64 MIN_SECRET_ID = -2002147483648ll; // From TDLib.
-	//constexpr int64 ZERO_SECRET_ID = -2000000000000ll;
-	//constexpr int64 MAX_SECRET_ID = -1997852516353ll;
-	constexpr int64 MIN_CHANNEL_ID = -1997852516352ll;
-	constexpr int64 MAX_CHANNEL_ID = -1000000000000ll;
-	constexpr int64 MIN_CHAT_ID = -999999999999ll;
-	//constexpr int64 MAX_USER_ID = 999999999999ll;
-	if (id.v > 0) {
+PeerId peerFromTdbChat(Tdb::TLint53 id) noexcept { // From TDLib.
+	constexpr int64 MAX_CHANNEL_ID = 1000000000000ll - (1ll << 31);
+	constexpr int64 MAX_CHAT_ID = 999999999999ll;
+	constexpr int64 MAX_USER_ID = 999999999999ll;
+	constexpr int64 ZERO_CHANNEL_ID = -1000000000000ll;
+	if (!id.v) {
+		return PeerId();
+	} else if (id.v > 0 && id.v <= MAX_USER_ID) {
 		return UserId(BareId(id.v));
-	} else if (id.v < 0 && id.v > MIN_CHAT_ID) {
+	} else if (id.v < 0 && id.v >= -MAX_CHAT_ID) {
 		return ChatId(BareId(-id.v));
-	} else if (id.v < MAX_CHANNEL_ID && id.v > MIN_CHANNEL_ID) {
-		return ChannelId(BareId(MAX_CHANNEL_ID - id.v));
+	} else if (id.v != ZERO_CHANNEL_ID
+		&& id.v >= ZERO_CHANNEL_ID - MAX_CHANNEL_ID) {
+		return ChannelId(BareId(ZERO_CHANNEL_ID - id.v));
 	}
 	return PeerId();
 }
 
 Tdb::TLint53 peerToTdbChat(PeerId id) noexcept {
-	//constexpr int64 MIN_SECRET_ID = -2002147483648ll; // From TDLib.
-	//constexpr int64 ZERO_SECRET_ID = -2000000000000ll;
-	//constexpr int64 MAX_SECRET_ID = -1997852516353ll;
-	//constexpr int64 MIN_CHANNEL_ID = -1997852516352ll;
-	constexpr int64 MAX_CHANNEL_ID = -1000000000000ll;
-	//constexpr int64 MIN_CHAT_ID = -999999999999ll;
-	//constexpr int64 MAX_USER_ID = 999999999999ll;
+	constexpr int64 ZERO_CHANNEL_ID = -1000000000000ll;
 	if (const auto userId = peerToUser(id)) {
 		return Tdb::tl_int53(int64(userId.bare));
 	} else if (const auto chatId = peerToChat(id)) {
 		return Tdb::tl_int53(-int64(chatId.bare));
 	} else if (const auto channelId = peerToChannel(id)) {
-		return Tdb::tl_int53(MAX_CHANNEL_ID - int64(channelId.bare));
+		return Tdb::tl_int53(ZERO_CHANNEL_ID - int64(channelId.bare));
 	}
 	return Tdb::tl_int53(0);
 }
