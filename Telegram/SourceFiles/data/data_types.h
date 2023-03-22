@@ -100,6 +100,7 @@ class UserData;
 class ChatData;
 class ChannelData;
 struct BotInfo;
+class SecretChatData;
 
 namespace Data {
 class Folder;

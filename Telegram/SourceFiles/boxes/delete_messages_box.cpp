@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "tdb/tdb_sender.h"
 #include "tdb/tdb_tl_scheme.h"
+#include "data/data_secret_chat.h"
 
 using namespace Tdb;
 
@@ -145,6 +146,10 @@ void DeleteMessagesBox::prepare() {
 					tr::now,
 					lt_contact,
 					peer->name())
+				: peer->isSecretChat() // secret langs
+				? u"Are you sure you want to delete your secret chat with "_q
+					+ peer->asSecretChat()->user()->name()
+					+ u"?"_q
 				: peer->isChat()
 				? tr::lng_sure_delete_and_exit(
 					tr::now,
@@ -155,6 +160,7 @@ void DeleteMessagesBox::prepare() {
 				: tr::lng_sure_leave_channel(tr::now);
 			details = Ui::Text::RichLangValue(details.text);
 			if (!peer->isUser()) {
+				if (!peer->isSecretChat())
 				*deleteText = tr::lng_box_leave();
 			}
 			deleteStyle = &st::attentionBoxButton;
@@ -272,6 +278,13 @@ void DeleteMessagesBox::prepare() {
 							count)
 					});
 				}
+			} else if (peer->isSecretChat()) {
+				appendDetails({
+					tr::lng_delete_for_everyone_hint(
+						tr::now,
+						lt_count,
+						count)
+				});
 			} else if (peer->isChat()) {
 				appendDetails({
 					tr::lng_delete_for_me_chat_hint(tr::now, lt_count, count)
@@ -368,6 +381,9 @@ PeerData *DeleteMessagesBox::checkFromSinglePeer() const {
 
 auto DeleteMessagesBox::revokeText(not_null<PeerData*> peer) const
 -> std::optional<RevokeConfig> {
+	if (peer->isSecretChat()) {
+		return {};
+	}
 	auto result = RevokeConfig();
 	if (peer == _wipeHistoryPeer) {
 		if (!peer->canRevokeFullHistory()) {

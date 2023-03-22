@@ -2065,6 +2065,7 @@ void Gif::ensureTranscribeButton() const {
 		&& !_parent->data()->media()->ttlSeconds()
 		&& (_data->session().premium()
 			|| _data->session().api().transcribes().trialsSupport())) {
+		if (!_realParent->history()->peer->isSecretChat())
 		if (!_transcribe) {
 			_transcribe = std::make_unique<TranscribeButton>(
 				_realParent,

@@ -290,6 +290,8 @@ void TopBarWidget::call() {
 	if (const auto peer = _activeChat.key.peer()) {
 		if (const auto user = peer->asUser()) {
 			Core::App().calls().startOutgoingCall(user, false);
+		} else if (const auto secretUser = peer->secretChatUser()) {
+			Core::App().calls().startOutgoingCall(secretUser, false);
 		}
 	}
 }
@@ -509,7 +511,12 @@ void TopBarWidget::paintTopBar(Painter &p) {
 	const auto sublist = _activeChat.key.sublist();
 	const auto topic = _activeChat.key.topic();
 	const auto history = _activeChat.key.history();
+#if 0 // mtp
 	const auto namePeer = history
+#endif
+	const auto namePeer = (history && history->peer->isSecretChat())
+		? history->peer->secretChatUser()
+		: history
 		? history->peer.get()
 		: sublist ? sublist->peer().get()
 		: nullptr;
@@ -1166,6 +1173,8 @@ void TopBarWidget::updateControlsVisibility() {
 				return !user->isSelf()
 					&& !user->isBot()
 					&& !peer->isServiceUser();
+			} else if (peer->isSecretChat()) {
+				return true;
 			}
 		}
 		return false;
@@ -1582,6 +1591,8 @@ bool TopBarWidget::trackOnlineOf(not_null<PeerData*> user) const {
 		return false;
 	} else if (peer->isUser()) {
 		return (peer == user);
+	} else if (const auto secretUser = peer->secretChatUser()) {
+		return (secretUser == user);
 	} else if (const auto chat = peer->asChat()) {
 		return chat->participants.contains(user->asUser());
 	} else if (const auto channel = peer->asMegagroup()) {
@@ -1602,7 +1613,10 @@ void TopBarWidget::updateOnlineDisplay() {
 	QString text;
 	const auto now = base::unixtime::now();
 	bool titlePeerTextOnline = false;
+#if 0 // mtp
 	if (const auto user = peer->asUser()) {
+#endif
+	if (const auto user = peer->asOneOnOne()) {
 		if (session().supportMode()
 			&& !session().supportHelper().infoCurrent(user).text.empty()) {
 			text = QString::fromUtf8("\xe2\x9a\xa0\xef\xb8\x8f check info");
@@ -1703,6 +1717,8 @@ void TopBarWidget::updateOnlineDisplayTimer() {
 	};
 	if (const auto user = peer->asUser()) {
 		handleUser(user);
+	} else if (const auto secretUser = peer->secretChatUser()) {
+		handleUser(secretUser);
 	} else if (const auto chat = peer->asChat()) {
 		for (const auto &user : chat->participants) {
 			handleUser(user);

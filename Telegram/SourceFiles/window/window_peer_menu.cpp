@@ -306,6 +306,7 @@ private:
 	void addBlockUser();
 	void addViewDiscussion();
 	void addToggleTopicClosed();
+	void addSecretChat();
 	void addExportChat();
 	void addTranslate();
 	void addReport();
@@ -777,7 +778,10 @@ void Filler::addDeleteChat() {
 		return;
 	}
 	_addAction({
+#if 0 // mtp
 		.text = (_peer->isUser()
+#endif
+		.text = (_peer->isOneOnOne()
 			? tr::lng_profile_delete_conversation(tr::now)
 			: tr::lng_profile_clear_and_exit(tr::now)),
 		.handler = DeleteAndLeaveHandler(_controller, _peer),
@@ -882,6 +886,28 @@ void Filler::addViewDiscussion() {
 			chat,
 			Window::SectionShow::Way::Forward);
 	}, &st::menuIconDiscussion);
+}
+
+void Filler::addSecretChat() {
+	const auto user = _peer->asUser();
+	if (!user || user->isSelf() || user->isBot() || user->isServiceUser()) {
+		return;
+	}
+	const auto navigation = _controller;
+	const auto create = [=] {
+		user->session().sender().request(TLcreateNewSecretChat(
+			tl_int53(peerToUser(user->id).bare)
+		)).done([=](const TLchat &result) {
+			navigation->showPeerHistory(user->owner().processPeer(result));
+		}).send();
+	};
+	_addAction(u"Start Secret Chat"_q, [=] { // secret langs
+		navigation->show(Ui::MakeConfirmBox({
+			.text = u"Are you sure you want to start a secret chat?"_q,
+			.confirmed = create,
+			.confirmText = u"Start"_q,
+		}));
+	}, &st::menuIconPermissions);
 }
 
 void Filler::addExportChat() {
@@ -1411,6 +1437,7 @@ void Filler::fillProfileActions() {
 	addManageTopic();
 	addToggleTopicClosed();
 	addViewDiscussion();
+	addSecretChat();
 	addExportChat();
 	addBlockUser();
 	addReport();

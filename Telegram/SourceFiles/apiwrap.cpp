@@ -89,6 +89,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tdb/tdb_account.h"
 #include "tdb/tdb_option.h"
 #include "tdb/tdb_tl_scheme.h"
+#include "data/data_secret_chat.h"
 
 namespace {
 
@@ -1353,6 +1354,10 @@ void ApiWrap::requestWallPaper(
 }
 
 void ApiWrap::requestFullPeer(not_null<PeerData*> peer) {
+	if (const auto user = peer->secretChatUser()) {
+		requestFullPeer(user);
+		return;
+	}
 	if (_fullPeerRequests.contains(peer)) {
 		return;
 	}

@@ -51,6 +51,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
 #include "tdb/tdb_tl_scheme.h"
+#include "data/data_secret_chat.h"
 
 namespace {
 
@@ -258,6 +259,8 @@ void PeerData::updateNameDelayed(
 		const QString &newName,
 		const QString &newNameOrPhone,
 		const QString &newUsername) {
+	Expects(!isSecretChat());
+
 	if (_name == newName && _nameVersion > 1) {
 		if (isUser()) {
 			if (asUser()->nameOrPhone == newNameOrPhone
@@ -309,6 +312,8 @@ void PeerData::updateNameDelayed(
 }
 
 not_null<Ui::EmptyUserpic*> PeerData::ensureEmptyUserpic() const {
+	Expects(!isSecretChat());
+
 	if (!_userpicEmpty) {
 		const auto user = asUser();
 		_userpicEmpty = std::make_unique<Ui::EmptyUserpic>(
@@ -321,6 +326,9 @@ not_null<Ui::EmptyUserpic*> PeerData::ensureEmptyUserpic() const {
 }
 
 void PeerData::invalidateEmptyUserpic() {
+	if (isSecretChat()) {
+		return;
+	}
 	_userpicEmpty = nullptr;
 }
 
@@ -332,6 +340,9 @@ void PeerData::setUserpic(
 		PhotoId photoId,
 		const ImageLocation &location,
 		bool hasVideo) {
+	if (isSecretChat()) {
+		return;
+	}
 	_userpicPhotoId = photoId;
 	_userpicHasVideo = hasVideo ? 1 : 0;
 	_userpic.set(&session(), ImageWithLocation{ .location = location });
@@ -354,6 +365,9 @@ void PeerData::setUserpicPhoto(const MTPPhoto &data) {
 #endif
 
 QImage *PeerData::userpicCloudImage(Ui::PeerUserpicView &view) const {
+	if (const auto user = secretChatUser()) {
+		return user->userpicCloudImage(view);
+	}
 	if (!_userpic.isCurrentView(view.cloud)) {
 		if (!_userpic.empty()) {
 			view.cloud = _userpic.createView();
@@ -381,6 +395,9 @@ void PeerData::paintUserpic(
 		int x,
 		int y,
 		int size) const {
+	if (const auto user = secretChatUser()) {
+		return user->paintUserpic(p, view, x, y, size);
+	}
 	const auto cloud = userpicCloudImage(view);
 	const auto ratio = style::DevicePixelRatio();
 	Ui::ValidateUserpicCache(
@@ -393,18 +410,30 @@ void PeerData::paintUserpic(
 }
 
 void PeerData::loadUserpic() {
+	if (const auto user = secretChatUser()) {
+		return user->loadUserpic();
+	}
 	_userpic.load(&session(), userpicOrigin());
 }
 
 bool PeerData::hasUserpic() const {
+	if (const auto user = secretChatUser()) {
+		return user->hasUserpic();
+	}
 	return !_userpic.empty();
 }
 
 Ui::PeerUserpicView PeerData::activeUserpicView() {
+	if (const auto user = secretChatUser()) {
+		return user->activeUserpicView();
+	}
 	return { .cloud = _userpic.empty() ? nullptr : _userpic.activeView() };
 }
 
 Ui::PeerUserpicView PeerData::createUserpicView() {
+	if (const auto user = secretChatUser()) {
+		return user->createUserpicView();
+	}
 	if (_userpic.empty()) {
 		return {};
 	}
@@ -414,10 +443,16 @@ Ui::PeerUserpicView PeerData::createUserpicView() {
 }
 
 bool PeerData::useEmptyUserpic(Ui::PeerUserpicView &view) const {
+	if (const auto user = secretChatUser()) {
+		return user->useEmptyUserpic(view);
+	}
 	return !userpicCloudImage(view);
 }
 
 InMemoryKey PeerData::userpicUniqueKey(Ui::PeerUserpicView &view) const {
+	if (const auto user = secretChatUser()) {
+		return user->userpicUniqueKey(view);
+	}
 	return useEmptyUserpic(view)
 		? ensureEmptyUserpic()->uniqueKey()
 		: inMemoryKey(_userpic.location());
@@ -427,6 +462,9 @@ QImage PeerData::generateUserpicImage(
 		Ui::PeerUserpicView &view,
 		int size,
 		std::optional<int> radius) const {
+	if (const auto user = secretChatUser()) {
+		return user->generateUserpicImage(view, size, radius);
+	}
 	if (const auto userpic = userpicCloudImage(view)) {
 		auto image = userpic->scaled(
 			{ size, size },
@@ -490,10 +528,16 @@ bool PeerData::userpicHasVideo() const {
 }
 
 Data::FileOrigin PeerData::userpicOrigin() const {
+	if (const auto user = secretChatUser()) {
+		return user->userpicOrigin();
+	}
 	return Data::FileOriginPeerPhoto(id);
 }
 
 Data::FileOrigin PeerData::userpicPhotoOrigin() const {
+	if (const auto user = secretChatUser()) {
+		return user->userpicPhotoOrigin();
+	}
 	return (isUser() && userpicPhotoId())
 		? Data::FileOriginUserPhoto(peerToUser(id).bare, userpicPhotoId())
 		: Data::FileOrigin();
@@ -521,14 +565,23 @@ void PeerData::updateUserpic(
 #endif
 
 void PeerData::updateUserpic(const TLchatPhotoInfo &photo) {
+	if (isSecretChat()) {
+		return;
+	}
 	updateUserpic(photo.data().vsmall(), photo.data().vhas_animation().v);
 }
 
 void PeerData::updateUserpic(const TLprofilePhoto &photo) {
+	if (isSecretChat()) {
+		return;
+	}
 	updateUserpic(photo.data().vsmall(), photo.data().vhas_animation().v);
 }
 
 void PeerData::updateUserpic(const TLfile &small, bool hasVideo) {
+	if (isSecretChat()) {
+		return;
+	}
 	const auto location = ImageLocation(
 		{ TdbFileLocation{ small } },
 		kUserpicSize,
@@ -544,6 +597,9 @@ void PeerData::updateUserpic(const TLfile &small, bool hasVideo) {
 }
 
 void PeerData::setPhotoFull(const TLchatPhoto &photo) {
+	if (isSecretChat()) {
+		return;
+	}
 	const auto &data = photo.data();
 	if (data.vsizes().v.isEmpty()) {
 		clearPhoto();
@@ -555,10 +611,16 @@ void PeerData::setPhotoFull(const TLchatPhoto &photo) {
 }
 
 void PeerData::clearPhoto() {
+	if (isSecretChat()) {
+		return;
+	}
 	clearUserpic();
 }
 
 void PeerData::clearUserpic() {
+	if (isSecretChat()) {
+		return;
+	}
 #if 0 // mtp
 	setUserpicChecked(PhotoId(), ImageLocation(), false);
 #endif
@@ -619,6 +681,8 @@ bool PeerData::canPinMessages() const {
 			? !channel->amRestricted(ChatRestriction::PinMessages)
 			: ((channel->amCreator()
 				|| channel->adminRights() & ChatAdminRight::EditMessages));
+	} else if (isSecretChat()) {
+		return false;
 	}
 	Unexpected("Peer type in PeerData::canPinMessages.");
 }
@@ -626,6 +690,8 @@ bool PeerData::canPinMessages() const {
 bool PeerData::canCreatePolls() const {
 	if (const auto user = asUser()) {
 		return user->isBot() && !user->isSupport();
+	} else if (isSecretChat()) {
+		return false;
 	}
 	return Data::CanSend(this, ChatRestriction::SendPolls);
 }
@@ -932,6 +998,10 @@ void PeerData::fillNames() {
 PeerData::~PeerData() = default;
 
 void PeerData::updateFull() {
+	if (const auto user = secretChatUser()) {
+		user->updateFull();
+		return;
+	}
 	if (!_lastFullUpdate
 		|| crl::now() > _lastFullUpdate + kUpdateFullPeerTimeout) {
 		updateFullForced();
@@ -1058,7 +1128,39 @@ not_null<const PeerData*> PeerData::migrateToOrMe() const {
 	return this;
 }
 
+bool PeerData::isSecretChat() const {
+	return peerIsSecretChat(id);
+}
+
+SecretChatData *PeerData::asSecretChat() {
+	return isSecretChat() ? static_cast<SecretChatData*>(this) : nullptr;
+}
+
+const SecretChatData *PeerData::asSecretChat() const {
+	return isSecretChat()
+		? static_cast<const SecretChatData*>(this)
+		: nullptr;
+}
+
+UserData *PeerData::secretChatUser() const {
+	const auto secretChat = asSecretChat();
+	return secretChat ? secretChat->user().get() : nullptr;
+}
+
+UserData *PeerData::asOneOnOne() {
+	const auto user = secretChatUser();
+	return user ? user : asUser();
+}
+
+const UserData *PeerData::asOneOnOne() const {
+	const auto user = secretChatUser();
+	return user ? user : asUser();
+}
+
 const QString &PeerData::topBarNameText() const {
+	if (const auto user = secretChatUser()) {
+		return user->name();
+	}
 	if (const auto to = migrateTo()) {
 		return to->topBarNameText();
 	} else if (const auto user = asUser()) {
@@ -1070,10 +1172,16 @@ const QString &PeerData::topBarNameText() const {
 }
 
 int PeerData::nameVersion() const {
+	if (const auto user = secretChatUser()) {
+		return user->nameVersion();
+	}
 	return _nameVersion;
 }
 
 const QString &PeerData::name() const {
+	if (const auto user = secretChatUser()) {
+		return user->name();
+	}
 	if (const auto to = migrateTo()) {
 		return to->name();
 	}
@@ -1081,6 +1189,9 @@ const QString &PeerData::name() const {
 }
 
 const QString &PeerData::shortName() const {
+	if (const auto user = asOneOnOne()) {
+		return user->firstName.isEmpty() ? user->lastName : user->firstName;
+	}
 	if (const auto user = asUser()) {
 		return user->firstName.isEmpty() ? user->lastName : user->firstName;
 	}
@@ -1364,6 +1475,10 @@ Data::RestrictionCheckResult PeerData::amRestricted(
 			: (chat->defaultRestrictions() & right)
 			? Result::WithEveryone()
 			: Result::Allowed();
+	} else if (const auto secretUser = secretChatUser()) {
+		return (right == ChatRestriction::PinMessages)
+			? Result::Explicit()
+			: secretUser->amRestricted(right);
 	}
 	return Result::Allowed();
 }

@@ -104,7 +104,10 @@ rpl::producer<QString> Widget::title() {
 		return tr::lng_info_topic_title();
 	}
 	const auto peer = controller()->key().peer();
+#if 0 // mtp
 	if (const auto user = peer->asUser()) {
+#endif
+	if (const auto user = peer->asOneOnOne()) {
 		return (user->isBot() && !user->isSupport())
 			? tr::lng_info_bot_title()
 			: tr::lng_info_user_title();
