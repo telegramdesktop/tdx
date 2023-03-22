@@ -422,6 +422,9 @@ Data::MessagesSlice ScheduledMessages::list(not_null<History*> history) {
 
 void ScheduledMessages::request(not_null<History*> history) {
 	const auto peer = history->peer;
+	if (peer->isSecretChat()) {
+		return;
+	}
 	if (peer->isBroadcast() && !Data::CanSendAnything(peer)) {
 		return;
 	}

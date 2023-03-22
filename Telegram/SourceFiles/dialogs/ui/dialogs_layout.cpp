@@ -547,6 +547,9 @@ void PaintRow(
 				color,
 				context.now)) {
 			// Empty history
+			if (const auto secretChat = thread->peer()->asSecretChat()) {
+				paintItemCallback(nameleft, namewidth);
+			}
 		}
 	} else if (!item->isEmpty()) {
 		if (thread && !promoted) {
@@ -658,6 +661,8 @@ void PaintRow(
 		}
 		p.setPen(context.active
 			? st::dialogsNameFgActive
+			: from->isSecretChat()
+			? st::boxTextFgGood
 			: context.selected
 			? st::dialogsNameFgOver
 			: st::dialogsNameFg);
@@ -715,6 +720,11 @@ const style::icon *ChatTypeIcon(
 	} else if (peer->isForum()) {
 		return &ThreeStateIcon(
 			st::dialogsForumIcon,
+			context.active,
+			context.selected);
+	} else if (peer->isSecretChat()) {
+		return &ThreeStateIcon(
+			st::dialogsSecretChatIcon,
 			context.active,
 			context.selected);
 	} else {
@@ -817,6 +827,10 @@ void RowPainter::Paint(
 			const auto forum = context.st->topicsHeight
 				? row->history()->peer->forum()
 				: nullptr;
+			if (!item) {
+				Assert(row->history()->peer->isSecretChat());
+				view->prepare(row->history()->peer->asSecretChat());
+			} else
 			if (!view->prepared(item, forum)) {
 				view->prepare(
 					item,
