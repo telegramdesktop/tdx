@@ -3268,6 +3268,9 @@ ItemPreview HistoryItem::toPreview(ToPreviewOptions options) const {
 		} else if (const auto sponsored = Get<HistoryMessageSponsored>()) {
 			return sponsored->sender->name;
 		} else if (!_history->peer->isUser()) {
+			if (_history->peer->isSecretChat()) {
+				return {};
+			}
 			if (const auto from = displayFrom()) {
 				return fromSender(from);
 			}
