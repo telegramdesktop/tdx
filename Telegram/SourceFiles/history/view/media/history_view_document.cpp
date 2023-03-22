@@ -309,6 +309,9 @@ QSize Document::countOptimalSize() {
 		if (!session->premium()) {
 			voice->transcribe = nullptr;
 			voice->transcribeText = {};
+		} else if (_realParent->history()->peer->isSecretChat()) {
+			voice->transcribe = nullptr;
+			voice->transcribeText = {};
 		} else {
 			const auto creating = !voice->transcribe;
 			if (creating) {

@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tdb/tdb_tl_scheme.h"
 #include "tdb/tdb_sender.h"
 #include "data/data_user.h"
+#include "data/data_secret_chat.h"
 
 namespace Data {
 namespace {
@@ -392,6 +393,10 @@ void Histories::sendDialogRequests() {
 			session().sender().request(TLcreateSupergroupChat(
 				tl_int53(peerToChannel(channel->id).bare),
 				tl_bool(false) // force
+			)).done(done).fail(fail).send();
+		} else if (const auto secretChat = peer->asSecretChat()) {
+			session().sender().request(TLcreateSecretChat(
+				ToTdbSecretChatId(secretChat->id)
 			)).done(done).fail(fail).send();
 		} else {
 			Unexpected("Chat type in Histories::sendDialogRequests.");
@@ -870,10 +875,14 @@ void Histories::deleteAllMessages(
 	const auto peer = history->peer;
 	const auto chat = peer->asChat();
 	const auto channel = peer->asChannel();
+	if (peer->isSecretChat()) {
+		revoke = true;
+	}
 	if (!justClear
 		&& revoke
 		&& ((chat && chat->amCreator())
-			|| (channel && channel->canDelete()))) {
+			|| (channel && channel->canDelete())
+			|| peer->isSecretChat())) {
 		session().sender().request(TLdeleteChat(
 			peerToTdbChat(peer->id)
 		)).send();
