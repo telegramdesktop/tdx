@@ -3145,6 +3145,10 @@ void History::clearLastMessage() {
 		if (lastMessage() == lastServerMessage()) {
 			_lastMessage = std::nullopt;
 		}
+		if (chatListMessage() == lastServerMessage()) {
+			_chatListMessage = std::nullopt;
+			updateChatListEntry();
+		}
 		_lastServerMessage = std::nullopt;
 	}
 	setNotLoadedAtBottom();

@@ -296,7 +296,10 @@ void Row::setCornerBadgeShown(
 void Row::updateCornerBadgeShown(
 		not_null<PeerData*> peer,
 		Fn<void()> updateCallback) const {
+#if 0 // mtp
 	const auto user = peer->asUser();
+#endif
+	const auto user = peer->asOneOnOne();
 	const auto now = user ? base::unixtime::now() : TimeId();
 	const auto nextLayer = [&] {
 		if (user && Data::IsUserOnline(user, now)) {
@@ -410,9 +413,13 @@ void Row::PaintCornerBadgeFrame(
 	const auto online = peer && peer->isUser();
 	const auto size = online
 		? st::dialogsOnlineBadgeSize
+		: peer->isSecretChat()
+		? st::dialogsOnlineBadgeSize
 		: st::dialogsCallBadgeSize;
 	const auto stroke = st::dialogsOnlineBadgeStroke;
 	const auto skip = online
+		? st::dialogsOnlineBadgeSkip
+		: peer->isSecretChat()
 		? st::dialogsOnlineBadgeSkip
 		: st::dialogsCallBadgeSkip;
 	const auto shrink = (size / 2) * (1. - topLayerProgress);
@@ -535,6 +542,8 @@ void Row::paintUserpic(
 		_cornerBadgeUserpic->frame);
 	const auto history = _id.history();
 	if (!history || history->peer->isUser()) {
+		return;
+	} else if (history->peer->isSecretChat()) {
 		return;
 	}
 	const auto actionPainter = history->sendActionPainter();
