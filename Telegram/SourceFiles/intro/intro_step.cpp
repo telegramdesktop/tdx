@@ -227,7 +227,9 @@ void Step::jumpByState(const TLauthorizationState &state) {
 	}, [](const TLDauthorizationStateReady &) {
 	}, [](const TLDauthorizationStateLoggingOut &) {
 	}, [](const TLDauthorizationStateClosing &) {
-	}, [](const TLDauthorizationStateClosed &) {
+	}, [&](const TLDauthorizationStateClosed &) {
+		LOG(("Tdb Error: Got Closed state while authorizing."));
+		go(StepType::Qr);
 	}, [](const TLDauthorizationStateWaitEmailAddress &) {
 		LOG(("Tdb Error: Should not StateWaitEmailAddress in TDesktop."));
 	}, [](const TLDauthorizationStateWaitEmailCode &) {
