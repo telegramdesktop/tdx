@@ -155,14 +155,23 @@ void MembersRow::updateState(
 	} else if (!participant->muted
 		|| (participant->sounding && participant->ssrc != 0)
 		|| (participant->additionalSounding
+			&& participant->screencastSsrc != 0)) {
+#if 0 // mtp
 			&& GetAdditionalAudioSsrc(participant->videoParams) != 0)) {
+#endif
 		setState(State::Active);
 		setSounding((participant->sounding && participant->ssrc != 0)
 			|| (participant->additionalSounding
+				&& participant->screencastSsrc != 0));
+#if 0 // mtp
 				&& GetAdditionalAudioSsrc(participant->videoParams) != 0));
+#endif
 		setSpeaking((participant->speaking && participant->ssrc != 0)
 			|| (participant->additionalSpeaking
+				&& participant->screencastSsrc != 0));
+#if 0 // mtp
 				&& GetAdditionalAudioSsrc(participant->videoParams) != 0));
+#endif
 		_mutedByMe = participant->mutedByMe;
 #if 0 // goodToRemove
 		_raisedHandRating = 0;
@@ -188,8 +197,6 @@ void MembersRow::updateState(
 		_isHandRaised = participant->isHandRaised;
 		setState(_isHandRaised ? State::RaisedHand : State::Muted);
 	}
-#if 0 // doLater
-#endif
 	_order = participant ? participant->rowOrder() : QString();
 	refreshStatus();
 }
