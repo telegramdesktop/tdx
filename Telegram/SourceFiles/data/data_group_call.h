@@ -41,6 +41,7 @@ struct GroupCallParticipant {
 	TimeId lastActive = 0;
 	uint64 raisedHandRating = 0;
 #endif
+	uint32 screencastSsrc = 0;
 	uint32 ssrc = 0;
 	int volume = 0;
 	bool sounding : 1 = false;
