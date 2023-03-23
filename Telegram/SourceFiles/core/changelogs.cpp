@@ -17,8 +17,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "apiwrap.h"
 
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Core {
 namespace {
+
+using namespace Tdb;
 
 std::map<int, const char*> BetaLogs() {
 	return {
@@ -69,8 +74,7 @@ std::unique_ptr<Changelogs> Changelogs::Create(
 void Changelogs::requestCloudLogs() {
 	_chatsSubscription.destroy();
 
-	addLocalLogs();
-#if 0 // tdlib todo
+#if 0 // mtp
 	const auto callback = [this](const MTPUpdates &result) {
 		_session->api().applyUpdates(result);
 
