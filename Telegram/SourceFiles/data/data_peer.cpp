@@ -879,7 +879,7 @@ void PeerData::updateFull() {
 void PeerData::updateFullForced() {
 	session().api().requestFullPeer(this);
 	if (const auto channel = asChannel()) {
-		if (!channel->amCreator() && !channel->inviter) {
+		if (!channel->amCreator() && !channel->inviterLoaded) {
 			session().api().chatParticipants().requestSelf(channel);
 		}
 	}
