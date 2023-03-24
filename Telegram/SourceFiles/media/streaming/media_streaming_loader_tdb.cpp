@@ -170,7 +170,7 @@ void LoaderTdb::addToQueue(int priority) {
 	}
 	const auto newOffset = downloading ? *downloading : *requesting;
 	const auto newLimit = std::min(kLoadLimit, _size - newOffset);
-	const auto newPriority = _priority + 1;
+	const auto newPriority = kDefaultDownloadPriority + _priority;
 	while (!_requested.empty()
 		&& *_requested.front() >= newOffset
 		&& (*_requested.front() + partSize(*_requested.front())

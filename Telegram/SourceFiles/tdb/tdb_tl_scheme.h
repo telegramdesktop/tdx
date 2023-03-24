@@ -9,3 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "tdb_tl-scheme.h"
 #include "tdb/tdb_error.h"
+
+namespace Tdb {
+
+// 1 - autoupdate download through TDLib.
+inline constexpr auto kDefaultDownloadPriority = 2;
+
+} // namespace Tdb

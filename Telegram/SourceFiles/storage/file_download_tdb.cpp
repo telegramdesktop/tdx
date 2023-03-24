@@ -103,7 +103,7 @@ void TdbFileLoader::sendRequest() {
 	}
 	_requestId = session().sender().request(TLdownloadFile(
 		tl_int32(_fileId),
-		tl_int32(1),
+		tl_int32(kDefaultDownloadPriority),
 		tl_int53(_loadOffset),
 		tl_int53(_loadSize - _loadOffset),
 		tl_bool(false)
