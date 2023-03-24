@@ -2658,7 +2658,7 @@ void FormController::loadFile(File &file) {
 	using namespace Tdb;
 	_api.request(TLdownloadFile(
 		tl_int32(file.id),
-		tl_int32(1),
+		tl_int32(kDefaultDownloadPriority),
 		tl_int64(file.downloadStatus.offset()),
 		tl_int64(0),
 		tl_bool(false))

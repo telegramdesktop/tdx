@@ -9,6 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mtproto/mtp_instance.h"
 
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_file_proxy.h"
+
+namespace Tdb {
+class Error;
+} // namespace Tdb
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -19,16 +26,27 @@ class WeakInstance final : private QObject {
 public:
 	explicit WeakInstance(base::weak_ptr<Main::Session> session);
 
+	using Error = Tdb::Error;
+
 	template <typename Request>
+	void send(
+		Request &&request,
+		Fn<void(const typename Request::ResponseType &result)> done,
+		Fn<void(const Error &error)> fail);
+#if 0 // mtp
 	void send(
 		const Request &request,
 		Fn<void(const typename Request::ResponseType &result)> done,
 		Fn<void(const Error &error)> fail,
 		ShiftedDcId dcId = 0);
+#endif
 
 	[[nodiscard]] base::weak_ptr<Main::Session> session() const;
 	[[nodiscard]] bool valid() const;
+	[[nodiscard]] Tdb::Sender *sender() const;
+#if 0 // mtp
 	[[nodiscard]] Instance *instance() const;
+#endif
 
 	~WeakInstance();
 
@@ -38,7 +56,10 @@ private:
 	void reportUnavailable(Fn<void(const Error &error)> callback);
 
 	base::weak_ptr<Main::Session> _session;
+#if 0 // mtp
 	Instance *_instance = nullptr;
+#endif
+	Tdb::Sender *_sender = nullptr;
 	std::map<mtpRequestId, Fn<void(const Error &)>> _requests;
 	rpl::lifetime _lifetime;
 
@@ -112,12 +133,17 @@ public:
 	struct Location {
 		QString username;
 		int32 postId = 0;
+		bool lowPriority = false; // true for auto-updates
 	};
 	struct File {
 		QString name;
 		int64 size = 0;
+		FileId id = 0;
+		bool lowPriority = false; // true for auto-updates
+#if 0 // mtp
 		DcId dcId = 0;
 		MTPInputFileLocation location;
+#endif
 	};
 
 	DedicatedLoader(
@@ -126,11 +152,15 @@ public:
 		const File &file);
 
 private:
+	using Error = Tdb::Error;
+#if 0 // mtp
 	struct Request {
 		int64 offset = 0;
 		QByteArray bytes;
 	};
+#endif
 	void startLoading() override;
+#if 0 // mtp
 	void sendRequest();
 	void gotPart(int offset, const MTPupload_File &result);
 	Fn<void(const Error &)> failHandler();
@@ -139,10 +169,17 @@ private:
 	static constexpr auto kNextRequestDelay = crl::time(20);
 
 	std::deque<Request> _requests;
+#endif
 	int64 _size = 0;
+#if 0 // mtp
 	int64 _offset = 0;
 	DcId _dcId = 0;
 	MTPInputFileLocation _location;
+#endif
+	File _file;
+	int64 _writtenTill = 0;
+	std::unique_ptr<Tdb::FileProxy> _proxy;
+	rpl::lifetime _downloadLifetime;
 	WeakInstance _mtp;
 
 };
@@ -150,11 +187,16 @@ private:
 void ResolveChannel(
 	not_null<MTP::WeakInstance*> mtp,
 	const QString &username,
+#if 0 // mtp
 	Fn<void(const MTPInputChannel &channel)> done,
+#endif
+	Fn<void(ChannelId channel)> done,
 	Fn<void()> fail);
 
+#if 0 // mtp
 std::optional<MTPMessage> GetMessagesElement(
 	const MTPmessages_Messages &list);
+#endif
 
 void StartDedicatedLoader(
 	not_null<MTP::WeakInstance*> mtp,
@@ -163,16 +205,23 @@ void StartDedicatedLoader(
 	Fn<void(std::unique_ptr<DedicatedLoader>)> ready);
 
 template <typename Request>
+#if 0 // mtp
 void WeakInstance::send(
 		const Request &request,
 		Fn<void(const typename Request::ResponseType &result)> done,
 		Fn<void(const Error &error)> fail,
 		MTP::ShiftedDcId dcId) {
+#endif
+void WeakInstance::send(
+		Request &&request,
+		Fn<void(const typename Request::ResponseType &result)> done,
+		Fn<void(const Error &error)> fail) {
 	using Result = typename Request::ResponseType;
 	if (!valid()) {
 		reportUnavailable(fail);
 		return;
 	}
+#if 0 // mtp
 	const auto onDone = crl::guard((QObject*)this, [=](
 			const Response &response) {
 		auto result = Result();
@@ -201,6 +250,18 @@ void WeakInstance::send(
 		std::move(onDone),
 		std::move(onFail),
 		dcId);
+#endif
+	const auto requestId = _sender->request(
+		std::forward<Request>(request)
+	).done([=](const Result &result, mtpRequestId id) {
+		if (removeRequest(id)) {
+			done(result);
+		}
+	}).fail([=](const Error &error, mtpRequestId id) {
+		if (removeRequest(id)) {
+			fail(error);
+		}
+	}).send();
 	_requests.emplace(requestId, fail);
 }
 

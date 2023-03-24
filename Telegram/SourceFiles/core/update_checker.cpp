@@ -29,6 +29,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_intro.h"
 #include "ui/layers/box_content.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_account.h"
+
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
 
@@ -203,17 +206,25 @@ private:
 	using FileLocation = MTP::DedicatedLoader::Location;
 
 	using Checker::fail;
+	[[nodiscard]] Fn<void(const Tdb::Error &error)> failHandler();
+#if 0 // mtp
 	Fn<void(const MTP::Error &error)> failHandler();
 
 	void gotMessage(const MTPmessages_Messages &result);
 	std::optional<FileLocation> parseMessage(
 		const MTPmessages_Messages &result) const;
+#endif
+	void gotMessage(const Tdb::TLmessages &result);
+	[[nodiscard]] std::optional<FileLocation> parseMessage(
+		const Tdb::TLmessages &result) const;
 	std::optional<FileLocation> parseText(const QByteArray &text) const;
 	FileLocation validateLatestLocation(
 		uint64 availableVersion,
 		const FileLocation &location) const;
 
 	MTP::WeakInstance _mtp;
+
+	rpl::lifetime _updatesLifetime;
 
 };
 
@@ -250,6 +261,12 @@ QString FindUpdateFile() {
 		}
 	}
 	return QString();
+}
+
+bool ChannelSyncedUpdate(const Tdb::TLupdate &update) {
+	return (update.type() == Tdb::id_updateHavePendingNotifications)
+		&& !update.c_updateHavePendingNotifications(
+		).vhave_unreceived_notifications().v;
 }
 
 QString ExtractFilename(const QString &url) {
@@ -927,10 +944,39 @@ void MtpChecker::start() {
 		crl::on_main(this, [=] { fail(); });
 		return;
 	}
+
+	using namespace Tdb;
+
 	const auto updaterVersion = Platform::AutoUpdateVersion();
 	const auto feed = "tdhbcfeed"
 		+ (updaterVersion > 1 ? QString::number(updaterVersion) : QString());
+	_updatesLifetime.destroy();
 	MTP::ResolveChannel(&_mtp, feed, [=](
+			ChannelId id) {
+		const auto peerId = peerFromChannel(id);
+		_mtp.send(TLopenChat(peerToTdbChat(peerId)), [=](const TLok &) {
+			_updatesLifetime = _mtp.session()->tdb().updates(
+			) | rpl::filter([=](const TLupdate &update) {
+				return ChannelSyncedUpdate(update);
+			}) | rpl::start_with_next([=] {
+				_updatesLifetime.destroy();
+
+				_mtp.send(TLgetChatHistory(
+					peerToTdbChat(peerId),
+					tl_int53(0), // from_message_id
+					tl_int32(0), // offset
+					tl_int32(1), // limit
+					tl_bool(false) // only_local
+				), [=](const TLmessages &result) {
+					gotMessage(result);
+				}, failHandler());
+
+				_mtp.send(TLcloseChat(peerToTdbChat(peerId)), [=](
+					const TLok &) {
+				}, [=](const Tdb::Error &) {});
+			});
+		}, failHandler());
+#if 0 // mtp
 			const MTPInputChannel &channel) {
 		_mtp.send(
 			MTPmessages_GetHistory(
@@ -946,9 +992,11 @@ void MtpChecker::start() {
 				MTP_long(0)), // hash
 			[=](const MTPmessages_Messages &result) { gotMessage(result); },
 			failHandler());
+#endif
 	}, [=] { fail(); });
 }
 
+#if 0 // mtp
 void MtpChecker::gotMessage(const MTPmessages_Messages &result) {
 	const auto location = parseMessage(result);
 	if (!location) {
@@ -976,6 +1024,43 @@ auto MtpChecker::parseMessage(const MTPmessages_Messages &result) const
 		return std::nullopt;
 	}
 	return parseText(message->c_message().vmessage().v);
+}
+#endif
+
+void MtpChecker::gotMessage(const Tdb::TLmessages &result) {
+	const auto location = parseMessage(result);
+	if (!location) {
+		fail();
+		return;
+	} else if (location->username.isEmpty()) {
+		done(nullptr);
+		return;
+	}
+	const auto ready = [=](std::unique_ptr<MTP::DedicatedLoader> loader) {
+		if (loader) {
+			done(std::move(loader));
+		} else {
+			fail();
+		}
+	};
+	const_cast<FileLocation&>(*location).lowPriority = true;
+	MTP::StartDedicatedLoader(&_mtp, *location, UpdatesFolder(), ready);
+}
+
+auto MtpChecker::parseMessage(const Tdb::TLmessages &result) const
+-> std::optional<FileLocation> {
+	const auto &list = result.data().vmessages().v;
+	if (list.empty() || !list.front()) {
+		LOG(("Update Error: MTP feed message not found."));
+		return std::nullopt;
+	}
+	const auto &content = list.front()->data().vcontent();
+	if (content.type() != Tdb::id_messageText) {
+		LOG(("Update Error: MTP feed message has no text."));
+		return std::nullopt;
+	}
+	return parseText(
+		content.c_messageText().vtext().data().vtext().v.toUtf8());
 }
 
 auto MtpChecker::parseText(const QByteArray &text) const
@@ -1035,10 +1120,16 @@ auto MtpChecker::validateLatestLocation(
 	return (availableVersion <= myVersion) ? FileLocation() : location;
 }
 
+#if 0 // mtp
 Fn<void(const MTP::Error &error)> MtpChecker::failHandler() {
 	return [=](const MTP::Error &error) {
 		LOG(("Update Error: MTP check failed with '%1'"
 			).arg(QString::number(error.code()) + ':' + error.type()));
+#endif
+Fn<void(const Tdb::Error &error)> MtpChecker::failHandler() {
+	return [=](const Tdb::Error &error) {
+		LOG(("Update Error: MTP check failed with '%1'"
+			).arg(QString::number(error.code) + ':' + error.message));
 		fail();
 	};
 }
