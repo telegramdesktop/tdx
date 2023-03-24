@@ -13,9 +13,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "base/call_delayed.h"
 
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_account.h"
+
 namespace MTP {
 namespace {
 
+#if 0 // mtp
 std::optional<MTPInputChannel> ExtractChannel(
 		const MTPcontacts_ResolvedPeer &result) {
 	const auto &data = result.c_contacts_resolvedPeer();
@@ -79,26 +84,80 @@ std::optional<DedicatedLoader::File> ParseFile(
 		MTP_string());
 	return DedicatedLoader::File{ name, size, fields.vdc_id().v, location };
 }
+#endif
+
+std::optional<DedicatedLoader::File> ParseFile(
+		const Tdb::TLmessageLinkInfo &result) {
+	using namespace Tdb;
+
+	struct Fields {
+		const TLfile *file = nullptr;
+		const TLstring *name = nullptr;
+	};
+
+	const auto message = result.data().vmessage();
+	if (!message) {
+		return std::nullopt;
+	}
+	auto fields = Fields();
+	message->data().vcontent().match([&](
+			const TLDmessageAnimation &data) {
+		fields = {
+			.file = &data.vanimation().data().vanimation(),
+			.name = &data.vanimation().data().vfile_name(),
+		};
+	}, [&](const TLDmessageAudio &data) {
+		fields = {
+			.file = &data.vaudio().data().vaudio(),
+			.name = &data.vaudio().data().vfile_name(),
+		};
+	}, [&](const TLDmessageDocument &data) {
+		fields = {
+			.file = &data.vdocument().data().vdocument(),
+			.name = &data.vdocument().data().vfile_name(),
+		};
+	}, [&](const TLDmessageVideo &data) {
+		fields = {
+			.file = &data.vvideo().data().vvideo(),
+			.name = &data.vvideo().data().vfile_name(),
+		};
+	}, [](const auto &) {});
+
+	if (!fields.file || !fields.name || fields.name->v.isEmpty()) {
+		return std::nullopt;
+	}
+	return DedicatedLoader::File{
+		fields.name->v,
+		fields.file->data().vsize().v,
+		fields.file->data().vid().v,
+	};
+}
 
 } // namespace
 
 WeakInstance::WeakInstance(base::weak_ptr<Main::Session> session)
 : _session(session)
+#if 0 // mtp
 , _instance(_session ? &_session->account().mtp() : nullptr) {
+#endif
+, _sender(_session ? &_session->sender() : nullptr) {
 	if (!valid()) {
 		return;
 	}
 
+#if 0 // mtp
 	connect(_instance, &QObject::destroyed, this, [=] {
 		_instance = nullptr;
 		_session = nullptr;
 		die();
 	});
+#endif
 	_session->account().sessionChanges(
 	) | rpl::filter([](Main::Session *session) {
 		return !session;
 	}) | rpl::start_with_next([=] {
 		die();
+		_sender = nullptr;
 	}, _lifetime);
 }
 
@@ -110,17 +169,30 @@ bool WeakInstance::valid() const {
 	return (_session != nullptr);
 }
 
+#if 0 // mtp
 Instance *WeakInstance::instance() const {
 	return _instance;
+}
+#endif
+
+Tdb::Sender *WeakInstance::sender() const {
+	return _sender;
 }
 
 void WeakInstance::die() {
 	for (const auto &[requestId, fail] : base::take(_requests)) {
+#if 0 // mtp
 		if (_instance) {
 			_instance->cancel(requestId);
 		}
+#endif
+		if (_sender) {
+			_sender->request(requestId).cancel();
+		}
 		fail(Error::Local(
+#if 0 // mtp
 			"UNAVAILABLE",
+#endif
 			"MTP instance is not available."));
 	}
 }
@@ -137,15 +209,24 @@ void WeakInstance::reportUnavailable(
 		Fn<void(const Error &error)> callback) {
 	InvokeQueued(this, [=] {
 		callback(Error::Local(
+#if 0 // mtp
 			"UNAVAILABLE",
+#endif
 			"MTP instance is not available."));
 	});
 }
 
 WeakInstance::~WeakInstance() {
+#if 0 // mtp
 	if (_instance) {
 		for (const auto &[requestId, fail] : base::take(_requests)) {
 			_instance->cancel(requestId);
+		}
+	}
+#endif
+	if (_sender) {
+		for (const auto &[requestId, fail] : base::take(_requests)) {
+			_sender->request(requestId).cancel();
 		}
 	}
 }
@@ -290,8 +371,11 @@ DedicatedLoader::DedicatedLoader(
 	const File &file)
 : AbstractDedicatedLoader(folder + '/' + file.name, kChunkSize)
 , _size(file.size)
+#if 0 // mtp
 , _dcId(file.dcId)
 , _location(file.location)
+#endif
+, _file(file)
 , _mtp(session) {
 	Expects(_size > 0);
 }
@@ -301,14 +385,97 @@ void DedicatedLoader::startLoading() {
 		LOG(("Update Error: MTP is unavailable."));
 		threadSafeFailed();
 		return;
+	} else if (_downloadLifetime) {
+		return;
 	}
 
+#if 0 // mtp
 	LOG(("Update Info: Loading using MTP from '%1'.").arg(_dcId));
 	_offset = alreadySize();
 	writeChunk({}, _size);
 	sendRequest();
+#endif
+	writeChunk({}, _size);
+	const auto process = [=](const Tdb::TLfile &file) {
+		const auto &data = file.data().vlocal().data();
+		const auto downloadedOffset = data.vdownload_offset().v;
+		const auto downloadedTill = data.vis_downloading_completed().v
+			? _size
+			: (data.vdownload_offset().v + data.vdownloaded_prefix_size().v);
+		if (downloadedTill >= _size) {
+			LOG(("Update Info: MTP load finished."));
+			_downloadLifetime.destroy();
+		} else if (!data.vis_downloading_active().v) {
+			LOG(("Update Error: MTP load stopped at %1, size: %2."
+				).arg(downloadedTill
+				).arg(_size));
+			threadSafeFailed();
+			return;
+		}
+		const auto writeRequired = [&] {
+			return (_writtenTill < _size)
+				&& ((downloadedTill >= _size)
+					|| (downloadedTill >= _writtenTill + kChunkSize));
+		};
+		if (!writeRequired()) {
+			return;
+		}
+		if (!_proxy) {
+			_proxy = Tdb::FileProxy::Create(data.vpath().v);
+			if (!_proxy) {
+				// Maybe the file was moved and we wait for a new updateFile.
+				return;
+			}
+		}
+		if (!_proxy->seek(_writtenTill)) {
+			LOG(("Update Error: MTP proxy seek failed to %1, size: %2."
+				).arg(_writtenTill
+				).arg(_size));
+			threadSafeFailed();
+			return;
+		}
+		do {
+			const auto read = std::min(int(downloadedTill - _writtenTill), kChunkSize);
+			const auto bytes = _proxy->read(read);
+			if (bytes.size() != read) {
+				LOG(("Update Error: MTP proxy read failed: %1 (%2 of %3)."
+					).arg(bytes.size()
+					).arg(read
+					).arg(_size));
+				threadSafeFailed();
+				return;
+			}
+			_writtenTill += read;
+			writeChunk(bytes::make_span(bytes), _size);
+		} while (writeRequired());
+	};
+	_writtenTill = alreadySize();
+	_mtp.send(Tdb::TLdownloadFile(
+		Tdb::tl_int32(_file.id),
+		Tdb::tl_int32(Tdb::kDefaultDownloadPriority
+			- (_file.lowPriority ? 1 : 0)),
+		Tdb::tl_int53(_writtenTill),
+		Tdb::tl_int53(0),
+		Tdb::tl_bool(false)
+	), [=](const Tdb::TLfile &result) {
+		process(result);
+		_downloadLifetime = _mtp.session()->tdb().updates(
+		) | rpl::start_with_next([=](const Tdb::TLupdate &update) {
+			if (update.type() == Tdb::id_updateFile) {
+				const auto &file = update.c_updateFile().vfile();
+				if (file.data().vid().v == _file.id) {
+					process(file);
+				}
+			}
+		});
+	}, [=](const Tdb::Error &error) {
+		LOG(("Update Error: MTP load failed with '%1'"
+			).arg(QString::number(error.code) + ':' + error.message));
+		threadSafeFailed();
+	});
 }
 
+#if 0 // mtp
 void DedicatedLoader::sendRequest() {
 	if (_requests.size() >= kRequestsCount || _offset >= _size) {
 		return;
@@ -367,11 +534,15 @@ Fn<void(const Error &)> DedicatedLoader::failHandler() {
 		threadSafeFailed();
 	};
 }
+#endif
 
 void ResolveChannel(
 		not_null<MTP::WeakInstance*> mtp,
 		const QString &username,
+#if 0 // mtp
 		Fn<void(const MTPInputChannel &channel)> done,
+#endif
+		Fn<void(ChannelId channel)> done,
 		Fn<void()> fail) {
 	const auto failed = [&] {
 		LOG(("Dedicated MTP Error: Channel '%1' resolve failed."
@@ -386,9 +557,14 @@ void ResolveChannel(
 
 	struct ResolveResult {
 		base::weak_ptr<Main::Session> session;
+		ChannelId channel = 0;
+	};
+	static base::flat_map<QString, ResolveResult> ResolveCache;
+#if 0 // mtp
 		MTPInputChannel channel;
 	};
 	static std::map<QString, ResolveResult> ResolveCache;
+#endif
 
 	const auto i = ResolveCache.find(username);
 	if (i != end(ResolveCache)) {
@@ -399,6 +575,23 @@ void ResolveChannel(
 		ResolveCache.erase(i);
 	}
 
+	mtp->send(Tdb::TLsearchPublicChat(Tdb::tl_string(username)), [=](
+			const Tdb::TLchat &result) {
+		const auto peerId = peerFromTdbChat(result.data().vid());
+		if (const auto channel = peerToChannel(peerId)) {
+			ResolveCache.emplace(
+				username,
+				ResolveResult { session, channel });
+			done(channel);
+		} else {
+			failed();
+		}
+	}, [=](const Tdb::Error &error) {
+		LOG(("Dedicated MTP Error: Resolve failed with '%1'"
+			).arg(QString::number(error.code) + ':' + error.message));
+		fail();
+	});
+#if 0 // mtp
 	const auto doneHandler = [=](const MTPcontacts_ResolvedPeer &result) {
 		Expects(result.type() == mtpc_contacts_resolvedPeer);
 
@@ -420,8 +613,10 @@ void ResolveChannel(
 		MTPcontacts_ResolveUsername(MTP_string(username)),
 		doneHandler,
 		failHandler);
+#endif
 }
 
+#if 0 // mtp
 std::optional<MTPMessage> GetMessagesElement(
 		const MTPmessages_Messages &list) {
 	return list.match([&](const MTPDmessages_messagesNotModified &) {
@@ -432,12 +627,47 @@ std::optional<MTPMessage> GetMessagesElement(
 			: std::make_optional(data.vmessages().v[0]);
 	});
 }
+#endif
 
 void StartDedicatedLoader(
 		not_null<MTP::WeakInstance*> mtp,
 		const DedicatedLoader::Location &location,
 		const QString &folder,
 		Fn<void(std::unique_ptr<DedicatedLoader>)> ready) {
+	const auto link = u"https://t.me/"_q
+		+ location.username
+		+ '/'
+		+ QString::number(location.postId);
+	const auto lowPriority = location.lowPriority;
+	const auto fail = [=](const Tdb::Error &error) {
+		LOG(("Update Error: MTP check failed with '%1'"
+			).arg(QString::number(error.code) + ':' + error.message));
+		ready(nullptr);
+	};
+	mtp->send(Tdb::TLgetInternalLinkType(Tdb::tl_string(link)), [=](
+			const Tdb::TLinternalLinkType &result) {
+		result.match([&](const Tdb::TLDinternalLinkTypeMessage &data) {
+			mtp->send(Tdb::TLgetMessageLinkInfo(data.vurl()), [=](
+					const Tdb::TLmessageLinkInfo &result) {
+				if (auto file = ParseFile(result)) {
+					file->lowPriority = lowPriority;
+					ready(std::make_unique<MTP::DedicatedLoader>(
+						mtp->session(),
+						folder,
+						*file));
+				} else {
+					LOG(("Update Error: "
+						"MTP check failed with no message: %1").arg(link));
+					ready(nullptr);
+				}
+			}, fail);
+		}, [&](const auto &other) {
+			LOG(("Update Error: "
+				"MTP check failed with wrong link type for: %1").arg(link));
+			ready(nullptr);
+		});
+	}, fail);
+#if 0 // mtp
 	const auto doneHandler = [=](const MTPmessages_Messages &result) {
 		const auto file = ParseFile(result);
 		ready(file
@@ -465,6 +695,8 @@ void StartDedicatedLoader(
 			doneHandler,
 			failHandler);
 	}, [=] { ready(nullptr); });
+#endif
+
 }
 
 } // namespace MTP
