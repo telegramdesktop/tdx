@@ -872,8 +872,8 @@ void ChatParticipants::requestSelf(not_null<ChannelData*> channel) {
 				finalize(channel->session().userId(), channel->date);
 			}, [&](const MTPDchannelParticipantAdmin &data) {
 				const auto inviter = data.is_self()
-					? data.vinviter_id().value_or(-1)
-					: -1;
+					? data.vinviter_id().value_or(0)
+					: 0;
 				finalize(inviter, data.vdate().v);
 			}, [&](const MTPDchannelParticipantBanned &data) {
 				LOG(("API Error: Got self banned participant."));
