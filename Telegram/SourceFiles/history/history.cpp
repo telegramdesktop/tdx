@@ -3478,7 +3478,7 @@ HistoryItem *History::insertJoinedMessage() {
 		return _joinedMessage;
 	}
 
-	const auto inviter = (channel->inviter.bare > 0)
+	const auto inviter = channel->inviter
 		? owner().userLoaded(channel->inviter)
 		: nullptr;
 	if (!inviter) {
