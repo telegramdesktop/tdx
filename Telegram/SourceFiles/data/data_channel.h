@@ -527,10 +527,10 @@ public:
 	int32 date = 0;
 	std::unique_ptr<MegagroupInfo> mgInfo;
 
-	// > 0 - user who invited me to channel, < 0 - not in channel.
 	UserId inviter = 0;
 	TimeId inviteDate = 0;
 	bool inviteViaRequest = false;
+	bool inviterLoaded = false;
 
 private:
 	struct InvitePeek {
