@@ -18,4 +18,4 @@ if [ "$Command" == "" ]; then
   Command="bash"
 fi
 
-docker run -it --rm --cpus=8 --memory=22g -v $HOME/Telegram/DesktopPrivate:/usr/src/DesktopPrivate -v $HOME/Telegram/tdesktop:/usr/src/tdesktop tdesktop:centos_env $Command
+docker run -it --rm --cpus=8 --memory=32g -v $HOME/Telegram/DesktopPrivate:/usr/src/DesktopPrivate -v $HOME/Telegram/tdx:/usr/src/tdesktop tdx:centos_env $Command
