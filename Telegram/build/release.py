@@ -192,13 +192,13 @@ files.append({
   'mime': 'application/x-gzip',
   'label': 'Source code (tar.gz, full)',
 })
-files.append({
-  'local': 'tdx-win-x86.' + version_full + '.exe',
-  'remote': 'tdx-win-x86.' + version_full + '.exe',
-  'backup_folder': 'tsetup',
-  'mime': 'application/octet-stream',
-  'label': 'Windows 32 bit: Installer',
-})
+#files.append({
+#  'local': 'tdx-win-x86.' + version_full + '.exe',
+#  'remote': 'tdx-win-x86.' + version_full + '.exe',
+#  'backup_folder': 'tsetup',
+#  'mime': 'application/octet-stream',
+#  'label': 'Windows 32 bit: Installer',
+#})
 files.append({
   'local': 'tdx-portable-win-x86.' + version_full + '.zip',
   'remote': 'tdx-portable-win-x86.' + version_full + '.zip',
@@ -206,13 +206,13 @@ files.append({
   'mime': 'application/zip',
   'label': 'Windows 32 bit: Portable',
 })
-files.append({
-  'local': 'tdx-win-x64.' + version_full + '.exe',
-  'remote': 'tdx-win-x64.' + version_full + '.exe',
-  'backup_folder': 'tx64',
-  'mime': 'application/octet-stream',
-  'label': 'Windows 64 bit: Installer',
-})
+#files.append({
+#  'local': 'tdx-win-x64.' + version_full + '.exe',
+#  'remote': 'tdx-win-x64.' + version_full + '.exe',
+#  'backup_folder': 'tx64',
+#  'mime': 'application/octet-stream',
+#  'label': 'Windows 64 bit: Installer',
+#})
 files.append({
   'local': 'tdx-portable-win-x64.' + version_full + '.zip',
   'remote': 'tdx-portable-win-x64.' + version_full + '.zip',
