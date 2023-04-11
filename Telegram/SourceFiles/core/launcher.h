@@ -90,4 +90,7 @@ private:
 
 };
 
+[[nodiscard]] bool IsTdxPathUsed();
+void SetTdxPathUsed();
+
 } // namespace Core

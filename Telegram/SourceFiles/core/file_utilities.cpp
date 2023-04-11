@@ -18,6 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "mainwindow.h"
 
+#include "core/launcher.h"
+
 #include <QtWidgets/QFileDialog>
 #include <QtCore/QCoreApplication>
 #include <QtCore/QStandardPaths>
@@ -165,6 +167,9 @@ QString DefaultDownloadPathFolder(not_null<Main::Session*> session) {
 #if OS_MAC_STORE
 	return u"Telegram Lite"_q;
 #else // OS_MAC_STORE
+	if (Core::IsTdxPathUsed()) {
+		return session->supportMode() ? u"Tdx Support"_q : u"Tdx"_q;
+	}
 	return session->supportMode() ? u"Tsupport Desktop"_q : AppName.utf16();
 #endif // OS_MAC_STORE
 }
