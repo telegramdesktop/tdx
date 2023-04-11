@@ -25,6 +25,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Core {
 namespace {
 
+constexpr bool kTdxForcePortable = kTdxForcePath && !Platform::IsMac();
+bool TdxPathUsed/* = false*/;
+
 uint64 InstallationTag = 0;
 
 base::options::toggle OptionFreeType({
@@ -231,11 +234,27 @@ bool CheckPortableVersionFolder() {
 
 	const auto portable = cExeDir() + u"TelegramForcePortable"_q;
 	QFile key(portable + u"/tdata/alpha"_q);
+
+	auto tdx = QFile(portable + u"/tdata/tdx"_q);
+
 	if (cAlphaVersion()) {
 		Assert(*AlphaPrivateKey != 0);
 
 		cForceWorkingDir(portable);
 		QDir().mkpath(cWorkingDir() + u"tdata"_q);
+
+		if constexpr (kTdxForcePortable) {
+			if (!tdx.open(QIODevice::WriteOnly)) {
+				LOG(("FATAL: Could not open '%1' for writing tdx tag!"
+					).arg(tdx.fileName()));
+				return false;
+			}
+			key.write("1", 1);
+			TdxPathUsed = true;
+		} else if (tdx.exists()) {
+			TdxPathUsed = true;
+		}
+
 		cSetAlphaPrivateKey(QByteArray(AlphaPrivateKey));
 		if (!key.open(QIODevice::WriteOnly)) {
 			LOG(("FATAL: Could not open '%1' for writing private key!"
@@ -247,6 +266,22 @@ bool CheckPortableVersionFolder() {
 		dataStream << quint64(cRealAlphaVersion()) << cAlphaPrivateKey();
 		return true;
 	}
+
+	if constexpr (kTdxForcePortable) {
+		cForceWorkingDir(portable + '/');
+		QDir().mkpath(cWorkingDir() + u"tdata"_q);
+		if (!tdx.open(QIODevice::WriteOnly)) {
+			LOG(("FATAL: Could not open '%1' for writing tdx tag!"
+				).arg(tdx.fileName()));
+			return false;
+		}
+		key.write("1", 1);
+		TdxPathUsed = true;
+		return true;
+	} else if (tdx.exists()) {
+		TdxPathUsed = true;
+	}
+
 	if (!QDir(portable).exists()) {
 		return true;
 	}
@@ -582,6 +617,14 @@ int Launcher::executeApplication() {
 	Ui::MainQueueProcessor processor;
 	base::ConcurrentTimerEnvironment environment;
 	return sandbox.start();
+}
+
+bool IsTdxPathUsed() {
+	return TdxPathUsed;
+}
+
+void SetTdxPathUsed() {
+	TdxPathUsed = true;
 }
 
 } // namespace Core
