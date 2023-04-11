@@ -144,11 +144,11 @@ if [ "$DeployWin" == "1" ]; then
   if [ ! -f "$WinDeployPath/$WinUpdateFile" ]; then
     Error "$WinUpdateFile not found!"
   fi
-  if [ "$AlphaVersion" == "0" ]; then
-    if [ ! -f "$WinDeployPath/$WinSetupFile" ]; then
-      Error "$WinSetupFile not found!"
-    fi
-  fi
+#  if [ "$AlphaVersion" == "0" ]; then
+#    if [ ! -f "$WinDeployPath/$WinSetupFile" ]; then
+#      Error "$WinSetupFile not found!"
+#    fi
+#  fi
   if [ ! -f "$WinDeployPath/$WinPortableFile" ]; then
     Error "$WinPortableFile not found!"
   fi
@@ -157,11 +157,11 @@ if [ "$DeployWin64" == "1" ]; then
   if [ ! -f "$Win64DeployPath/$Win64UpdateFile" ]; then
     Error "$Win64UpdateFile not found!"
   fi
-  if [ "$AlphaVersion" == "0" ]; then
-    if [ ! -f "$Win64DeployPath/$Win64SetupFile" ]; then
-      Error "$Win64SetupFile not found!"
-    fi
-  fi
+#  if [ "$AlphaVersion" == "0" ]; then
+#    if [ ! -f "$Win64DeployPath/$Win64SetupFile" ]; then
+#      Error "$Win64SetupFile not found!"
+#    fi
+#  fi
   if [ ! -f "$Win64DeployPath/$Win64PortableFile" ]; then
     Error "$Win64PortableFile not found!"
   fi
@@ -183,15 +183,15 @@ if [ "$DeployMac" == "1" ]; then
 fi
 if [ "$DeployWin" == "1" ]; then
   Files+=("tsetup/$WinUpdateFile" "tsetup/$WinPortableFile")
-  if [ "$AlphaVersion" == "0" ]; then
-    Files+=("tsetup/$WinSetupFile")
-  fi
+#  if [ "$AlphaVersion" == "0" ]; then
+#    Files+=("tsetup/$WinSetupFile")
+#  fi
 fi
 if [ "$DeployWin64" == "1" ]; then
   Files+=("tx64/$Win64UpdateFile" "tx64/$Win64PortableFile")
-  if [ "$AlphaVersion" == "0" ]; then
-    Files+=("tx64/$Win64SetupFile")
-  fi
+#  if [ "$AlphaVersion" == "0" ]; then
+#    Files+=("tx64/$Win64SetupFile")
+#  fi
 fi
 if [ "$DeployLinux" == "1" ]; then
   Files+=("tlinux/$LinuxUpdateFile" "tlinux/$LinuxSetupFile")
