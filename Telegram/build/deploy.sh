@@ -75,11 +75,11 @@ else
   echo "Deploying four versions of $AppVersionStrFull: for Windows 32 bit, Windows 64 bit, macOS and Linux 64 bit.."
 fi
 if [ "$BuildTarget" == "mac" ]; then
-  BackupPath="$HOME/Projects/backup/tdesktop"
+  BackupPath="$HOME/Projects/backup/tdx"
 elif [ "$BuildTarget" == "linux" ]; then
-  BackupPath="/media/psf/Home/Projects/backup/tdesktop"
+  BackupPath="/media/psf/Home/Projects/backup/tdx"
   if [ ! -d "$BackupPath" ]; then
-    BackupPath="/mnt/c/Telegram/Projects/backup/tdesktop"
+    BackupPath="/mnt/c/Telegram/Projects/backup/tdx"
   fi
 else
   Error "Can't deploy here"
