@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/version.h"
 #include "settings.h"
 
+inline constexpr bool kTdxForcePath = true;
+
 enum {
 	MaxSelectedItems = 100,
 
