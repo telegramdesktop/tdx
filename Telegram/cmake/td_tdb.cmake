@@ -5,7 +5,7 @@
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 add_library(td_tdb OBJECT)
-init_target(td_tdb)
+init_non_host_target(td_tdb)
 add_library(tdesktop::td_tdb ALIAS td_tdb)
 
 include(cmake/generate_tdb_tl.cmake)
