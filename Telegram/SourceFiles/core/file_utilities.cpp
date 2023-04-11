@@ -20,6 +20,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "mainwindow.h"
 
+#include "core/launcher.h"
+
 #include <QtWidgets/QFileDialog>
 #include <QtCore/QCoreApplication>
 #include <QtCore/QStandardPaths>
@@ -168,6 +170,9 @@ void ShowInFolder(const QString &filepath) {
 }
 
 QString DefaultDownloadPathFolder(not_null<Main::Session*> session) {
+	if (Core::IsTdxPathUsed()) {
+		return session->supportMode() ? u"Tdx Support"_q : u"Tdx"_q;
+	}
 	return session->supportMode() ? u"Tsupport Desktop"_q : AppName.utf16();
 }
 
