@@ -354,6 +354,16 @@ void start() {
 		return;
 	}
 
+#if defined Q_OS_MAC && !defined _DEBUG
+	if (kTdxForcePath) {
+		const auto path = psAppDataPath();
+		if (path.isEmpty()) {
+			return;
+		}
+		cForceWorkingDir(path);
+	}
+#endif // Q_OS_MAC && !_DEBUG
+
 	LogsData = new LogsDataFields();
 	if (cWorkingDir().isEmpty()) {
 #if (!defined Q_OS_WIN && !defined _DEBUG) || defined Q_OS_WINRT || defined OS_WIN_STORE || defined OS_MAC_STORE

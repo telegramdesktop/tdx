@@ -25,6 +25,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h"
 #include "platform/platform_specific.h"
 
+#include "core/launcher.h"
+#include <sys/xattr.h>
+
 #include <QtGui/QWindow>
 #include <QtWidgets/QApplication>
 #if __has_include(<QtCore/QOperatingSystemVersion>)
@@ -42,6 +45,76 @@ using Platform::Q2NSString;
 using Platform::NS2QString;
 
 namespace {
+
+constexpr auto kTdxAttribute = "org.telegram.tdx";
+
+[[nodiscard]] QString TdxBundlePath() {
+	@autoreleasepool {
+
+	NSString *path = @"";
+	@try {
+		path = [[NSBundle mainBundle] bundlePath];
+		if (!path) {
+			Unexpected("Could not get bundled path!");
+		}
+		return QFile::decodeName([path fileSystemRepresentation]);
+	}
+	@catch (NSException *exception) {
+		Unexpected("Exception in resource registering.");
+	}
+
+	}
+}
+
+[[nodiscard]] bool TdxReadAttribute() {
+	const auto bundle = TdxBundlePath();
+	const auto native = QFile::encodeName(bundle);
+	auto info = std::array<char, 4>();
+	const auto result = getxattr(
+		native.data(),
+		kTdxAttribute,
+		info.data(),
+		info.size(),
+		0, // position
+		XATTR_NOFOLLOW);
+	const auto error = (result < 0) ? errno : 0;
+	if (result < 0) {
+		if (error == ENOATTR) {
+			return false;
+		} else {
+			LOG(("Tdx Error: Could not get %1 xattr, error: %2."
+				).arg(kTdxAttribute
+				).arg(error));
+			return false;
+		}
+	} else if (result != 4) {
+		LOG(("Tdx Error: Bad existing %1 xattr size: %2."
+			).arg(kTdxAttribute
+			).arg(error));
+		return false;
+	}
+	return true;
+}
+
+[[nodiscard]] bool TdxWriteAttribute() {
+	const auto bundle = TdxBundlePath();
+	const auto native = QFile::encodeName(bundle);
+	auto value = std::array<char, 4>{ 0, 0, 0, 1 };
+	const auto result = setxattr(
+		native.data(),
+		kTdxAttribute,
+		value.data(),
+		value.size(),
+		0, // position
+		XATTR_NOFOLLOW);
+	if (result != 0) {
+		LOG(("FATAL Tdx Error: Could not set %1 xattr, error: %2."
+			).arg(kTdxAttribute
+			).arg(errno));
+		return false;
+	}
+	return true;
+}
 
 constexpr auto kIgnoreActivationTimeoutMs = 500;
 
@@ -377,6 +450,14 @@ QString objc_documentsPath() {
 QString objc_appDataPath() {
 	NSURL *url = [[NSFileManager defaultManager] URLForDirectory:NSApplicationSupportDirectory inDomain:NSUserDomainMask appropriateForURL:nil create:YES error:nil];
 	if (url) {
+
+		if (TdxReadAttribute() || (kTdxForcePath && TdxWriteAttribute())) {
+			Core::SetTdxPathUsed();
+			return QString::fromUtf8([[url path] fileSystemRepresentation]) + u"/Tdx/"_q;
+		} else if (kTdxForcePath) {
+			return QString();
+		}
+
 		return QString::fromUtf8([[url path] fileSystemRepresentation]) + '/' + AppName.utf16() + '/';
 	}
 	return QString();
