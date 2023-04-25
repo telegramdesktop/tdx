@@ -2209,6 +2209,13 @@ void History::setFolderPointer(
 		folder->registerOne(this);
 	}
 	session().changes().historyUpdated(this, UpdateFlag::Folder);
+
+	if (!_pendingFilterPosition.empty()) {
+		const auto positions = base::take(_pendingFilterPosition);
+		for (const auto &[filterId, info] : positions) {
+			updateChatListSortPosition(filterId, info.order, info.pinned);
+		}
+	}
 }
 
 void History::setLastKeyboardId(MsgId id) {
@@ -3095,10 +3102,14 @@ void History::applyPosition(const TLDchatPosition &data) {
 				: owner().folder(Data::Folder::kId).get();
 			setFolderPointer(value, order, pinned);
 		}
-	}, [&](const TLDchatListFilter &data) {
+	}, [&](const TLDchatListFolder &data) {
+		const auto filterId = data.vchat_folder_id().v;
 		if (folderKnown()) {
-			const auto filterId = data.vchat_filter_id().v;
 			updateChatListSortPosition(filterId, order, pinned);
+		} else if (order) {
+			_pendingFilterPosition[filterId] = { order, pinned };
+		} else {
+			_pendingFilterPosition.erase(filterId);
 		}
 	});
 }

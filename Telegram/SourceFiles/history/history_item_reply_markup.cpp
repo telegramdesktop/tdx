@@ -389,9 +389,12 @@ auto HistoryMessageMarkupData::buttonData(
 	}, [&](const TLDinlineKeyboardButtonTypeCallbackGame &data) {
 		return ButtonData{ Type::Game };
 	}, [&](const TLDinlineKeyboardButtonTypeSwitchInline &data) {
-		const auto type = data.vin_current_chat().v
-			? Type::SwitchInlineSame
-			: Type::SwitchInline;
+		const auto type = data.vtarget_chat().match([&](
+				const TLDtargetChatCurrent &) {
+			return Type::SwitchInlineSame;
+		}, [&](const auto &) {
+			return Type::SwitchInline;
+		});
 		return ButtonData{ type, data.vquery().v.toUtf8() };
 	}, [&](const TLDinlineKeyboardButtonTypeBuy &data) {
 		return ButtonData{ Type::Buy };

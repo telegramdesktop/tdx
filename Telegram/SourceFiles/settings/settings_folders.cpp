@@ -433,6 +433,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 		if (row->removed || row->removePeersRequestId > 0) {
 			return;
 		} else if (row->filter.chatlist() && !row->removePeersRequestId) {
+#if 0 // mtp
 			row->removePeersRequestId = session->api().request(
 				MTPchatlists_GetLeaveChatlistSuggestions(
 					MTP_inputChatlistDialogFilter(
@@ -444,6 +445,17 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 					result.v
 				) | ranges::views::transform([=](const MTPPeer &peer) {
 					return session->data().peer(peerFromMTP(peer));
+				}) | ranges::to_vector;
+#endif
+			row->removePeersRequestId = session->sender().request(
+				TLgetChatFolderChatsToLeave(tl_int32(row->filter.id()))
+			).done(crl::guard(button, [=](const TLchats &result) {
+				const auto row = find(button);
+				row->removePeersRequestId = -1;
+				row->suggestRemovePeers = ranges::views::all(
+					result.data().vchat_ids().v
+				) | ranges::views::transform([=](const TLint53 &peer) {
+					return session->data().peer(peerFromTdbChat(peer));
 				}) | ranges::to_vector;
 				markForRemoval(button);
 			})).fail(crl::guard(button, [=] {
@@ -514,21 +526,23 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 #endif
 			if (found->filter.loaded()) {
 				show(button);
+				return;
 			} else if (*loading) {
 				return;
 			}
 			*loading = true;
 			const auto weak = Ui::MakeWeak(button);
-			session->sender().request(TLgetChatFilter(
+			session->sender().request(TLgetChatFolder(
 				tl_int32(found->filter.id())
-			)).done([=](const TLchatFilter &result) {
+			)).done([=](const TLchatFolder &result) {
 				*loading = false;
 				if (const auto button = weak.data()) {
 					const auto found = find(button);
 					found->filter = Data::ChatFilter::FromTL(
 						found->filter.id(),
 						result,
-						&session->data());
+						&session->data(),
+						found->filter.hasMyLinks());
 					show(button);
 				}
 			}).fail([=] {
@@ -717,21 +731,25 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 			std::vector<FilterId> order;
 			FnMut<void()> sendReorder;
 			FnMut<void()> sendEdit;
+			FnMut<void()> andNext;
 			int removing = 0;
 			int editing = 0;
 		};
-		const auto state = std::make_shared<State>(State{
+		const auto saving = std::make_shared<State>(State{
 			.sender = &session->sender(),
 		});
-		auto addRequests = base::flat_map<FilterId, TLcreateChatFilter>();
-		auto editRequests = std::vector<TLeditChatFilter>();
-		auto removeRequests = std::vector<TLdeleteChatFilter>();
+		auto addRequests = base::flat_map<FilterId, TLcreateChatFolder>();
+		auto editRequests = std::vector<TLeditChatFolder>();
+		auto removeRequests = std::vector<TLdeleteChatFolder>();
 
 		auto &realFilters = session->data().chatsFilters();
 		const auto &list = realFilters.list();
-		auto &order = state->order;
-		order.reserve(rows->size());
-		for (const auto &row : *rows) {
+		auto &order = saving->order;
+		order.reserve(state->rows.size());
+		for (auto &row : state->rows) {
+			if (row.button.get() == single) {
+				updated = row.filter;
+			}
 			const auto id = row.filter.id();
 			const auto removed = row.removed;
 			const auto i = id
@@ -748,20 +766,41 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 				continue;
 			}
 			const auto newId = ids.take(row.button).value_or(id);
+			if (newId != id) {
+				row.filter = row.filter.withId(newId);
+				row.button->updateData(row.filter);
+				if (row.button.get() == single) {
+					updated = row.filter;
+				}
+			}
 			const auto tl = row.filter.tl();
+
 			if (removed) {
-				removeRequests.push_back(TLdeleteChatFilter(tl_int32(id)));
+				auto ids = row.removePeers | ranges::views::transform([](
+						not_null<PeerData*> peer) {
+					return peerToTdbChat(peer->id);
+				}) | ranges::to<QVector>();
+				removeRequests.push_back(TLdeleteChatFolder(
+					tl_int32(id),
+					tl_vector<TLint53>(std::move(ids))));
 			} else if (changed) {
-				editRequests.push_back(TLeditChatFilter(tl_int32(id), tl));
+				editRequests.push_back(TLeditChatFolder(tl_int32(id), tl));
 				order.push_back(id);
 			} else {
-				addRequests.emplace(newId, TLcreateChatFilter(tl));
+				addRequests.emplace(newId, TLcreateChatFolder(tl));
 				order.push_back(newId);
 			}
 		}
+		saving->andNext = [next, updated] {
+			if (next) {
+				Assert(updated.id() != 0);
+				next(updated);
+			}
+		};
 		if (removeRequests.empty()
 			&& editRequests.empty()
 			&& addRequests.empty()) {
+			saving->andNext();
 			return;
 		}
 		if (!ranges::contains(order, FilterId(0))) {
@@ -777,85 +816,64 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 			}
 			order.insert(order.begin() + position, FilterId(0));
 		}
-		state->sendReorder = [state] {
-			if (state->order.size() < 2) {
+		saving->sendReorder = [saving] {
+			saving->andNext();
+			if (saving->order.size() < 2) {
 				return;
 			}
 			auto ids = QVector<TLint32>();
 			auto position = 0;
-			for (const auto id : state->order) {
+			for (const auto id : saving->order) {
 				if (id) {
 					ids.push_back(tl_int32(id));
 				} else {
 					position = int(ids.size());
 				}
 			}
-			state->sender->request(TLreorderChatFilters(
+			saving->sender->request(TLreorderChatFolders(
 				tl_vector<TLint32>(std::move(ids)),
 				tl_int32(position)
 			)).send();
 		};
-		state->sendEdit = [
-				state,
+		saving->sendEdit = [
+			saving,
 				addRequests = std::move(addRequests),
 				editRequests = std::move(editRequests)]() mutable {
-			const auto done = [state] {
-				if (!--state->editing) {
-					state->sendReorder();
+			const auto done = [saving] {
+				if (!--saving->editing) {
+					saving->sendReorder();
 				}
 			};
 			for (auto &request : editRequests) {
-				state->sender->request(
+				saving->sender->request(
 					std::move(request)
 				).done(done).fail([=](Error error) {
 					[[maybe_unused]] const auto code = error.code;
 				}).send();
-				++state->editing;
+				++saving->editing;
 			}
 			for (auto &[newId, request] : addRequests) {
-				state->sender->request(
+				saving->sender->request(
 					std::move(request)
-				).done([=, newId = newId](const TLchatFilterInfo &info) {
+				).done([=, newId = newId](const TLchatFolderInfo &info) {
 					const auto realId = info.data().vid().v;
-					for (auto &id : state->order) {
+					for (auto &id : saving->order) {
 						if (id == newId) {
 							id = realId;
 						}
 					}
 					done();
 				}).fail([=, newId = newId] {
-					state->order.erase(
-						ranges::remove(state->order, newId),
-						end(state->order));
+					saving->order.erase(
+						ranges::remove(saving->order, newId),
+						end(saving->order));
 					done();
 				}).send();
-				++state->editing;
+				++saving->editing;
 			}
-			++state->editing;
+			++saving->editing;
 			done();
 		};
-		crl::on_main(session, [
-			state,
-			session,
-			removeRequests = std::move(removeRequests)
-		]() mutable {
-			session->data().chatsFilters().unloadDetails();
-			const auto done = [state] {
-				if (!--state->removing) {
-					state->sendEdit();
-				}
-			};
-			for (auto &request : removeRequests) {
-				state->sender->request(
-					std::move(request)
-				).done(done).fail([=](Error error) {
-					[[maybe_unused]] int code = error.code;
-				}).send();
-				++state->removing;
-			}
-			++state->removing;
-			done();
-		});
 #if 0 // mtp
 		auto order = std::vector<FilterId>();
 		auto updates = std::vector<MTPUpdate>();
@@ -937,6 +955,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 			}
 			order.insert(order.begin() + position, FilterId(0));
 		}
+#endif
 		if (next) {
 			// We're not closing the layer yet, so delete removed rows.
 			for (auto i = state->rows.begin(); i != state->rows.end();) {
@@ -949,6 +968,29 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 				}
 			}
 		}
+		crl::on_main(session, [
+			saving,
+			session,
+			removeRequests = std::move(removeRequests)
+		]() mutable {
+			session->data().chatsFilters().unloadDetails();
+			const auto done = [saving] {
+				if (!--saving->removing) {
+					saving->sendEdit();
+				}
+			};
+			for (auto &request : removeRequests) {
+				saving->sender->request(
+					std::move(request)
+				).done(done).fail([=](Error error) {
+					[[maybe_unused]] int code = error.code;
+				}).send();
+				++saving->removing;
+			}
+			++saving->removing;
+			done();
+		});
+#if 0 // mtp
 		crl::on_main(session, [
 			session,
 			next,

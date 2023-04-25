@@ -495,9 +495,13 @@ void FiltersMenu::showRemoveBox(FilterId id) {
 		if (_removingId == id) {
 			return;
 		}
+#if 0 // mtp
 		session->api().request(_removingRequestId).cancel();
+#endif
+		session->sender().request(_removingRequestId).cancel();
 	}
 	_removingId = id;
+#if 0 // mtp
 	_removingRequestId = session->api().request(
 		MTPchatlists_GetLeaveChatlistSuggestions(
 			MTP_inputChatlistDialogFilter(
@@ -508,6 +512,16 @@ void FiltersMenu::showRemoveBox(FilterId id) {
 			result.v
 		) | ranges::views::transform([=](const MTPPeer &peer) {
 			return session->data().peer(peerFromMTP(peer));
+		}) | ranges::to_vector;
+#endif
+	_removingRequestId = session->sender().request(
+		TLgetChatFolderChatsToLeave(tl_int32(id))
+	).done(crl::guard(&_outer, [=](const TLchats &result) {
+		_removingRequestId = 0;
+		const auto suggestRemovePeers = ranges::views::all(
+			result.data().vchat_ids().v
+		) | ranges::views::transform([=](const TLint53 &peer) {
+			return session->data().peer(peerFromTdbChat(peer));
 		}) | ranges::to_vector;
 		const auto chosen = crl::guard(&_outer, [=](
 				std::vector<not_null<PeerData*>> peers) {
@@ -532,13 +546,14 @@ void FiltersMenu::remove(
 		FilterId id,
 		std::vector<not_null<PeerData*>> leave) {
 	const auto session = &_session->session();
-	if (leave.empty()) {
-		session->sender().request(TLdeleteChatFilter(
-			tl_int32(id)
-		)).send();
-	} else {
-		// todo
-	}
+	auto ids = leave | ranges::views::transform([](
+			not_null<PeerData*> peer) {
+		return peerToTdbChat(peer->id);
+	}) | ranges::to<QVector>();
+	session->sender().request(TLdeleteChatFolder(
+		tl_int32(id),
+		tl_vector<TLint53>(std::move(ids))
+	)).send();
 #if 0 // mtp
 	const auto api = &session->api();
 	session->data().chatsFilters().apply(MTP_updateDialogFilter(

@@ -1752,6 +1752,15 @@ void PeerData::setWallPaper(
 	}
 }
 
+void PeerData::setWallPaperOverriden(bool overriden) {
+	const auto overridenValue = overriden ? 1 : 0;
+	const auto overridenChanged = (_wallPaperOverriden != overridenValue);
+	if (overridenChanged) {
+		_wallPaperOverriden = overridenValue;
+		session().changes().peerUpdated(this, UpdateFlag::ChatWallPaper);
+	}
+}
+
 bool PeerData::wallPaperOverriden() const {
 	return _wallPaperOverriden != 0;
 }

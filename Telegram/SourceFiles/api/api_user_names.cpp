@@ -35,13 +35,21 @@ Data::Usernames SkipSingleNormalUsername(Data::Usernames list) {
 		.editable = username.data().is_editable(),
 	};
 }
-#endif
 
 [[nodiscard]] std::optional<MTPInputUser> BotUserInput(
 		not_null<PeerData*> peer) {
 	const auto user = peer->asUser();
 	return (user && user->botInfo && user->botInfo->canEditInformation)
 		? std::make_optional<MTPInputUser>(user->inputUser)
+		: std::nullopt;
+}
+#endif
+
+[[nodiscard]] std::optional<TLint53> BotUserInput(
+		not_null<PeerData*> peer) {
+	const auto user = peer->asUser();
+	return (user && user->botInfo && user->botInfo->canEditInformation)
+		? std::make_optional(tl_int53(peerToUser(user->id).bare))
 		: std::nullopt;
 }
 
@@ -221,7 +229,12 @@ rpl::producer<rpl::no_value, Usernames::Error> Usernames::toggle(
 		)).done(done).fail(fail).send();
 #endif
 	} else if (const auto botUserInput = BotUserInput(peer)) {
-#if 0 // todo
+		_api.request(TLtoggleBotUsernameIsActive(
+			*botUserInput,
+			tl_string(username),
+			tl_bool(active)
+		)).done(done).fail(fail).send();
+#if 0 // mtp
 		_api.request(MTPbots_ToggleUsername(
 			*botUserInput,
 			MTP_string(username),
@@ -294,10 +307,16 @@ rpl::producer<> Usernames::reorder(
 #endif
 			_reorderRequests.emplace(peerId, requestId);
 		} else if (const auto botUserInput = BotUserInput(peer)) {
+			const auto requestId = _api.request(TLreorderBotActiveUsernames(
+				*botUserInput,
+				tl_vector<TLstring>(std::move(tlUsernames))
+			)).done(finish).fail(finish).send();
+#if 0 // mtp
 			const auto requestId = _api.request(MTPbots_ReorderUsernames(
 				*botUserInput,
 				MTP_vector<MTPstring>(std::move(tlUsernames))
 			)).done(finish).fail(finish).send();
+#endif
 			_reorderRequests.emplace(peerId, requestId);
 		}
 		return lifetime;
