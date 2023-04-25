@@ -500,16 +500,20 @@ void SendAppLog(
 			} else if (part == u"stickers_faved"_q) {
 				return tl_premiumLimitTypeFavoriteStickerCount();
 			} else if (part == u"dialog_filters"_q) {
-				return tl_premiumLimitTypeChatFilterCount();
+				return tl_premiumLimitTypeChatFolderCount();
 			} else if (part == u"dialog_filters_chats"_q
 				|| part == u"dialog_filters_pinned"_q) {
-				return tl_premiumLimitTypeChatFilterChosenChatCount();
+				return tl_premiumLimitTypeChatFolderChosenChatCount();
 			} else if (part == u"caption_length"_q) {
 				return tl_premiumLimitTypeCaptionLength();
 			} else if (part == u"dialog_pinned"_q) {
 				return tl_premiumLimitTypePinnedChatCount();
 			} else if (part == u"dialogs_folder_pinned"_q) {
 				return tl_premiumLimitTypePinnedArchivedChatCount();
+			} else if (part == u"chatlist_invites"_q) {
+				return tl_premiumLimitTypeChatFolderInviteLinkCount();
+			} else if (part == u"chatlists_joined"_q) {
+				return tl_premiumLimitTypeShareableChatFolderCount();
 			}
 			Unexpected("Unknown double_limits__ premium ref.");
 		}());

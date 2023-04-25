@@ -273,7 +273,7 @@ void Widget::handleUpdate(const MTPUpdate &update) {
 void Widget::handleUpdate(const TLupdate &update) {
 	update.match([&](const TLDupdateAuthorizationState &data) {
 		handleAuthorizationState(data.vauthorization_state());
-	}, [&](const TLDupdateChatFilters &data) {
+	}, [&](const TLDupdateChatFolders &data) {
 		if (getData()->waitingForFilters) {
 			getData()->filtersUpdate = std::make_shared<TLupdate>(update);
 			getStep()->filtersReceived();

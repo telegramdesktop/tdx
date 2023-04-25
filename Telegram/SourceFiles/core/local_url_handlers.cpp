@@ -1780,11 +1780,17 @@ bool HandleLocalUrl(
 		}
 		Api::CheckChatInvite(controller, data.vinvite_link().v);
 		return true;
+	}, [&](const TLDinternalLinkTypeChatFolderInvite &data) {
+		if (!controller) {
+			return false;
+		}
+		Api::CheckFilterInvite(controller, data.vinvite_link().v);
+		return true;
 	}, [&](const TLDinternalLinkTypeDefaultMessageAutoDeleteTimerSettings &) {
 		return settingsSection(::Settings::GlobalTTLId());
 	}, [&](const TLDinternalLinkTypeEditProfileSettings &) {
 		return settingsSection(::Settings::Information::Id());
-	}, [&](const TLDinternalLinkTypeFilterSettings &) {
+	}, [&](const TLDinternalLinkTypeChatFolderSettings &) {
 		return settingsSection(::Settings::Folders::Id());
 	}, [&](const TLDinternalLinkTypeGame &data) {
 		// tdlib tg://share_game_score links

@@ -1169,6 +1169,8 @@ not_null<UserData*> Session::processUser(const TLuser &user) {
 			: QString();
 		result->botInfo->supportsAttachMenu
 			= data.vcan_be_added_to_attachment_menu().v;
+		result->botInfo->canEditInformation = data.vcan_be_edited().v;
+		result->botInfo->hasMainApp = data.vhas_main_web_app().v;
 	}, [&](const TLDuserTypeUnknown) {
 		result->setFlags(result->flags() | UserDataFlag::Deleted);
 		result->setBotInfoVersion(-1);
@@ -1377,6 +1379,9 @@ not_null<PeerData*> Session::processPeer(const TLchat &dialog) {
 	result->setActionBar(data.vaction_bar());
 	result->setMessagesTTL(data.vmessage_auto_delete_time().v);
 	result->setThemeEmoji(data.vtheme_name().v);
+	result->setWallPaper(data.vbackground()
+		? Data::WallPaper::Create(&result->session(), *data.vbackground())
+		: std::nullopt);
 
 	if (const auto sender = data.vmessage_sender_id()) {
 		session().sendAsPeers().setChosen(result, peerFromSender(*sender));

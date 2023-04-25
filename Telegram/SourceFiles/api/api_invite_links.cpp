@@ -59,6 +59,8 @@ JoinedByLinkSlice ParseJoinedByLinkSlice(
 		result.users.push_back({
 			.user = owner.user(importer.data().vuser_id().v),
 			.date = importer.data().vjoined_chat_date().v,
+			.viaFilterLink
+				= importer.data().vvia_chat_folder_invite_link().v,
 		});
 	}
 	return result;

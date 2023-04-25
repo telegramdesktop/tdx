@@ -952,6 +952,7 @@ void Controller::loadMoreRows() {
 					? peerToUser(_lastUser->user->id).bare
 					: 0),
 				tl_int32(_lastUser ? _lastUser->date : 0),
+				tl_bool(_lastUser ? _lastUser->viaFilterLink : false),
 				tl_int53(0)),
 			tl_int32(_lastUser ? kPerPage : kFirstPage)
 		)).done([=](const TLDchatInviteLinkMembers &data) {

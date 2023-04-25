@@ -11,8 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 
 namespace Tdb {
-class TLchatFilter;
-class TLDupdateChatFilters;
+class TLchatFolder;
+class TLchatFolderInfo;
+class TLDupdateChatFolders;
+class TLchatFolderInviteLink;
 } // namespace Tdb
 
 class History;
@@ -77,9 +79,12 @@ public:
 #endif
 	[[nodiscard]] static ChatFilter FromTL(
 		FilterId id,
-		const Tdb::TLchatFilter &filter,
-		not_null<Session*> owner);
-	[[nodiscard]] Tdb::TLchatFilter tl() const;
+		const Tdb::TLchatFolder &filter,
+		not_null<Session*> owner,
+		bool hasMyLinks = false);
+	[[nodiscard]] static ChatFilter FromTL(
+		const Tdb::TLchatFolderInfo &filter);
+	[[nodiscard]] Tdb::TLchatFolder tl() const;
 	[[nodiscard]] bool computeContains(not_null<History*> history) const;
 	[[nodiscard]] bool loaded() const;
 	void unload();
@@ -143,7 +148,7 @@ public:
 	explicit ChatFilters(not_null<Session*> owner);
 	~ChatFilters();
 
-	void apply(const Tdb::TLDupdateChatFilters &update);
+	void apply(const Tdb::TLDupdateChatFolders &update);
 #if 0 // mtp
 	void setPreloaded(const QVector<MTPDialogFilter> &result);
 
@@ -151,8 +156,8 @@ public:
 	void reload();
 	void apply(const MTPUpdate &update);
 	void set(ChatFilter filter);
-#endif
 	void remove(FilterId id);
+#endif
 	void moveAllToFront();
 	[[nodiscard]] const std::vector<ChatFilter> &list() const;
 	[[nodiscard]] rpl::producer<> changed() const;
@@ -192,9 +197,14 @@ public:
 		-> const std::vector<SuggestedFilter> &;
 	[[nodiscard]] rpl::producer<> suggestedUpdated() const;
 
+#if 0 // mtp
 	ChatFilterLink add(
 		FilterId id,
 		const MTPExportedChatlistInvite &update);
+#endif
+	ChatFilterLink add(
+		FilterId id,
+		const Tdb::TLchatFolderInviteLink &update);
 	void edit(
 		FilterId id,
 		const QString &url,

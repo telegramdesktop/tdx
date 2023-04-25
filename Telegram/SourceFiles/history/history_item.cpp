@@ -4708,6 +4708,38 @@ void HistoryItem::setServiceMessageByContent(
 				fromLinkText(),
 				Ui::Text::WithEntities);
 		}
+	}, [&](const TLDmessageChatSetBackground &data) {
+		const auto isSelf = (_from->id == _from->session().userPeerId());
+		const auto peer = isSelf ? history()->peer : _from;
+		const auto user = peer->asUser();
+		const auto name = (user && !user->firstName.isEmpty())
+			? user->firstName
+			: peer->name();
+		if (data.vold_background_message_id().v) {
+			if (!isSelf) {
+				prepared.links.push_back(peer->createOpenLink());
+			}
+			prepared.text = isSelf
+				? tr::lng_action_set_same_wallpaper_me(
+					tr::now,
+					Ui::Text::WithEntities)
+				: tr::lng_action_set_same_wallpaper(
+					tr::now,
+					lt_user,
+					Ui::Text::Link(name, 1), // Link 1.
+					Ui::Text::WithEntities);
+		} else {
+			prepared.links.push_back(peer->createOpenLink());
+			prepared.text = isSelf
+				? tr::lng_action_set_wallpaper_me(
+					tr::now,
+					Ui::Text::WithEntities)
+				: tr::lng_action_set_wallpaper(
+					tr::now,
+					lt_user,
+					Ui::Text::Link(name, 1), // Link 1.
+					Ui::Text::WithEntities);
+		}
 	}, [&](const TLDmessageChatSetTheme &data) {
 		const auto text = data.vtheme_name().v;
 		if (!text.isEmpty()) {
@@ -5387,6 +5419,7 @@ void HistoryItem::setContent(const TLmessageContent &content) {
 			|| TLDmessageChatUpgradeFrom::Is<T>()
 			|| TLDmessagePinMessage::Is<T>()
 			|| TLDmessageScreenshotTaken::Is<T>()
+			|| TLDmessageChatSetBackground::Is<T>()
 			|| TLDmessageChatSetTheme::Is<T>()
 			|| TLDmessageChatSetMessageAutoDeleteTime::Is<T>()
 			|| TLDmessageChatBoost::Is<T>()

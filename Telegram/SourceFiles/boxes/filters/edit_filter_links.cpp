@@ -39,7 +39,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
+
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kMaxLinkTitleLength = 32;
 
@@ -1006,6 +1011,24 @@ void ExportFilterLink(
 
 	const auto front = peers.front();
 	const auto session = &front->session();
+	const auto ids = peers | ranges::views::transform(
+		[](not_null<PeerData*> peer) { return peerToTdbChat(peer->id); }
+	) | ranges::to<QVector>();
+	session->sender().request(TLcreateChatFolderInviteLink(
+		tl_int32(id),
+		tl_string(),
+		tl_vector<TLint53>(ids)
+	)).done([=](const TLchatFolderInviteLink &result) {
+		const auto link = session->data().chatsFilters().add(id, result);
+		if (!link.url.isEmpty()) {
+			done(link);
+		} else {
+			fail(u"CREATE_FAILED"_q);
+		}
+	}).fail([=](const Error &error) {
+		fail(error.message);
+	}).send();
+#if 0 // mtp
 	auto mtpPeers = peers | ranges::views::transform(
 		[](not_null<PeerData*> peer) { return MTPInputPeer(peer->input); }
 	) | ranges::to<QVector<MTPInputPeer>>();
@@ -1026,6 +1049,7 @@ void ExportFilterLink(
 	}).fail([=](const MTP::Error &error) {
 		fail(error.type());
 	}).send();
+#endif
 }
 
 void EditLinkChats(
@@ -1039,6 +1063,21 @@ void EditLinkChats(
 	const auto id = link.id;
 	const auto front = peers.front();
 	const auto session = &front->session();
+	const auto ids = peers | ranges::views::transform(
+		[](not_null<PeerData*> peer) { return peerToTdbChat(peer->id); }
+	) | ranges::to<QVector>();
+	session->sender().request(TLeditChatFolderInviteLink(
+		tl_int32(id),
+		tl_string(link.url),
+		tl_string(link.title),
+		tl_vector<TLint53>(ids)
+	)).done([=](const TLchatFolderInviteLink &result) {
+		const auto link = session->data().chatsFilters().add(id, result);
+		done(QString());
+	}).fail([=](const Error &error) {
+		done(error.message);
+	}).send();
+#if 0 // mtp
 	auto mtpPeers = peers | ranges::views::transform(
 		[](not_null<PeerData*> peer) { return MTPInputPeer(peer->input); }
 	) | ranges::to<QVector<MTPInputPeer>>();
@@ -1054,6 +1093,7 @@ void EditLinkChats(
 	}).fail([=](const MTP::Error &error) {
 		done(error.type());
 	}).send();
+#endif
 }
 
 object_ptr<Ui::BoxContent> ShowLinkBox(
