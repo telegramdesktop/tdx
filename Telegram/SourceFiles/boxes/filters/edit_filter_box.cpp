@@ -876,7 +876,7 @@ void EditExistingFilter(
 	const auto doneCallback = [=](const Data::ChatFilter &result) {
 		Expects(id == result.id());
 
-		session->sender().request(TLeditChatFilter(
+		session->sender().request(TLeditChatFolder(
 			tl_int32(id),
 			result.tl()
 		)).send();
