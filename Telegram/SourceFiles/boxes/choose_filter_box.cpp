@@ -88,15 +88,20 @@ void ChangeFilterById(
 	const auto list = history->owner().chatsFilters().list();
 	const auto i = ranges::find(list, filterId, &Data::ChatFilter::id);
 	if (i != end(list)) {
+		const auto hadMyLinks = i->hasMyLinks();
 		const auto sender = &history->session().sender();
-		sender->request(TLgetChatFilter(
+		sender->request(TLgetChatFolder(
 			tl_int32(filterId)
-		)).done([=](const TLchatFilter &result) {
+		)).done([=](const TLchatFolder &result) {
 			const auto owner = &history->owner();
-			auto parsed = Data::ChatFilter::FromTL(filterId, result, owner);
+			auto parsed = Data::ChatFilter::FromTL(
+				filterId,
+				result,
+				owner,
+				hadMyLinks);
 			const auto chat = history->peer->name();
 			const auto guard = base::make_weak(&history->session());
-			const auto account = &history->session().account();
+			const auto account = not_null(&history->session().account());
 			const auto name = parsed.title();
 			const auto show = [=](TextWithEntities text) {
 				if (!guard) {
@@ -106,7 +111,7 @@ void ChangeFilterById(
 					controller->showToast(std::move(text));
 				}
 			};
-			sender->request(TLeditChatFilter(
+			sender->request(TLeditChatFolder(
 				tl_int32(filterId),
 				ChangedFilter(std::move(parsed), history, add).tl()
 			)).done([=] {

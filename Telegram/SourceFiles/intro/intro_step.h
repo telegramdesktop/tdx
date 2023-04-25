@@ -16,7 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Tdb {
 class TLuser;
 class TLauthorizationState;
-class TLchatFilter;
 } // namespace Tdb
 
 namespace style {

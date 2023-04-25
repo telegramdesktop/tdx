@@ -339,6 +339,7 @@ void BackgroundBox::chosen(const Data::WallPaper &paper) {
 }
 
 void BackgroundBox::resetForPeer() {
+#if 0 // mtp
 	const auto api = &_controller->session().api();
 	api->request(MTPmessages_SetChatWallPaper(
 		MTP_flags(0),
@@ -349,6 +350,15 @@ void BackgroundBox::resetForPeer() {
 	)).done([=](const MTPUpdates &result) {
 		api->applyUpdates(result);
 	}).send();
+#endif
+	const auto sender = &_controller->session().sender();
+	sender->request(TLsetChatBackground(
+		peerToTdbChat(_forPeer->id),
+		std::nullopt,
+		std::nullopt,
+		tl_int32(0),
+		tl_bool(true)
+	)).send();
 
 	const auto weak = Ui::MakeWeak(this);
 	_forPeer->setWallPaper({});

@@ -513,6 +513,12 @@ public:
 	mtpRequestId sendRequestId = 0;
 
 private:
+	struct PendingFilterPosition {
+		int64 order = 0;
+		bool pinned = false;
+	};
+	base::flat_map<FilterId, PendingFilterPosition> _pendingFilterPosition;
+
 	friend class HistoryBlock;
 
 	enum class Flag : uchar {

@@ -30,6 +30,7 @@ class TLscopeNotificationSettings;
 class TLchatInviteLinkInfo;
 class TLDupdateOption;
 class TLuserStatus;
+class TLchatFolderInviteLinkInfo;
 } // namespace Tdb
 
 namespace Main {
@@ -241,6 +242,10 @@ public:
 	void checkChatInvite(
 		const QString &hash,
 		FnMut<void(const Tdb::TLchatInviteLinkInfo &)> done,
+		Fn<void(const Tdb::Error &)> fail);
+	void checkFilterInvite(
+		const QString &slug,
+		FnMut<void(const Tdb::TLchatFolderInviteLinkInfo &)> done,
 		Fn<void(const Tdb::Error &)> fail);
 #if 0 // mtp
 	void checkChatInvite(

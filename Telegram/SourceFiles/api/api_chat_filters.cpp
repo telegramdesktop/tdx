@@ -220,13 +220,35 @@ void ImportInvite(
 
 	const auto peer = peers.front();
 	const auto api = &peer->session().api();
+#if 0 // mtp
 	const auto callback = [=](const MTPUpdates &result) {
 		api->applyUpdates(result);
+#endif
+	const auto callback = [=] {
 		if (slug.isEmpty()) {
 			peer->owner().chatsFilters().moreChatsHide(filterId, true);
 		}
 		done();
 	};
+	const auto error = [=](const Tdb::Error &error) {
+		fail(error.message);
+	};
+	const auto sender = &peer->session().sender();
+	auto ids = peers | ranges::views::transform([](auto peer) {
+		return peerToTdbChat(peer->id);
+	}) | ranges::to<QVector>();
+	if (!slug.isEmpty()) {
+		sender->request(TLaddChatFolderByInviteLink(
+			tl_string(slug),
+			tl_vector<TLint53>(std::move(ids))
+		)).done(callback).fail(error).send();
+	} else {
+		sender->request(TLprocessChatFolderNewChats(
+			tl_int32(filterId),
+			tl_vector<TLint53>(std::move(ids))
+		)).done(callback).fail(error).send();
+	}
+#if 0 // mtp
 	const auto error = [=](const MTP::Error &error) {
 		fail(error.type());
 	};
@@ -244,6 +266,7 @@ void ImportInvite(
 			MTP_vector<MTPInputPeer>(std::move(inputs))
 		)).done(callback).fail(error).handleFloodErrors().send();
 	}
+#endif
 }
 
 ToggleChatsController::ToggleChatsController(
@@ -677,9 +700,9 @@ void SaveNewFilterPinned(
 		not_null<Main::Session*> session,
 		FilterId filterId) {
 	const auto &order = session->data().pinnedChatsOrder(filterId);
-	session->sender().request(TLgetChatFilter(
+	session->sender().request(TLgetChatFolder(
 		tl_int32(filterId)
-	)).done([=](const TLchatFilter &result) {
+	)).done([=](const TLchatFolder &result) {
 		const auto owner = &session->data();
 		auto filter = Data::ChatFilter::FromTL(filterId, result, owner);
 		const auto limit = owner->pinnedChatsLimit(filterId);
@@ -696,7 +719,7 @@ void SaveNewFilterPinned(
 				}
 			}
 		}
-		session->sender().request(TLeditChatFilter(
+		session->sender().request(TLeditChatFolder(
 			tl_int32(filterId),
 			Data::ChatFilter(
 				filterId,
@@ -726,7 +749,10 @@ void CheckFilterInvite(
 	const auto session = &controller->session();
 	const auto weak = base::make_weak(controller);
 	session->api().checkFilterInvite(slug, [=](
+#if 0 // mtp
 			const MTPchatlists_ChatlistInvite &result) {
+#endif
+			const TLchatFolderInviteLinkInfo &result) {
 		const auto strong = weak.get();
 		if (!strong) {
 			return;
@@ -737,6 +763,21 @@ void CheckFilterInvite(
 		auto peers = std::vector<not_null<PeerData*>>();
 		auto already = std::vector<not_null<PeerData*>>();
 		auto &owner = strong->session().data();
+		const auto &data = result.data();
+		already = data.vadded_chat_ids().v | ranges::views::transform([&](
+				const TLint53 &peer) {
+			return owner.peer(peerFromTdbChat(peer));
+		}) | ranges::to_vector;
+		peers = data.vmissing_chat_ids().v | ranges::views::transform([&](
+				const TLint53 &peer) {
+			return owner.peer(peerFromTdbChat(peer));
+		}) | ranges::to_vector;
+		const auto &info = data.vchat_folder_info().data();
+		title = info.vtitle().v;
+		iconEmoji = info.vicon().data().vname().v;
+		filterId = info.vid().v;
+
+#if 0 // mtp
 		result.match([&](const auto &data) {
 			owner.processUsers(data.vusers());
 			owner.processChats(data.vchats());
@@ -758,6 +799,7 @@ void CheckFilterInvite(
 			peers = parseList(data.vmissing_peers());
 			already = parseList(data.valready_peers());
 		});
+#endif
 
 		const auto notLoaded = filterId
 			&& !ranges::contains(
@@ -776,7 +818,9 @@ void CheckFilterInvite(
 					std::move(peers),
 					std::move(already));
 			}, *lifetime);
+#if 0 // mtp
 			owner.chatsFilters().reload();
+#endif
 		} else if (filterId) {
 			ProcessFilterInvite(
 				weak,
@@ -794,8 +838,12 @@ void CheckFilterInvite(
 				std::move(peers),
 				std::move(already));
 		}
+#if 0 // mtp
 	}, [=](const MTP::Error &error) {
 		if (error.code() != 400) {
+#endif
+	}, [=](const Error &error) {
+		if (error.code != 400) {
 			return;
 		}
 		ProcessFilterInvite(weak, slug, {}, {}, {}, {}, {});

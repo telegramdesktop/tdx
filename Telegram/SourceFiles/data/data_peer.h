@@ -515,6 +515,7 @@ public:
 	void setWallPaper(
 		std::optional<Data::WallPaper> paper,
 		bool overriden = false);
+	void setWallPaperOverriden(bool overriden);
 	[[nodiscard]] bool wallPaperOverriden() const;
 	[[nodiscard]] const Data::WallPaper *wallPaper() const;
 

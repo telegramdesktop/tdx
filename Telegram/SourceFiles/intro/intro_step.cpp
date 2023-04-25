@@ -331,8 +331,8 @@ void Step::createSession(const TLuser &self) {
 
 	auto photo = getData()->chosenPhoto;
 	const auto filtersUpdate = getData()->filtersUpdate;
-	const auto &filters = filtersUpdate->c_updateChatFilters();
-	const auto hasFilters = !filters.vchat_filters().v.empty();
+	const auto &filters = filtersUpdate->c_updateChatFolders();
+	const auto hasFilters = !filters.vchat_folders().v.empty();
 
 	auto settings = std::make_unique<Main::SessionSettings>();
 	settings->setDialogsFiltersEnabled(hasFilters);

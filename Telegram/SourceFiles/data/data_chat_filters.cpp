@@ -162,6 +162,7 @@ ChatFilter ChatFilter::FromTL(
 			{});
 	});
 }
+#endif
 
 ChatFilter ChatFilter::withId(FilterId id) const {
 	auto result = *this;
@@ -189,6 +190,7 @@ ChatFilter ChatFilter::withChatlist(bool chatlist, bool hasMyLinks) const {
 	return result;
 }
 
+#if 0 // mtp
 MTPDialogFilter ChatFilter::tl(FilterId replaceId) const {
 	auto always = _always;
 	auto pinned = QVector<MTPInputPeer>();
@@ -247,8 +249,9 @@ MTPDialogFilter ChatFilter::tl(FilterId replaceId) const {
 
 ChatFilter ChatFilter::FromTL(
 		FilterId id,
-		const TLchatFilter &filter,
-		not_null<Session*> owner) {
+		const TLchatFolder &filter,
+		not_null<Session*> owner,
+		bool hasMyLinks) {
 	const auto &data = filter.data();
 	const auto flags = Flag(0)
 		| (data.vinclude_contacts().v ? Flag::Contacts : Flag(0))
@@ -258,7 +261,10 @@ ChatFilter ChatFilter::FromTL(
 		| (data.vinclude_bots().v ? Flag::Bots : Flag(0))
 		| (data.vexclude_muted().v ? Flag::NoMuted : Flag(0))
 		| (data.vexclude_read().v ? Flag::NoRead : Flag(0))
-		| (data.vexclude_archived().v ? Flag::NoArchived : Flag(0));
+		| (data.vexclude_archived().v ? Flag::NoArchived : Flag(0))
+		| (data.vis_shareable().v
+			? (Flag::Chatlist | (hasMyLinks ? Flag::HasMyLinks : Flag(0)))
+			: Flag(0));
 	auto &&to_histories = ranges::views::transform([&](const TLint53 &id) {
 		const auto peer = peerFromTdbChat(id);
 		return peer ? owner->history(peer).get() : nullptr;
@@ -285,14 +291,29 @@ ChatFilter ChatFilter::FromTL(
 	return ChatFilter(
 		id,
 		data.vtitle().v,
-		data.vicon_name().v,
+		data.vicon() ? data.vicon()->data().vname().v : QString(),
+		data.vcolor_id().v,
 		flags,
 		std::move(list),
 		std::move(pinned),
 		{ never.begin(), never.end() });
 }
 
-TLchatFilter ChatFilter::tl() const {
+ChatFilter ChatFilter::FromTL(const Tdb::TLchatFolderInfo &filter) {
+	const auto &data = filter.data();
+	return ChatFilter(
+		data.vid().v,
+		data.vtitle().v,
+		data.vicon().data().vname().v,
+		data.vcolor_id().v,
+		((data.vhas_my_invite_links().v ? Flag::HasMyLinks : Flag())
+			| (data.vis_shareable().v ? Flag::Chatlist : Flag())),
+		{},
+		{},
+		{});
+}
+
+TLchatFolder ChatFilter::tl() const {
 	auto always = _always;
 	auto pinned = QVector<TLint53>();
 	pinned.reserve(_pinned.size());
@@ -310,9 +331,13 @@ TLchatFilter ChatFilter::tl() const {
 	for (const auto &history : _never) {
 		never.push_back(peerToTdbChat(history->peer->id));
 	}
-	return tl_chatFilter(
+	return tl_chatFolder(
 		tl_string(_title),
-		tl_string(_iconEmoji),
+		(_iconEmoji.isEmpty()
+			? std::optional<TLchatFolderIcon>()
+			: tl_chatFolderIcon(tl_string(_iconEmoji))),
+		tl_int32(_colorIndex.value_or(0)),
+		tl_bool(_flags & Flag::Chatlist),
 		tl_vector<TLint53>(pinned),
 		tl_vector<TLint53>(include),
 		tl_vector<TLint53>(never),
@@ -549,11 +574,14 @@ void ChatFilters::apply(const MTPUpdate &update) {
 		Unexpected("Update in ChatFilters::apply.");
 	});
 }
-#endif
 
 ChatFilterLink ChatFilters::add(
 		FilterId id,
 		const MTPExportedChatlistInvite &update) {
+#endif
+ChatFilterLink ChatFilters::add(
+		FilterId id,
+		const TLchatFolderInviteLink &update) {
 	const auto i = ranges::find(_list, id, &ChatFilter::id);
 	if (i == end(_list) || !i->chatlist()) {
 		LOG(("Api Error: "
@@ -563,11 +591,19 @@ ChatFilterLink ChatFilters::add(
 	}
 	auto &links = _chatlistLinks[id];
 	const auto &data = update.data();
+#if 0 // mtp
 	const auto url = qs(data.vurl());
 	const auto title = qs(data.vtitle());
 	auto chats = data.vpeers().v | ranges::views::transform([&](
 			const MTPPeer &peer) {
 		return _owner->history(peerFromMTP(peer));
+	}) | ranges::to_vector;
+#endif
+	const auto url = data.vinvite_link().v;
+	const auto title = data.vname().v;
+	auto chats = data.vchat_ids().v | ranges::views::transform([&](
+			const TLint53 &peer) {
+		return _owner->history(peerFromTdbChat(peer));
 	}) | ranges::to_vector;
 	const auto j = ranges::find(links, url, &ChatFilterLink::url);
 	if (j != end(links)) {
@@ -598,6 +634,12 @@ void ChatFilters::edit(
 		i->title = title;
 		_chatlistLinksUpdated.fire_copy(id);
 
+		_owner->session().sender().request(TLeditChatFolderInviteLink(
+
+		)).done([=] {
+		}).fail([=] {
+		}).send();
+#if 0 // mtp
 		_owner->session().api().request(MTPchatlists_EditExportedInvite(
 			MTP_flags(MTPchatlists_EditExportedInvite::Flag::f_title),
 			MTP_inputChatlistDialogFilter(MTP_int(id)),
@@ -611,6 +653,7 @@ void ChatFilters::edit(
 		}).fail([=](const MTP::Error &error) {
 			//done({ .id = id });
 		}).send();
+#endif
 	}
 }
 
@@ -621,11 +664,18 @@ void ChatFilters::destroy(FilterId id, const QString &url) {
 		links.erase(i);
 		_chatlistLinksUpdated.fire_copy(id);
 
+#if 0 // mtp
 		const auto api = &_owner->session().api();
 		api->request(_linksRequestId).cancel();
 		_linksRequestId = api->request(MTPchatlists_DeleteExportedInvite(
 			MTP_inputChatlistDialogFilter(MTP_int(id)),
 			MTP_string(url)
+		)).send();
+#endif
+		const auto sender = &_owner->session().sender();
+		_linksRequestId = sender->request(TLdeleteChatFolderInviteLink(
+			tl_int32(id),
+			tl_string(url)
 		)).send();
 	}
 }
@@ -643,6 +693,18 @@ rpl::producer<std::vector<ChatFilterLink>> ChatFilters::chatlistLinks(
 }
 
 void ChatFilters::reloadChatlistLinks(FilterId id) {
+	const auto sender = &_owner->session().sender();
+	_linksRequestId = sender->request(TLgetChatFolderInviteLinks(
+		tl_int32(id)
+	)).done([=](const TLchatFolderInviteLinks &result) {
+		const auto &data = result.data();
+		_chatlistLinks[id].clear();
+		for (const auto &link : data.vinvite_links().v) {
+			add(id, link);
+		}
+		_chatlistLinksUpdated.fire_copy(id);
+	}).send();
+#if 0 // mtp
 	const auto api = &_owner->session().api();
 	api->request(_linksRequestId).cancel();
 	_linksRequestId = api->request(MTPchatlists_GetExportedInvites(
@@ -657,26 +719,19 @@ void ChatFilters::reloadChatlistLinks(FilterId id) {
 		}
 		_chatlistLinksUpdated.fire_copy(id);
 	}).send();
+#endif
 }
 
-void ChatFilters::apply(const TLDupdateChatFilters &update) {
+void ChatFilters::apply(const TLDupdateChatFolders &update) {
 	_list.clear();
 	const auto maybePushMain = [&] {
 		if (_list.size() == update.vmain_chat_list_position().v) {
 			_list.push_back(ChatFilter());
 		}
 	};
-	for (const auto &filter : update.vchat_filters().v) {
-		const auto &data = filter.data();
+	for (const auto &filter : update.vchat_folders().v) {
 		maybePushMain();
-		_list.push_back(ChatFilter(
-			data.vid().v,
-			data.vtitle().v,
-			data.vicon_name().v,
-			{},
-			{},
-			{},
-			{}));
+		_list.push_back(ChatFilter::FromTL(filter));
 	}
 	maybePushMain();
 	_loaded = true;
@@ -705,21 +760,16 @@ void ChatFilters::applyInsert(ChatFilter filter, int position) {
 		ChatFilter(filter.id(), {}, {}, {}, {}, {}, {}, {}));
 	applyChange(*(begin(_list) + position), std::move(filter));
 }
-#endif
 
 void ChatFilters::remove(FilterId id) {
 	const auto i = ranges::find(_list, id, &ChatFilter::id);
 	if (i == end(_list)) {
 		return;
 	}
-#if 0 // mtp
 	applyRemove(i - begin(_list));
 	_listChanged.fire({});
-#endif
-	_owner->session().sender().request(TLdeleteChatFilter(
-		tl_int32(id)
-	)).send();
 }
+#endif
 
 void ChatFilters::moveAllToFront() {
 	const auto i = ranges::find(_list, FilterId(), &ChatFilter::id);
@@ -893,7 +943,7 @@ void ChatFilters::saveOrder(
 			mainPosition = ids.size();
 		}
 	}
-	sender->request(TLreorderChatFilters(
+	sender->request(TLreorderChatFolders(
 		tl_vector<TLint32>(std::move(ids)),
 		tl_int32(mainPosition)
 	)).send();
@@ -1042,18 +1092,18 @@ void ChatFilters::requestSuggested() {
 		return;
 	}
 	const auto sender = &_owner->session().sender();
-	_suggestedRequestId = sender->request(TLgetRecommendedChatFilters(
-	)).done([=](const TLDrecommendedChatFilters &result) {
+	_suggestedRequestId = sender->request(TLgetRecommendedChatFolders(
+	)).done([=](const TLDrecommendedChatFolders &result) {
 		_suggestedRequestId = 0;
 		_suggestedLastReceived = crl::now();
 
 		auto id = kSuggestedStartId;
 		_suggested = ranges::views::all(
-			result.vchat_filters().v
-		) | ranges::views::transform([&](const TLrecommendedChatFilter &f) {
+			result.vchat_folders().v
+		) | ranges::views::transform([&](const TLrecommendedChatFolder &f) {
 			const auto &data = f.data();
 			return SuggestedFilter{
-				Data::ChatFilter::FromTL(++id, data.vfilter(), _owner),
+				Data::ChatFilter::FromTL(++id, data.vfolder(), _owner),
 				data.vdescription().v,
 			};
 		}) | ranges::to_vector;
@@ -1138,16 +1188,25 @@ const std::vector<not_null<PeerData*>> &ChatFilters::moreChats(
 
 void ChatFilters::moreChatsHide(FilterId id, bool localOnly) {
 	if (!localOnly) {
+#if 0 // mtp
 		const auto api = &_owner->session().api();
 		api->request(MTPchatlists_HideChatlistUpdates(
 			MTP_inputChatlistDialogFilter(MTP_int(id))
+		)).send();
+#endif
+		_owner->session().sender().request(TLprocessChatFolderNewChats(
+			tl_int32(id),
+			tl_vector<TLint53>()
 		)).send();
 	}
 
 	const auto i = _moreChatsData.find(id);
 	if (i != end(_moreChatsData)) {
 		if (const auto requestId = base::take(i->second.requestId)) {
+#if 0 // mtp
 			_owner->session().api().request(requestId).cancel();
+#endif
+			_owner->session().sender().request(requestId).cancel();
 		}
 		i->second.missing = {};
 		i->second.lastUpdate = crl::now();
@@ -1176,6 +1235,7 @@ void ChatFilters::loadMoreChatsList(FilterId id) {
 		}
 		return;
 	}
+#if 0 // mtp
 	auto &api = _owner->session().api();
 	entry.requestId = api.request(MTPchatlists_GetChatlistUpdates(
 		MTP_inputChatlistDialogFilter(MTP_int(id))
@@ -1187,6 +1247,14 @@ void ChatFilters::loadMoreChatsList(FilterId id) {
 			data.vmissing_peers().v
 		) | ranges::views::transform([&](const MTPPeer &peer) {
 			return _owner->peer(peerFromMTP(peer));
+		}) | ranges::to_vector;
+#endif
+	entry.requestId = _owner->session().sender().request(
+		TLgetChatFolderNewChats(tl_int32(id))
+	).done([=](const TLchats &result) {
+		const auto &ids = result.data().vchat_ids().v;
+		auto list = ids | ranges::views::transform([&](const TLint53 &id) {
+			return _owner->peer(peerFromTdbChat(id));
 		}) | ranges::to_vector;
 
 		auto &entry = _moreChatsData[id];

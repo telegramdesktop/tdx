@@ -2640,6 +2640,7 @@ TextForMimeData MediaWallPaper::clipboardText() const {
 	return {};
 }
 
+#if 0 // mtp
 bool MediaWallPaper::updateInlineResultMedia(const MTPMessageMedia &media) {
 	return false;
 }
@@ -2647,6 +2648,7 @@ bool MediaWallPaper::updateInlineResultMedia(const MTPMessageMedia &media) {
 bool MediaWallPaper::updateSentMedia(const MTPMessageMedia &media) {
 	return false;
 }
+#endif
 
 std::unique_ptr<HistoryView::Media> MediaWallPaper::createView(
 		not_null<HistoryView::Element*> message,
