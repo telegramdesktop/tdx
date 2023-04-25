@@ -50,6 +50,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "tdb/tdb_tl_scheme.h"
 #include "tdb/tdb_sender.h"
+#include "tdb/tdb_file_generator.h"
 
 namespace {
 
@@ -534,6 +535,35 @@ void BackgroundPreviewBox::uploadForPeer() {
 	}
 
 	const auto session = &_controller->session();
+	if (_uploadLifetime) {
+		return;
+	}
+	const auto prepared = Window::Theme::PrepareWallPaper(
+		{},
+		_paper.localThumbnail()->original());
+	const auto generator = _uploadLifetime.make_state<FileGenerator>(
+		&session->tdb(),
+		prepared.data,
+		prepared.filename);
+	const auto sender = &_controller->session().sender();
+	sender->request(TLsetChatBackground(
+		peerToTdbChat(_forPeer->id),
+		tl_inputBackgroundLocal(generator->inputFile()),
+		_paper.tlType(),
+		tl_int32((_paper.isPattern() || !_paper.document())
+			? 0
+			: _paper.patternIntensity())
+	)).done([=] {
+		_uploadProgress = 1.;
+		_uploadLifetime.destroy();
+		update(radialRect());
+	}).fail([=](const Error &error) {
+		_uploadProgress = 0.;
+		_uploadLifetime.destroy();
+		update(radialRect());
+	}).send();
+
+#if 0 // mtp
 	const auto ready = Window::Theme::PrepareWallPaper(
 		session->mainDcId(),
 		_paper.localThumbnail()->original());
@@ -589,6 +619,7 @@ void BackgroundPreviewBox::uploadForPeer() {
 			}
 		}).send();
 	}, _uploadLifetime);
+#endif
 
 	_uploadProgress = 0.;
 	_radial.start(_uploadProgress);
@@ -603,6 +634,8 @@ void BackgroundPreviewBox::setExistingForPeer(const Data::WallPaper &paper) {
 			return;
 		}
 	}
+
+#if 0 // mtp
 	const auto api = &_controller->session().api();
 	using Flag = MTPmessages_SetChatWallPaper::Flag;
 	api->request(MTPmessages_SetChatWallPaper(
@@ -616,6 +649,18 @@ void BackgroundPreviewBox::setExistingForPeer(const Data::WallPaper &paper) {
 	)).done([=](const MTPUpdates &result) {
 		api->applyUpdates(result);
 	}).send();
+#endif
+	const auto sender = &_controller->session().sender();
+	sender->request(TLsetChatBackground(
+		peerToTdbChat(_forPeer->id),
+		(_fromMessageId
+			? tl_inputBackgroundPrevious(tl_int53(_fromMessageId.msg.bare))
+			: tl_inputBackgroundRemote(tl_int64(paper.id()))),
+		paper.tlType(),
+		tl_int32((paper.isPattern() || !paper.document())
+			? 0
+			: paper.patternIntensity())
+	)).send();
 
 	_forPeer->setWallPaper(paper);
 	_controller->finishChatThemeEdit(_forPeer);
