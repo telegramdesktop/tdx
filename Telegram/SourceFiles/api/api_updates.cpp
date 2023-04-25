@@ -2986,6 +2986,13 @@ void Updates::applyUpdate(const TLupdate &update) {
 		if (const auto peer = owner.peerLoaded(peerId)) {
 			peer->setActionBar(data.vaction_bar());
 		}
+	}, [&](const TLDupdateChatBackground &data) {
+		const auto peerId = peerFromTdbChat(data.vchat_id());
+		if (const auto peer = owner.peerLoaded(peerId)) {
+			peer->setWallPaper(data.vbackground()
+				? Data::WallPaper::Create(_session, *data.vbackground())
+				: std::nullopt);
+		}
 	}, [&](const TLDupdateChatTheme &data) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
 		if (const auto peer = owner.peerLoaded(peerId)) {
@@ -3017,7 +3024,7 @@ void Updates::applyUpdate(const TLupdate &update) {
 				history->applyPosition(position.data());
 			}
 		}
-	}, [&](const TLDupdateChatFilters &data) {
+	}, [&](const TLDupdateChatFolders &data) {
 		owner.chatsFilters().apply(data);
 	}, [&](const TLDupdateChatOnlineMemberCount &data) {
 		// later online count for all chats
@@ -3101,7 +3108,7 @@ void Updates::applyUpdate(const TLupdate &update) {
 		}, [&](const TLDchatListArchive &) {
 			const auto list = owner.folder(Data::Folder::kId)->chatsList();
 			list->updateCloudUnread(data);
-		}, [&](const TLDchatListFilter &data) {
+		}, [&](const TLDchatListFolder &data) {
 			// later use tdlib counters
 		});
 	}, [&](const TLDupdateUnreadChatCount &data) {
@@ -3109,7 +3116,7 @@ void Updates::applyUpdate(const TLupdate &update) {
 			owner.chatsList()->updateCloudUnread(data);
 		}, [&](const TLDchatListArchive &) {
 			owner.folder(Data::Folder::kId)->applyDialog(data);
-		}, [&](const TLDchatListFilter &data) {
+		}, [&](const TLDchatListFolder &data) {
 			// later use tdlib counters
 		});
 	}, [&](const TLDupdateOption &data) {
