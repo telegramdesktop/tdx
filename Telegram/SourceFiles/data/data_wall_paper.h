@@ -15,6 +15,7 @@ namespace Tdb {
 class TLbackground;
 class TLbackgroundFill;
 class TLbackgroundType;
+class TLchatBackground;
 } // namespace Tdb
 
 namespace Main {
@@ -115,6 +116,9 @@ public:
 	[[nodiscard]] static std::optional<WallPaper> Create(
 		not_null<Main::Session*> session,
 		const Tdb::TLbackground &paper);
+	[[nodiscard]] static std::optional<WallPaper> Create(
+		not_null<Main::Session*> session,
+		const Tdb::TLchatBackground &paper);
 
 	[[nodiscard]] QByteArray serialize() const;
 	[[nodiscard]] static std::optional<WallPaper> FromSerialized(

@@ -672,6 +672,17 @@ std::optional<WallPaper> WallPaper::Create(
 	return result;
 }
 
+std::optional<WallPaper> WallPaper::Create(
+		not_null<Main::Session*> session,
+		const TLchatBackground &paper) {
+	const auto &data = paper.data();
+	auto result = WallPaper::Create(session, data.vbackground());
+	if (!result || result->isPattern() || !result->document()) {
+		return result;
+	}
+	return result->withPatternIntensity(data.vdark_theme_dimming().v);
+}
+
 QByteArray WallPaper::serialize() const {
 	auto size = sizeof(quint64) // _id
 		+ sizeof(quint64) // _accessHash

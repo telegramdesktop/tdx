@@ -455,6 +455,16 @@ void ApiWrap::checkChatInvite(
 		tl_string(hash)
 	)).done(std::move(done)).fail(std::move(fail)).send();
 }
+
+void ApiWrap::checkFilterInvite(
+		const QString &slug,
+		FnMut<void(const TLchatFolderInviteLinkInfo &)> done,
+		Fn<void(const Error &)> fail) {
+	sender().request(base::take(_checkFilterInviteRequestId)).cancel();
+	_checkFilterInviteRequestId = sender().request(
+		TLcheckChatFolderInviteLink(tl_string(slug))
+	).done(std::move(done)).fail(std::move(fail)).send();
+}
 #if 0 // mtp
 void ApiWrap::checkChatInvite(
 		const QString &hash,
@@ -465,7 +475,6 @@ void ApiWrap::checkChatInvite(
 		MTP_string(hash)
 	)).done(std::move(done)).fail(std::move(fail)).send();
 }
-#endif
 
 void ApiWrap::checkFilterInvite(
 		const QString &slug,
@@ -476,6 +485,7 @@ void ApiWrap::checkFilterInvite(
 		MTPchatlists_CheckChatlistInvite(MTP_string(slug))
 	).done(std::move(done)).fail(std::move(fail)).send();
 }
+#endif
 
 void ApiWrap::savePinnedOrder(Data::Folder *folder) {
 	const auto &order = _session->data().pinnedChatsOrder(folder);
