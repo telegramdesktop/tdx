@@ -175,11 +175,13 @@ void History::itemVanished(not_null<HistoryItem*> item) {
 	if (lastKeyboardId == item->id) {
 		clearLastKeyboard();
 	}
+#if 0 // mtp
 	if ((!item->out() || item->isPost())
 		&& item->unread(this)
 		&& unreadCount() > 0) {
 		setUnreadCount(unreadCount() - 1);
 	}
+#endif
 	if (const auto media = item->media()) {
 		if (const auto gift = media->gift()) {
 			using GiftAction = Data::GiftUpdate::Action;
@@ -1370,6 +1372,7 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 	}
 #endif
 	if (item->out()) {
+#if 0 // mtp
 		if (item->isFromScheduled() && unreadCountRefreshNeeded(item->id)) {
 			if (unreadCountKnown()) {
 				setUnreadCount(unreadCount() + 1);
@@ -1377,6 +1380,8 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 				owner().histories().requestDialogEntry(this);
 			}
 		} else {
+#endif
+		{
 			destroyUnreadBar();
 		}
 		if (!item->unread(this)) {
@@ -1387,11 +1392,13 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 		}
 	} else {
 		if (item->unread(this)) {
+#if 0 // mtp
 			if (unreadCountKnown()) {
 				setUnreadCount(unreadCount() + 1);
 			} else if (!isForum()) {
 				owner().histories().requestDialogEntry(this);
 			}
+#endif
 		} else {
 			inboxRead(item);
 		}
