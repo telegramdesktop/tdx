@@ -1639,7 +1639,8 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 				tl_bool(ShouldSendSilent(peer, options)),
 				tl_bool(true), // from_background.
 				tl_bool(false), // update_order_of_installed_stickers_sets
-				Api::ScheduledToTL(options.scheduled));
+				Api::ScheduledToTL(options.scheduled),
+				tl_int32(0));
 
 			// If we have only one message to send
 			// Then there is a chance we should send a game score.

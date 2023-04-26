@@ -209,7 +209,10 @@ void EmojiStatuses::requestStatusGroups() {
 void EmojiStatuses::requestStickerGroups() {
 	requestGroups(
 		&_stickerGroups,
+		tl_emojiCategoryTypeRegularStickers());
+#if 0 // mtp
 		MTPmessages_GetEmojiStickerGroups(MTP_int(_stickerGroups.hash)));
+#endif
 }
 
 void EmojiStatuses::requestProfilePhotoGroups() {
@@ -223,6 +226,7 @@ void EmojiStatuses::requestProfilePhotoGroups() {
 }
 
 [[nodiscard]] std::vector<Ui::EmojiGroup> GroupsFromTL(
+		not_null<Data::Session*> owner,
 		const TLemojiCategories &categories) {
 #if 0 // mtp
 		const MTPDmessages_emojiGroups &data) {
@@ -232,9 +236,17 @@ void EmojiStatuses::requestProfilePhotoGroups() {
 	auto result = std::vector<Ui::EmojiGroup>();
 	result.reserve(list.size());
 	for (const auto &group : list) {
+		const auto &data = group.data();
+		const auto icon = owner->processDocument(data.vicon());
+		const auto greeting = data.vis_greeting().v;
+		data.vsource().match([&](const TLDemojiCategorySourcePremium &) {
+			result.push_back({
+				.iconId = QString::number(icon->id),
+#if 0 // mtp
 		group.match([&](const MTPDemojiGroupPremium &data) {
 			result.push_back({
 				.iconId = QString::number(data.vicon_emoji_id().v),
+#endif
 				.type = Ui::EmojiGroupType::Premium,
 			});
 		}, [&](const auto &data) {
@@ -252,9 +264,12 @@ void EmojiStatuses::requestProfilePhotoGroups() {
 #if 0 // mtp
 				.iconId = QString::number(data.vicon_emoji_id().v),
 #endif
-				.iconId = QString::number(data.vicon_custom_emoji_id().v),
+				.iconId = QString::number(icon->id),
 				.emoticons = std::move(emoticons),
+#if 0 // mtp
 				.type = (MTPDemojiGroupGreeting::Is<decltype(data)>()
+#endif
+				.type = (greeting
 					? Ui::EmojiGroupType::Greeting
 					: Ui::EmojiGroupType::Normal),
 			});
@@ -285,7 +300,7 @@ void EmojiStatuses::requestGroups(
 		TLgetEmojiCategories(request)
 	).done([=](const TLemojiCategories &result) {
 		type->requestId = 0;
-		type->data = GroupsFromTL(result);
+		type->data = GroupsFromTL(_owner, result);
 	}).fail([=] {
 		type->requestId = 0;
 	}).send();
@@ -414,6 +429,7 @@ void EmojiStatuses::requestChannelDefault() {
 	if (_channelDefaultRequestId) {
 		return;
 	}
+#if 0 // mtp
 	auto &api = _owner->session().api();
 	_channelDefaultRequestId = api.request(MTPaccount_GetDefaultEmojiStatuses(
 		MTP_long(_channelDefaultHash)
@@ -423,6 +439,11 @@ void EmojiStatuses::requestChannelDefault() {
 			updateChannelDefault(data);
 		}, [&](const MTPDaccount_emojiStatusesNotModified &) {
 		});
+#endif
+	_owner->session().sender().request(TLgetDefaultChatEmojiStatuses(
+	)).done([=](const TLemojiStatuses &result) {
+		_channelDefaultRequestId = 0;
+		updateChannelDefault(result.data());
 	}).fail([=] {
 		_channelDefaultRequestId = 0;
 		_channelDefaultHash = 0;
@@ -433,6 +454,7 @@ void EmojiStatuses::requestChannelColored() {
 	if (_channelColoredRequestId) {
 		return;
 	}
+#if 0 // mtp
 	auto &api = _owner->session().api();
 	_channelColoredRequestId = api.request(MTPmessages_GetStickerSet(
 		MTP_inputStickerSetEmojiChannelDefaultStatuses(),
@@ -444,6 +466,11 @@ void EmojiStatuses::requestChannelColored() {
 		}, [](const MTPDmessages_stickerSetNotModified &) {
 			LOG(("API Error: Unexpected messages.stickerSetNotModified."));
 		});
+#endif
+	_owner->session().sender().request(TLgetThemedChatEmojiStatuses(
+	)).done([=](const TLemojiStatuses &result) {
+		_channelColoredRequestId = 0;
+		updateChannelColored(result.data());
 	}).fail([=] {
 		_channelColoredRequestId = 0;
 	}).send();
@@ -506,6 +533,16 @@ void EmojiStatuses::updateColored(const TLDemojiStatuses &data) {
 	_coloredUpdated.fire({});
 }
 
+void EmojiStatuses::updateChannelDefault(const TLDemojiStatuses &data) {
+	_channelDefault = ListFromTL(data);
+	_channelDefaultUpdated.fire({});
+}
+
+void EmojiStatuses::updateChannelColored(const TLDemojiStatuses &data) {
+	_channelColored = ListFromTL(data);
+	_channelColoredUpdated.fire({});
+}
+
 void EmojiStatuses::set(DocumentId id, TimeId until) {
 	set(_owner->session().user(), id, until);
 }
@@ -516,6 +553,8 @@ void EmojiStatuses::set(
 		TimeId until) {
 #if 0 // mtp
 	auto &api = _owner->session().api();
+#endif
+	auto &api = _owner->session().sender();
 	auto &requestId = _sentRequests[peer];
 	if (requestId) {
 		api.request(base::take(requestId)).cancel();
@@ -530,6 +569,7 @@ void EmojiStatuses::set(
 			_sentRequests.remove(peer);
 		}).send();
 	};
+#if 0 // mtp
 	const auto status = !id
 		? MTP_emojiStatusEmpty()
 		: !until
@@ -541,19 +581,17 @@ void EmojiStatuses::set(
 		send(MTPchannels_UpdateEmojiStatus(channel->inputChannel, status));
 	}
 #endif
-	auto &api = _owner->session().sender();
-	if (_sentRequestId) {
-		api.request(base::take(_sentRequestId)).cancel();
+	if (peer->isSelf()) {
+		send(TLsetEmojiStatus(id
+			? tl_emojiStatus(tl_int64(id), tl_int32(until))
+			: std::optional<TLemojiStatus>()));
+	} else {
+		send(TLsetChatEmojiStatus(
+			peerToTdbChat(peer->id),
+			(id
+				? tl_emojiStatus(tl_int64(id), tl_int32(until))
+				: std::optional<TLemojiStatus>())));
 	}
-	_owner->session().user()->setEmojiStatus(id, until);
-	_sentRequestId = api.request(TLsetEmojiStatus(id
-		? tl_emojiStatus(tl_int64(id), tl_int32(until))
-		: std::optional<TLemojiStatus>()
-	)).done([=] {
-		_sentRequestId = 0;
-	}).fail([=] {
-		_sentRequestId = 0;
-	}).send();
 }
 
 EmojiStatusData ParseEmojiStatus(const MTPEmojiStatus &status) {
