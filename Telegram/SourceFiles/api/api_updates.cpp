@@ -67,6 +67,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum_topic.h"
 #include "window/window_lock_widgets.h"
 #include "chat_helpers/stickers_emoji_pack.h"
+#include "boxes/peers/add_participants_box.h"
 
 namespace Api {
 namespace {
@@ -3109,6 +3110,26 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateFileAddedToDownloads &data) {
 	}, [&](const TLDupdateFileDownload &data) {
 	}, [&](const TLDupdateFileRemovedFromDownloads &data) {
+	}, [&](const TLDupdateAddChatMembersPrivacyForbidden &data) {
+		const auto peerId = peerFromTdbChat(data.vchat_id());
+		if (const auto peer = owner.peerLoaded(peerId)) {
+			auto users = std::vector<not_null<UserData*>>();
+			for (const auto &id : data.vuser_ids().v) {
+				if (const auto user = owner.userLoaded(UserId(id.v))) {
+					users.push_back(user);
+				}
+			}
+			if (const auto window = Core::App().windowFor(peer)) {
+				if (const auto controller = window->sessionController()) {
+					if (&controller->session() == &peer->session()) {
+						ChatInviteForbidden(
+							window->uiShow(),
+							peer,
+							std::move(users));
+					}
+				}
+			}
+		}
 	}, [&](const TLDupdateAutosaveSettings &data) {
 	}, [&](const TLDupdateForumTopicInfo &data) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());

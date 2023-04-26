@@ -267,14 +267,18 @@ struct State {
 				TLgetMessageViewers(
 					peerToTdbChat(item->history()->peer->id),
 					tl_int53(item->id.bare))
-			).done([=](const TLusers &result) {
-				const auto &list = result.data().vuser_ids().v;
+			).done([=](const TLmessageViewers &result) {
+				const auto &list = result.data().vviewers().v;
 				auto &entry = context->cacheRead(item);
 				entry.requestId = 0;
 				auto parsed = Peers();
 				parsed.list.reserve(list.size());
-				for (const auto &id : list) {
-					parsed.list.push_back(UserId(id.v));
+				for (const auto &viewer : list) {
+					const auto &data = viewer.data();
+					parsed.list.push_back({
+						.peer = peerFromUser(data.vuser_id().v),
+						.date = data.vview_date().v,
+					});
 				}
 				entry.data = std::move(parsed);
 			}).fail([=] {
@@ -373,9 +377,13 @@ struct State {
 				};
 				parsed.list.reserve(list.size());
 				for (const auto &reaction : list) {
-					const auto &type = reaction.data().vtype();
+					const auto &data = reaction.data();
+					const auto &type = data.vtype();
 					parsed.list.push_back(PeerWithReaction{
-						.peer = peerFromSender(reaction.data().vsender_id()),
+						.peerWithDate = WhoReadPeer{
+							.peer = peerFromSender(data.vsender_id()),
+							.date = data.vdate().v,
+						},
 						.reaction = Data::ReactionFromTL(type),
 					});
 				}

@@ -408,7 +408,20 @@ bool HistoryInner::BotAbout::refresh() {
 		? make(info->document, textWithEntities)
 		: info->photo
 		? make(info->photo, textWithEntities)
+#if 0 // mtp
 		: make(textWithEntities, MTP_messageMediaEmpty(), groupedId);
+#endif
+		: _history->makeMessage(
+			_history->nextNonHistoryEntryId(),
+			flags,
+			replyTo,
+			viaBotId,
+			date,
+			bot->id,
+			postAuthor,
+			textWithEntities,
+			HistoryMessageMarkupData(),
+			groupedId);
 	_item = AdminLog::OwnedItem(_delegate, item);
 	return true;
 }

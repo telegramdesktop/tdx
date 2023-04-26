@@ -419,7 +419,8 @@ void SendPreparedAlbumIfReady(
 			tl_bool(silentPost),
 			tl_bool(false), // from_background
 			tl_bool(false), // update_order_of_installed_stickers_sets
-			ScheduledToTL(action.options.scheduled)),
+			ScheduledToTL(action.options.scheduled),
+			tl_int32(0)), // sending_id
 		tl_vector(std::move(contents)),
 		tl_bool(false) // only_preview
 	)).done([=](const TLmessages &result) {
@@ -834,7 +835,8 @@ TLmessageSendOptions MessageSendOptions(
 		tl_bool(ShouldSendSilent(peer, action.options)),
 		tl_bool(false), // from_background
 		tl_bool(false), // update_order_of_installed_stickers_sets
-		ScheduledToTL(action.options.scheduled));
+		ScheduledToTL(action.options.scheduled),
+		tl_int32(0)); // sending_id
 }
 
 std::optional<TLmessageReplyTo> MessageReplyTo(

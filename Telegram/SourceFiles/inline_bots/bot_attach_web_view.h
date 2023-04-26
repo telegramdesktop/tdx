@@ -253,7 +253,10 @@ private:
 	QString _botUsername;
 	QString _botAppName;
 	QString _startCommand;
+#if 0 // mtp
 	BotAppData *_app = nullptr;
+#endif
+	std::unique_ptr<BotAppData> _app;
 	QPointer<Ui::GenericBox> _confirmAddBox;
 	bool _appConfirmationRequired = false;
 	bool _appRequestWriteAccess = false;
