@@ -35,6 +35,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/linux/base_linux_xcb_utilities.h"
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
+#include "ui/platform/ui_platform_utility.h"
+
 #include <QtCore/QSize>
 #include <QtCore/QMimeData>
 #include <QtGui/QWindow>
@@ -139,6 +141,23 @@ void ForceDisabled(QAction *action, bool disabled) {
 
 MainWindow::MainWindow(not_null<Window::Controller*> controller)
 : Window::MainWindow(controller) {
+}
+
+rpl::producer<style::align> MainWindow::experimentalAlignValue() const {
+	using namespace Ui::Platform;
+	return TitleControlsLayoutValue(
+	) | rpl::map([=](const TitleControls::Layout &layout) {
+		// See TitleControls::updateControlsPosition.
+		if (ranges::contains(layout.left, TitleControl::Close)) {
+			return style::al_right;
+		} else if (ranges::contains(layout.right, TitleControl::Close)) {
+			return style::al_left;
+		} else if (layout.left.size() > layout.right.size()) {
+			return style::al_right;
+		} else {
+			return style::al_left;
+		}
+	}) | rpl::distinct_until_changed();
 }
 
 void MainWindow::workmodeUpdated(Core::Settings::WorkMode mode) {

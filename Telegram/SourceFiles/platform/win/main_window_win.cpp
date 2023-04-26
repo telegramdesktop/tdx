@@ -30,6 +30,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "history/history.h"
 
+#include "ui/controls/title_sub_widget.h"
+
 #include <QtWidgets/QStyleFactory>
 #include <QtWidgets/QApplication>
 #include <QtGui/QWindow>
@@ -308,6 +310,10 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 	}, lifetime());
 
 	setupPreviewPasscodeLock();
+}
+
+rpl::producer<style::align> MainWindow::experimentalAlignValue() const {
+	return rpl::single(style::al_left);
 }
 
 void MainWindow::setupPreviewPasscodeLock() {

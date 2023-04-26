@@ -34,6 +34,8 @@ protected:
 	void workmodeUpdated(Core::Settings::WorkMode mode) override;
 	void createGlobalMenu() override;
 
+	rpl::producer<style::align> experimentalAlignValue() const;
+
 private:
 	void updateUnityCounter();
 

@@ -396,7 +396,48 @@ MainWindow::MainWindow(not_null<Controller*> controller)
 		}, _outdated->lifetime());
 	}
 
+	crl::on_main(this, [=] {
+		setupConnectingPhrase();
+	});
+
 	Shortcuts::Listen(this);
+}
+
+void MainWindow::setupConnectingPhrase() {
+	using State = Main::Account::ConnectionState;
+	_connectingPhrase = rpl::combine(
+		controller().sessionControllerValue(),
+		rpl::single(
+			rpl::empty
+		) | rpl::then(
+			Core::App().settings().proxy().connectionTypeChanges()
+		)
+	) | rpl::map([=] {
+		const auto account = controller().id().account;
+		return account
+			? account->connectionState()
+			: State::Ready;
+	}) | rpl::distinct_until_changed(
+	) | rpl::map([](State state) {
+		switch (state) {
+		case State::Connecting:
+		case State::ConnectingToProxy:
+			return u"Connecting..."_q;
+		case State::Updating:
+			return u"Updating..."_q;
+		case State::WaitingForNetwork:
+			return u"Waiting for Network..."_q;
+		case State::Ready:
+			return QString();
+		}
+		Unexpected("State value in MainWindow::setupConnectingPhrase.");
+	});
+
+	_connectingPhrase.changes() | rpl::filter([=] {
+		return nativeTitleDisplayed();
+	}) | rpl::start_with_next([=] {
+		updateTitle();
+	}, lifetime());
 }
 
 Main::Account &MainWindow::account() const {
@@ -600,6 +641,7 @@ void MainWindow::refreshTitleWidget() {
 		setNativeFrame(false);
 		_titleShadow.destroy();
 	}
+	updateTitle();
 }
 
 void MainWindow::updateMinimumSize() {
@@ -847,8 +889,23 @@ void MainWindow::updateControlsGeometry() {
 	_body->setGeometry(bodyLeft, bodyTop, bodyWidth, inner.height() - (bodyTop - inner.y()));
 }
 
+bool MainWindow::nativeTitleDisplayed() const {
+	return Ui::Platform::NativeWindowFrameSupported()
+		&& Core::App().settings().nativeWindowFrame();
+}
+
+rpl::producer<QString> MainWindow::connectingPhraseValue() const {
+	return _connectingPhrase.value();
+}
+
 void MainWindow::updateTitle() {
 	if (Core::Quitting()) {
+		return;
+	}
+
+	const auto nativeDisplayed = nativeTitleDisplayed();
+	if (nativeDisplayed && !_connectingPhrase.current().isEmpty()) {
+		setTitle(_connectingPhrase.current() + UnstableWarningText(true));
 		return;
 	}
 
@@ -858,6 +915,9 @@ void MainWindow::updateTitle() {
 		? 0
 		: Core::App().unreadBadge();
 	const auto added = (counter > 0) ? u" (%1)"_q.arg(counter) : QString();
+	if (nativeDisplayed) {
+		const_cast<QString&>(added) += UnstableWarningText(true);
+	}
 	const auto session = locked ? nullptr : _controller->sessionController();
 	const auto user = (session
 		&& !settings.hideAccountName
@@ -1100,6 +1160,11 @@ WindowPosition PositionWithScreen(
 		position,
 		screen ? screen : QGuiApplication::primaryScreen(),
 		minimal);
+}
+
+QString UnstableWarningText(bool trailing) {
+	static const auto sep = QString::fromUtf8(" \xE2\x80\xA2 ");
+	return (trailing ? sep : QString()) + "EXPERIMENTAL";
 }
 
 } // namespace Window
