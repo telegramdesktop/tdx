@@ -256,6 +256,9 @@ void SuggestionsWidget::showWithQuery(SuggestionsQuery query, bool force) {
 		) | ranges::views::transform([](const Entry &result) {
 			return Row(result.emoji, result.replacement);
 		}) | ranges::to_vector));
+		if (middle) {
+			selectFirstResult();
+		}
 	});
 	_queryRequestId = Core::App().emojiKeywords().requestMine(
 		real,
