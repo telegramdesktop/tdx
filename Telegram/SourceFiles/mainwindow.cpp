@@ -48,6 +48,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_window.h"
 
+#include "ui/controls/title_sub_widget.h"
+
 #include <QtGui/QWindow>
 
 namespace {
@@ -103,7 +105,37 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 		Ui::ForceFullRepaint(this);
 	}, lifetime());
 
+	crl::on_main(this, [=] {
+		setupConnectingState();
+	});
+
 	setAttribute(Qt::WA_OpaquePaintEvent);
+}
+
+void MainWindow::setupConnectingState() {
+	const auto title = dynamic_cast<Ui::RpWidget*>(children().front());
+	Assert(title != nullptr);
+	Ui::CreateTitleSubWidget(
+		title,
+		Ui::SmallTitleTextStyle(),
+		rpl::single(Window::UnstableWarningText()),
+		experimentalAlignValue());
+
+	auto text = connectingPhraseValue(
+	) | rpl::filter([](const QString &text) {
+		return !text.isEmpty();
+	});
+	auto shown = connectingPhraseValue(
+	) | rpl::map([](const QString &text) {
+		return !text.isEmpty();
+	});
+	Ui::CreateTitleSubWidget(
+		title,
+		titleTextStyle(),
+		std::move(text),
+		rpl::single(style::al_center),
+		std::move(shown),
+		true);
 }
 
 void MainWindow::initHook() {

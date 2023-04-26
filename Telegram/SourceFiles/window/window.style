@@ -340,3 +340,6 @@ macCautionIconSize: 16;
 macWindowRoundRadius: 10;
 macWindowShadowTopLeft: icon {{ "mac_window_shadow_top_left", windowShadowFg }};
 macTrayIcon: icon {{ "mac_tray_icon", windowFg }};
+
+titleSubWidgetLeft: icon {{ "fade_horizontal", titleBgActive }};
+titleSubWidgetRight: icon {{ "fade_horizontal-flip_horizontal", titleBgActive }};
