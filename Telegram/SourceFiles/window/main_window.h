@@ -185,6 +185,9 @@ protected:
 
 	void setPositionInited();
 
+	[[nodiscard]] virtual bool nativeTitleDisplayed() const;
+	[[nodiscard]] rpl::producer<QString> connectingPhraseValue() const;
+
 	virtual QRect computeDesktopRect() const;
 
 private:
@@ -201,6 +204,9 @@ private:
 	bool computeIsActive() const;
 
 	not_null<Window::Controller*> _controller;
+
+	void setupConnectingPhrase();
+	rpl::variable<QString> _connectingPhrase;
 
 	base::Timer _positionUpdatedTimer;
 	bool _positionInited = false;
@@ -223,6 +229,8 @@ private:
 	mutable crl::time _monitorLastGot = 0;
 
 };
+
+[[nodiscard]] QString UnstableWarningText(bool trailing = false);
 
 [[nodiscard]] int32 DefaultScreenNameChecksum(const QString &name);
 

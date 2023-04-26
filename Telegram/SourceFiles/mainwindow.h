@@ -123,6 +123,8 @@ private:
 
 	void themeUpdated(const Window::Theme::BackgroundUpdate &data);
 
+	void setupConnectingState();
+
 	QPoint _lastMousePosition;
 
 	object_ptr<Window::PasscodeLockWidget> _passcodeLock = { nullptr };

@@ -44,6 +44,10 @@ protected:
 	void closeWithoutDestroy() override;
 	void createGlobalMenu() override;
 
+	bool nativeTitleDisplayed() const override;
+	void setupNativeTitleDisplayed();
+	rpl::producer<style::align> experimentalAlignValue() const;
+
 private:
 	friend class Private;
 
@@ -58,6 +62,7 @@ private:
 	base::Timer _hideAfterFullScreenTimer;
 
 	rpl::variable<bool> _canApplyMarkdown;
+	rpl::variable<bool> _customTitleHidden = false;
 
 	QMenuBar psMainMenu;
 	QAction *psLogout = nullptr;
