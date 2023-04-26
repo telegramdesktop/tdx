@@ -53,6 +53,8 @@ protected:
 		void *message,
 		native_event_filter_result *result) override;
 
+	rpl::producer<style::align> experimentalAlignValue() const;
+
 private:
 	struct Private;
 
