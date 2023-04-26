@@ -272,6 +272,36 @@ struct State {
 		auto &entry = context->cacheRead(item);
 		if (entry.requestId) {
 		} else if (const auto user = item->history()->peer->asUser()) {
+			entry.requestId = session->sender().request(TLgetMessageReadDate(
+				peerToTdbChat(user->id),
+				tl_int53(item->id.bare)
+			)).done([=](const TLmessageReadDate &result) {
+				auto &entry = context->cacheRead(item);
+				entry.requestId = 0;
+				auto parsed = Peers();
+				result.match([&](const TLDmessageReadDateRead &data) {
+					parsed.list.push_back({
+						.peer = user->id,
+						.date = data.vread_date().v,
+					});
+				}, [&](const TLDmessageReadDateUnread &) {
+					parsed.state = WhoReadState::Empty;
+				}, [&](const TLDmessageReadDateTooOld &) {
+					parsed.state = WhoReadState::TooOld;
+				}, [&](const TLDmessageReadDateUserPrivacyRestricted &) {
+					parsed.state = WhoReadState::HisHidden;
+				}, [&](const TLDmessageReadDateMyPrivacyRestricted &) {
+					parsed.state = WhoReadState::MyHidden;
+				});
+				entry.data = std::move(parsed);
+			}).fail([=] {
+				auto &entry = context->cacheRead(item);
+				entry.requestId = 0;
+				if (entry.data.current().state == WhoReadState::Unknown) {
+					entry.data = Peers{ .state = WhoReadState::Empty };
+				}
+			}).send();
+#if 0 // mtp
 			entry.requestId = session->api().request(
 				MTPmessages_GetOutboxReadDate(
 					user->input,
@@ -301,6 +331,7 @@ struct State {
 						: Peers{ .state = WhoReadState::Empty };
 				}
 			}).send();
+#endif
 		} else {
 #if 0 // mtp
 			entry.requestId = session->api().request(
@@ -324,14 +355,18 @@ struct State {
 				TLgetMessageViewers(
 					peerToTdbChat(item->history()->peer->id),
 					tl_int53(item->id.bare))
-			).done([=](const TLusers &result) {
-				const auto &list = result.data().vuser_ids().v;
+			).done([=](const TLmessageViewers &result) {
+				const auto &list = result.data().vviewers().v;
 				auto &entry = context->cacheRead(item);
 				entry.requestId = 0;
 				auto parsed = Peers();
 				parsed.list.reserve(list.size());
-				for (const auto &id : list) {
-					parsed.list.push_back(UserId(id.v));
+				for (const auto &viewer : list) {
+					const auto &data = viewer.data();
+					parsed.list.push_back({
+						.peer = peerFromUser(data.vuser_id().v),
+						.date = data.vview_date().v,
+					});
 				}
 				entry.data = std::move(parsed);
 			}).fail([=] {
@@ -430,9 +465,13 @@ struct State {
 				};
 				parsed.list.reserve(list.size());
 				for (const auto &reaction : list) {
-					const auto &type = reaction.data().vtype();
+					const auto &data = reaction.data();
+					const auto &type = data.vtype();
 					parsed.list.push_back(PeerWithReaction{
-						.peer = peerFromSender(reaction.data().vsender_id()),
+						.peerWithDate = WhoReadPeer{
+							.peer = peerFromSender(data.vsender_id()),
+							.date = data.vdate().v,
+						},
 						.reaction = Data::ReactionFromTL(type),
 					});
 				}

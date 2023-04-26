@@ -371,7 +371,10 @@ AdminLog::OwnedItem AboutView::makeAboutBot(not_null<BotInfo*> info) {
 		? make(info->document, textWithEntities)
 		: info->photo
 		? make(info->photo, textWithEntities)
+		: make(textWithEntities);
+#if 0 // mtp
 		: make(textWithEntities, MTP_messageMediaEmpty());
+#endif
 	return AdminLog::OwnedItem(_delegate, item);
 }
 

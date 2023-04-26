@@ -401,8 +401,29 @@ void UserData::setBotInfo(const TLbotInfo &info) {
 	const auto description = data.vdescription().v;
 	if (botInfo->description != description) {
 		botInfo->description = description;
-		botInfo->text = Ui::Text::String(st::msgMinWidth);
+		++botInfo->descriptionVersion;
 	}
+	if (const auto photo = data.vphoto()) {
+		const auto parsed = owner().processPhoto(*photo);
+		if (botInfo->photo != parsed) {
+			botInfo->photo = parsed;
+			++botInfo->descriptionVersion;
+		}
+	} else if (botInfo->photo) {
+		botInfo->photo = nullptr;
+		++botInfo->descriptionVersion;
+	}
+	if (const auto document = data.vanimation()) {
+		const auto parsed = owner().processDocument(*document);
+		if (botInfo->document != parsed) {
+			botInfo->document = parsed;
+			++botInfo->descriptionVersion;
+		}
+	} else if (botInfo->document) {
+		botInfo->document = nullptr;
+		++botInfo->descriptionVersion;
+	}
+
 	auto commands = ranges::views::all(
 		data.vcommands().v
 	) | ranges::views::transform(
@@ -827,7 +848,7 @@ void ApplyUserUpdate(
 		? UserData::CallsStatus::Enabled
 		: UserData::CallsStatus::Disabled);
 	user->setAbout(update.vbot_info()
-		? update.vbot_info()->data().vshare_text().v
+		? update.vbot_info()->data().vshort_description().v
 		: update.vbio()
 		? update.vbio()->data().vtext().v // later use tdlib entities
 		: QString());

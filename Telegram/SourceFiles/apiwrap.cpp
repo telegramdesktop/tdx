@@ -1676,8 +1676,8 @@ void ApiWrap::markContentsRead(
 	for (const auto &[history, ids] : viewed) {
 		sender().request(TLviewMessages(
 			peerToTdbChat(history->peer->id),
-			tl_int53(0), // message_thread_id
 			tl_vector<TLint53>(ids),
+			tl_messageSourceChatHistory(),
 			tl_bool(false)
 		)).send();
 	}
@@ -1709,8 +1709,8 @@ void ApiWrap::markContentsRead(not_null<HistoryItem*> item) {
 	} else {
 		sender().request(TLviewMessages(
 			peerToTdbChat(item->history()->peer->id),
-			tl_int53(0), // message_thread_id
 			tl_vector<TLint53>(1, tl_int53(item->id.bare)),
+			tl_messageSourceChatHistory(),
 			tl_bool(false)
 		)).send();
 	}
@@ -4205,7 +4205,8 @@ void ApiWrap::forwardMessages(
 				tl_bool(silentPost),
 				tl_bool(false), // from_background
 				tl_bool(false), // update_order_of_installed_stickers_sets
-				Api::ScheduledToTL(action.options.scheduled)),
+				Api::ScheduledToTL(action.options.scheduled),
+				tl_int32(0)), // sending_id
 			tl_bool(draft.options != Data::ForwardOptions::PreserveInfo),
 			tl_bool(
 				draft.options == Data::ForwardOptions::NoNamesAndCaptions),

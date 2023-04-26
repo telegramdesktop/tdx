@@ -277,7 +277,10 @@ private:
 	const WebViewButton _button;
 	const WebViewSource _source;
 
+#if 0 // mtp
 	BotAppData *_app = nullptr;
+#endif
+	std::unique_ptr<BotAppData> _app;
 	QString _appStartParam;
 	bool _dataSent = false;
 

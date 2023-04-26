@@ -114,8 +114,8 @@ void ViewsManager::viewsIncrement() {
 		}) | ranges::to<QVector>();
 		const auto requestId = _session->sender().request(TLviewMessages(
 			peerToTdbChat(peer->id),
-			tl_int53(0), // message_thread_id
 			tl_vector<TLint53>(std::move(ids)),
+			tl_messageSourceChatHistory(),
 			tl_bool(false)
 		)).done(finish).fail(finish).send();
 

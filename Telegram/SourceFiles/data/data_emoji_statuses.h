@@ -100,6 +100,8 @@ private:
 	void updateRecent(const Tdb::TLDemojiStatuses &data);
 	void updateDefault(const Tdb::TLDemojiStatuses &data);
 	void updateColored(const Tdb::TLDemojiStatuses &data);
+	void updateChannelDefault(const Tdb::TLDemojiStatuses &data);
+	void updateChannelColored(const Tdb::TLDemojiStatuses &data);
 
 	template <typename Request>
 	void requestGroups(not_null<GroupsType*> type, Request &&request);

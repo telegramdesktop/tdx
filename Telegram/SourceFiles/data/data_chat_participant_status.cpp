@@ -75,7 +75,7 @@ ChatRestrictions RestrictionsFromPermissions(
 		| bit(data.vcan_send_videos(), Flag::SendVideos)
 		| bit(data.vcan_send_video_notes(), Flag::SendVideoMessages)
 		| bit(data.vcan_send_voice_notes(), Flag::SendVoiceMessages)
-		| bit(data.vcan_send_messages(), Flag::SendOther)
+		| bit(data.vcan_send_basic_messages(), Flag::SendOther)
 		| bit(data.vcan_send_polls(), Flag::SendPolls)
 		| bit(data.vcan_send_other_messages(), Flag::SendStickers)
 		| bit(data.vcan_send_other_messages(), Flag::SendGames)
