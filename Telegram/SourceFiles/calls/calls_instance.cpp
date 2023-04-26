@@ -684,6 +684,14 @@ void Instance::handleCallUpdate(
 			}
 		} else {
 			if (received) {
+				if (inCall()
+					&& _currentCall->type() == Call::Type::Outgoing
+					&& _currentCall->user()->id == session->userPeerId()
+					&& (peerFromUser(call.vuser_id())
+						== _currentCall->user()->session().userPeerId())) {
+					// Ignore call from the same running app, other account.
+					return;
+				}
 				processIncoming();
 			}
 			_currentCall->handleUpdate(call);
