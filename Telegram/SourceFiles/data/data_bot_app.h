@@ -10,8 +10,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_document.h"
 
+namespace Tdb {
+class TLwebApp;
+} // namespace Tdb
+
 struct BotAppData {
 	BotAppData(not_null<Data::Session*> owner, const BotAppId &id);
+
+	void apply(PeerId bot, const Tdb::TLwebApp &app);
 
 	const not_null<Data::Session*> owner;
 	BotAppId id = 0;

@@ -1154,8 +1154,8 @@ void RepliesList::sendReadTillRequest() {
 
 	_readRequestId = sender->request(TLviewMessages(
 		peerToTdbChat(_history->peer->id),
-		tl_int53(_rootId.bare),
 		tl_vector<TLint53>(1, tl_int53(computeInboxReadTillFull().bare)),
+		tl_messageSourceChatHistory(),
 		tl_bool(true)
 	)).done(crl::guard(this, [=] {
 		_readRequestId = 0;
