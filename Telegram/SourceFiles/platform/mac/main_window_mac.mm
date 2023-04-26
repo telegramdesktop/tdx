@@ -36,6 +36,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/fields/input_field.h"
 #include "ui/ui_utility.h"
 
+#include "ui/controls/title_sub_widget.h"
+
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QLineEdit>
 #include <QtWidgets/QTextEdit>
@@ -252,6 +254,8 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 , _private(std::make_unique<Private>(this))
 , psMainMenu(this) {
 	_hideAfterFullScreenTimer.setCallback([this] { hideAndDeactivate(); });
+
+	setupNativeTitleDisplayed();
 }
 
 void MainWindow::closeWithoutDestroy() {
@@ -511,6 +515,23 @@ void MainWindow::createGlobalMenu() {
 		[=] { showFromTray(); });
 
 	updateGlobalMenu();
+}
+
+bool MainWindow::nativeTitleDisplayed() const {
+	return _customTitleHidden.current();
+}
+
+rpl::producer<style::align> MainWindow::experimentalAlignValue() const {
+	return rpl::single(style::al_right);
+}
+
+void MainWindow::setupNativeTitleDisplayed() {
+	const auto title = dynamic_cast<Ui::RpWidget*>(children().front());
+	Assert(title != nullptr);
+	_customTitleHidden = title->shownValue() | rpl::map(!rpl::mappers::_1);
+	_customTitleHidden.changes() | rpl::start_with_next([=] {
+		updateTitle();
+	}, lifetime());
 }
 
 void MainWindow::updateGlobalMenuHook() {
