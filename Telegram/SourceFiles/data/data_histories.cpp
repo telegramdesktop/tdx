@@ -732,8 +732,8 @@ void Histories::sendReadRequest(not_null<History*> history, State &state) {
 	};
 	session().sender().request(TLviewMessages(
 		peerToTdbChat(history->peer->id),
-		tl_int53(0), // message_thread_id - reading not topics/comments here.
 		tl_vector<TLint53>(1, tl_int53(tillId.bare)),
+		tl_messageSourceChatHistory(),
 		tl_bool(true)
 	)).done(finished).fail(finished).send();
 

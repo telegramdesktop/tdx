@@ -212,6 +212,7 @@ void EmojiStatuses::requestProfilePhotoGroups() {
 }
 
 [[nodiscard]] std::vector<Ui::EmojiGroup> GroupsFromTL(
+		not_null<Data::Session*> owner,
 		const TLemojiCategories &categories) {
 #if 0 // mtp
 		const MTPDmessages_emojiGroups &data) {
@@ -232,11 +233,12 @@ void EmojiStatuses::requestProfilePhotoGroups() {
 		) | ranges::views::transform([](const TLstring &emoticon) {
 			return emoticon.v;
 		}) | ranges::to_vector;
+		const auto icon = owner->processDocument(data.vicon());
 		result.push_back({
 #if 0 // mtp
 			.iconId = QString::number(data.vicon_emoji_id().v),
 #endif
-			.iconId = QString::number(data.vicon_custom_emoji_id().v),
+			.iconId = QString::number(icon->id),
 			.emoticons = std::move(emoticons),
 		});
 	}
@@ -265,7 +267,7 @@ void EmojiStatuses::requestGroups(
 		TLgetEmojiCategories(request)
 	).done([=](const TLemojiCategories &result) {
 		type->requestId = 0;
-		type->data = GroupsFromTL(result);
+		type->data = GroupsFromTL(_owner, result);
 	}).fail([=] {
 		type->requestId = 0;
 	}).send();
