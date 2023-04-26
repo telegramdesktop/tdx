@@ -47,6 +47,8 @@ protected:
 
 	bool initGeometryFromSystem() override;
 
+	rpl::producer<style::align> experimentalAlignValue() const;
+
 private:
 	struct Private;
 
