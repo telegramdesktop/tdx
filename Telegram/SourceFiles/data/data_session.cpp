@@ -4269,6 +4269,7 @@ void Session::gameApplyFields(
 	notifyGameUpdateDelayed(game);
 }
 
+#if 0 // mtp
 not_null<BotAppData*> Session::botApp(BotAppId id) {
 	const auto i = _botApps.find(id);
 	return (i != end(_botApps))
@@ -4307,6 +4308,7 @@ BotAppData *Session::processBotApp(
 		return (BotAppData*)nullptr;
 	});
 }
+#endif
 
 not_null<PollData*> Session::poll(PollId id) {
 	auto i = _polls.find(id);
