@@ -738,11 +738,13 @@ public:
 		const MTPGame &data);
 #endif
 
+#if 0 // mtp
 	[[nodiscard]] not_null<BotAppData*> botApp(BotAppId id);
 	BotAppData *findBotApp(PeerId botId, const QString &appName) const;
 	BotAppData *processBotApp(
 		PeerId botId,
 		const MTPBotApp &data);
+#endif
 
 	[[nodiscard]] not_null<PollData*> poll(PollId id);
 #if 0 // mtp
@@ -1186,9 +1188,11 @@ private:
 	std::unordered_map<
 		GameId,
 		std::unique_ptr<GameData>> _games;
+#if 0 // mtp
 	std::unordered_map<
 		BotAppId,
 		std::unique_ptr<BotAppData>> _botApps;
+#endif
 	std::unordered_map<
 		not_null<const GameData*>,
 		base::flat_set<not_null<ViewElement*>>> _gameViews;
