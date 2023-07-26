@@ -11,6 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_location.h"
 #include "data/data_message_reaction_id.h"
 
+namespace Tdb {
+class TLDstory;
+class TLDstoryInteractionInfo;
+} // namespace Tdb
+
 class Image;
 class PhotoData;
 class DocumentData;
@@ -36,7 +41,9 @@ enum class StoryPrivacy : uchar {
 struct StoryIdDates {
 	StoryId id = 0;
 	TimeId date = 0;
+#if 0 // mtp
 	TimeId expires = 0;
+#endif
 
 	[[nodiscard]] bool valid() const {
 		return id != 0;
@@ -128,7 +135,10 @@ public:
 		StoryId id,
 		not_null<PeerData*> peer,
 		StoryMedia media,
+		const Tdb::TLDstory &data,
+#if 0 // mtp
 		const MTPDstoryItem &data,
+#endif
 		TimeId now);
 
 	static constexpr int kRecentViewersMax = 3;
@@ -142,7 +152,9 @@ public:
 	[[nodiscard]] StoryIdDates idDates() const;
 	[[nodiscard]] FullStoryId fullId() const;
 	[[nodiscard]] TimeId date() const;
+#if 0 // mtp
 	[[nodiscard]] TimeId expires() const;
+#endif
 	[[nodiscard]] bool unsupported() const;
 	[[nodiscard]] bool expired(TimeId now = 0) const;
 	[[nodiscard]] const StoryMedia &media() const;
@@ -158,7 +170,10 @@ public:
 	[[nodiscard]] StoryPrivacy privacy() const;
 	[[nodiscard]] bool forbidsForward() const;
 	[[nodiscard]] bool edited() const;
+#if 0 // mtp
 	[[nodiscard]] bool out() const;
+#endif
+	[[nodiscard]] bool canToggleIsPinned() const;
 
 	[[nodiscard]] bool canDownloadIfPremium() const;
 	[[nodiscard]] bool canDownloadChecked() const;
@@ -197,9 +212,14 @@ public:
 
 	void applyChanges(
 		StoryMedia media,
+		const Tdb::TLDstory &data,
+#if 0 // mtp
 		const MTPDstoryItem &data,
+#endif
 		TimeId now);
+#if 0 // mtp
 	void applyViewsCounts(const MTPDstoryViews &data);
+#endif
 	[[nodiscard]] TimeId lastUpdateTime() const;
 
 	[[nodiscard]] bool repost() const;
@@ -222,14 +242,21 @@ private:
 	void changeSuggestedReactionCount(Data::ReactionId id, int delta);
 	void applyFields(
 		StoryMedia media,
+		const Tdb::TLDstory &data,
+#if 0 // mtp
 		const MTPDstoryItem &data,
+#endif
 		TimeId now,
 		bool initial);
 
 	void updateViewsCounts(ViewsCounts &&counts, bool known, bool initial);
 	[[nodiscard]] ViewsCounts parseViewsCounts(
+#if 0 // mtp
 		const MTPDstoryViews &data,
+#endif
+		const Tdb::TLDstoryInteractionInfo &data,
 		const Data::ReactionId &mine);
+
 
 	const StoryId _id = 0;
 	const not_null<PeerData*> _peer;
@@ -247,9 +274,16 @@ private:
 	StoryViews _views;
 	StoryViews _channelReactions;
 	const TimeId _date = 0;
+#if 0 // mtp
 	const TimeId _expires = 0;
+#endif
 	TimeId _lastUpdateTime = 0;
+#if 0 // mtp
 	bool _out : 1 = false;
+#endif
+	bool _canEdit : 1 = false;
+	bool _canDelete : 1 = false;
+	bool _canToggleIsPinned : 1 = false;
 	bool _pinned : 1 = false;
 	bool _privacyPublic : 1 = false;
 	bool _privacyCloseFriends : 1 = false;
@@ -258,6 +292,7 @@ private:
 	const bool _repostModified : 1 = false;
 	bool _noForwards : 1 = false;
 	bool _edited : 1 = false;
+	bool _expired : 1 = false;
 
 };
 

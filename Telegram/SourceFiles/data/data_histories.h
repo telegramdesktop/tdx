@@ -27,12 +27,14 @@ class Session;
 class Folder;
 struct WebPageDraft;
 
+#if 0 // mtp
 [[nodiscard]] MTPInputReplyTo ReplyToForMTP(
 	not_null<History*> history,
 	FullReplyTo replyTo);
 [[nodiscard]] MTPInputMedia WebPageForMTP(
 	const Data::WebPageDraft &draft,
 	bool required = false);
+#endif
 
 class Histories final {
 public:
@@ -110,7 +112,6 @@ public:
 		RequestType type,
 		Fn<mtpRequestId(Fn<void()> finish)> generator);
 	void cancelRequest(int id);
-#endif
 
 	using PreparedMessage = std::variant<
 		MTPmessages_SendMessage,
@@ -135,6 +136,7 @@ public:
 			return { ReplaceReplyIds(history, args, replyTo)... };
 		};
 	}
+#endif
 
 	void checkTopicCreated(FullMsgId rootId, MsgId realRoot);
 	[[nodiscard]] FullMsgId convertTopicReplyToId(
@@ -166,6 +168,7 @@ private:
 		MsgId aroundId = 0;
 		mtpRequestId requestId = 0;
 	};
+#if 0 // mtp
 	struct DelayedByTopicMessage {
 		uint64 randomId = 0;
 		FullMsgId replyTo;
@@ -174,6 +177,7 @@ private:
 		Fn<void(const MTP::Error&, const MTP::Response&)> fail;
 		int requestId = 0;
 	};
+#endif
 	struct GroupRequestKey {
 		not_null<History*> history;
 		MsgId rootId = 0;
@@ -183,6 +187,7 @@ private:
 			GroupRequestKey) = default;
 	};
 
+#if 0 // mtp
 	template <typename Arg>
 	static auto ReplaceReplyIds(
 			not_null<History*> history,
@@ -194,6 +199,7 @@ private:
 			return arg;
 		}
 	}
+#endif
 
 	void readInboxTill(not_null<History*> history, MsgId tillId, bool force);
 	void sendReadRequests();
@@ -241,9 +247,11 @@ private:
 		GroupRequestKey,
 		ChatListGroupRequest> _chatListGroupRequests;
 
+#if 0 // mtp
 	base::flat_map<
 		FullMsgId,
 		std::vector<DelayedByTopicMessage>> _creatingTopics;
+#endif
 	base::flat_map<FullMsgId, MsgId> _createdTopicIds;
 	base::flat_set<mtpRequestId> _creatingTopicRequests;
 

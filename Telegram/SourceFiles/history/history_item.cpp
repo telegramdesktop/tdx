@@ -4001,6 +4001,8 @@ void HistoryItem::createServiceFromTdb(const TLmessageContent &content) {
 
 void HistoryItem::setServiceMessageByContent(
 		const TLmessageContent &content) {
+	applyContent(content);
+
 	const auto prepareServiceTextForSharedPeer = [&](PeerId peerId) {
 		const auto peer = history()->owner().peer(peerId);
 		auto result = PreparedServiceText{};
@@ -4540,6 +4542,25 @@ void HistoryItem::setServiceMessageByContent(
 				lt_cost,
 				{ Ui::FillAmountAndCurrency(amount, currency) },
 				Ui::Text::WithEntities);
+	}, [&](const TLDmessagePremiumGiftCode &action) {
+		prepared.text = {
+			(action.vis_unclaimed().v
+				? tr::lng_prize_unclaimed_about
+				: action.vis_from_giveaway().v
+				? tr::lng_prize_about
+				: tr::lng_prize_gift_about)(
+					tr::now,
+					lt_channel,
+					_from->owner().peer(
+						peerFromSender(action.vcreator_id()))->name()),
+		};
+	}, [&](const TLDmessagePremiumGiveawayCreated &data) {
+		prepared.links.push_back(fromLink());
+		prepared.text = tr::lng_action_giveaway_started(
+			tr::now,
+			lt_from,
+			fromLinkText(), // Link 1.
+			Ui::Text::WithEntities);
 	}, [&](const TLDmessageForumTopicCreated &data) {
 		const auto topicUrl = u"internal:url:https://t.me/c/%1/%2"_q
 			.arg(peerToChannel(history()->peer->id).bare)
@@ -4667,7 +4688,6 @@ void HistoryItem::setServiceMessageByContent(
 		Unexpected("Type in TLDmessage.content.");
 	});
 	setServiceText(std::move(prepared));
-	applyContent(content);
 }
 
 void HistoryItem::applyContent(const TLmessageContent &content) {
@@ -4700,6 +4720,24 @@ void HistoryItem::applyContent(const TLmessageContent &content) {
 			(data.vsticker()
 				? _history->owner().processDocument(*data.vsticker()).get()
 				: nullptr));
+	}, [&](const TLDmessagePremiumGiftCode &data) {
+		const auto boostedId = peerFromSender(data.vcreator_id());
+		_media = std::make_unique<Data::MediaGiftBox>(
+			this,
+			_from,
+			Data::GiftCode{
+				.slug = data.vcode().v,
+				.channel = (peerIsChannel(boostedId)
+					? _history->owner().channel(
+						peerToChannel(boostedId)).get()
+					: nullptr),
+				.months = data.vmonth_count().v,
+				.viaGiveaway = data.vis_from_giveaway().v,
+				.unclaimed = data.vis_unclaimed().v,
+			},
+			(data.vsticker()
+				? _history->owner().processDocument(*data.vsticker()).get()
+				: nullptr));
 	}, [&](const TLDmessageBasicGroupChatCreate &) {
 		_flags |= MessageFlag::IsGroupEssential;
 	}, [&](const TLDmessageSupergroupChatCreate &) {
@@ -4722,6 +4760,8 @@ void HistoryItem::applyContent(const TLmessageContent &content) {
 		if (const auto paper = Data::WallPaper::Create(session, attached)) {
 			_media = std::make_unique<Data::MediaWallPaper>(this, *paper);
 		}
+	}, [&](const TLDmessageStory &data) {
+		setMedia(content);
 	}, [](const auto &) {
 	});
 }
@@ -4782,7 +4822,8 @@ void HistoryItem::setContent(const TLmessageContent &content) {
 			|| TLDmessageDice::Is<T>()
 			|| TLDmessagePoll::Is<T>()
 			|| TLDmessageInvoice::Is<T>()
-			|| TLDmessageCall::Is<T>()) {
+			|| TLDmessageCall::Is<T>()
+			|| TLDmessagePremiumGiveaway::Is<T>()) {
 			setMedia(content);
 		} else if constexpr (TLDmessageExpiredPhoto::Is<T>()
 			|| TLDmessageExpiredVideo::Is<T>()
@@ -4814,6 +4855,8 @@ void HistoryItem::setContent(const TLmessageContent &content) {
 			|| TLDmessageProximityAlertTriggered::Is<T>()
 			|| TLDmessageChatJoinByRequest::Is<T>()
 			|| TLDmessageGiftedPremium::Is<T>()
+			|| TLDmessagePremiumGiveawayCreated::Is<T>()
+			|| TLDmessagePremiumGiftCode::Is<T>()
 			|| TLDmessageForumTopicCreated::Is<T>()
 			|| TLDmessageForumTopicEdited::Is<T>()
 			|| TLDmessageForumTopicIsClosedToggled::Is<T>()
@@ -4823,6 +4866,13 @@ void HistoryItem::setContent(const TLmessageContent &content) {
 			|| TLDmessageUserShared::Is<T>()
 			|| TLDmessageChatShared::Is<T>()) {
 			createServiceFromTdb(content);
+		} else if constexpr (TLDmessageStory::Is<T>()) {
+			if (data.vvia_mention().v) {
+				createServiceFromTdb(content);
+			} else {
+				setMedia(content);
+				//setFormattedText(data.vshare_comment()); // tdlib todo
+			}
 		} else if constexpr (TLDmessageUnsupported::Is<T>()) {
 			setText(UnsupportedMessageText());
 		} else {
@@ -4919,40 +4969,40 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 			item,
 			data.vvideo_note().data().vspeech_recognition_result(),
 			true);
-	return std::make_unique<Data::MediaFile>(
-		item,
-		owner.processDocument(data.vvideo_note()),
-		skipPremiumEffectDefault,
-		hasSpoilerDefault);
+		return std::make_unique<Data::MediaFile>(
+			item,
+			owner.processDocument(data.vvideo_note()),
+			skipPremiumEffectDefault,
+			hasSpoilerDefault);
 	}, [&](const TLDmessageVoiceNote &data) -> Result {
 		ApplyTranscribe(
 			item,
 			data.vvoice_note().data().vspeech_recognition_result(),
 			false);
-	return std::make_unique<Data::MediaFile>(
-		item,
-		owner.processDocument(data.vvoice_note()),
-		skipPremiumEffectDefault,
-		hasSpoilerDefault);
+		return std::make_unique<Data::MediaFile>(
+			item,
+			owner.processDocument(data.vvoice_note()),
+			skipPremiumEffectDefault,
+			hasSpoilerDefault);
 	}, [&](const TLDmessageLocation &data) -> Result {
 		return std::make_unique<Data::MediaLocation>(
 			item,
 			Data::LocationPoint(data.vlocation()));
 	}, [&](const TLDmessageVenue &data) -> Result {
 		const auto &fields = data.vvenue().data();
-	return std::make_unique<Data::MediaLocation>(
-		item,
-		Data::LocationPoint(fields.vlocation()),
-		fields.vtitle().v,
-		fields.vaddress().v);
+		return std::make_unique<Data::MediaLocation>(
+			item,
+			Data::LocationPoint(fields.vlocation()),
+			fields.vtitle().v,
+			fields.vaddress().v);
 	}, [&](const TLDmessageContact &data) -> Result {
 		const auto &fields = data.vcontact().data();
-	return std::make_unique<Data::MediaContact>(
-		item,
-		UserId(fields.vuser_id()),
-		fields.vfirst_name().v,
-		fields.vlast_name().v,
-		fields.vphone_number().v);
+		return std::make_unique<Data::MediaContact>(
+			item,
+			UserId(fields.vuser_id()),
+			fields.vfirst_name().v,
+			fields.vlast_name().v,
+			fields.vphone_number().v);
 	}, [&](const TLDmessageDice &data) -> Result {
 		return std::make_unique<Data::MediaDice>(item, data);
 	}, [&](const TLDmessageGame &data) -> Result {
