@@ -2938,10 +2938,11 @@ void Updates::applyUpdate(const TLupdate &update) {
 		if (const auto history = owner.historyLoaded(peerId)) {
 			history->setUnreadMark(data.vis_marked_as_unread().v);
 		}
-	}, [&](const TLDupdateChatIsBlocked &data) {
+	}, [&](const TLDupdateChatBlockList &data) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
 		if (const auto peer = session().data().peerLoaded(peerId)) {
-			peer->setIsBlocked(data.vis_blocked().v);
+			peer->setIsBlocked(data.vblock_list()
+				&& data.vblock_list()->type() == id_blockListMain);
 		}
 	}, [&](const TLDupdateChatHasScheduledMessages &data) {
 		// later optimization
@@ -3285,10 +3286,24 @@ void Updates::applyUpdate(const TLupdate &update) {
 				topic->applyInfo(data.vinfo());
 			}
 		}
+	}, [&](const TLDupdateStory &data) {
+		owner.stories().apply(data);
+	}, [&](const TLDupdateStoryDeleted &data) {
+		owner.stories().apply(data);
+	}, [&](const TLDupdateChatActiveStories &data) {
+		owner.stories().apply(data);
+	}, [&](const TLDupdateStoryListChatCount &data) {
+		owner.stories().apply(data);
+	}, [&](const TLDupdateStoryStealthMode &data) {
+		owner.stories().apply(data);
 
 		// Updates below are handled in a different place.
 	}, [&](const TLDupdateConnectionState &data) {
 	}, [&](const TLDupdateServiceNotification &data) {
+
+		// Updates below are not relevant.
+	}, [&](const TLDupdateStorySendSucceeded &data) {
+	}, [&](const TLDupdateStorySendFailed &data) {
 	});
 	session().data().sendHistoryChangeNotifications();
 }

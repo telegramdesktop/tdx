@@ -29,11 +29,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/color_int_conversion.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_account.h"
+
 namespace Data {
 namespace {
 
+using namespace Tdb;
+
 using UpdateFlag = StoryUpdate::Flag;
 
+#if 0 // mtp
 [[nodiscard]] StoryArea ParseArea(const MTPMediaAreaCoordinates &area) {
 	const auto &data = area.data();
 	const auto center = QPointF(data.vx().v, data.vy().v);
@@ -117,7 +124,75 @@ using UpdateFlag = StoryUpdate::Flag;
 	});
 	return result;
 }
+#endif
 
+[[nodiscard]] StoryArea ParseArea(const TLstoryAreaPosition &position) {
+	const auto &data = position.data();
+	const auto center = QPointF(
+		data.vx_percentage().v,
+		data.vy_percentage().v);
+	const auto size = QSizeF(
+		data.vwidth_percentage().v,
+		data.vheight_percentage().v);
+	const auto corner = center - QPointF(size.width(), size.height()) / 2.;
+	return {
+		.geometry = { corner / 100., size / 100. },
+		.rotation = data.vrotation_angle().v,
+	};
+}
+
+[[nodiscard]] auto ParseLocation(const TLstoryArea &area)
+-> std::optional<StoryLocation> {
+	const auto &data = area.data();
+	const auto &position = data.vposition();
+	auto result = std::optional<StoryLocation>();
+	data.vtype().match([&](const TLDstoryAreaTypeLocation &data) {
+		result.emplace(StoryLocation{
+			.area = ParseArea(position),
+			.point = Data::LocationPoint(data.vlocation()),
+		});
+	}, [&](const TLDstoryAreaTypeVenue &data) {
+		const auto &fields = data.vvenue().data();
+		result.emplace(StoryLocation{
+			.area = ParseArea(position),
+			.point = Data::LocationPoint(fields.vlocation()),
+			.title = fields.vtitle().v,
+			.address = fields.vaddress().v,
+			.provider = fields.vprovider().v,
+			.venueId = fields.vid().v,
+			.venueType = fields.vtype().v,
+		});
+	}, [](const TLDstoryAreaTypeSuggestedReaction &) {
+	}, [](const TLDstoryAreaTypeMessage &) {
+	}, [](const TLDstoryAreaTypeLink &) {
+	}, [](const TLDstoryAreaTypeWeather &) {
+	});
+	return result;
+}
+
+[[nodiscard]] auto ParseSuggestedReaction(const TLstoryArea &area)
+-> std::optional<SuggestedReaction> {
+	auto result = std::optional<SuggestedReaction>();
+	const auto &data = area.data();
+	const auto &position = data.vposition();
+	data.vtype().match([](const TLDstoryAreaTypeLocation &) {
+	}, [](const TLDstoryAreaTypeVenue &) {
+	}, [&](const TLDstoryAreaTypeSuggestedReaction &data) {
+		result.emplace(SuggestedReaction{
+			.area = ParseArea(position),
+			.reaction = Data::ReactionFromTL(data.vreaction_type()),
+			.count = data.vtotal_count().v,
+			.flipped = data.vis_flipped().v,
+			.dark = data.vis_dark().v,
+		});
+	}, [](const TLDstoryAreaTypeMessage &) {
+	}, [](const TLDstoryAreaTypeLink &) {
+	}, [](const TLDstoryAreaTypeWeather &) {
+	});
+	return result;
+}
+
+#if 0 // mtp
 [[nodiscard]] auto ParseChannelPost(const MTPMediaArea &area)
 -> std::optional<ChannelPost> {
 	auto result = std::optional<ChannelPost>();
@@ -187,7 +262,73 @@ using UpdateFlag = StoryUpdate::Flag;
 	});
 	return result;
 }
+#endif
 
+[[nodiscard]] auto ParseChannelPost(const TLstoryArea &area)
+-> std::optional<ChannelPost> {
+	auto result = std::optional<ChannelPost>();
+	const auto &data = area.data();
+	const auto &position = data.vposition();
+	data.vtype().match([](const TLDstoryAreaTypeLocation &) {
+	}, [](const TLDstoryAreaTypeVenue &) {
+	}, [](const TLDstoryAreaTypeSuggestedReaction &) {
+	}, [&](const TLDstoryAreaTypeMessage &data) {
+		result.emplace(ChannelPost{
+			.area = ParseArea(position),
+			.itemId = FullMsgId(
+				peerFromTdbChat(data.vchat_id()),
+				data.vmessage_id().v),
+			});
+	}, [](const TLDstoryAreaTypeLink &) {
+	}, [](const TLDstoryAreaTypeWeather &) {
+	});
+	return result;
+}
+
+[[nodiscard]] auto ParseUrlArea(const TLstoryArea &area)
+-> std::optional<UrlArea> {
+	auto result = std::optional<UrlArea>();
+	const auto &data = area.data();
+	const auto &position = data.vposition();
+	data.vtype().match([](const TLDstoryAreaTypeLocation &) {
+	}, [](const TLDstoryAreaTypeVenue &) {
+	}, [](const TLDstoryAreaTypeSuggestedReaction &) {
+	}, [](const TLDstoryAreaTypeMessage &) {
+	}, [&](const TLDstoryAreaTypeLink &data) {
+		result.emplace(UrlArea{
+			.area = ParseArea(position),
+			.url = data.vurl().v,
+		});
+	}, [](const TLDstoryAreaTypeWeather &) {
+	});
+	return result;
+}
+
+[[nodiscard]] auto ParseWeatherArea(const TLstoryArea &area)
+-> std::optional<WeatherArea> {
+	auto result = std::optional<WeatherArea>();
+	const auto &data = area.data();
+	const auto &position = data.vposition();
+	data.vtype().match([](const TLDstoryAreaTypeLocation &) {
+	}, [](const TLDstoryAreaTypeVenue &) {
+	}, [](const TLDstoryAreaTypeSuggestedReaction &) {
+	}, [](const TLDstoryAreaTypeMessage &) {
+	}, [](const TLDstoryAreaTypeLink &) {
+	}, [&](const TLDstoryAreaTypeWeather &data) {
+		result.emplace(WeatherArea{
+			.area = ParseArea(position),
+			.emoji = data.vemoji().v,
+			.color = Ui::Color32FromSerialized(data.vbackground_color().v),
+			.millicelsius = int(1000. * std::clamp(
+				data.vtemperature().v,
+				-274.,
+				1'000'000.)),
+		});
+	});
+	return result;
+}
+
+#if 0 // mtp
 [[nodiscard]] PeerData *RepostSourcePeer(
 		not_null<Session*> owner,
 		const MTPDstoryItem &data) {
@@ -228,6 +369,61 @@ using UpdateFlag = StoryUpdate::Flag;
 	}
 	return nullptr;
 }
+#endif
+
+[[nodiscard]] PeerData *RepostSourcePeer(
+		not_null<Session*> owner,
+		const TLDstory &data) {
+	if (const auto info = data.vrepost_info()) {
+		return info->data().vorigin().match([](
+				const TLDstoryOriginHiddenUser &) {
+			return (PeerData*)nullptr;
+		}, [&](const TLDstoryOriginPublicStory &data) {
+			return owner->peer(peerFromTdbChat(data.vchat_id())).get();
+		});
+	}
+	return nullptr;
+}
+
+[[nodiscard]] QString RepostSourceName(const TLDstory &data) {
+	if (const auto info = data.vrepost_info()) {
+		return info->data().vorigin().match([&](
+			const TLDstoryOriginHiddenUser &data) {
+			return data.vsender_name().v;
+		}, [](const TLDstoryOriginPublicStory &) {
+			return QString();
+		});
+	}
+	return {};
+}
+
+[[nodiscard]] StoryId RepostSourceId(const TLDstory &data) {
+	if (const auto info = data.vrepost_info()) {
+		return info->data().vorigin().match([](
+				const TLDstoryOriginHiddenUser &) {
+			return StoryId();
+		}, [&](const TLDstoryOriginPublicStory &data) {
+			return StoryId(data.vstory_id().v);
+		});
+	}
+	return {};
+}
+
+[[nodiscard]] bool RepostModified(const TLDstory &data) {
+	if (const auto info = data.vrepost_info()) {
+		return info->data().vis_content_modified().v;
+	}
+	return false;
+}
+
+[[nodiscard]] PeerData *FromPeer(
+		not_null<Session*> owner,
+		const TLDstory &data) {
+	if (const auto sender = data.vsender_id()) {
+		return owner->peer(peerFromSender(*sender));
+	}
+	return nullptr;
+}
 
 } // namespace
 
@@ -235,7 +431,10 @@ Story::Story(
 	StoryId id,
 	not_null<PeerData*> peer,
 	StoryMedia media,
+	const TLDstory &data,
+#if 0 // mtp
 	const MTPDstoryItem &data,
+#endif
 	TimeId now)
 : _id(id)
 , _peer(peer)
@@ -244,7 +443,9 @@ Story::Story(
 , _repostSourceId(RepostSourceId(data))
 , _fromPeer(FromPeer(&peer->owner(), data))
 , _date(data.vdate().v)
+#if 0 // mtp
 , _expires(data.vexpire_date().v)
+#endif
 , _repostModified(RepostModified(data)) {
 	applyFields(std::move(media), data, now, true);
 }
@@ -270,7 +471,10 @@ bool Story::mine() const {
 }
 
 StoryIdDates Story::idDates() const {
+#if 0 // mtp
 	return { _id, _date, _expires };
+#endif
+	return { _id, _date };
 }
 
 FullStoryId Story::fullId() const {
@@ -281,12 +485,17 @@ TimeId Story::date() const {
 	return _date;
 }
 
+#if 0 // mtp
 TimeId Story::expires() const {
 	return _expires;
 }
+#endif
 
 bool Story::expired(TimeId now) const {
+#if 0 // mtp
 	return _expires <= (now ? now : base::unixtime::now());
+#endif
+	return _expired;
 }
 
 bool Story::unsupported() const {
@@ -385,8 +594,14 @@ bool Story::edited() const {
 	return _edited;
 }
 
+#if 0 // mtp
 bool Story::out() const {
 	return _out;
+}
+#endif
+
+bool Story::canToggleIsPinned() const {
+	return _canToggleIsPinned;
 }
 
 bool Story::canDownloadIfPremium() const {
@@ -405,11 +620,14 @@ bool Story::canShare() const {
 }
 
 bool Story::canDelete() const {
+	return _canDelete;
+#if 0 // mtp
 	if (const auto channel = _peer->asChannel()) {
 		return channel->canDeleteStories()
 			|| (out() && channel->canPostStories());
 	}
 	return _peer->isSelf();
+#endif
 }
 
 bool Story::canReport() const {
@@ -516,6 +734,7 @@ int Story::reactions() const {
 void Story::applyViewsSlice(
 		const QString &offset,
 		const StoryViews &slice) {
+#if 0 // mtp
 	const auto changed = (_views.reactions != slice.reactions)
 		|| (_views.views != slice.views)
 		|| (_views.forwards != slice.forwards)
@@ -525,6 +744,8 @@ void Story::applyViewsSlice(
 	_views.views = slice.views;
 	_views.total = slice.total;
 	_views.known = true;
+#endif
+	const auto changed = false; // We update counts only from TLstory.
 	if (offset.isEmpty()) {
 		_views = slice;
 		if (!_channelReactions.total) {
@@ -627,11 +848,15 @@ const std::vector<WeatherArea> &Story::weatherAreas() const {
 
 void Story::applyChanges(
 		StoryMedia media,
+		const TLDstory &data,
+#if 0 // mtp
 		const MTPDstoryItem &data,
+#endif
 		TimeId now) {
 	applyFields(std::move(media), data, now, false);
 }
 
+#if 0 // mtp
 Story::ViewsCounts Story::parseViewsCounts(
 		const MTPDstoryViews &data,
 		const Data::ReactionId &mine) {
@@ -672,14 +897,38 @@ Story::ViewsCounts Story::parseViewsCounts(
 	}
 	return result;
 }
+#endif
+Story::ViewsCounts Story::parseViewsCounts(
+		const TLDstoryInteractionInfo &data,
+		const Data::ReactionId &mine) {
+	auto result = ViewsCounts{
+		.views = data.vview_count().v,
+		.reactions = data.vreaction_count().v,
+	};
+	const auto list = &data.vrecent_viewer_user_ids();
+	{
+		result.viewers.reserve(list->v.size());
+		auto &owner = _peer->owner();
+		auto &&cut = list->v
+			| ranges::views::take(kRecentViewersMax);
+		for (const auto &id : cut) {
+			result.viewers.push_back(owner.peer(peerFromUser(id)));
+		}
+	}
+	return result;
+}
 
 void Story::applyFields(
 		StoryMedia media,
+		const TLDstory &data,
+#if 0 // mtp
 		const MTPDstoryItem &data,
+#endif
 		TimeId now,
 		bool initial) {
 	_lastUpdateTime = now;
 
+#if 0 // mtp
 	const auto reaction = data.is_min()
 		? _sentReactionId
 		: data.vsent_reaction()
@@ -709,9 +958,30 @@ void Story::applyFields(
 			caption = StripLinks(std::move(caption));
 		}
 	}
+#endif
+	const auto reaction = data.vchosen_reaction_type()
+		? Data::ReactionFromTL(*data.vchosen_reaction_type())
+		: Data::ReactionId();
+	const auto inProfile = data.vis_posted_to_chat_page().v;
+	const auto edited = data.vis_edited().v;
+	const auto privacy = data.vprivacy_settings().match([](
+		const TLDstoryPrivacySettingsEveryone &) {
+		return StoryPrivacy::Public;
+	}, [](const TLDstoryPrivacySettingsCloseFriends &) {
+		return StoryPrivacy::CloseFriends;
+	}, [](const TLDstoryPrivacySettingsContacts &) {
+		return StoryPrivacy::Contacts;
+	}, [](const TLDstoryPrivacySettingsSelectedUsers &) {
+		return StoryPrivacy::SelectedContacts;
+	});
+	const auto noForwards = !data.vcan_be_forwarded().v;
+	auto caption = Api::FormattedTextFromTdb(data.vcaption());
 	auto counts = ViewsCounts();
 	auto viewsKnown = _views.known;
+#if 0 // mtp
 	if (const auto info = data.vviews()) {
+#endif
+	if (const auto info = data.vinteraction_info()) {
 		counts = parseViewsCounts(info->data(), reaction);
 		viewsKnown = true;
 	} else {
@@ -730,16 +1000,25 @@ void Story::applyFields(
 	auto channelPosts = std::vector<ChannelPost>();
 	auto urlAreas = std::vector<UrlArea>();
 	auto weatherAreas = std::vector<WeatherArea>();
+#if 0 // mtp
 	if (const auto areas = data.vmedia_areas()) {
+#endif // mtp
+	{
+		const auto areas = &data.vareas();
+		locations.reserve(areas->v.size());
+		suggestedReactions.reserve(areas->v.size());
+		channelPosts.reserve(areas->v.size());
 		for (const auto &area : areas->v) {
 			if (const auto location = ParseLocation(area)) {
 				locations.push_back(*location);
 			} else if (auto reaction = ParseSuggestedReaction(area)) {
+#if 0 // mtp
 				const auto i = counts.reactionsCounts.find(
 					reaction->reaction);
 				if (i != end(counts.reactionsCounts)) {
 					reaction->count = i->second;
 				}
+#endif
 				suggestedReactions.push_back(*reaction);
 			} else if (auto post = ParseChannelPost(area)) {
 				channelPosts.push_back(*post);
@@ -763,7 +1042,13 @@ void Story::applyFields(
 	const auto weatherAreasChanged = (_weatherAreas != weatherAreas);
 	const auto reactionChanged = (_sentReactionId != reaction);
 
+#if 0 // mtp
 	_out = out;
+#endif
+	_canEdit = data.vcan_be_edited().v;
+	_canDelete = data.vcan_be_deleted().v;
+	_canToggleIsPinned = data.vcan_toggle_is_posted_to_chat_page().v;
+
 	_privacyPublic = (privacy == StoryPrivacy::Public);
 	_privacyCloseFriends = (privacy == StoryPrivacy::CloseFriends);
 	_privacyContacts = (privacy == StoryPrivacy::Contacts);
@@ -853,6 +1138,7 @@ void Story::updateViewsCounts(ViewsCounts &&counts, bool known, bool initial) {
 	}
 }
 
+#if 0 // mtp
 void Story::applyViewsCounts(const MTPDstoryViews &data) {
 	auto counts = parseViewsCounts(data, _sentReactionId);
 	auto suggestedCountsChanged = false;
@@ -869,6 +1155,7 @@ void Story::applyViewsCounts(const MTPDstoryViews &data) {
 		_peer->session().changes().storyUpdated(this, UpdateFlag::Reaction);
 	}
 }
+#endif
 
 TimeId Story::lastUpdateTime() const {
 	return _lastUpdateTime;
@@ -913,7 +1200,9 @@ StoryPreload::StoryPreload(not_null<Story*> story, Fn<void()> done)
 		if (VideoPreload::Can(video)) {
 			_task = std::make_unique<VideoPreload>(
 				video,
+#if 0 // mtp
 				story->fullId(),
+#endif
 				std::move(done));
 		} else {
 			done();

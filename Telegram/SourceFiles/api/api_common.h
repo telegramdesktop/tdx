@@ -55,7 +55,9 @@ struct SendAction {
 	bool generateLocal = true;
 	MsgId replaceMediaOf = 0;
 
+#if 0 // mtp
 	[[nodiscard]] MTPInputReplyTo mtpReplyTo() const;
+#endif
 
 	friend inline bool operator==(
 		const SendAction &,

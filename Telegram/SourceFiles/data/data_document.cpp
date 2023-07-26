@@ -504,7 +504,6 @@ void DocumentData::setFromTdb(const TLanimation &data) {
 	setMimeString(fields.vmime_type().v);
 	updateThumbnails(fields.vminithumbnail(), fields.vthumbnail(), nullptr);
 	setTdbLocation(fields.vanimation());
-	recountIsImage();
 	setMaybeSupportsStreaming(true);
 	dimensions = QSize(fields.vwidth().v, fields.vheight().v);
 	type = AnimatedDocument;
@@ -515,6 +514,7 @@ void DocumentData::setFromTdb(const TLanimation &data) {
 	} else {
 		_flags &= ~Flag::HasAttachedStickers;
 	}
+	recountIsImage();
 }
 
 DocumentId DocumentData::IdFromTdb(const TLsticker &data) {
@@ -555,7 +555,6 @@ void DocumentData::setFromTdb(const TLsticker &data) {
 	updateThumbnails(nullptr, fields.vthumbnail(), premiumAnimation);
 
 	setTdbLocation(fields.vsticker());
-	recountIsImage();
 	dimensions = (stickerType == StickerType::Tgs)
 		? kLottieStickerDimensions
 		: QSize(fields.vwidth().v, fields.vheight().v);
@@ -594,6 +593,7 @@ void DocumentData::setFromTdb(const TLsticker &data) {
 		type = FileDocument;
 		_additional = nullptr;
 	}
+	recountIsImage();
 }
 
 DocumentId DocumentData::IdFromTdb(const TLvoiceNote &data) {
@@ -606,7 +606,6 @@ void DocumentData::setFromTdb(const TLvoiceNote &data) {
 	setMimeString(fields.vmime_type().v);
 	updateThumbnails(nullptr, nullptr, nullptr);
 	setTdbLocation(fields.vvoice());
-	recountIsImage();
 	setMaybeSupportsStreaming(true);
 	dimensions = QSize();
 	type = VoiceDocument;
@@ -618,6 +617,7 @@ void DocumentData::setFromTdb(const TLvoiceNote &data) {
 	voiceData->wavemax = voiceData->waveform.empty()
 		? uchar(0)
 		: *ranges::max_element(voiceData->waveform);
+	recountIsImage();
 }
 
 DocumentId DocumentData::IdFromTdb(const TLvideoNote &data) {
@@ -630,13 +630,45 @@ void DocumentData::setFromTdb(const TLvideoNote &data) {
 	setMimeString(u"video/mp4"_q);
 	updateThumbnails(fields.vminithumbnail(), fields.vthumbnail(), nullptr);
 	setTdbLocation(fields.vvideo());
-	recountIsImage();
 	setMaybeSupportsStreaming(true);
 	dimensions = QSize(fields.vlength().v, fields.vlength().v);
 	type = RoundVideoDocument;
 	_additional = std::make_unique<RoundData>();
 	_duration = fields.vduration().v * crl::time(1000);
 	_flags &= ~Flag::HasAttachedStickers;
+	recountIsImage();
+}
+
+DocumentId DocumentData::IdFromTdb(const TLstoryVideo &data) {
+	return data.data().vvideo().data().vid().v;
+}
+
+void DocumentData::setFromTdb(const TLstoryVideo &data) {
+	const auto &fields = data.data();
+	setFileName(QString());
+	setMimeString(u"video/mp4"_q); // We don't know for sure.
+	updateThumbnails(fields.vminithumbnail(), fields.vthumbnail(), nullptr);
+	setTdbLocation(fields.vvideo());
+	setMaybeSupportsStreaming(true);
+	dimensions = QSize(fields.vwidth().v, fields.vheight().v);
+	type = VideoDocument;
+	if (fields.vis_animation().v) {
+		_flags |= Flag::SilentVideo;
+	} else {
+		_flags &= ~Flag::SilentVideo;
+	}
+	const auto prefix = fields.vpreload_prefix_size().v;
+	_videoPreloadPrefix = (prefix > 0 && prefix < kMaxAllowedPreloadPrefix)
+		? prefix
+		: 0;
+	_additional = nullptr;
+	_duration = crl::time(base::SafeRound(fields.vduration().v * 1000));
+	if (fields.vhas_stickers().v) {
+		_flags |= Flag::HasAttachedStickers;
+	} else {
+		_flags &= ~Flag::HasAttachedStickers;
+	}
+	recountIsImage();
 }
 
 void DocumentData::setSimpleFromTdb(
@@ -1944,6 +1976,7 @@ int DocumentData::videoPreloadPrefix() const {
 	return _videoPreloadPrefix;
 }
 
+#if 0 // mtp
 StorageFileLocation DocumentData::videoPreloadLocation() const {
 	return hasRemoteLocation()
 		? StorageFileLocation(
@@ -1956,6 +1989,7 @@ StorageFileLocation DocumentData::videoPreloadLocation() const {
 				MTP_string()))
 		: StorageFileLocation();
 }
+#endif
 
 auto DocumentData::createStreamingLoader(
 	Data::FileOrigin origin,
