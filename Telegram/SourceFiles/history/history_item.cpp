@@ -5200,7 +5200,6 @@ void HistoryItem::setServiceMessageByContent(
 		Unexpected("Type in TLDmessage.content.");
 	});
 	setServiceText(std::move(prepared));
-	applyContent(content);
 }
 
 void HistoryItem::applyContent(const TLmessageContent &content) {
@@ -5448,6 +5447,13 @@ void HistoryItem::setContent(const TLmessageContent &content) {
 			|| TLDmessageUsersShared::Is<T>()
 			|| TLDmessageChatShared::Is<T>()) {
 			createServiceFromTdb(content);
+		} else if constexpr (TLDmessageStory::Is<T>()) {
+			if (data.vvia_mention().v) {
+				createServiceFromTdb(content);
+			} else {
+				setMedia(content);
+				//setFormattedText(data.vshare_comment()); // tdlib todo
+			}
 		} else if constexpr (TLDmessageUnsupported::Is<T>()) {
 			setText(UnsupportedMessageText());
 		} else {
@@ -5578,11 +5584,11 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 			Data::LocationPoint(data.vlocation()));
 	}, [&](const TLDmessageVenue &data) -> Result {
 		const auto &fields = data.vvenue().data();
-	return std::make_unique<Data::MediaLocation>(
-		item,
-		Data::LocationPoint(fields.vlocation()),
-		fields.vtitle().v,
-		fields.vaddress().v);
+		return std::make_unique<Data::MediaLocation>(
+			item,
+			Data::LocationPoint(fields.vlocation()),
+			fields.vtitle().v,
+			fields.vaddress().v);
 	}, [&](const TLDmessageContact &data) -> Result {
 		const auto &fields = data.vcontact().data();
 		return std::make_unique<Data::MediaContact>(

@@ -26,6 +26,7 @@ class TLthumbnail;
 class TLminithumbnail;
 class TLclosedVectorPath;
 class TLnotificationSound;
+class TLstoryVideo;
 } // namespace Tdb
 
 enum class ChatRestriction;
@@ -173,6 +174,9 @@ public:
 	[[nodiscard]] static DocumentId IdFromTdb(
 		const Tdb::TLnotificationSound &data);
 	void setFromTdb(const Tdb::TLnotificationSound &data);
+	[[nodiscard]] static DocumentId IdFromTdb(
+		const Tdb::TLstoryVideo &data);
+	void setFromTdb(const Tdb::TLstoryVideo &data);
 	void setSimpleFromTdb(const Tdb::TLfile &data, SimpleDocumentType type);
 	void applyTdbFile(const Tdb::TLfile &file);
 	void setFromLocal(const Data::DocumentLocalData &data);
@@ -363,7 +367,9 @@ public:
 	void setInappPlaybackFailed();
 	[[nodiscard]] bool inappPlaybackFailed() const;
 	[[nodiscard]] int videoPreloadPrefix() const;
+#if 0 // mtp
 	[[nodiscard]] StorageFileLocation videoPreloadLocation() const;
+#endif
 
 	DocumentId id = 0;
 	int64 size = 0;

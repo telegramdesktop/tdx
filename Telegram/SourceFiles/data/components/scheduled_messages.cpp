@@ -55,6 +55,7 @@ constexpr auto kRequestTimeLimit = 60 * crl::time(1000);
 		&& (item->date() > base::unixtime::now());
 }
 
+#if 0 // mtp
 [[nodiscard]] MTPMessage PrepareMessage(const MTPMessage &message) {
 	return message.match([&](const MTPDmessageEmpty &data) {
 		return MTP_messageEmpty(
@@ -106,6 +107,7 @@ constexpr auto kRequestTimeLimit = 60 * crl::time(1000);
 			data.vfactcheck() ? *data.vfactcheck() : MTPFactCheck());
 	});
 }
+#endif
 
 } // namespace
 
