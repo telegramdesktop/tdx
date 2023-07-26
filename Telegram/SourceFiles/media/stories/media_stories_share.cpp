@@ -28,7 +28,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "styles/style_calls.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+#include "api/api_sending.h"
+
 namespace Media::Stories {
+namespace {
+
+using namespace Tdb;
+
+} // namespace
 
 [[nodiscard]] object_ptr<Ui::BoxContent> PrepareShareBox(
 		std::shared_ptr<ChatHelpers::Show> show,
@@ -104,6 +113,7 @@ namespace Media::Stories {
 		}
 
 		const auto api = &story->owner().session().api();
+		auto &sender = story->session().sender();
 		auto &histories = story->owner().histories();
 		for (const auto thread : result) {
 			const auto action = Api::SendAction(thread, options);
@@ -115,6 +125,7 @@ namespace Media::Stories {
 			}
 			const auto threadPeer = thread->peer();
 			const auto threadHistory = thread->owningHistory();
+#if 0 // mtp
 			const auto randomId = base::RandomValue<uint64>();
 			auto sendFlags = MTPmessages_SendMedia::Flags(0);
 			if (action.replyTo) {
@@ -126,6 +137,7 @@ namespace Media::Stories {
 			if (silentPost) {
 				sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 			}
+#endif
 			const auto done = [=] {
 				if (!--state->requests) {
 					if (show->valid()) {
@@ -134,6 +146,27 @@ namespace Media::Stories {
 					}
 				}
 			};
+			auto tlOptions = tl_messageSendOptions(
+				tl_bool(ShouldSendSilent(threadPeer, options)),
+				tl_bool(true), // from_background.
+				tl_bool(false), // update_order_of_installed_stickers_sets
+				Api::ScheduledToTL(action.options.scheduled),
+				tl_int32(0));
+			sender.request(TLsendMessage(
+				peerToTdbChat(threadPeer->id),
+				tl_int53(action.replyTo.topicRootId.bare),
+				std::nullopt,
+				std::move(tlOptions),
+				tl_inputMessageStory(
+					peerToTdbChat(peer->id),
+					tl_int32(id.story))
+			)).done(done).fail([=](const Error &error) {
+				threadPeer->session().api().sendMessageFail(
+					error.message,
+					threadPeer);
+				done();
+			}).send();
+#if 0 // mtp
 			histories.sendPreparedMessage(
 				threadHistory,
 				action.replyTo,
@@ -157,6 +190,7 @@ namespace Media::Stories {
 					api->sendMessageFail(error, threadPeer, randomId);
 					done();
 				});
+#endif
 			++state->requests;
 		}
 	};
