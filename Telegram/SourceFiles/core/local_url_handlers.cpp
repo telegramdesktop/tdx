@@ -1615,7 +1615,16 @@ bool HandleLocalUrl(
 		controller->window().activate();
 		return true;
 	}, [&](const TLDinternalLinkTypeStory &data) {
-		// todo
+		if (!controller) {
+			return false;
+		}
+		controller->showPeerByLink(Navigation::PeerByLinkInfo{
+			.usernameOrId = data.vstory_sender_username().v,
+			.storyId = data.vstory_id().v,
+			.resolveType = Window::ResolveType::Default,
+			.clickFromMessageId = my.itemId,
+		});
+		controller->window().activate();
 		return true;
 	});
 }
