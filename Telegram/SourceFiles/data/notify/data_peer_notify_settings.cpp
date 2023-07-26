@@ -195,7 +195,10 @@ bool NotifyPeerSettingsValue::change(
 		(data.vuse_default_show_preview().v
 			? std::optional<bool>()
 			: data.vshow_preview().v),
-		_silent);
+		_silent,
+		(data.vuse_default_mute_stories().v
+			? std::optional<bool>()
+			: data.vmute_stories().v));
 }
 
 bool NotifyPeerSettingsValue::change(
@@ -291,11 +294,16 @@ TLchatNotificationSettings NotifyPeerSettingsValue::serialize() const {
 		tl_int64(SerializeSound(_sound)),
 		tl_bool(!_showPreviews), // use_default_show_preview
 		tl_bool(_showPreviews.value_or(true)), // show_preview
+		tl_bool(!_storiesMuted), // use_default_mute_stories
+		tl_bool(_storiesMuted.value_or(false)), // mute_stories
+		tl_bool(true), // use_default_story_sound
+		tl_int64(SerializeSound(std::nullopt)), // story_sound_id
+		tl_bool(true), // use_default_show_story_sender
+		tl_bool(true), // show_story_sender
 		tl_bool(true), // use_default_disable_pinned_message_notifications
 		tl_bool(false), // disable_pinned_message_notifications
 		tl_bool(true), // use_default_disable_mention_notifications
 		tl_bool(false)); // disable_mention_notifications
-
 }
 
 auto NotifyPeerSettingsValue::serializeDefault() const
@@ -307,6 +315,10 @@ auto NotifyPeerSettingsValue::serializeDefault() const
 		tl_int32(muteFor.value_or(0)),
 		tl_int64(SerializeSound(_sound)),
 		tl_bool(_showPreviews.value_or(true)), // show_preview
+		tl_bool(!_storiesMuted), // use_default_mute_stories
+		tl_bool(_storiesMuted.value_or(false)), // mute_stories
+		tl_int64(SerializeSound(std::nullopt)), // story_sound_id
+		tl_bool(true), // show_story_sender
 		tl_bool(false), // disable_pinned_message_notifications
 		tl_bool(false)); // disable_mention_notifications
 }
@@ -321,6 +333,12 @@ TLchatNotificationSettings PeerNotifySettings::Default() {
 		tl_int64(-1), // sound_id
 		tl_bool(true), // use_default_show_preview
 		tl_bool(true), // show_preview
+		tl_bool(true), // use_default_mute_stories
+		tl_bool(false), // mute_stories
+		tl_bool(true), // use_default_story_sound
+		tl_int64(SerializeSound(std::nullopt)), // story_sound_id
+		tl_bool(true), // use_default_show_story_sender
+		tl_bool(true), // show_story_sender
 		tl_bool(true), // use_default_disable_pinned_message_notifications
 		tl_bool(false), // disable_pinned_message_notifications
 		tl_bool(true), // use_default_disable_mention_notifications
@@ -330,8 +348,12 @@ TLchatNotificationSettings PeerNotifySettings::Default() {
 TLscopeNotificationSettings PeerNotifySettings::ScopeDefault() {
 	return tl_scopeNotificationSettings(
 		tl_int32(0), // mute_for
-		tl_int64(-1), // sound_id
+		tl_int64(SerializeSound(std::nullopt)), // sound_id
 		tl_bool(true), // show_preview
+		tl_bool(true), // use_default_mute_stories
+		tl_bool(false), // mute_stories
+		tl_int64(SerializeSound(std::nullopt)), // story_sound_id
+		tl_bool(true), // show_story_sender
 		tl_bool(false), // disable_pinned_message_notifications
 		tl_bool(false)); // disable_mention_notifications
 }
@@ -361,7 +383,8 @@ bool PeerNotifySettings::change(const TLchatNotificationSettings &settings) {
 	auto &data = settings.data();
 	const auto empty = data.vuse_default_mute_for().v
 		&& data.vuse_default_show_preview().v
-		&& data.vuse_default_sound().v;
+		&& data.vuse_default_sound().v
+		&& data.vuse_default_mute_stories().v;
 	if (empty) {
 		if (!_known || _value) {
 			_known = true;
@@ -429,6 +452,12 @@ bool PeerNotifySettings::change(
 		tl_int64(SerializeSound(soundId)),
 		tl_bool(true), // use_default_show_preview
 		tl_bool(true), // show_preview
+		tl_bool(!storiesMuted.has_value()),
+		tl_bool(storiesMuted.value_or(false)),
+		tl_bool(true), // use_default_story_sound
+		tl_int64(SerializeSound(std::nullopt)), // story_sound_id
+		tl_bool(true), // use_default_show_story_sender
+		tl_bool(true), // show_story_sender
 		tl_bool(true), // use_default_disable_pinned_message_notifications
 		tl_bool(false), // disable_pinned_message_notifications
 		tl_bool(true), // use_default_disable_mention_notifications
