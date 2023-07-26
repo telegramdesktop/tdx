@@ -530,9 +530,11 @@ bool UserData::hasPersonalPhoto() const {
 	return (flags() & UserDataFlag::PersonalPhoto);
 }
 
+#if 0 // mtp
 bool UserData::hasStoriesHidden() const {
 	return (flags() & UserDataFlag::StoriesHidden);
 }
+#endif
 
 bool UserData::someRequirePremiumToWrite() const {
 	return (flags() & UserDataFlag::SomeRequirePremiumToWrite);

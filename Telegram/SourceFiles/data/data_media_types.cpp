@@ -2727,6 +2727,7 @@ bool MediaStory::dropForwardedInfo() const {
 	return true;
 }
 
+#if 0 // mtp
 bool MediaStory::updateInlineResultMedia(const MTPMessageMedia &media) {
 	return false;
 }
@@ -2734,6 +2735,7 @@ bool MediaStory::updateInlineResultMedia(const MTPMessageMedia &media) {
 bool MediaStory::updateSentMedia(const MTPMessageMedia &media) {
 	return false;
 }
+#endif
 
 not_null<PhotoData*> MediaStory::LoadingStoryPhoto(
 		not_null<Session*> owner) {

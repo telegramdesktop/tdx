@@ -158,7 +158,9 @@ public:
 	[[nodiscard]] bool isInaccessible() const;
 	[[nodiscard]] bool applyMinPhoto() const;
 	[[nodiscard]] bool hasPersonalPhoto() const;
+#if 0 // mtp
 	[[nodiscard]] bool hasStoriesHidden() const;
+#endif
 	[[nodiscard]] bool someRequirePremiumToWrite() const;
 	[[nodiscard]] bool meRequiresPremiumToWrite() const;
 	[[nodiscard]] bool requirePremiumToWriteKnown() const;

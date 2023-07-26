@@ -13,6 +13,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "data/data_story.h"
 
+namespace Tdb {
+class TLchatActiveStories;
+class TLstoryInfo;
+class TLstory;
+class TLDupdateStory;
+class TLDupdateStoryDeleted;
+class TLDupdateStoryListChatCount;
+class TLDupdateChatActiveStories;
+class TLDupdateStoryStealthMode;
+} // namespace Tdb
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -147,11 +158,19 @@ public:
 		not_null<Data::Story*> dependency);
 
 	void loadMore(StorySourcesList list);
+	void apply(const Tdb::TLDupdateStory &data);
+	void apply(const Tdb::TLDupdateStoryDeleted &data);
+	void apply(const Tdb::TLDupdateStoryListChatCount &data);
+	void apply(const Tdb::TLDupdateChatActiveStories &data);
+	void apply(const Tdb::TLDupdateStoryStealthMode &data);
+	Story *applySingle(const Tdb::TLstory &story);
+#if 0 // mtp
 	void apply(const MTPDupdateStory &data);
 	void apply(const MTPDupdateReadStories &data);
 	void apply(const MTPStoriesStealthMode &stealthMode);
 	void apply(not_null<PeerData*> peer, const MTPPeerStories *data);
 	Story *applySingle(PeerId peerId, const MTPstoryItem &story);
+#endif
 	void loadAround(FullStoryId id, StoriesContext context);
 
 	const StoriesSource *source(PeerId id) const;
@@ -222,6 +241,7 @@ public:
 	void decrementPreloadingHiddenSources();
 	void setPreloadingInViewer(std::vector<FullStoryId> ids);
 
+#if 0 // mtp
 	struct PeerSourceState {
 		StoryId maxId = 0;
 		StoryId readTill = 0;
@@ -229,6 +249,7 @@ public:
 	[[nodiscard]] std::optional<PeerSourceState> peerSourceState(
 		not_null<PeerData*> peer,
 		StoryId storyMaxId);
+#endif
 	[[nodiscard]] bool isUnread(not_null<Story*> story);
 
 	enum class Polling {
@@ -268,6 +289,17 @@ private:
 		int viewer = 0;
 	};
 
+	void parseAndApply(const Tdb::TLchatActiveStories &stories);
+	Story *parseAndApply(const Tdb::TLstory &story, TimeId now);
+	Story *parseAndApply(
+		not_null<PeerData*> peer,
+		const Tdb::TLstory &story,
+		TimeId now);
+	StoryIdDates parseAndApply(
+		not_null<PeerData*> peer,
+		const Tdb::TLstoryInfo &story,
+		TimeId now);
+#if 0 // mtp
 	void parseAndApply(const MTPPeerStories &stories);
 	[[nodiscard]] Story *parseAndApply(
 		not_null<PeerData*> peer,
@@ -281,6 +313,7 @@ private:
 		not_null<PeerData*> peer,
 		const QVector<MTPStoryItem> &list);
 	void sendResolveRequests();
+#endif
 	void finalizeResolve(FullStoryId id);
 	void updatePeerStoriesState(not_null<PeerData*> peer);
 
@@ -294,16 +327,20 @@ private:
 	void removeDependencyStory(not_null<Story*> story);
 	void sort(StorySourcesList list);
 	bool bumpReadTill(PeerId peerId, StoryId maxReadTill);
+#if 0 // mtp
 	void requestReadTills();
 
 	void sendMarkAsReadRequests();
 	void sendMarkAsReadRequest(not_null<PeerData*> peer, StoryId tillId);
 	void sendIncrementViewsRequests();
+#endif
 	void checkQuitPreventFinished();
 
+#if 0 // mtp
 	void registerExpiring(TimeId expires, FullStoryId id);
 	void scheduleExpireTimer();
 	void processExpired();
+#endif
 
 	void preloadSourcesChanged(StorySourcesList list);
 	bool rebuildPreloadSources(StorySourcesList list);
@@ -339,15 +376,21 @@ private:
 	std::unordered_map<
 		PeerId,
 		base::flat_map<StoryId, std::weak_ptr<HistoryItem>>> _items;
+#if 0 // mtp
 	base::flat_multi_map<TimeId, FullStoryId> _expiring;
 	base::flat_set<PeerId> _peersWithDeletedStories;
 	base::flat_set<FullStoryId> _deleted;
 	base::Timer _expireTimer;
 	bool _expireSchedulePosted = false;
+#endif
+	base::flat_set<PeerId> _peersWithDeletedStories;
+	base::flat_set<FullStoryId> _deleted;
 
+#if 0 // mtp
 	base::flat_map<
 		PeerId,
 		base::flat_map<StoryId, std::vector<Fn<void()>>>> _resolvePending;
+#endif
 	base::flat_map<
 		PeerId,
 		base::flat_map<StoryId, std::vector<Fn<void()>>>> _resolveSent;
@@ -374,16 +417,20 @@ private:
 	std::unordered_map<PeerId, Set> _saved;
 	rpl::event_stream<PeerId> _savedChanged;
 
+#if 0 // mtp
 	base::flat_set<PeerId> _markReadPending;
 	base::Timer _markReadTimer;
 	base::flat_set<PeerId> _markReadRequests;
+#endif
 	base::flat_map<
 		not_null<PeerData*>,
 		std::vector<Fn<void()>>> _requestingPeerStories;
 
+#if 0 // mtp
 	base::flat_map<PeerId, base::flat_set<StoryId>> _incrementViewsPending;
 	base::Timer _incrementViewsTimer;
 	base::flat_set<PeerId> _incrementViewsRequests;
+#endif
 
 	PeerData *_viewsStoryPeer = nullptr;
 	StoryId _viewsStoryId = 0;
@@ -405,10 +452,12 @@ private:
 	int _preloadingMainSourcesCounter = 0;
 
 	base::flat_map<PeerId, StoryId> _readTill;
+#if 0 // mtp
 	base::flat_set<FullStoryId> _pendingReadTillItems;
 	base::flat_map<not_null<PeerData*>, StoryId> _pendingPeerStateMaxId;
 	mtpRequestId _readTillsRequestId = 0;
 	bool _readTillReceived = false;
+#endif
 
 	base::flat_map<not_null<Story*>, PollingSettings> _pollingSettings;
 	base::flat_set<not_null<Story*>> _pollingViews;

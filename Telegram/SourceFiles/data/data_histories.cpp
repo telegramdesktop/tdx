@@ -42,6 +42,7 @@ using namespace Tdb;
 
 } // namespace
 
+#if 0 // mtp
 MTPInputReplyTo ReplyToForMTP(
 		not_null<History*> history,
 		FullReplyTo replyTo) {
@@ -93,6 +94,7 @@ MTPInputReplyTo ReplyToForMTP(
 	}
 	return MTPInputReplyTo();
 }
+#endif
 
 MTPInputMedia WebPageForMTP(
 		const Data::WebPageDraft &draft,
