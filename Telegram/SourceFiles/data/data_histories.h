@@ -26,9 +26,11 @@ namespace Data {
 class Session;
 class Folder;
 
+#if 0 // mtp
 [[nodiscard]] MTPInputReplyTo ReplyToForMTP(
 	not_null<Session*> owner,
 	FullReplyTo replyTo);
+#endif
 
 class Histories final {
 public:
@@ -106,7 +108,6 @@ public:
 		RequestType type,
 		Fn<mtpRequestId(Fn<void()> finish)> generator);
 	void cancelRequest(int id);
-#endif
 
 	using PreparedMessage = std::variant<
 		MTPmessages_SendMessage,
@@ -131,6 +132,7 @@ public:
 			return { ReplaceReplyIds(owner, args, replyTo)... };
 		};
 	}
+#endif
 
 	void checkTopicCreated(FullMsgId rootId, MsgId realRoot);
 	[[nodiscard]] MsgId convertTopicReplyToId(
@@ -159,6 +161,7 @@ private:
 		MsgId aroundId = 0;
 		mtpRequestId requestId = 0;
 	};
+#if 0 // mtp
 	struct DelayedByTopicMessage {
 		uint64 randomId = 0;
 		MsgId replyTo = 0;
@@ -167,6 +170,7 @@ private:
 		Fn<void(const MTP::Error&, const MTP::Response&)> fail;
 		int requestId = 0;
 	};
+#endif
 	struct GroupRequestKey {
 		not_null<History*> history;
 		MsgId rootId = 0;
@@ -176,6 +180,7 @@ private:
 			GroupRequestKey) = default;
 	};
 
+#if 0 // mtp
 	template <typename Arg>
 	static auto ReplaceReplyIds(
 			not_null<Session*> owner,
@@ -187,6 +192,7 @@ private:
 			return arg;
 		}
 	}
+#endif
 
 	void readInboxTill(not_null<History*> history, MsgId tillId, bool force);
 	void sendReadRequests();
@@ -234,9 +240,11 @@ private:
 		GroupRequestKey,
 		ChatListGroupRequest> _chatListGroupRequests;
 
+#if 0 // mtp
 	base::flat_map<
 		FullMsgId,
 		std::vector<DelayedByTopicMessage>> _creatingTopics;
+#endif
 	base::flat_map<FullMsgId, MsgId> _createdTopicIds;
 	base::flat_set<mtpRequestId> _creatingTopicRequests;
 

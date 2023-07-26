@@ -30,8 +30,10 @@ SendOptions DefaultSendWhenOnlineOptions() {
 	};
 }
 
+#if 0 // mtp
 MTPInputReplyTo SendAction::mtpReplyTo() const {
 	return Data::ReplyToForMTP(&history->owner(), replyTo);
 }
+#endif
 
 } // namespace Api
