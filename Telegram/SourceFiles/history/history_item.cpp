@@ -3730,6 +3730,8 @@ void HistoryItem::createServiceFromTdb(const TLmessageContent &content) {
 
 void HistoryItem::setServiceMessageByContent(
 		const TLmessageContent &content) {
+	applyContent(content);
+
 	const auto prepareServiceTextForSharedPeer = [&](PeerId peerId) {
 		const auto peer = history()->owner().peer(peerId);
 		auto result = PreparedServiceText{};
@@ -4395,7 +4397,6 @@ void HistoryItem::setServiceMessageByContent(
 		Unexpected("Type in TLDmessage.content.");
 	});
 	setServiceText(std::move(prepared));
-	applyContent(content);
 }
 
 void HistoryItem::applyContent(const TLmessageContent &content) {
@@ -4450,6 +4451,8 @@ void HistoryItem::applyContent(const TLmessageContent &content) {
 		if (const auto paper = Data::WallPaper::Create(session, attached)) {
 			_media = std::make_unique<Data::MediaWallPaper>(this, *paper);
 		}
+	}, [&](const TLDmessageStory &data) {
+		setMedia(content);
 	}, [](const auto &) {
 	});
 }
@@ -4546,6 +4549,13 @@ void HistoryItem::setContent(const TLmessageContent &content) {
 			|| TLDmessageUserShared::Is<T>()
 			|| TLDmessageChatShared::Is<T>()) {
 			createServiceFromTdb(content);
+		} else if constexpr (TLDmessageStory::Is<T>()) {
+			if (data.vvia_mention().v) {
+				createServiceFromTdb(content);
+			} else {
+				setMedia(content);
+				//setFormattedText(data.vshare_comment()); // tdlib todo
+			}
 		} else if constexpr (TLDmessageUnsupported::Is<T>()) {
 			setText(UnsupportedMessageText());
 		} else {
@@ -4625,40 +4635,40 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 			item,
 			data.vvideo_note().data().vspeech_recognition_result(),
 			true);
-	return std::make_unique<Data::MediaFile>(
-		item,
-		owner.processDocument(data.vvideo_note()),
-		skipPremiumEffectDefault,
-		hasSpoilerDefault);
+		return std::make_unique<Data::MediaFile>(
+			item,
+			owner.processDocument(data.vvideo_note()),
+			skipPremiumEffectDefault,
+			hasSpoilerDefault);
 	}, [&](const TLDmessageVoiceNote &data) -> Result {
 		ApplyTranscribe(
 			item,
 			data.vvoice_note().data().vspeech_recognition_result(),
 			false);
-	return std::make_unique<Data::MediaFile>(
-		item,
-		owner.processDocument(data.vvoice_note()),
-		skipPremiumEffectDefault,
-		hasSpoilerDefault);
+		return std::make_unique<Data::MediaFile>(
+			item,
+			owner.processDocument(data.vvoice_note()),
+			skipPremiumEffectDefault,
+			hasSpoilerDefault);
 	}, [&](const TLDmessageLocation &data) -> Result {
 		return std::make_unique<Data::MediaLocation>(
 			item,
 			Data::LocationPoint(data.vlocation()));
 	}, [&](const TLDmessageVenue &data) -> Result {
 		const auto &fields = data.vvenue().data();
-	return std::make_unique<Data::MediaLocation>(
-		item,
-		Data::LocationPoint(fields.vlocation()),
-		fields.vtitle().v,
-		fields.vaddress().v);
+		return std::make_unique<Data::MediaLocation>(
+			item,
+			Data::LocationPoint(fields.vlocation()),
+			fields.vtitle().v,
+			fields.vaddress().v);
 	}, [&](const TLDmessageContact &data) -> Result {
 		const auto &fields = data.vcontact().data();
-	return std::make_unique<Data::MediaContact>(
-		item,
-		UserId(fields.vuser_id()),
-		fields.vfirst_name().v,
-		fields.vlast_name().v,
-		fields.vphone_number().v);
+		return std::make_unique<Data::MediaContact>(
+			item,
+			UserId(fields.vuser_id()),
+			fields.vfirst_name().v,
+			fields.vlast_name().v,
+			fields.vphone_number().v);
 	}, [&](const TLDmessageDice &data) -> Result {
 		return std::make_unique<Data::MediaDice>(item, data);
 	}, [&](const TLDmessageGame &data) -> Result {
@@ -4689,6 +4699,11 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 			animatedEmoji->document = owner.processDocument(*sticker);
 		}
 		return nullptr;
+	}, [&](const TLDmessageStory &data) -> Result {
+		return std::make_unique<Data::MediaStory>(item, FullStoryId{
+			peerFromTdbChat(data.vstory_sender_chat_id()),
+			data.vstory_id().v,
+		}, data.vvia_mention().v);
 	}, [](const auto &) -> Result {
 		return nullptr;
 	});

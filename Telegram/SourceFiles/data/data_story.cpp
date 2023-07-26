@@ -27,11 +27,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_download.h" // kMaxFileInMemory
 #include "ui/text/text_utilities.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_account.h"
+
 namespace Data {
 namespace {
 
+using namespace Tdb;
+
 using UpdateFlag = StoryUpdate::Flag;
 
+#if 0 // mtp
 [[nodiscard]] StoryArea ParseArea(const MTPMediaAreaCoordinates &area) {
 	const auto &data = area.data();
 	const auto center = QPointF(data.vx().v, data.vy().v);
@@ -91,9 +98,217 @@ using UpdateFlag = StoryUpdate::Flag;
 	});
 	return result;
 }
+#endif
+
+[[nodiscard]] StoryArea ParseArea(const TLstoryAreaPosition &position) {
+	const auto &data = position.data();
+	const auto center = QPointF(
+		data.vx_percentage().v,
+		data.vy_percentage().v);
+	const auto size = QSizeF(
+		data.vwidth_percentage().v,
+		data.vheight_percentage().v);
+	const auto corner = center - QPointF(size.width(), size.height()) / 2.;
+	return {
+		.geometry = { corner / 100., size / 100. },
+		.rotation = data.vrotation_angle().v,
+	};
+}
+
+[[nodiscard]] auto ParseLocation(const TLstoryArea &area)
+-> std::optional<StoryLocation> {
+	const auto &data = area.data();
+	const auto &position = data.vposition();
+	auto result = std::optional<StoryLocation>();
+	data.vtype().match([&](const TLDstoryAreaTypeLocation &data) {
+		result.emplace(StoryLocation{
+			.area = ParseArea(position),
+			.point = Data::LocationPoint(data.vlocation()),
+		});
+	}, [&](const TLDstoryAreaTypeVenue &data) {
+		const auto &fields = data.vvenue().data();
+		result.emplace(StoryLocation{
+			.area = ParseArea(position),
+			.point = Data::LocationPoint(fields.vlocation()),
+			.title = fields.vtitle().v,
+			.address = fields.vaddress().v,
+			.provider = fields.vprovider().v,
+			.venueId = fields.vid().v,
+			.venueType = fields.vtype().v,
+		});
+	}, [](const TLDstoryAreaTypeSuggestedReaction &) {
+	});
+	return result;
+}
+
+[[nodiscard]] auto ParseSuggestedReaction(const TLstoryArea &area)
+-> std::optional<SuggestedReaction> {
+	auto result = std::optional<SuggestedReaction>();
+	const auto &data = area.data();
+	const auto &position = data.vposition();
+	data.vtype().match([](const TLDstoryAreaTypeLocation &) {
+	}, [](const TLDstoryAreaTypeVenue &) {
+	}, [&](const TLDstoryAreaTypeSuggestedReaction &data) {
+		result.emplace(SuggestedReaction{
+			.area = ParseArea(position),
+			.reaction = Data::ReactionFromTL(data.vreaction_type()),
+			.count = data.vtotal_count().v,
+			.flipped = data.vis_flipped().v,
+			.dark = data.vis_dark().v,
+		});
+	});
+	return result;
+}
 
 } // namespace
 
+class StoryPreload::LoadTask final : public base::has_weak_ptr {
+public:
+	LoadTask(
+		FullStoryId id,
+		not_null<DocumentData*> document,
+		Fn<void(QByteArray)> done);
+	~LoadTask();
+
+private:
+	void startWith(const TLDlocalFile &data);
+	bool continueWith(const TLDlocalFile &data);
+	void finishWith(const TLDlocalFile &data);
+
+	const not_null<Main::Session*> _session;
+	Fn<void(QByteArray)> _done;
+	Sender _sender;
+	int64 _full = 0;
+	FileId _fileId = 0;
+	int _prefix = 0;
+
+	rpl::lifetime _downloadLifetime;
+
+};
+
+[[nodiscard]] int ChoosePreloadPrefix(not_null<DocumentData*> document) {
+	const auto prefix = document->videoPreloadPrefix();
+	const auto part = Storage::kDownloadPartSize;
+	const auto parts = (prefix + part - 1) / part;
+	return std::min(int64(parts) * part, document->size);
+}
+
+[[nodiscard]] QByteArray PackPreload(const QByteArray &bytes, int64 full) {
+	if (bytes.isEmpty()) {
+		return {};
+	}
+
+	auto parts = base::flat_map<uint32, QByteArray>();
+	const auto part = Storage::kDownloadPartSize;
+	const auto size = int(bytes.size());
+	const auto count = (size + part - 1) / part;
+	parts.reserve(count);
+	const auto begin = bytes.constData();
+	const auto end = begin + size;
+	for (auto data = begin; data < end; data += part) {
+		const auto offset = int(data - begin);
+		const auto length = std::min(part, size - offset);
+		parts.emplace(offset, QByteArray::fromRawData(data, length));
+	}
+	auto result = ::Media::Streaming::SerializeComplexPartsMap(parts);
+	if (result.size() == full) {
+		// Make sure it is parsed as a complex map.
+		result.push_back(char(0));
+	}
+	return result;
+}
+
+StoryPreload::LoadTask::LoadTask(
+	FullStoryId id,
+	not_null<DocumentData*> document,
+	Fn<void(QByteArray)> done)
+: _session(&document->session())
+, _done(std::move(done))
+, _sender(&_session->sender())
+, _full(document->size)
+, _fileId(document->tdbFileId())
+, _prefix(ChoosePreloadPrefix(document)) {
+	Expects(_prefix > 0 && _prefix <= _full);
+
+	if (!_fileId) {
+		crl::on_main(this, [=] {
+			if (const auto onstack = _done) {
+				onstack({});
+			}
+		});
+		return;
+	}
+	_sender.request(TLgetFile(
+		tl_int32(_fileId)
+	)).done([=](const TLDfile &data) {
+		startWith(data.vlocal().data());
+	}).fail([=] {
+		_done({});
+	}).send();
+}
+
+void StoryPreload::LoadTask::startWith(const TLDlocalFile &data) {
+	if (data.vdownloaded_prefix_size().v > 0
+		|| data.vis_downloading_active().v) {
+		finishWith(data);
+	} else {
+		_sender.request(TLdownloadFile(
+			tl_int32(_fileId),
+			tl_int32(kDefaultDownloadPriority),
+			tl_int53(0), // offset
+			tl_int53(_prefix),
+			tl_bool(false) // synchronous
+		)).done([=](const TLDfile &data) {
+			if (continueWith(data.vlocal().data())) {
+				_downloadLifetime = _session->tdb().updates(
+				) | rpl::start_with_next([=](const Tdb::TLupdate &update) {
+					if (update.type() == Tdb::id_updateFile) {
+						const auto &file = update.c_updateFile().vfile();
+						if (file.data().vid().v == _fileId) {
+							continueWith(file.data().vlocal().data());
+						}
+					}
+				});
+			}
+		}).fail([=] {
+			_done({});
+		}).send();
+	}
+}
+
+bool StoryPreload::LoadTask::continueWith(const TLDlocalFile &data) {
+	if (!data.vis_downloading_active().v
+		|| data.vdownload_offset().v > 0
+		|| data.vdownloaded_prefix_size().v >= _prefix) {
+		finishWith(data);
+		return false;
+	}
+	return true;
+}
+
+void StoryPreload::LoadTask::finishWith(const TLDlocalFile &data) {
+	_downloadLifetime.destroy();
+	const auto loaded = !data.vdownload_offset().v
+		&& (data.vdownloaded_prefix_size().v >= _prefix);
+	if (loaded) {
+		_sender.request(TLreadFilePart(
+			tl_int32(_fileId),
+			tl_int53(0), // offset
+			tl_int53(_prefix)
+		)).done([=](const TLDfilePart &data) {
+			_done(PackPreload(data.vdata().v, _full));
+		}).fail([=] {
+			_done({});
+		}).send();
+	} else {
+		_done({});
+	}
+}
+
+StoryPreload::LoadTask::~LoadTask() {
+}
+
+#if 0 // mtp
 class StoryPreload::LoadTask final : private Storage::DownloadMtprotoTask {
 public:
 	LoadTask(
@@ -194,17 +409,24 @@ bool StoryPreload::LoadTask::setWebFileSizeHook(int64 size) {
 	_done({});
 	return false;
 }
+#endif
 
 Story::Story(
 	StoryId id,
 	not_null<PeerData*> peer,
 	StoryMedia media,
+	const TLDstory &data,
+#if 0 // mtp
 	const MTPDstoryItem &data,
+#endif
 	TimeId now)
 : _id(id)
 , _peer(peer)
 , _date(data.vdate().v)
+#if 0 // mtp
 , _expires(data.vexpire_date().v) {
+#endif
+{
 	applyFields(std::move(media), data, now, true);
 }
 
@@ -229,7 +451,10 @@ bool Story::mine() const {
 }
 
 StoryIdDates Story::idDates() const {
+#if 0 // mtp
 	return { _id, _date, _expires };
+#endif
+	return { _id, _date };
 }
 
 FullStoryId Story::fullId() const {
@@ -240,12 +465,17 @@ TimeId Story::date() const {
 	return _date;
 }
 
+#if 0 // mtp
 TimeId Story::expires() const {
 	return _expires;
 }
+#endif
 
 bool Story::expired(TimeId now) const {
+#if 0 // mtp
 	return _expires <= (now ? now : base::unixtime::now());
+#endif
+	return _expired;
 }
 
 bool Story::unsupported() const {
@@ -337,8 +567,14 @@ bool Story::edited() const {
 	return _edited;
 }
 
+#if 0 // mtp
 bool Story::out() const {
 	return _out;
+}
+#endif
+
+bool Story::canToggleIsPinned() const {
+	return _canToggleIsPinned;
 }
 
 bool Story::canDownloadIfPremium() const {
@@ -355,11 +591,14 @@ bool Story::canShare() const {
 }
 
 bool Story::canDelete() const {
+	return _canDelete;
+#if 0 // mtp
 	if (const auto channel = _peer->asChannel()) {
 		return channel->canDeleteStories()
 			|| (out() && channel->canPostStories());
 	}
 	return _peer->isSelf();
+#endif
 }
 
 bool Story::canReport() const {
@@ -454,11 +693,14 @@ int Story::reactions() const {
 void Story::applyViewsSlice(
 		const QString &offset,
 		const StoryViews &slice) {
+#if 0 // mtp
 	const auto changed = (_views.reactions != slice.reactions)
 		|| (_views.total != slice.total);
 	_views.reactions = slice.reactions;
 	_views.total = slice.total;
 	_views.known = true;
+#endif
+	const auto changed = false; // We update counts only from TLstory.
 	if (offset.isEmpty()) {
 		_views = slice;
 	} else if (_views.nextOffset == offset) {
@@ -510,11 +752,15 @@ const std::vector<SuggestedReaction> &Story::suggestedReactions() const {
 
 void Story::applyChanges(
 		StoryMedia media,
+		const TLDstory &data,
+#if 0 // mtp
 		const MTPDstoryItem &data,
+#endif
 		TimeId now) {
 	applyFields(std::move(media), data, now, false);
 }
 
+#if 0 // mtp
 Story::ViewsCounts Story::parseViewsCounts(
 		const MTPDstoryViews &data,
 		const Data::ReactionId &mine) {
@@ -554,14 +800,38 @@ Story::ViewsCounts Story::parseViewsCounts(
 	}
 	return result;
 }
+#endif
+Story::ViewsCounts Story::parseViewsCounts(
+		const TLDstoryInteractionInfo &data,
+		const Data::ReactionId &mine) {
+	auto result = ViewsCounts{
+		.views = data.vview_count().v,
+		.reactions = data.vreaction_count().v,
+	};
+	const auto list = &data.vrecent_viewer_user_ids();
+	{
+		result.viewers.reserve(list->v.size());
+		auto &owner = _peer->owner();
+		auto &&cut = list->v
+			| ranges::views::take(kRecentViewersMax);
+		for (const auto &id : cut) {
+			result.viewers.push_back(owner.peer(peerFromUser(id)));
+		}
+	}
+	return result;
+}
 
 void Story::applyFields(
 		StoryMedia media,
+		const TLDstory &data,
+#if 0 // mtp
 		const MTPDstoryItem &data,
+#endif
 		TimeId now,
 		bool initial) {
 	_lastUpdateTime = now;
 
+#if 0 // mtp
 	const auto reaction = data.is_min()
 		? _sentReactionId
 		: data.vsent_reaction()
@@ -586,9 +856,30 @@ void Story::applyFields(
 			&owner().session(),
 			data.ventities().value_or_empty()),
 	};
+#endif
+	const auto reaction = data.vchosen_reaction_type()
+		? Data::ReactionFromTL(*data.vchosen_reaction_type())
+		: Data::ReactionId();
+	const auto pinned = data.vis_pinned().v;
+	const auto edited = data.vis_edited().v;
+	const auto privacy = data.vprivacy_settings().match([](
+		const TLDstoryPrivacySettingsEveryone &) {
+		return StoryPrivacy::Public;
+	}, [](const TLDstoryPrivacySettingsCloseFriends &) {
+		return StoryPrivacy::CloseFriends;
+	}, [](const TLDstoryPrivacySettingsContacts &) {
+		return StoryPrivacy::Contacts;
+	}, [](const TLDstoryPrivacySettingsSelectedUsers &) {
+		return StoryPrivacy::SelectedContacts;
+	});
+	const auto noForwards = !data.vcan_be_forwarded().v;
+	auto caption = Api::FormattedTextFromTdb(data.vcaption());
 	auto counts = ViewsCounts();
 	auto viewsKnown = _views.known;
+#if 0 // mtp
 	if (const auto info = data.vviews()) {
+#endif
+	if (const auto info = data.vinteraction_info()) {
 		counts = parseViewsCounts(info->data(), reaction);
 		viewsKnown = true;
 	} else {
@@ -603,18 +894,24 @@ void Story::applyFields(
 	}
 	auto locations = std::vector<StoryLocation>();
 	auto suggestedReactions = std::vector<SuggestedReaction>();
+#if 0 // mtp
 	if (const auto areas = data.vmedia_areas()) {
+#endif // mtp
+	{
+		const auto areas = &data.vareas();
 		locations.reserve(areas->v.size());
 		suggestedReactions.reserve(areas->v.size());
 		for (const auto &area : areas->v) {
 			if (const auto location = ParseLocation(area)) {
 				locations.push_back(*location);
 			} else if (auto reaction = ParseSuggestedReaction(area)) {
+#if 0 // mtp
 				const auto i = counts.reactionsCounts.find(
 					reaction->reaction);
 				if (i != end(counts.reactionsCounts)) {
 					reaction->count = i->second;
 				}
+#endif
 				suggestedReactions.push_back(*reaction);
 			}
 		}
@@ -629,7 +926,13 @@ void Story::applyFields(
 		= (_suggestedReactions != suggestedReactions);
 	const auto reactionChanged = (_sentReactionId != reaction);
 
+#if 0 // mtp
 	_out = out;
+#endif
+	_canEdit = data.vcan_be_edited().v;
+	_canDelete = data.vcan_be_deleted().v;
+	_canToggleIsPinned = data.vcan_toggle_is_pinned().v;
+
 	_privacyPublic = (privacy == StoryPrivacy::Public);
 	_privacyCloseFriends = (privacy == StoryPrivacy::CloseFriends);
 	_privacyContacts = (privacy == StoryPrivacy::Contacts);
@@ -697,6 +1000,7 @@ void Story::updateViewsCounts(ViewsCounts &&counts, bool known, bool initial) {
 	}
 }
 
+#if 0 // mtp
 void Story::applyViewsCounts(const MTPDstoryViews &data) {
 	auto counts = parseViewsCounts(data, _sentReactionId);
 	auto suggestedCountsChanged = false;
@@ -713,6 +1017,7 @@ void Story::applyViewsCounts(const MTPDstoryViews &data) {
 		_peer->session().changes().storyUpdated(this, UpdateFlag::Reaction);
 	}
 }
+#endif
 
 TimeId Story::lastUpdateTime() const {
 	return _lastUpdateTime;
@@ -789,7 +1094,10 @@ void StoryPreload::load() {
 	Expects(_story->document() != nullptr);
 
 	const auto video = _story->document();
+#if 0 // mtp
 	const auto valid = video->videoPreloadLocation().valid();
+#endif
+	const auto valid = (video->tdbFileId() != 0);
 	const auto prefix = video->videoPreloadPrefix();
 	const auto key = video->bigFileBaseCacheKey();
 	if (!valid || prefix <= 0 || prefix > video->size || !key) {

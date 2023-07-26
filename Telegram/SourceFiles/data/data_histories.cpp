@@ -39,6 +39,7 @@ using namespace Tdb;
 
 } // namespace
 
+#if 0 // mtp
 MTPInputReplyTo ReplyToForMTP(
 		not_null<Session*> owner,
 		FullReplyTo replyTo) {
@@ -61,6 +62,7 @@ MTPInputReplyTo ReplyToForMTP(
 	}
 	return MTPInputReplyTo();
 }
+#endif
 
 Histories::Histories(not_null<Session*> owner)
 : _owner(owner)

@@ -25,8 +25,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/show.h"
 #include "ui/text/text_utilities.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+
 namespace Data {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kMaxResolveTogether = 100;
 constexpr auto kIgnorePreloadAroundIfLoaded = 15;
@@ -47,6 +52,7 @@ constexpr auto kPollingViewsPerPage = Story::kRecentViewersMax;
 
 using UpdateFlag = StoryUpdate::Flag;
 
+#if 0 // mtp
 [[nodiscard]] std::optional<StoryMedia> ParseMedia(
 		not_null<Session*> owner,
 		const MTPMessageMedia &media) {
@@ -73,6 +79,30 @@ using UpdateFlag = StoryUpdate::Flag;
 	}, [&](const MTPDmessageMediaUnsupported &data) {
 		return std::make_optional(StoryMedia{ v::null });
 	}, [](const auto &) { return std::optional<StoryMedia>(); });
+}
+#endif
+[[nodiscard]] std::optional<StoryMedia> ParseMedia(
+		not_null<Session*> owner,
+		const TLstoryContent &content) {
+	return content.match([&](const TLDstoryContentPhoto &data)
+		-> std::optional<StoryMedia> {
+		const auto result = owner->processPhoto(data.vphoto());
+		if (!result->isNull()) {
+			return StoryMedia{ result };
+		}
+		return {};
+	}, [&](const TLDstoryContentVideo &data)
+		-> std::optional<StoryMedia> {
+		const auto result = owner->processDocument(data.vvideo());
+		if (!result->isNull()
+			&& (result->isGifv() || result->isVideoFile())) {
+			result->setStoryMedia(true);
+			return StoryMedia{ result };
+		}
+		return {};
+	}, [&](const TLDstoryContentUnsupported &data) {
+		return std::make_optional(StoryMedia{ v::null });
+	});
 }
 
 } // namespace
@@ -102,9 +132,11 @@ StoryIdDates StoriesSource::toOpen() const {
 
 Stories::Stories(not_null<Session*> owner)
 : _owner(owner)
+#if 0 // mtp
 , _expireTimer([=] { processExpired(); })
 , _markReadTimer([=] { sendMarkAsReadRequests(); })
 , _incrementViewsTimer([=] { sendIncrementViewsRequests(); })
+#endif
 , _pollingTimer([=] { sendPollingRequests(); })
 , _pollingViewsTimer([=] { sendPollingViewsRequests(); }) {
 	crl::on_main(this, [=] {
@@ -147,6 +179,7 @@ Main::Session &Stories::session() const {
 	return _owner->session();
 }
 
+#if 0 // mtp
 void Stories::apply(const MTPDupdateStory &data) {
 	const auto peerId = peerFromMTP(data.vpeer());
 	const auto peer = _owner->peer(peerId);
@@ -230,6 +263,7 @@ Story *Stories::applyFromWebpage(PeerId peerId, const MTPstoryItem &story) {
 		: base::make_unexpected(NoStory::Deleted);
 	return value ? value->get() : nullptr;
 }
+#endif
 
 void Stories::requestPeerStories(
 		not_null<PeerData*> peer,
@@ -248,6 +282,11 @@ void Stories::requestPeerStories(
 			}
 		}
 	};
+	session().sender().request(TLgetChatActiveStories(
+		peerToTdbChat(peer->id)
+	)).done([=](const TLchatActiveStories &result) {
+		parseAndApply(result);
+#if 0 // mtp
 	_owner->session().api().request(MTPstories_GetPeerStories(
 		peer->input
 	)).done([=](const MTPstories_PeerStories &result) {
@@ -255,6 +294,7 @@ void Stories::requestPeerStories(
 		_owner->processUsers(data.vusers());
 		_owner->processChats(data.vchats());
 		parseAndApply(data.vstories());
+#endif
 		finish();
 	}).fail([=] {
 		applyDeletedFromSources(peer->id, StorySourcesList::NotHidden);
@@ -263,6 +303,7 @@ void Stories::requestPeerStories(
 	}).send();
 }
 
+#if 0 // mtp
 void Stories::registerExpiring(TimeId expires, FullStoryId id) {
 	for (auto i = _expiring.findFirst(expires)
 		; (i != end(_expiring)) && (i->first == expires)
@@ -317,6 +358,7 @@ void Stories::processExpired() {
 		scheduleExpireTimer();
 	}
 }
+#endif
 
 Stories::Set *Stories::lookupArchive(not_null<PeerData*> peer) {
 	const auto peerId = peer->id;
@@ -348,18 +390,31 @@ void Stories::clearArchive(not_null<PeerData*> peer) {
 	_archiveChanged.fire_copy(peerId);
 }
 
+#if 0 // mtp
 void Stories::parseAndApply(const MTPPeerStories &stories) {
 	const auto &data = stories.data();
 	const auto peerId = peerFromMTP(data.vpeer());
 	const auto already = _readTill.find(peerId);
 	const auto readTill = std::max(
 		data.vmax_read_id().value_or_empty(),
+#endif
+void Stories::parseAndApply(const TLchatActiveStories &stories) {
+	const auto &data = stories.data();
+	const auto peerId = peerFromTdbChat(data.vchat_id());
+	const auto hidden = data.vlist()
+		&& (data.vlist()->type() == id_storyListArchive);
+	const auto already = _readTill.find(peerId);
+	const auto readTill = std::max(
+		data.vmax_read_story_id().v,
 		(already != end(_readTill) ? already->second : 0));
 	const auto peer = _owner->peer(peerId);
 	auto result = StoriesSource{
 		.peer = peer,
 		.readTill = readTill,
+#if 0 // mtp
 		.hidden = peer->hasStoriesHidden(),
+#endif
+		.hidden = hidden,
 	};
 	const auto &list = data.vstories().v;
 	const auto now = base::unixtime::now();
@@ -402,6 +457,8 @@ void Stories::parseAndApply(const MTPPeerStories &stories) {
 		}
 		sort(list);
 	};
+
+#if 0 // mtp
 	if (result.peer->isSelf()
 		|| (result.peer->isChannel() && result.peer->asChannel()->amIn())
 		|| (result.peer->isUser()
@@ -409,6 +466,8 @@ void Stories::parseAndApply(const MTPPeerStories &stories) {
 				|| result.peer->asUser()->isContact()))
 		|| result.peer->isServiceUser()) {
 		const auto hidden = result.peer->hasStoriesHidden();
+#endif
+	if (const auto list = data.vlist()) {
 		using List = StorySourcesList;
 		add(hidden ? List::Hidden : List::NotHidden);
 		applyDeletedFromSources(
@@ -419,22 +478,39 @@ void Stories::parseAndApply(const MTPPeerStories &stories) {
 		applyDeletedFromSources(peerId, StorySourcesList::Hidden);
 	}
 	_sourceChanged.fire_copy(peerId);
+#if 0 // mtp
 	updatePeerStoriesState(result.peer);
+#endif
 }
 
+Story *Stories::parseAndApply(const TLstory &story, TimeId now) {
+	const auto peerId = peerFromTdbChat(story.data().vsender_chat_id());
+	return parseAndApply(_owner->peer(peerId), story, now);
+}
+
+#if 0 // mtp
 Story *Stories::parseAndApply(
 		not_null<PeerData*> peer,
 		const MTPDstoryItem &data,
 		TimeId now) {
 	const auto media = ParseMedia(_owner, data.vmedia());
+#endif
+Story *Stories::parseAndApply(
+		not_null<PeerData*> peer,
+		const TLstory &story,
+		TimeId now) {
+	const auto &data = story.data();
+	const auto media = ParseMedia(_owner, data.vcontent());
 	if (!media) {
 		return nullptr;
 	}
+#if 0 // mtp
 	const auto expires = data.vexpire_date().v;
 	const auto expired = (expires <= now);
 	if (expired && !data.is_pinned() && !hasArchive(peer)) {
 		return nullptr;
 	}
+#endif
 	const auto id = data.vid().v;
 	const auto fullId = FullStoryId{ peer->id, id };
 	auto &stories = _stories[peer->id];
@@ -478,12 +554,14 @@ Story *Stories::parseAndApply(
 		}
 	}
 
+#if 0 // mtp
 	if (expired) {
 		_expiring.remove(expires, fullId);
 		applyExpired(fullId);
 	} else {
 		registerExpiring(expires, fullId);
 	}
+#endif
 
 	if (wasDeleted) {
 		_owner->refreshStoryItemViews(fullId);
@@ -492,6 +570,7 @@ Story *Stories::parseAndApply(
 	return result;
 }
 
+#if 0 // mtp
 StoryIdDates Stories::parseAndApply(
 		not_null<PeerData*> peer,
 		const MTPstoryItem &story,
@@ -524,6 +603,18 @@ StoryIdDates Stories::parseAndApply(
 		applyDeleted(peer, data.vid().v);
 		return StoryIdDates();
 	});
+}
+#endif
+
+StoryIdDates Stories::parseAndApply(
+		not_null<PeerData*> peer,
+		const TLstoryInfo &story,
+		TimeId now) {
+	const auto &data = story.data();
+	return StoryIdDates{
+		data.vstory_id().v,
+		data.vdate().v,
+	};
 }
 
 void Stories::updateDependentMessages(not_null<Data::Story*> story) {
@@ -585,6 +676,17 @@ void Stories::loadMore(StorySourcesList list) {
 		return;
 	}
 	const auto hidden = (list == StorySourcesList::Hidden);
+	const auto api = &session().sender();
+	_loadMoreRequestId[index] = api->request(TLloadActiveStories(
+		hidden ? tl_storyListArchive() : tl_storyListMain()
+	)).done([=] {
+		_loadMoreRequestId[index] = 0;
+		preloadListsMore();
+	}).fail([=] {
+		_loadMoreRequestId[index] = 0;
+		_sourcesLoaded[index] = true;
+		_sourcesChanged[index].fire({});
+#if 0 // mtp
 	const auto api = &_owner->session().api();
 	using Flag = MTPstories_GetAllStories::Flag;
 	_loadMoreRequestId[index] = api->request(MTPstories_GetAllStories(
@@ -614,7 +716,43 @@ void Stories::loadMore(StorySourcesList list) {
 		preloadListsMore();
 	}).fail([=] {
 		_loadMoreRequestId[index] = 0;
+#endif
 	}).send();
+}
+
+void Stories::apply(const TLDupdateStory &data) {
+	parseAndApply(data.vstory(), base::unixtime::now());
+}
+
+void Stories::apply(const TLDupdateStoryDeleted &data) {
+	const auto peerId = peerFromTdbChat(data.vstory_sender_chat_id());
+	if (const auto peer = session().data().peerLoaded(peerId)) {
+		applyDeleted(peer, data.vstory_id().v);
+	}
+}
+
+void Stories::apply(const TLDupdateStoryListChatCount &data) {
+	const auto list = data.vstory_list().match([](TLDstoryListMain) {
+		return StorySourcesList::NotHidden;
+	}, [](TLDstoryListArchive) {
+		return StorySourcesList::Hidden;
+	});
+	const auto index = static_cast<int>(list);
+	const auto loaded = int(_sources[index].size());
+	if (data.vchat_count().v > loaded && loaded < kMaxSegmentsCount) {
+		loadMore(list);
+	}
+}
+
+void Stories::apply(const TLDupdateChatActiveStories &data) {
+	parseAndApply(data.vactive_stories());
+}
+
+void Stories::apply(const TLDupdateStoryStealthMode &data) {
+	_stealthMode = StealthMode{
+		.enabledTill = data.vactive_until_date().v,
+		.cooldownTill = data.vcooldown_until_date().v,
+	};
 }
 
 void Stories::preloadListsMore() {
@@ -666,6 +804,7 @@ void Stories::pushHiddenCountsToFolder() {
 	_folderForHidden->updateStoriesCount(count, unread);
 }
 
+#if 0 // mtp
 void Stories::sendResolveRequests() {
 	if (!_resolveSent.empty()) {
 		return;
@@ -745,6 +884,7 @@ void Stories::processResolvedStories(
 		});
 	}
 }
+#endif
 
 void Stories::finalizeResolve(FullStoryId id) {
 	const auto already = lookup(id);
@@ -775,7 +915,9 @@ void Stories::applyDeleted(not_null<PeerData*> peer, StoryId id) {
 			const auto &story
 				= _deletingStories[fullId]
 				= std::move(j->second);
+#if 0 // mtp
 			_expiring.remove(story->expires(), story->fullId());
+#endif
 			i->second.erase(j);
 
 			session().changes().storyUpdated(
@@ -933,12 +1075,16 @@ rpl::producer<StealthMode> Stories::stealthModeValue() const {
 }
 
 void Stories::activateStealthMode(Fn<void()> done) {
+#if 0 // mtp
 	const auto api = &session().api();
 	using Flag = MTPstories_ActivateStealthMode::Flag;
 	api->request(MTPstories_ActivateStealthMode(
 		MTP_flags(Flag::f_past | Flag::f_future)
 	)).done([=](const MTPUpdates &result) {
 		api->applyUpdates(result);
+#endif
+	session().sender().request(TLactivateStoryStealthMode(
+	)).done([=] {
 		if (done) done();
 	}).fail([=] {
 		if (done) done();
@@ -950,6 +1096,15 @@ void Stories::sendReaction(FullStoryId id, Data::ReactionId reaction) {
 		const auto story = *maybeStory;
 		story->setReactionId(reaction);
 
+		session().sender().request(TLsetStoryReaction(
+			peerToTdbChat(id.peer),
+			tl_int32(id.story),
+			(reaction.empty()
+				? std::optional<TLreactionType>()
+				: ReactionToTL(reaction)),
+			tl_bool(false)
+		)).send();
+#if 0 // mtp
 		const auto api = &session().api();
 		api->request(MTPstories_SendReaction(
 			MTP_flags(0),
@@ -957,6 +1112,7 @@ void Stories::sendReaction(FullStoryId id, Data::ReactionId reaction) {
 			MTP_int(id.story),
 			ReactionToMTP(reaction)
 		)).send();
+#endif
 	}
 }
 
@@ -1038,6 +1194,35 @@ void Stories::resolve(FullStoryId id, Fn<void()> done, bool force) {
 			return;
 		}
 	}
+	const auto finish = [=] {
+		const auto i = _resolveSent.find(id.peer);
+		Assert(i != end(_resolveSent));
+		const auto j = i->second.find(id.story);
+		Assert(j != end(i->second));
+		const auto callbacks = std::move(j->second);
+		i->second.erase(j);
+		if (i->second.empty()) {
+			_resolveSent.erase(i);
+		}
+		finalizeResolve(id);
+		for (const auto &callback : callbacks) {
+			callback();
+		}
+		_itemsChanged.fire_copy(id.peer);
+	};
+	session().sender().request(TLgetStory(
+		peerToTdbChat(id.peer),
+		tl_int32(id.story),
+		tl_bool(false) // only_local
+	)).done([=](const TLstory &result) {
+		parseAndApply(result, base::unixtime::now());
+		finish();
+	}).fail(finish).send();
+	auto &callbacks = _resolveSent[id.peer][id.story];
+	if (done) {
+		callbacks.push_back(std::move(done));
+	}
+#if 0 // mtp
 	auto &ids = _resolvePending[id.peer];
 	if (ids.empty()) {
 		crl::on_main(&session(), [=] {
@@ -1048,6 +1233,7 @@ void Stories::resolve(FullStoryId id, Fn<void()> done, bool force) {
 	if (done) {
 		callbacks.push_back(std::move(done));
 	}
+#endif
 }
 
 void Stories::loadAround(FullStoryId id, StoriesContext context) {
@@ -1099,20 +1285,24 @@ void Stories::markAsRead(FullStoryId id, bool viewed) {
 		return;
 	}
 	const auto story = *maybeStory;
+#if 0 // mtp
 	if (story->expired() && story->pinned()) {
 		_incrementViewsPending[id.peer].emplace(id.story);
 		if (!_incrementViewsTimer.isActive()) {
 			_incrementViewsTimer.callOnce(kIncrementViewsDelay);
 		}
 	}
+#endif
 	if (!bumpReadTill(id.peer, id.story)) {
 		return;
 	}
+#if 0 // mtp
 	if (!_markReadPending.contains(id.peer)) {
 		sendMarkAsReadRequests();
 	}
 	_markReadPending.emplace(id.peer);
 	_markReadTimer.callOnce(kMarkAsReadDelay);
+#endif
 }
 
 bool Stories::bumpReadTill(PeerId peerId, StoryId maxReadTill) {
@@ -1171,6 +1361,11 @@ void Stories::toggleHidden(
 		std::shared_ptr<Ui::Show> show) {
 	const auto peer = _owner->peer(peerId);
 	const auto justRemove = peer->isServiceUser() && hidden;
+	session().sender().request(TLsetChatActiveStoriesList(
+		peerToTdbChat(peerId),
+		(hidden ? tl_storyListArchive() : tl_storyListMain())
+	)).send();
+#if 0 // mtp
 	if (peer->hasStoriesHidden() != hidden) {
 		if (!justRemove) {
 			peer->setStoriesHidden(hidden);
@@ -1180,6 +1375,7 @@ void Stories::toggleHidden(
 			MTP_bool(hidden)
 		)).send();
 	}
+#endif
 
 	const auto name = peer->shortName();
 	const auto guard = gsl::finally([&] {
@@ -1196,7 +1392,14 @@ void Stories::toggleHidden(
 	});
 
 	if (justRemove) {
+#if 0 // mtp
 		apply(peer, nullptr);
+#endif
+		applyDeletedFromSources(peer->id, StorySourcesList::NotHidden);
+		applyDeletedFromSources(peer->id, StorySourcesList::Hidden);
+		_all.erase(peer->id);
+		_sourceChanged.fire_copy(peer->id);
+		peer->setStoriesState(PeerData::StoriesState::None);
 		return;
 	}
 
@@ -1240,6 +1443,7 @@ void Stories::toggleHidden(
 	}
 }
 
+#if 0 // mtp
 void Stories::sendMarkAsReadRequest(
 		not_null<PeerData*> peer,
 		StoryId tillId) {
@@ -1260,16 +1464,20 @@ void Stories::sendMarkAsReadRequest(
 		MTP_int(tillId)
 	)).done(finish).fail(finish).send();
 }
+#endif
 
 void Stories::checkQuitPreventFinished() {
+#if 0 // mtp
 	if (_markReadRequests.empty() && _incrementViewsRequests.empty()) {
 		if (Core::Quitting()) {
 			LOG(("Stories doesn't prevent quit any more."));
 		}
 		Core::App().quitPreventFinished();
 	}
+#endif
 }
 
+#if 0 // mtp
 void Stories::sendMarkAsReadRequests() {
 	_markReadTimer.cancel();
 	for (auto i = begin(_markReadPending); i != end(_markReadPending);) {
@@ -1324,6 +1532,7 @@ void Stories::sendIncrementViewsRequests() {
 		_incrementViewsPending.remove(peer);
 	}
 }
+#endif
 
 void Stories::loadViewsSlice(
 		not_null<PeerData*> peer,
@@ -1357,6 +1566,16 @@ void Stories::sendViewsSliceRequest() {
 	Expects(_viewsStoryPeer != nullptr);
 	Expects(_viewsStoryPeer->isSelf());
 
+	session().sender().request(_viewsRequestId).cancel();
+	_viewsRequestId = session().sender().request(TLgetStoryViewers(
+		tl_int32(_viewsStoryId),
+		tl_string(), // query
+		tl_bool(false), // only_contacts
+		tl_bool(true), // prefer_with_reaction
+		tl_string(_viewsOffset),
+		tl_int32(_viewsDone ? kViewsPerPage : kPollingViewsPerPage)
+	)).done([=](const TLstoryViewers &result) {
+#if 0 // mtp
 	using Flag = MTPstories_GetStoryViewsList::Flag;
 	const auto api = &_owner->session().api();
 	_owner->session().api().request(_viewsRequestId).cancel();
@@ -1368,9 +1587,11 @@ void Stories::sendViewsSliceRequest() {
 		MTP_string(_viewsOffset),
 		MTP_int(_viewsDone ? kViewsPerPage : kPollingViewsPerPage)
 	)).done([=](const MTPstories_StoryViewsList &result) {
+#endif
 		_viewsRequestId = 0;
 
 		const auto &data = result.data();
+#if 0 // mtp
 		auto slice = StoryViews{
 			.nextOffset = data.vnext_offset().value_or_empty(),
 			.reactions = data.vreactions_count().v,
@@ -1379,12 +1600,26 @@ void Stories::sendViewsSliceRequest() {
 		_owner->processUsers(data.vusers());
 		slice.list.reserve(data.vviews().v.size());
 		for (const auto &view : data.vviews().v) {
+#endif
+		auto slice = StoryViews{
+			.nextOffset = data.vnext_offset().v,
+			//.reactions = data.vreactions_count().v, // tdlib
+			.total = data.vtotal_count().v,
+		};
+		slice.list.reserve(data.vviewers().v.size());
+		for (const auto &view : data.vviewers().v) {
 			slice.list.push_back({
 				.peer = _owner->peer(peerFromUser(view.data().vuser_id())),
+#if 0 // mtp
 				.reaction = (view.data().vreaction()
 					? ReactionFromMTP(*view.data().vreaction())
 					: Data::ReactionId()),
 				.date = view.data().vdate().v,
+#endif
+				.reaction = (view.data().vchosen_reaction_type()
+					? ReactionFromTL(*view.data().vchosen_reaction_type())
+					: Data::ReactionId()),
+				.date = view.data().vview_date().v,
 			});
 		}
 		const auto fullId = FullStoryId{
@@ -1409,6 +1644,11 @@ void Stories::sendViewsCountsRequest() {
 	Expects(_viewsStoryPeer != nullptr);
 	Expects(!_viewsDone);
 
+	_viewsRequestId = -1;
+	resolve({ _viewsStoryPeer->id, _viewsStoryId }, [=] {
+		_viewsRequestId = 0;
+	}, true);
+#if 0 // mtp
 	const auto api = &_owner->session().api();
 	_owner->session().api().request(_viewsRequestId).cancel();
 	_viewsRequestId = api->request(MTPstories_GetStoriesViews(
@@ -1431,6 +1671,7 @@ void Stories::sendViewsCountsRequest() {
 	}).fail([=] {
 		_viewsRequestId = 0;
 	}).send();
+#endif
 }
 
 bool Stories::hasArchive(not_null<PeerData*> peer) const {
@@ -1498,12 +1739,22 @@ void Stories::archiveLoadMore(PeerId peerId) {
 	if (!archive || archive->requestId || archive->loaded) {
 		return;
 	}
+	archive->requestId = session().sender().request(
+		TLgetChatArchivedStories(
+			peerToTdbChat(peerId),
+			tl_int32(archive->lastId),
+			tl_int32(archive->lastId
+				? kArchivePerPage
+				: kArchiveFirstPerPage))
+	).done([=](const TLstories &result) {
+#if 0 // mtp
 	const auto api = &_owner->session().api();
 	archive->requestId = api->request(MTPstories_GetStoriesArchive(
 		peer->input,
 		MTP_int(archive->lastId),
 		MTP_int(archive->lastId ? kArchivePerPage : kArchiveFirstPerPage)
 	)).done([=](const MTPstories_Stories &result) {
+#endif
 		const auto archive = lookupArchive(peer);
 		if (!archive) {
 			return;
@@ -1512,7 +1763,10 @@ void Stories::archiveLoadMore(PeerId peerId) {
 
 		const auto &data = result.data();
 		const auto now = base::unixtime::now();
+#if 0 // mtp
 		archive->total = data.vcount().v;
+#endif
+		archive->total = data.vtotal_count().v;
 		for (const auto &story : data.vstories().v) {
 			const auto id = story.match([&](const auto &id) {
 				return id.vid().v;
@@ -1547,6 +1801,12 @@ void Stories::savedLoadMore(PeerId peerId) {
 	if (saved.requestId || saved.loaded) {
 		return;
 	}
+	saved.requestId = session().sender().request(TLgetChatPinnedStories(
+		peerToTdbChat(peerId),
+		tl_int32(saved.lastId),
+		tl_int32(saved.lastId ? kSavedPerPage : kSavedFirstPerPage)
+	)).done([=](const TLstories &result) {
+#if 0 // mtp
 	const auto api = &_owner->session().api();
 	const auto peer = _owner->peer(peerId);
 	saved.requestId = api->request(MTPstories_GetPinnedStories(
@@ -1554,12 +1814,17 @@ void Stories::savedLoadMore(PeerId peerId) {
 		MTP_int(saved.lastId),
 		MTP_int(saved.lastId ? kSavedPerPage : kSavedFirstPerPage)
 	)).done([=](const MTPstories_Stories &result) {
+#endif
 		auto &saved = _saved[peerId];
 		saved.requestId = 0;
 
 		const auto &data = result.data();
 		const auto now = base::unixtime::now();
+#if 0 // mtp
 		saved.total = data.vcount().v;
+#endif
+		saved.total = data.vtotal_count().v;
+		const auto peer = _owner->peer(peerId);
 		for (const auto &story : data.vstories().v) {
 			const auto id = story.match([&](const auto &id) {
 				return id.vid().v;
@@ -1591,6 +1856,15 @@ void Stories::deleteList(const std::vector<FullStoryId> &ids) {
 		return;
 	}
 	const auto peer = session().data().peer(ids.front().peer);
+	for (const auto &id : ids) {
+		if (id.peer == peer->id) {
+			session().sender().request(TLdeleteStory(
+				peerToTdbChat(id.peer),
+				tl_int32(id.story)
+			)).send();
+		}
+	}
+#if 0 // mtp
 	auto list = QVector<MTPint>();
 	list.reserve(ids.size());
 	for (const auto &id : ids) {
@@ -1607,6 +1881,7 @@ void Stories::deleteList(const std::vector<FullStoryId> &ids) {
 			applyDeleted(peer, id.v);
 		}
 	}).send();
+#endif
 }
 
 void Stories::togglePinnedList(
@@ -1616,6 +1891,54 @@ void Stories::togglePinnedList(
 		return;
 	}
 	const auto peer = session().data().peer(ids.front().peer);
+	for (const auto &storyId : ids) {
+		if (storyId.peer == peer->id) {
+			const auto id = storyId.story;
+			session().sender().request(TLtoggleStoryIsPinned(
+				peerToTdbChat(storyId.peer),
+				tl_int32(id),
+				tl_bool(pinned)
+			)).done([=] {
+				const auto peerId = peer->id;
+				auto &saved = _saved[peerId];
+				const auto loaded = saved.loaded;
+				const auto lastId = !saved.ids.list.empty()
+					? saved.ids.list.back()
+					: saved.lastId
+					? saved.lastId
+					: std::numeric_limits<StoryId>::max();
+				auto dirty = false;
+				if (const auto maybeStory = lookup({ peerId, id })) {
+					const auto story = *maybeStory;
+					story->setPinned(pinned);
+					if (pinned) {
+						const auto add = loaded || (id >= lastId);
+						if (!add) {
+							dirty = true;
+						} else if (saved.ids.list.emplace(id).second) {
+							if (saved.total >= 0) {
+								++saved.total;
+							}
+						}
+					} else if (saved.ids.list.remove(id)) {
+						if (saved.total > 0) {
+							--saved.total;
+						}
+					} else if (!loaded) {
+						dirty = true;
+					}
+				} else if (!loaded) {
+					dirty = true;
+				}
+				if (dirty) {
+					savedLoadMore(peerId);
+				} else {
+					_savedChanged.fire_copy(peerId);
+				}
+			}).send();
+		}
+	}
+#if 0 // mtp
 	auto list = QVector<MTPint>();
 	list.reserve(ids.size());
 	for (const auto &id : ids) {
@@ -1671,6 +1994,7 @@ void Stories::togglePinnedList(
 			_savedChanged.fire_copy(peerId);
 		}
 	}).send();
+#endif
 }
 
 void Stories::report(
@@ -1685,6 +2009,7 @@ void Stories::report(
 }
 
 bool Stories::isQuitPrevent() {
+#if 0 // mtp
 	if (!_markReadPending.empty()) {
 		sendMarkAsReadRequests();
 	}
@@ -1696,6 +2021,8 @@ bool Stories::isQuitPrevent() {
 	}
 	LOG(("Stories prevents quit, marking as read..."));
 	return true;
+#endif
+	return false;
 }
 
 void Stories::incrementPreloadingMainSources() {
@@ -1744,6 +2071,7 @@ void Stories::setPreloadingInViewer(std::vector<FullStoryId> ids) {
 	}
 }
 
+#if 0 // mtp
 std::optional<Stories::PeerSourceState> Stories::peerSourceState(
 		not_null<PeerData*> peer,
 		StoryId storyMaxId) {
@@ -1778,14 +2106,17 @@ void Stories::requestReadTills() {
 		}
 	}).send();
 }
+#endif
 
 bool Stories::isUnread(not_null<Story*> story) {
 	const auto till = _readTill.find(story->peer()->id);
+#if 0 // mtp
 	if (till == end(_readTill) && !_readTillReceived) {
 		requestReadTills();
 		_pendingReadTillItems.emplace(story->fullId());
 		return false;
 	}
+#endif
 	const auto readTill = (till != end(_readTill)) ? till->second : 0;
 	return (story->id() > readTill);
 }
@@ -1800,6 +2131,10 @@ void Stories::registerPolling(not_null<Story*> story, Polling polling) {
 			&& _pollingViews.emplace(story).second) {
 			sendPollingViewsRequests();
 		}
+		session().sender().request(TLopenStory(
+			peerToTdbChat(story->peer()->id),
+			tl_int32(story->id())
+		)).send();
 		break;
 	}
 	maybeSchedulePolling(story, settings, base::unixtime::now());
@@ -1822,6 +2157,10 @@ void Stories::unregisterPolling(not_null<Story*> story, Polling polling) {
 				_pollingViewsTimer.cancel();
 			}
 		}
+		session().sender().request(TLcloseStory(
+			peerToTdbChat(story->peer()->id),
+			tl_int32(story->id())
+		)).send();
 		break;
 	}
 	if (!i->second.chat && !i->second.viewer) {
@@ -1898,14 +2237,21 @@ void Stories::sendPollingViewsRequests() {
 void Stories::updatePeerStoriesState(not_null<PeerData*> peer) {
 	const auto till = _readTill.find(peer->id);
 	const auto readTill = (till != end(_readTill)) ? till->second : 0;
+#if 0 // mtp
 	const auto pendingMaxId = [&] {
 		const auto j = _pendingPeerStateMaxId.find(peer);
 		return (j != end(_pendingPeerStateMaxId)) ? j->second : 0;
 	};
+#endif
+	const auto pendingMaxId = [] { return 0; };
 	const auto i = _all.find(peer->id);
 	const auto max = (i != end(_all))
 		? (i->second.ids.empty() ? 0 : i->second.ids.back().id)
 		: pendingMaxId();
+	if (i == end(_all)) {
+		// With TDLib we don't update users with unknown stories, lib does.
+		return;
+	}
 	peer->setStoriesState(!max
 		? PeerData::StoriesState::None
 		: (max <= readTill)
@@ -1963,6 +2309,10 @@ void Stories::continuePreloading() {
 		return;
 	} else if (const auto maybeStory = lookup(id)) {
 		startPreloading(*maybeStory);
+	} else if (maybeStory.error() == NoStory::Unknown) {
+		resolve(id, [=] {
+			continuePreloading();
+		});
 	}
 }
 
