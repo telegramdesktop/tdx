@@ -1116,7 +1116,13 @@ void Widget::backRequested() {
 			StackAction::Replace,
 			Animate::Back);
 #endif
-		go(_stepHistory[_stepHistory.size() - 2]->type());
+		const auto to = _stepHistory[_stepHistory.size() - 2]->type();
+		if (to == StepType::Start
+			&& _stepHistory.back()->type() == StepType::Code) {
+			go(StepType::Phone);
+		} else {
+			go(to);
+		}
 	} else {
 		go(StepType::Start);
 	}
