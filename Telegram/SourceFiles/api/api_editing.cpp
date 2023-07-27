@@ -286,6 +286,18 @@ mtpRequestId EditTextMessage(
 		Fn<void(mtpRequestId requestId)> done,
 		Fn<void(const QString &error, mtpRequestId requestId)> fail,
 		bool spoilered) {
+	if (const auto media = item->media()) {
+		if (!media->webpage() && (media->photo() || media->document())) {
+			const auto id = std::make_shared<mtpRequestId>();
+			*id = EditCaption(item, caption, options, [=] {
+				done(*id);
+			}, [=](const QString &error) {
+				fail(error, *id);
+			});
+			return *id;
+		}
+	}
+
 	const auto session = &item->history()->session();
 	return session->sender().request(TLeditMessageText(
 		peerToTdbChat(item->history()->peer->id),
