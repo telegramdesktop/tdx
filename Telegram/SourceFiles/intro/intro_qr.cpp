@@ -245,6 +245,9 @@ bool QrWidget::applyState(const TLauthorizationState &state) {
 			const TLDauthorizationStateWaitPhoneNumber &data) {
 		sendRequestCode();
 		return true;
+	}, [&](const TLDauthorizationStateWaitCode &data) {
+		sendRequestCode();
+		return true;
 	}, [&](const TLDauthorizationStateWaitOtherDeviceConfirmation &data) {
 		_qrLinks.fire_copy(data.vlink().v);
 		return true;
@@ -261,6 +264,7 @@ void QrWidget::sendRequestCode() {
 	if (_requestId) {
 		return;
 	}
+	getData()->resettingForPhoneAuth = false;
 	_requestId = api().request(TLrequestQrCodeAuthentication(
 		tl_vector<TLint53>(0)
 	)).fail([=](const Error &error) {
