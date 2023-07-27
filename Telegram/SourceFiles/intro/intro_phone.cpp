@@ -108,6 +108,10 @@ PhoneWidget::PhoneWidget(
 	_changed = false;
 }
 
+PhoneWidget::~PhoneWidget() {
+	getData()->resettingForPhoneAuth = false;
+}
+
 void PhoneWidget::setupQrLogin() {
 	const auto qrLogin = Ui::CreateChild<Ui::LinkButton>(
 		this,
@@ -208,14 +212,16 @@ void PhoneWidget::submit() {
 #if 0 // mtp
 	_checkRequestTimer.callEach(1000);
 #endif
+	sendPhoneRequest(phone);
+}
 
+void PhoneWidget::sendPhoneRequest(const QString &phone) {
 	_sentPhone = phone;
 	_sentRequest = true;
 
-	if (!getData()->qrLink.isEmpty()) {
-		_sentRequest = true;
-		getData()->qrLink = QString();
-		account().logOut();
+	if (!_resetTried && !getData()->qrLink.isEmpty()) {
+		resendAfterReset(phone);
+		return;
 	}
 	api().request(TLsetAuthenticationPhoneNumber(
 		tl_string(phone),
@@ -228,10 +234,16 @@ void PhoneWidget::submit() {
 			std::nullopt, // firebase_authentication_settings
 			tl_vector<TLstring>()) // authentication_tokens
 	)).done([=] {
+		getData()->resettingForPhoneAuth = false;
 		_sentRequest = false;
 		go(StepType::Code);
 	}).fail([=](const Error &error) {
-		phoneSetFail(error);
+		getData()->resettingForPhoneAuth = false;
+		if (_resetTried) {
+			phoneSetFail(error);
+		} else {
+			resendAfterReset(phone);
+		}
 	}).send();
 #if 0 // mtp
 	api().instance().setUserPhone(_sentPhone);
@@ -250,6 +262,16 @@ void PhoneWidget::submit() {
 		phoneSubmitFail(error);
 	}).handleFloodErrors().send();
 #endif
+}
+
+void PhoneWidget::resendAfterReset(const QString &phone) {
+	Expects(!_resetTried);
+
+	_resetTried = true;
+	getData()->qrLink = QString();
+	getData()->resettingForPhoneAuth = true;
+	account().logOut();
+	sendPhoneRequest(phone);
 }
 
 #if 0 // mtp
