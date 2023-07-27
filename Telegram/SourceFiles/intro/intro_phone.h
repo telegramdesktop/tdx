@@ -27,6 +27,7 @@ public:
 		QWidget *parent,
 		not_null<Main::Account*> account,
 		not_null<Data*> data);
+	~PhoneWidget();
 
 	void selectCountry(const QString &country);
 
@@ -59,6 +60,8 @@ private:
 	void phoneSubmitDone(const MTPauth_SentCode &result);
 	void phoneSubmitFail(const MTP::Error &error);
 #endif
+	void sendPhoneRequest(const QString &phone);
+	void resendAfterReset(const QString &phone);
 
 	void phoneSetFail(const Tdb::Error &error);
 
@@ -80,8 +83,10 @@ private:
 
 	base::Timer _checkRequestTimer;
 #endif
+	bool _resetTried = false;
 
 	bool _sentRequest = false;
+
 
 };
 
