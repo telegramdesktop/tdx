@@ -80,6 +80,7 @@ struct Data {
 	rpl::event_stream<> updated;
 
 	QString qrLink;
+	bool resettingForPhoneAuth = false;
 };
 
 enum class StackAction {
@@ -216,6 +217,8 @@ private:
 	Tdb::Sender _api;
 	Tdb::RequestId _nearestDcRequestId = 0;
 
+	details::Data _data;
+
 	std::unique_ptr<Window::SlideAnimation> _showAnimation;
 
 #if 0 // mtp
@@ -223,8 +226,6 @@ private:
 #endif
 	std::vector<std::unique_ptr<details::Step>> _stepHistory;
 	rpl::lifetime _stepLifetime;
-
-	details::Data _data;
 
 	Ui::Animations::Simple _coverShownAnimation;
 	int _nextTopFrom = 0;
