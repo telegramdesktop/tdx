@@ -465,11 +465,20 @@ void CodeWidget::submitCode() {
 	_sentCode = text;
 
 	_sentRequest = true;
-	api().request(TLcheckAuthenticationCode(
-		tl_string(_sentCode)
-	)).fail([=](const Error &error) {
-		checkCodeFail(error);
-	}).send();
+	if (getData()->codeByEmail) {
+		api().request(TLcheckAuthenticationEmailCode(
+			tl_emailAddressAuthenticationCode(
+				tl_string(_sentCode))
+		)).fail([=](const Error &error) {
+			checkCodeFail(error);
+		}).send();
+	} else {
+		api().request(TLcheckAuthenticationCode(
+			tl_string(_sentCode)
+		)).fail([=](const Error &error) {
+			checkCodeFail(error);
+		}).send();
+	}
 
 #if 0 // mtp
 	getData()->pwdState = Core::CloudPasswordState();
