@@ -217,6 +217,7 @@ void Step::jumpByState(const TLauthorizationState &state) {
 	}, [&](const TLDauthorizationStateWaitPhoneNumber &) {
 		go(StepType::Qr);
 	}, [&](const TLDauthorizationStateWaitCode &) {
+		getData()->codeByEmail = false;
 		go(StepType::Code);
 	}, [&](const TLDauthorizationStateWaitOtherDeviceConfirmation &) {
 		go(StepType::Qr);
@@ -234,7 +235,9 @@ void Step::jumpByState(const TLauthorizationState &state) {
 		}
 	}, [](const TLDauthorizationStateWaitEmailAddress &) {
 		LOG(("Tdb Error: Should not StateWaitEmailAddress in TDesktop."));
-	}, [](const TLDauthorizationStateWaitEmailCode &) {
+	}, [&](const TLDauthorizationStateWaitEmailCode &) {
+		getData()->codeByEmail = true;
+		go(StepType::Code);
 		LOG(("Tdb Error: Should not StateWaitEmailCode in TDesktop."));
 	});
 }
