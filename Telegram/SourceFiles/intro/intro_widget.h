@@ -80,6 +80,7 @@ struct Data {
 
 	QString qrLink;
 	bool resettingForPhoneAuth = false;
+	bool codeByEmail = false;
 };
 
 enum class StackAction {
