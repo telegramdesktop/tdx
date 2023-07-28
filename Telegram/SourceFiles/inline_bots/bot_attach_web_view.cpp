@@ -676,6 +676,9 @@ void MenuBotIcon::validate() {
 			return;
 		}
 		auto icon = QSvgRenderer(_media->bytes());
+		if (_media->bytes().isEmpty()) {
+			icon.load(_media->owner()->filepath());
+		}
 		_mask = QImage(wanted, QImage::Format_ARGB32_Premultiplied);
 		_mask.setDevicePixelRatio(style::DevicePixelRatio());
 		_mask.fill(Qt::transparent);
