@@ -4051,6 +4051,16 @@ void ApiWrap::requestSharedMedia(
 			finish();
 		}).fail([=] {
 			_sharedMediaRequests.remove(key);
+			// In case of left legacy groups MTProto API allows requesting
+			// messages / search / etc, while TDLib disallows.
+			if (const auto chat = peer->asChat()) {
+				if (chat->isForbidden()) {
+					using namespace Api;
+					sharedMediaDone(peer, topicRootId, type, SearchResult{
+						.noSkipRange = { 0, ServerMaxMsgId }
+					});
+				}
+			}
 			finish();
 		}).send();
 	}

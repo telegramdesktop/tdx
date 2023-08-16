@@ -276,6 +276,14 @@ SearchResult ParseSearchResult(
 			}
 			Unexpected("Direction in ParseSearchResult");
 		}();
+	} else if (messageId
+		&& direction == Data::LoadDirection::After
+		&& result.messageIds.front() == messageId) {
+		result.noSkipRange.till = ServerMaxMsgId;
+	} else if (messageId
+		&& direction == Data::LoadDirection::Before
+		&& result.messageIds.back() == messageId) {
+		result.noSkipRange.from = 0;
 	}
 	return result;
 }
