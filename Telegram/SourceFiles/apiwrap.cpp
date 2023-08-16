@@ -3989,6 +3989,16 @@ void ApiWrap::requestSharedMedia(
 			finish();
 		}).fail([=] {
 			_sharedMediaRequests.remove(key);
+			// In case of left legacy groups MTProto API allows requesting
+			// messages / search / etc, while TDLib disallows.
+			if (const auto chat = peer->asChat()) {
+				if (chat->isForbidden()) {
+					using namespace Api;
+					sharedMediaDone(peer, topicRootId, type, SearchResult{
+						.noSkipRange = { 0, ServerMaxMsgId }
+					});
+				}
+			}
 			finish();
 		}).send();
 	}
@@ -4007,6 +4017,7 @@ void ApiWrap::sharedMediaDone(
 	if (topicRootId && !topic) {
 		return;
 	}
+	const auto got = !parsed.messageIds.empty();
 	_session->storage().add(Storage::SharedMediaAddSlice(
 		peer->id,
 		topicRootId,
@@ -4015,12 +4026,23 @@ void ApiWrap::sharedMediaDone(
 		parsed.noSkipRange,
 		parsed.fullCount
 	));
+	if (type == SharedMediaType::Pinned
+		&& parsed.noSkipRange.till == ServerMaxMsgId
+		&& got) {
+		peer->owner().history(peer)->setHasPinnedMessages(true);
+		if (topic) {
+			topic->setHasPinnedMessages(true);
+		}
+
+	}
+#if 0 // mtp
 	if (type == SharedMediaType::Pinned && !parsed.messageIds.empty()) {
 		peer->owner().history(peer)->setHasPinnedMessages(true);
 		if (topic) {
 			topic->setHasPinnedMessages(true);
 		}
 	}
+#endif
 }
 
 void ApiWrap::sendAction(const SendAction &action) {
