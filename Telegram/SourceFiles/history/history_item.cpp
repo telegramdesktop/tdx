@@ -2222,7 +2222,10 @@ bool HistoryItem::canDelete() const {
 }
 
 bool HistoryItem::canDeleteForEveryone(TimeId now) const {
-	return (_flags & MessageFlag::CanDeleteForAll);
+	// For channels we don't consider this true, because we
+	// didn't in the original code.
+	return !_history->peer->isChannel()
+		&& (_flags & MessageFlag::CanDeleteForAll);
 #if 0 // mtp
 	const auto peer = _history->peer;
 	const auto &config = _history->session().serverConfig();
