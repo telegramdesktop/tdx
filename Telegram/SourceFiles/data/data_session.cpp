@@ -1271,6 +1271,8 @@ not_null<PeerData*> Session::processPeer(const TLchat &dialog) {
 	auto updates = UpdateFlag::None | UpdateFlag::None;
 
 	const auto history = this->history(result);
+	history->peer->setCanRevokeFullHistory(
+		data.vcan_be_deleted_for_all_users().v);
 	for (const auto &position : data.vpositions().v) {
 		history->applyPosition(position.data());
 	}
