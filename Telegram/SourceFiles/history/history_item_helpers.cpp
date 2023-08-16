@@ -664,6 +664,10 @@ std::optional<bool> PeerHasThisCall(
 }
 
 [[nodiscard]] MessageFlags FinalizeMessageFlags(MessageFlags flags) {
+	if ((flags & MessageFlag::AdminLogEntry)
+		|| (flags & MessageFlag::FakeHistoryItem)) {
+		flags &= ~MessageFlag::HistoryEntry;
+	}
 	if (!(flags & MessageFlag::FakeHistoryItem)
 		&& !(flags & MessageFlag::IsOrWasScheduled)
 		&& !(flags & MessageFlag::AdminLogEntry)) {
