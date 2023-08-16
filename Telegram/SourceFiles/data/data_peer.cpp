@@ -1502,7 +1502,13 @@ bool PeerData::amAnonymous() const {
 			&& (asChannel()->adminRights() & ChatAdminRight::Anonymous));
 }
 
+void PeerData::setCanRevokeFullHistory(bool can) {
+	_canRevokeFullHistory = can;
+}
+
 bool PeerData::canRevokeFullHistory() const {
+	return _canRevokeFullHistory;
+#if 0 // mtp
 	if (const auto user = asUser()) {
 		return !isSelf()
 			&& (!user->isBot() || user->isSupport())
@@ -1516,6 +1522,7 @@ bool PeerData::canRevokeFullHistory() const {
 			&& megagroup->canDelete();
 	}
 	return false;
+#endif
 }
 
 bool PeerData::slowmodeApplied() const {
