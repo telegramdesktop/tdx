@@ -432,6 +432,7 @@ public:
 #if 0 // mtp
 	void checkFolder(FolderId folderId);
 #endif
+	void setCanRevokeFullHistory(bool can);
 
 	void setBarSettings(PeerBarSettings which) {
 		_barSettings.set(which);
@@ -598,6 +599,8 @@ private:
 	uint8 _colorIndex : 6 = 0;
 	uint8 _colorIndexCloud : 1 = 0;
 	uint8 _userpicHasVideo : 1 = 0;
+
+	bool _canRevokeFullHistory : 1 = false;
 
 	QString _about;
 	QString _themeEmoticon;
