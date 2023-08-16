@@ -27,7 +27,14 @@ public:
 
 	[[nodiscard]] rpl::producer<PinnedId> shownMessageId() const;
 	[[nodiscard]] PinnedId currentMessageId() const;
+#if 0 // mtp
 	void trackAround(UniversalMsgId messageId);
+#endif
+	// In TDLib aroundId should be a real message id, so we can't use
+	// our realMsgId + 1 trick here to show the last message in pinned bar.
+	void trackAround(
+		UniversalMsgId messageId,
+		UniversalMsgId currentBeforeId);
 	void reset();
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
@@ -52,6 +59,7 @@ private:
 	rpl::lifetime _dataLifetime;
 
 	UniversalMsgId _aroundId = 0;
+	UniversalMsgId _beforeId = 0;
 	UniversalMsgId _viewerAroundId = 0;
 	Slice _slice;
 
