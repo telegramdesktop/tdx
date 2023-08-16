@@ -7180,9 +7180,11 @@ void HistoryWidget::updatePinnedViewer() {
 	}
 	if (_pinnedClickedId && _minPinnedId && _minPinnedId >= _pinnedClickedId) {
 		// After click on the last pinned message we should the top one.
-		_pinnedTracker->trackAround(ServerMaxMsgId - 1);
+		_pinnedTracker->trackAround(ServerMaxMsgId - 1, ServerMaxMsgId - 1);
 	} else {
 #if 0 // mtp
+		_pinnedTracker->trackAround(ServerMaxMsgId - 1);
+	} else {
 		_pinnedTracker->trackAround(std::min(lessThanId, lastClickedId));
 #endif
 		const auto possibleAroundId = !view
@@ -7190,7 +7192,9 @@ void HistoryWidget::updatePinnedViewer() {
 			: (view->history() != _history)
 			? (view->data()->id - ServerMaxMsgId)
 			: (view->data()->id);
-		_pinnedTracker->trackAround(std::min(possibleAroundId, lastClickedId));
+		_pinnedTracker->trackAround(
+			std::min(possibleAroundId, lastClickedId),
+			std::min(lessThanId, lastClickedId));
 	}
 }
 
