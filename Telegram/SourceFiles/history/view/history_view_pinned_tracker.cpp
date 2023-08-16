@@ -32,6 +32,8 @@ PinnedTracker::PinnedTracker(not_null<Data::Thread*> thread)
 , _migratedPeer(_thread->asHistory()
 	? _thread->asHistory()->peer->migrateFrom()
 	: nullptr) {
+	refreshViewer();
+#if 0 // mtp we don't have HasPinnedMessages information before viewer.
 	using namespace rpl::mappers;
 	const auto has = [&](Data::Thread *thread) -> rpl::producer<bool> {
 		auto &changes = _thread->session().changes();
@@ -57,6 +59,7 @@ PinnedTracker::PinnedTracker(not_null<Data::Thread*> thread)
 			clear();
 		}
 	}, _lifetime);
+#endif
 }
 
 PinnedTracker::~PinnedTracker() = default;
