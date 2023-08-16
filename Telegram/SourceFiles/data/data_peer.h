@@ -370,6 +370,7 @@ public:
 #if 0 // mtp
 	void checkFolder(FolderId folderId);
 #endif
+	void setCanRevokeFullHistory(bool can);
 
 	void setSettings(PeerSettings which) {
 		_settings.set(which);
@@ -516,7 +517,9 @@ private:
 	BlockStatus _blockStatus = BlockStatus::Unknown;
 	LoadedStatus _loadedStatus = LoadedStatus::Not;
 	TranslationFlag _translationFlag = TranslationFlag::Unknown;
-	bool _userpicHasVideo = false;
+	bool _userpicHasVideo : 1 = false;
+
+	bool _canRevokeFullHistory : 1 = false;
 
 	QString _requestChatTitle;
 	TimeId _requestChatDate = 0;
