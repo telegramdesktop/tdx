@@ -123,8 +123,12 @@ void PinnedTracker::refreshCurrentFromSlice() {
 		return id.msg;
 	};
 	const auto i = _migratedPeer
+#if 0 // mtp
 		? ranges::lower_bound(_slice.ids, _aroundId, ranges::less(), proj1)
 		: ranges::lower_bound(_slice.ids, _aroundId, ranges::less(), proj2);
+#endif
+		? ranges::lower_bound(_slice.ids, _beforeId, ranges::less(), proj1)
+		: ranges::lower_bound(_slice.ids, _beforeId, ranges::less(), proj2);
 	const auto before = int(i - begin(_slice.ids));
 	const auto after = int(end(_slice.ids) - i);
 	const auto haveValidData = (before > 0 || _slice.skippedBefore == 0)
@@ -160,11 +164,20 @@ void PinnedTracker::clear() {
 	_current = PinnedId();
 }
 
+#if 0 // mtp
 void PinnedTracker::trackAround(UniversalMsgId messageId) {
 	if (_aroundId == messageId) {
 		return;
 	}
+#endif
+void PinnedTracker::trackAround(
+		UniversalMsgId messageId,
+		UniversalMsgId currentBeforeId) {
+	if (_aroundId == messageId && _beforeId == currentBeforeId) {
+		return;
+	}
 	_aroundId = messageId;
+	_beforeId = currentBeforeId;
 	if (!_aroundId) {
 		clear();
 	} else {
