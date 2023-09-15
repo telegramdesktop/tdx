@@ -1250,11 +1250,15 @@ not_null<PeerData*> Session::processPeer(const TLchat &dialog) {
 		history->peer,
 		data.vnotification_settings());
 
+	result->setTranslationDisabled(!data.vis_translatable().v);
+
 	const auto availableReactions = [&] {
 		return Data::Parse(result, data.vavailable_reactions());
 	};
 
 	if (const auto user = result->asUser()) {
+		result->setIsBlocked(data.vblock_list()
+			&& data.vblock_list()->type() == id_blockListMain);
 	} else if (const auto chat = result->asChat()) {
 		using Flag = ChatDataFlag;
 

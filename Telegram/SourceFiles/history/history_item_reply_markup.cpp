@@ -41,6 +41,61 @@ using namespace Tdb;
 }
 
 [[nodiscard]] RequestPeerQuery RequestPeerQueryFromTL(
+		const TLDkeyboardButtonTypeRequestUsers &data) {
+	const auto restriction = [](const TLbool &is, const TLbool &no) {
+		using Restriction = RequestPeerQuery::Restriction;
+		return is.v
+			? Restriction::Yes
+			: no.v
+			? Restriction::No
+			: Restriction::Any;
+	};
+	return {
+		.maxQuantity = data.vmax_quantity().v,
+		.type = RequestPeerQuery::Type::User,
+		.userIsBot = restriction(
+			data.vuser_is_bot(),
+			data.vrestrict_user_is_bot()),
+		.userIsPremium = restriction(
+			data.vuser_is_premium(),
+			data.vrestrict_user_is_premium()),
+	};
+}
+
+[[nodiscard]] RequestPeerQuery RequestPeerQueryFromTL(
+		const TLDkeyboardButtonTypeRequestChat &data) {
+	using Type = RequestPeerQuery::Type;
+	using Restriction = RequestPeerQuery::Restriction;
+	const auto restriction = [](const TLbool &is, const TLbool &no) {
+		using Restriction = RequestPeerQuery::Restriction;
+		return is.v
+			? Restriction::Yes
+			: no.v
+			? Restriction::No
+			: Restriction::Any;
+	};
+	const auto rights = [](const TLchatAdministratorRights *value) {
+		return value
+			? AdminRightsFromChatAdministratorRights(*value)
+			: ChatAdminRights();
+	};
+	return {
+		.type = (data.vchat_is_channel().v ? Type::Broadcast : Type::Group),
+		.groupIsForum = restriction(
+			data.vchat_is_forum(),
+			data.vrestrict_chat_is_forum()),
+		.hasUsername = restriction(
+			data.vchat_has_username(),
+			data.vrestrict_chat_has_username()),
+		.amCreator = data.vchat_is_created().v,
+		.isBotParticipant = data.vbot_is_member().v,
+		.myRights = rights(data.vuser_administrator_rights()),
+		.botRights = rights(data.vbot_administrator_rights()),
+	};
+}
+
+#if 0 // mtp
+[[nodiscard]] RequestPeerQuery RequestPeerQueryFromTL(
 		const MTPDkeyboardButtonRequestPeer &query) {
 	using Type = RequestPeerQuery::Type;
 	using Restriction = RequestPeerQuery::Restriction;
@@ -77,6 +132,7 @@ using namespace Tdb;
 	});
 	return result;
 }
+#endif
 
 } // namespace
 
@@ -111,6 +167,7 @@ HistoryMessageMarkupButton *HistoryMessageMarkupButton::Get(
 	return nullptr;
 }
 
+#if 0 // mtp
 void HistoryMessageMarkupData::fillRows(
 		const QVector<MTPKeyboardButtonRow> &list) {
 	rows.clear();
@@ -234,6 +291,7 @@ void HistoryMessageMarkupData::fillRows(
 		flags |= ReplyMarkupFlag::OnlyBuyButton;
 	}
 }
+#endif
 
 template <typename TdbButtonType>
 void HistoryMessageMarkupData::fillRows(
@@ -288,6 +346,26 @@ auto HistoryMessageMarkupData::buttonData(const TLkeyboardButton &button)
 		return ButtonData{ Type::RequestPhone };
 	}, [&](const TLDkeyboardButtonTypeWebApp &data) {
 		return ButtonData{ Type::SimpleWebView, data.vurl().v.toUtf8()};
+	}, [&](const TLDkeyboardButtonTypeRequestUsers &data) {
+		const auto query = RequestPeerQueryFromTL(data);
+		return ButtonData{
+			Type::RequestPeer,
+			QByteArray(
+				reinterpret_cast<const char*>(&query),
+				sizeof(query)),
+			QString(),
+			int64(data.vid().v)
+		};
+	}, [&](const TLDkeyboardButtonTypeRequestChat &data) {
+		const auto query = RequestPeerQueryFromTL(data);
+		return ButtonData{
+			Type::RequestPeer,
+			QByteArray(
+				reinterpret_cast<const char*>(&query),
+				sizeof(query)),
+			QString(),
+			int64(data.vid().v)
+		};
 	});
 }
 
@@ -327,6 +405,7 @@ auto HistoryMessageMarkupData::buttonData(
 	});
 }
 
+#if 0 // mtp
 HistoryMessageMarkupData::HistoryMessageMarkupData(
 		const MTPReplyMarkup *data) {
 	if (!data) {
@@ -355,6 +434,7 @@ HistoryMessageMarkupData::HistoryMessageMarkupData(
 		placeholder = qs(data.vplaceholder().value_or_empty());
 	});
 }
+#endif
 
 HistoryMessageMarkupData::HistoryMessageMarkupData(
 		const TLreplyMarkup *data) {

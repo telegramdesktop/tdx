@@ -54,9 +54,15 @@ private:
 	void cancelSentRequest();
 	void switchTranslation(not_null<HistoryItem*> item, LanguageId id);
 
+#if 0 // mtp
 	void requestDone(
 		LanguageId to,
 		const QVector<MTPTextWithEntities> &list);
+#endif
+	void requestDone(
+		FullMsgId id,
+		LanguageId to,
+		TextWithEntities result);
 
 	const not_null<History*> _history;
 	rpl::variable<bool> _trackingLanguage = false;
@@ -69,8 +75,11 @@ private:
 
 	base::flat_map<not_null<HistoryItem*>, LanguageId> _switchTranslations;
 	base::flat_map<FullMsgId, ItemToRequest> _itemsToRequest;
+#if 0 // mtp
 	std::vector<FullMsgId> _requested;
 	mtpRequestId _requestId = 0;
+#endif
+	std::vector<std::pair<FullMsgId, mtpRequestId>> _requested;
 
 	rpl::lifetime _trackingLifetime;
 	rpl::lifetime _lifetime;

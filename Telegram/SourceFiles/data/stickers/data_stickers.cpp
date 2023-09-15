@@ -750,7 +750,7 @@ void Stickers::apply(const TLDupdateTrendingStickerSets &data) {
 	}, [&](const TLDstickerTypeMask &) {
 		return StickersType::Masks;
 	}, [&](const TLDstickerTypeRegular &) {
-		setLastEmojiUpdate(crl::now());
+		setLastFeaturedUpdate(crl::now());
 		return StickersType::Stickers;
 	});
 	featuredReceived(data.vsticker_sets(), type);
@@ -1730,10 +1730,16 @@ std::vector<not_null<DocumentData*>> Stickers::getListByEmoji(
 	}
 
 	if (forceAllResults || Core::App().settings().suggestStickersByEmoji()) {
+		const auto addWithSpaces = [](const QString &a, const QString &b) {
+			return a.isEmpty() ? b : b.isEmpty() ? a : (a + ' ' + b);
+		};
 		const auto key = ranges::accumulate(
 			all,
 			QString(),
+#if 0 // mtp
 			ranges::plus(),
+#endif
+			addWithSpaces,
 			&Ui::Emoji::One::text);
 		const auto others = session().api().stickersByEmoji(key);
 		if (others) {

@@ -102,6 +102,8 @@ std::optional<PremiumPreview> PreviewFromFeature(
 		return PremiumPreview::kCount;
 	}, [](const TLDpremiumFeatureAppIcons &) {
 		return PremiumPreview::kCount;
+	}, [](const TLDpremiumFeatureRealTimeChatTranslation &) {
+		return PremiumPreview::RealTimeTranslation;
 	});
 	return (result != PremiumPreview::kCount)
 		? result
@@ -138,6 +140,8 @@ TLpremiumFeature PreviewToFeature(PremiumPreview preview) {
 		return tl_premiumFeatureEmojiStatus();
 	case PremiumPreview::AnimatedUserpics:
 		return tl_premiumFeatureAnimatedProfilePhoto();
+	case PremiumPreview::RealTimeTranslation:
+		return tl_premiumFeatureRealTimeChatTranslation();
 	}
 	Unexpected("PremiumPreview value in PreviewToFeature.");
 }
@@ -227,9 +231,15 @@ void Premium::reloadPromo() {
 	)).done([=](const TLDpremiumState &data) {
 		_promoRequestId = 0;
 
-		_subscriptionOptions = SubscriptionOptionsFromTL(
-			data.vpayment_options().v);
-		for (const auto &option : data.vpayment_options().v) {
+		auto list = ranges::views::all(
+			data.vpayment_options().v
+		) | ranges::views::transform([](
+				const TLpremiumStatePaymentOption &option) {
+			return option.data().vpayment_option();
+		}) | ranges::to<QVector>();
+
+		_subscriptionOptions = SubscriptionOptionsFromTL(list);
+		for (const auto &option : list) {
 			if (option.data().vmonth_count().v == 1) {
 				_monthlyAmount = option.data().vamount().v;
 				_monthlyCurrency = option.data().vcurrency().v;

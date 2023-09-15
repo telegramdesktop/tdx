@@ -843,11 +843,17 @@ PeerData::TranslationFlag PeerData::translationFlag() const {
 void PeerData::saveTranslationDisabled(bool disabled) {
 	setTranslationDisabled(disabled);
 
+	session().sender().request(TLtoggleChatIsTranslatable(
+		peerToTdbChat(id),
+		tl_bool(!disabled)
+	)).send();
+#if 0 // mtp
 	using Flag = MTPmessages_TogglePeerTranslations::Flag;
 	session().api().request(MTPmessages_TogglePeerTranslations(
 		MTP_flags(disabled ? Flag::f_disabled : Flag()),
 		input
 	)).send();
+#endif
 }
 
 #if 0 // mtp
