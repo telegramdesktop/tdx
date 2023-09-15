@@ -3081,6 +3081,8 @@ void Updates::applyUpdate(const TLupdate &update) {
 			data.vterms_of_service().data(),
 			data.vterms_of_service_id().v.toUtf8()));
 	}, [&](const TLDupdateUsersNearby &data) {
+	}, [&](const TLDupdateUnconfirmedSession &data) {
+		// later
 	}, [&](const TLDupdateAttachmentMenuBots &data) {
 		session().attachWebView().apply(data);
 	}, [&](const TLDupdateWebAppMessageSent &data) {
