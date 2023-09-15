@@ -1661,7 +1661,7 @@ bool HandleLocalUrl(
 		const auto botUsername = data.vbot_username().v;
 		const auto openWebAppUrl = data.vurl().v;
 		return data.vtarget_chat().match([&](const TLDtargetChatCurrent &) {
-			controller->showPeerByLink(Navigation::PeerByLinkInfo{
+			controller->showPeerByLink(Window::PeerByLinkInfo{
 				.usernameOrId = botUsername,
 				.attachBotToggleCommand = openWebAppUrl,
 				.clickFromMessageId = my.itemId,
@@ -1670,7 +1670,7 @@ bool HandleLocalUrl(
 			return true;
 		}, [&](const TLDtargetChatChosen &data) {
 			using Type = InlineBots::PeerType;
-			controller->showPeerByLink(Navigation::PeerByLinkInfo{
+			controller->showPeerByLink(Window::PeerByLinkInfo{
 				.usernameOrId = botUsername,
 				.attachBotToggleCommand = openWebAppUrl,
 				.attachBotChooseTypes = (Type()
@@ -1690,6 +1690,19 @@ bool HandleLocalUrl(
 					.openWebAppUrl = openWebAppUrl,
 				}));
 		});
+	}, [&](const TLDinternalLinkTypeMainWebApp &data) {
+		if (!controller) {
+			return false;
+		}
+		controller->showPeerByLink(Window::PeerByLinkInfo{
+			.usernameOrId = data.vbot_username().v,
+			.attachBotToggleCommand = data.vstart_parameter().v,
+			.attachBotMainOpen = true,
+			.attachBotMainCompact = data.vis_compact().v,
+			.clickFromMessageId = my.itemId,
+		});
+		controller->window().activate();
+		return true;
 	}, [&](const TLDinternalLinkTypeAuthenticationCode &data) {
 		const auto account = controller
 			? &controller->session().account()
@@ -1730,7 +1743,7 @@ bool HandleLocalUrl(
 		if (!controller) {
 			return false;
 		}
-		controller->showPeerByLink(Navigation::PeerByLinkInfo{
+		controller->showPeerByLink(Window::PeerByLinkInfo{
 			.usernameOrId = data.vbot_username().v,
 			.resolveType = Window::ResolveType::BotStart,
 			.startToken = data.vstart_parameter().v,
@@ -1743,7 +1756,7 @@ bool HandleLocalUrl(
 		if (!controller) {
 			return false;
 		}
-		controller->showPeerByLink(Navigation::PeerByLinkInfo{
+		controller->showPeerByLink(Window::PeerByLinkInfo{
 			.usernameOrId = data.vbot_username().v,
 			.resolveType = Window::ResolveType::AddToGroup,
 			.startToken = data.vstart_parameter().v,
@@ -1759,7 +1772,7 @@ bool HandleLocalUrl(
 		if (!controller) {
 			return false;
 		}
-		controller->showPeerByLink(Navigation::PeerByLinkInfo{
+		controller->showPeerByLink(Window::PeerByLinkInfo{
 			.usernameOrId = data.vbot_username().v,
 			.resolveType = Window::ResolveType::AddToChannel,
 			.startAdminRights = AdminRightsFromChatAdministratorRights(
@@ -1797,7 +1810,7 @@ bool HandleLocalUrl(
 		if (!controller) {
 			return false;
 		}
-		controller->showPeerByLink(Navigation::PeerByLinkInfo{
+		controller->showPeerByLink(Window::PeerByLinkInfo{
 			.usernameOrId = data.vbot_username().v,
 			.resolveType = Window::ResolveType::ShareGame,
 			.startToken = data.vgame_short_name().v,
@@ -1816,7 +1829,8 @@ bool HandleLocalUrl(
 		Payments::CheckoutProcess::Start(
 			&controller->session(),
 			data.vinvoice_name().v,
-			crl::guard(window, [=](auto) { window->activate(); }));
+			crl::guard(window, [=](auto) { window->activate(); }),
+			Payments::ProcessNonPanelPaymentFormFactory(controller));
 		return true;
 	}, [&](const TLDinternalLinkTypeLanguagePack &data) {
 		Lang::CurrentCloudManager().switchWithWarning(
@@ -1832,7 +1846,7 @@ bool HandleLocalUrl(
 		if (!controller) {
 			return false;
 		}
-		controller->showPeerByLink(Navigation::PeerByLinkInfo{
+		controller->showPeerByLink(Window::PeerByLinkInfo{
 			.clickFromMessageId = my.itemId,
 			.messageLink = data.vurl().v,
 		});
@@ -1921,8 +1935,11 @@ bool HandleLocalUrl(
 			fields.insert(u"secret"_q, data.vsecret().v);
 			return MTP::ProxyData::Type::Mtproto;
 		});
-		ProxiesBoxController::ShowApplyConfirmation(type, fields);
 		if (controller) {
+			ProxiesBoxController::ShowApplyConfirmation(
+				controller,
+				type,
+				fields);
 			controller->window().activate();
 		}
 		return true;
@@ -1930,7 +1947,7 @@ bool HandleLocalUrl(
 		if (!controller) {
 			return false;
 		}
-		controller->showPeerByLink(Navigation::PeerByLinkInfo{
+		controller->showPeerByLink(Window::PeerByLinkInfo{
 			.usernameOrId = data.vchat_username().v,
 			.attachBotUsername = (attach ? attach.botUsername : QString()),
 			.attachBotToggleCommand = (attach
@@ -2005,7 +2022,7 @@ bool HandleLocalUrl(
 		if (!controller) {
 			return false;
 		}
-		controller->showPeerByLink(Navigation::PeerByLinkInfo{
+		controller->showPeerByLink(Window::PeerByLinkInfo{
 			.phone = data.vphone_number().v,
 			.attachBotUsername = (attach ? attach.botUsername : QString()),
 			.attachBotToggleCommand = (attach
@@ -2036,7 +2053,7 @@ bool HandleLocalUrl(
 		if (!controller) {
 			return false;
 		}
-		controller->showPeerByLink(Navigation::PeerByLinkInfo{
+		controller->showPeerByLink(Window::PeerByLinkInfo{
 			.usernameOrId = data.vchat_username().v,
 			.voicechatHash = data.vinvite_hash().v,
 			.clickFromMessageId = my.itemId,
@@ -2047,7 +2064,7 @@ bool HandleLocalUrl(
 		if (!controller) {
 			return false;
 		}
-		controller->showPeerByLink(Navigation::PeerByLinkInfo{
+		controller->showPeerByLink(Window::PeerByLinkInfo{
 			.usernameOrId = data.vbot_username().v,
 			.resolveType = Window::ResolveType::BotApp,
 			.startToken = data.vstart_parameter().v,
@@ -2061,13 +2078,68 @@ bool HandleLocalUrl(
 		if (!controller) {
 			return false;
 		}
-		controller->showPeerByLink(Navigation::PeerByLinkInfo{
+		controller->showPeerByLink(Window::PeerByLinkInfo{
 			.usernameOrId = data.vstory_sender_username().v,
 			.storyId = data.vstory_id().v,
 			.resolveType = Window::ResolveType::Default,
 			.clickFromMessageId = my.itemId,
 		});
 		controller->window().activate();
+		return true;
+	}, [&](const TLDinternalLinkTypeBusinessChat &data) {
+		if (!controller) {
+			return false;
+		}
+		controller->showPeerByLink(Window::PeerByLinkInfo{
+			.chatLinkSlug = data.vlink_name().v,
+			.clickFromMessageId = my.itemId,
+			.clickFromBotWebviewContext = my.botWebviewContext,
+		});
+		controller->window().activate();
+		return true;
+	}, [&](const TLDinternalLinkTypePremiumGift &data) {
+		if (!controller) {
+			return false;
+		}
+		Ui::ChooseStarGiftRecipient(controller);
+		controller->window().activate();
+		return true;
+	}, [&](const TLDinternalLinkTypeBuyStars &data) {
+		if (!controller) {
+			return false;
+		}
+		const auto amount = std::clamp(
+			data.vstar_count().v,
+			int64(1),
+			int64(1'000'000));
+		const auto purpose = data.vpurpose().v;
+		const auto weak = base::make_weak(controller);
+		const auto done = [=](::Settings::SmallBalanceResult result) {
+			if (result == ::Settings::SmallBalanceResult::Already) {
+				if (const auto strong = weak.get()) {
+					const auto filter = [=](const auto &...) {
+						strong->showSettings(::Settings::CreditsId());
+						return false;
+					};
+					strong->showToast(Ui::Toast::Config{
+						.text = tr::lng_credits_enough(
+							tr::now,
+							lt_link,
+							Ui::Text::Link(
+								Ui::Text::Bold(
+									tr::lng_credits_enough_link(tr::now))),
+							Ui::Text::RichLangValue),
+						.filter = filter,
+						.duration = 4 * crl::time(1000),
+					});
+				}
+			}
+		};
+		::Settings::MaybeRequestBalanceIncrease(
+			controller->uiShow(),
+			amount,
+			::Settings::SmallBalanceDeepLink{ .purpose = purpose },
+			done);
 		return true;
 	});
 }
