@@ -3649,6 +3649,21 @@ void HistoryItem::createServiceFromTdb(const TLmessageContent &content) {
 
 void HistoryItem::setServiceMessageByContent(
 		const TLmessageContent &content) {
+	const auto prepareServiceTextForSharedPeer = [&](PeerId peerId) {
+		const auto peer = history()->owner().peer(peerId);
+		auto result = PreparedServiceText{};
+		result.text = tr::lng_action_shared_chat_with_bot(
+			tr::now,
+			lt_chat,
+			Ui::Text::Link(peer->name(), 1),
+			lt_bot,
+			Ui::Text::Link(history()->peer->name(), 2),
+			Ui::Text::WithEntities);
+		result.links.push_back(peer->createOpenLink());
+		result.links.push_back(history()->peer->createOpenLink());
+		return result;
+	};
+
 	auto prepared = PreparedServiceText();
 	content.match([&](const TLDmessageAnimation &data) {
 		Expects(data.vis_secret().v);
@@ -4403,7 +4418,9 @@ void HistoryItem::setContent(const TLmessageContent &content) {
 			|| TLDmessageForumTopicIsClosedToggled::Is<T>()
 			|| TLDmessageForumTopicIsHiddenToggled::Is<T>()
 			|| TLDmessageSuggestProfilePhoto::Is<T>()
-			|| TLDmessageBotWriteAccessAllowed::Is<T>()) {
+			|| TLDmessageBotWriteAccessAllowed::Is<T>()
+			|| TLDmessageUserShared::Is<T>()
+			|| TLDmessageChatShared::Is<T>()) {
 			createServiceFromTdb(content);
 		} else if constexpr (TLDmessageUnsupported::Is<T>()) {
 			setText(UnsupportedMessageText());
