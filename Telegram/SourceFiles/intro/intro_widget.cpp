@@ -335,6 +335,10 @@ void Widget::fillCodeInfo(const TLauthenticationCodeInfo &info) {
 			LOG(("Tdb Error: authenticationCodeTypeMissedCall."));
 		}, [&](const TLDauthenticationCodeTypeFlashCall &) {
 			LOG(("Tdb Error: authenticationCodeTypeFlashCall."));
+		}, [&](const TLDauthenticationCodeTypeFirebaseAndroid &data) {
+			LOG(("Tdb Error: authenticationCodeTypeFirebaseAndroid."));
+		}, [&](const TLDauthenticationCodeTypeFirebaseIos &data) {
+			LOG(("Tdb Error: authenticationCodeTypeFirebaseIos."));
 		});
 
 		const auto currentType = data.vtype().type();

@@ -218,6 +218,7 @@ void PhoneWidget::submit() {
 			tl_bool(false), // allow_missed_call
 			tl_bool(false), // is_current_phone_number
 			tl_bool(false), // allow_sms_retriever_api
+			std::nullopt, // firebase_authentication_settings
 			tl_vector<TLstring>()) // authentication_tokens
 	)).done([=] {
 		_sentRequest = false;
