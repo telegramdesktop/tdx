@@ -333,10 +333,18 @@ void Widget::fillCodeInfo(const TLauthenticationCodeInfo &info) {
 		}, [&](const TLDauthenticationCodeTypeFragment &data) {
 			codeLength = data.vlength().v;
 			codeByFragmentUrl = data.vurl().v;
+		}, [](const TLDauthenticationCodeTypeSmsWord &data) {
+			LOG(("Tdb Error: authenticationCodeTypeSmsWord."));
+		}, [](const TLDauthenticationCodeTypeSmsPhrase &data) {
+			LOG(("Tdb Error: authenticationCodeTypeSmsPhrase."));
 		}, [&](const TLDauthenticationCodeTypeMissedCall &) {
 			LOG(("Tdb Error: authenticationCodeTypeMissedCall."));
 		}, [&](const TLDauthenticationCodeTypeFlashCall &) {
 			LOG(("Tdb Error: authenticationCodeTypeFlashCall."));
+		}, [&](const TLDauthenticationCodeTypeFirebaseAndroid &data) {
+			LOG(("Tdb Error: authenticationCodeTypeFirebaseAndroid."));
+		}, [&](const TLDauthenticationCodeTypeFirebaseIos &data) {
+			LOG(("Tdb Error: authenticationCodeTypeFirebaseIos."));
 		});
 
 		const auto currentType = data.vtype().type();

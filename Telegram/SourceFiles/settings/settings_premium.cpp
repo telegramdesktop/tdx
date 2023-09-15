@@ -450,6 +450,20 @@ void SendAppLog(
 		return u"forum_topic_icon"_q;
 	}, [](const TLDpremiumFeatureAppIcons &) {
 		return u"app_icons"_q;
+	}, [](const TLDpremiumFeatureRealTimeChatTranslation &) {
+		return u"translations"_q;
+	}, [](const TLDpremiumFeatureBackgroundForBoth &) {
+		return u"wallpapers"_q;
+	}, [](const TLDpremiumFeatureSavedMessagesTags &) {
+		return u"saved_tags"_q;
+	}, [](const TLDpremiumFeatureMessagePrivacy &) {
+		return u"message_privacy"_q;
+	}, [](const TLDpremiumFeatureLastSeenTimes &) {
+		return u"last_seen"_q;
+	}, [](const TLDpremiumFeatureBusiness &) {
+		return u"business"_q;
+	}, [](const TLDpremiumFeatureMessageEffects &) {
+		return u"effects"_q;
 	});
 }
 

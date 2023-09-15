@@ -197,6 +197,12 @@ void ConfirmPhone::resolve(
 		}, [](const Tdb::TLDauthenticationCodeTypeFlashCall &data) {
 			LOG(("Error: should not be flashcall!"));
 			return 0;
+		}, [](const Tdb::TLDauthenticationCodeTypeFirebaseAndroid &data) {
+			LOG(("Error: should not be firebase android!"));
+			return 0;
+		}, [](const Tdb::TLDauthenticationCodeTypeFirebaseIos &data) {
+			LOG(("Error: should not be firebase ios!"));
+			return 0;
 		});
 		const auto fragmentUrl = data.vtype().match([](
 				const Tdb::TLDauthenticationCodeTypeFragment &data) {

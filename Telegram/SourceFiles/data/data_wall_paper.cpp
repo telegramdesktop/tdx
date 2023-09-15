@@ -966,4 +966,8 @@ std::vector<QColor> ColorsFromFill(
 	return Data::ColorsFromTL(fill, invertTopBottom);
 }
 
+Tdb::TLbackgroundFill ColorsToFill(const std::vector<QColor> &colors) {
+	return Data::FillToTL(colors, 0);
+}
+
 } // namespace Ui

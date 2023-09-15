@@ -164,6 +164,7 @@ void EmojiStatuses::registerAutomaticClear(
 		}
 	}
 }
+#endif
 
 auto EmojiStatuses::emojiGroupsValue() const -> rpl::producer<Groups> {
 	const_cast<EmojiStatuses*>(this)->requestEmojiGroups();
@@ -189,14 +190,20 @@ auto EmojiStatuses::profilePhotoGroupsValue() const
 void EmojiStatuses::requestEmojiGroups() {
 	requestGroups(
 		&_emojiGroups,
+		tl_emojiCategoryTypeDefault());
+#if 0 // mtp
 		MTPmessages_GetEmojiGroups(MTP_int(_emojiGroups.hash)));
+#endif
 
 }
 
 void EmojiStatuses::requestStatusGroups() {
 	requestGroups(
 		&_statusGroups,
+		tl_emojiCategoryTypeEmojiStatus());
+#if 0 // mtp
 		MTPmessages_GetEmojiStatusGroups(MTP_int(_statusGroups.hash)));
+#endif
 }
 
 void EmojiStatuses::requestStickerGroups() {
@@ -208,13 +215,20 @@ void EmojiStatuses::requestStickerGroups() {
 void EmojiStatuses::requestProfilePhotoGroups() {
 	requestGroups(
 		&_profilePhotoGroups,
+		tl_emojiCategoryTypeChatPhoto());
+#if 0 // mtp
 		MTPmessages_GetEmojiProfilePhotoGroups(
 			MTP_int(_profilePhotoGroups.hash)));
+#endif
 }
 
 [[nodiscard]] std::vector<Ui::EmojiGroup> GroupsFromTL(
+		const TLemojiCategories &categories) {
+#if 0 // mtp
 		const MTPDmessages_emojiGroups &data) {
 	const auto &list = data.vgroups().v;
+#endif
+	const auto &list = categories.data().vcategories().v;
 	auto result = std::vector<Ui::EmojiGroup>();
 	result.reserve(list.size());
 	for (const auto &group : list) {
@@ -225,12 +239,20 @@ void EmojiStatuses::requestProfilePhotoGroups() {
 			});
 		}, [&](const auto &data) {
 			auto emoticons = ranges::views::all(
+#if 0 // mtp
 				data.vemoticons().v
 			) | ranges::views::transform([](const MTPstring &emoticon) {
 				return qs(emoticon);
+#endif
+				data.vemojis().v
+			) | ranges::views::transform([](const TLstring &emoticon) {
+				return emoticon.v;
 			}) | ranges::to_vector;
 			result.push_back({
+#if 0 // mtp
 				.iconId = QString::number(data.vicon_emoji_id().v),
+#endif
+				.iconId = QString::number(data.vicon_custom_emoji_id().v),
 				.emoticons = std::move(emoticons),
 				.type = (MTPDemojiGroupGreeting::Is<decltype(data)>()
 					? Ui::EmojiGroupType::Greeting
@@ -248,20 +270,28 @@ void EmojiStatuses::requestGroups(
 	if (type->requestId) {
 		return;
 	}
+#if 0 // mtp
 	type->requestId = _owner->session().api().request(
 		std::forward<Request>(request)
 	).done([=](const MTPmessages_EmojiGroups &result) {
 		type->requestId = 0;
-		result.match([&](const MTPDmessages_emojiGroups &data) {
-			type->hash = data.vhash().v;
-			type->data = GroupsFromTL(data);
-		}, [](const MTPDmessages_emojiGroupsNotModified&) {
-		});
+	result.match([&](const MTPDmessages_emojiGroups &data) {
+		type->hash = data.vhash().v;
+	type->data = GroupsFromTL(data);
+	}, [](const MTPDmessages_emojiGroupsNotModified&) {
+	});
+#endif
+	type->requestId = _owner->session().sender().request(
+		TLgetEmojiCategories(request)
+	).done([=](const TLemojiCategories &result) {
+		type->requestId = 0;
+		type->data = GroupsFromTL(result);
 	}).fail([=] {
 		type->requestId = 0;
 	}).send();
 }
 
+#if 0 // mtp
 void EmojiStatuses::processClearing() {
 	auto minWait = TimeId(0);
 	const auto now = base::unixtime::now();

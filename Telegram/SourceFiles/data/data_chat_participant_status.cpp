@@ -68,8 +68,14 @@ ChatRestrictions RestrictionsFromPermissions(
 		| bit(data.vcan_change_info(), Flag::ChangeInfo)
 		| bit(data.vcan_invite_users(), Flag::AddParticipants)
 		| bit(data.vcan_pin_messages(), Flag::PinMessages)
-		| bit(data.vcan_send_media_messages(), Flag::SendMedia)
-		| bit(data.vcan_send_messages(), Flag::SendMessages)
+		| bit(data.vcan_create_topics(), Flag::CreateTopics)
+		| bit(data.vcan_send_audios(), Flag::SendMusic)
+		| bit(data.vcan_send_documents(), Flag::SendFiles)
+		| bit(data.vcan_send_photos(), Flag::SendPhotos)
+		| bit(data.vcan_send_videos(), Flag::SendVideos)
+		| bit(data.vcan_send_video_notes(), Flag::SendVideoMessages)
+		| bit(data.vcan_send_voice_notes(), Flag::SendVoiceMessages)
+		| bit(data.vcan_send_messages(), Flag::SendOther)
 		| bit(data.vcan_send_polls(), Flag::SendPolls)
 		| bit(data.vcan_send_other_messages(), Flag::SendStickers)
 		| bit(data.vcan_send_other_messages(), Flag::SendGames)
@@ -164,8 +170,13 @@ ChatRestrictionsInfo::ChatRestrictionsInfo(
 Tdb::TLchatPermissions ChatRestrictionsInfo::ToTLPermissions(
 		const ChatRestrictions &flags) {
 	return Tdb::tl_chatPermissions(
-		Tdb::tl_bool(!(flags & ChatRestriction::SendMessages)),
-		Tdb::tl_bool(!(flags & ChatRestriction::SendMedia)),
+		Tdb::tl_bool(!(flags & ChatRestriction::SendOther)),
+		Tdb::tl_bool(!(flags & ChatRestriction::SendMusic)),
+		Tdb::tl_bool(!(flags & ChatRestriction::SendFiles)),
+		Tdb::tl_bool(!(flags & ChatRestriction::SendPhotos)),
+		Tdb::tl_bool(!(flags & ChatRestriction::SendVideos)),
+		Tdb::tl_bool(!(flags & ChatRestriction::SendVideoMessages)),
+		Tdb::tl_bool(!(flags & ChatRestriction::SendVoiceMessages)),
 		Tdb::tl_bool(!(flags & ChatRestriction::SendPolls)),
 		Tdb::tl_bool((!(flags & ChatRestriction::SendStickers))
 			|| (!(flags & ChatRestriction::SendGifs))
