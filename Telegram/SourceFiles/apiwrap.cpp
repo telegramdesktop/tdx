@@ -5413,6 +5413,7 @@ void ApiWrap::requestBotCommonGroups(
 		}
 	};
 	const auto limit = 100;
+#if 0 // mtp
 	request(MTPmessages_GetCommonChats(
 		bot->inputUser,
 		MTP_long(0), // max_id
@@ -5426,6 +5427,21 @@ void ApiWrap::requestBotCommonGroups(
 		list.reserve(chats->size());
 		for (const auto &chat : *chats) {
 			if (const auto peer = owner.processChat(chat)) {
+				list.push_back(peer);
+			}
+		}
+#endif
+	sender().request(TLgetGroupsInCommon(
+		tl_int53(peerToUser(bot->id).bare),
+		tl_int53(0), // offset_chat_id
+		tl_int32(limit)
+	)).done([=](const TLDchats &data) {
+		auto &owner = session().data();
+		auto list = std::vector<not_null<PeerData*>>();
+		list.reserve(data.vchat_ids().v.size());
+		for (const auto &chatId : data.vchat_ids().v) {
+			const auto peerId = peerFromTdbChat(chatId);
+			if (const auto peer = owner.peerLoaded(peerId)) {
 				list.push_back(peer);
 			}
 		}
