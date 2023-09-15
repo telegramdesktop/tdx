@@ -21,8 +21,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "spellcheck/platform/platform_language.h"
 
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
+#include "api/api_text_entities.h"
+
 namespace HistoryView {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kEnoughForRecognition = 10;
 constexpr auto kEnoughForTranslation = 6;
@@ -224,6 +230,7 @@ void TranslateTracker::cancelToRequest() {
 }
 
 void TranslateTracker::cancelSentRequest() {
+#if 0 // mtp
 	if (_requestId) {
 		const auto owner = &_history->owner();
 		for (const auto &id : base::take(_requested)) {
@@ -233,10 +240,22 @@ void TranslateTracker::cancelSentRequest() {
 		}
 		_history->session().api().request(base::take(_requestId)).cancel();
 	}
+#endif
+	const auto sender = &_history->session().sender();
+	const auto owner = &_history->owner();
+	for (const auto &[id, requestId] : base::take(_requested)) {
+		if (const auto item = owner->message(id)) {
+			item->translationShowRequiresRequest({});
+		}
+		sender->request(requestId).cancel();
+	}
 }
 
 void TranslateTracker::requestSome() {
+#if 0 // mtp
 	if (_requestId || _itemsToRequest.empty()) {
+#endif
+	if (!_requested.empty() || _itemsToRequest.empty()) {
 		return;
 	}
 	const auto to = _history->translatedTo();
@@ -247,6 +266,20 @@ void TranslateTracker::requestSome() {
 	_requested.clear();
 	_requested.reserve(_itemsToRequest.size());
 	const auto session = &_history->session();
+	const auto sender = &session->sender();
+	for (const auto &[id, _] : base::take(_itemsToRequest)) {
+		const auto requestId = sender->request(TLtranslateMessageText(
+			peerToTdbChat(id.peer),
+			tl_int53(id.msg.bare),
+			tl_string(to.twoLetterCode())
+		)).done([=](const TLformattedText &result) {
+			requestDone(id, to, Api::FormattedTextFromTdb(result));
+		}).fail([=] {
+			requestDone(id, to, {});
+		}).send();
+		_requested.push_back({ id, requestId });
+	}
+#if 0 // mtp
 	const auto peerId = _itemsToRequest.back().first.peer;
 	auto peer = (peerId == _history->peer->id)
 		? _history->peer
@@ -279,8 +312,10 @@ void TranslateTracker::requestSome() {
 	}).fail([=] {
 		requestDone(to, {});
 	}).send();
+#endif
 }
 
+#if 0 // mtp
 void TranslateTracker::requestDone(
 		LanguageId to,
 		const QVector<MTPTextWithEntities> &list) {
@@ -301,6 +336,23 @@ void TranslateTracker::requestDone(
 		++index;
 	}
 	_requestId = 0;
+	requestSome();
+}
+#endif
+
+void TranslateTracker::requestDone(
+		FullMsgId id,
+		LanguageId to,
+		TextWithEntities result) {
+	if (const auto item = _history->owner().message(id)) {
+		item->translationDone(to, std::move(result));
+	}
+	_requested.erase(
+		ranges::remove(
+			_requested,
+			id,
+			&std::pair<FullMsgId, mtpRequestId>::first),
+		end(_requested));
 	requestSome();
 }
 

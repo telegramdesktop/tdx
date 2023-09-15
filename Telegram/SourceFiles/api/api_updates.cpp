@@ -2786,6 +2786,11 @@ void Updates::applyUpdate(const TLupdate &update) {
 					| (noforwards ? Flag::NoForwards : Flag()));
 			}
 		}
+	}, [&](const TLDupdateChatIsTranslatable &data) {
+		const auto peerId = peerFromTdbChat(data.vchat_id());
+		if (const auto peer = owner.peerLoaded(peerId)) {
+			peer->setTranslationDisabled(!data.vis_translatable().v);
+		}
 	}, [&](const TLDupdateChatIsMarkedAsUnread &data) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
 		if (const auto history = owner.historyLoaded(peerId)) {
@@ -3073,6 +3078,7 @@ void Updates::applyUpdate(const TLupdate &update) {
 		for (const auto &[id, value] : suggestionsToGigagroup) {
 			owner.setSuggestToGigagroup(owner.channel(id), value);
 		}
+	}, [&](const TLDupdateAutosaveSetting &data) {
 	}, [&](const TLDupdateChatPendingJoinRequests &data) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
 		if (const auto peer = owner.peerLoaded(peerId)) {
@@ -3098,10 +3104,7 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateFileAddedToDownloads &data) {
 	}, [&](const TLDupdateFileDownload &data) {
 	}, [&](const TLDupdateFileRemovedFromDownloads &data) {
-
-		// Updates below are handled in a different place.
-	}, [&](const TLDupdateConnectionState &data) {
-	}, [&](const TLDupdateServiceNotification &data) {
+	}, [&](const TLDupdateAutosaveSettings &data) {
 	}, [&](const TLDupdateForumTopicInfo &data) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
 		if (const auto peer = owner.peerLoaded(peerId)) {
@@ -3110,6 +3113,10 @@ void Updates::applyUpdate(const TLupdate &update) {
 				topic->applyInfo(data.vinfo());
 			}
 		}
+
+		// Updates below are handled in a different place.
+	}, [&](const TLDupdateConnectionState &data) {
+	}, [&](const TLDupdateServiceNotification &data) {
 	});
 	session().data().sendHistoryChangeNotifications();
 }
