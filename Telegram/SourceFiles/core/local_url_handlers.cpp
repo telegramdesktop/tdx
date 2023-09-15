@@ -1226,6 +1226,18 @@ bool HandleLocalUrl(
 					.openWebAppUrl = openWebAppUrl,
 				}));
 		});
+	}, [&](const TLDinternalLinkTypeSideMenuBot &data) {
+		if (!controller) {
+			return false;
+		}
+		controller->showPeerByLink(Navigation::PeerByLinkInfo{
+			.usernameOrId = data.vbot_username().v,
+			.attachBotToggleCommand = data.vurl().v,
+			.attachBotMenuOpen = true,
+			.clickFromMessageId = my.itemId,
+		});
+		controller->window().activate();
+		return true;
 	}, [&](const TLDinternalLinkTypeAuthenticationCode &data) {
 		const auto account = controller
 			? &controller->session().account()
