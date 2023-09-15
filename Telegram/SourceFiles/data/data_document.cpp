@@ -524,7 +524,9 @@ DocumentId DocumentData::IdFromTdb(const TLsticker &data) {
 			const TLDstickerFullTypeCustomEmoji &data) -> DocumentId {
 		return data.vcustom_emoji_id().v;
 	}, [&](const auto &) -> DocumentId {
-		return fields.vsticker().data().vid().v;
+		return fields.vid().v
+			? fields.vid().v
+			: fields.vsticker().data().vid().v;
 	});
 }
 

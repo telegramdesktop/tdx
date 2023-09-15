@@ -453,6 +453,24 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 		const auto itemId = item->id;
 		const auto id = int32(button->buttonId);
 		const auto chosen = [=](std::vector<not_null<PeerData*>> result) {
+			if (const auto user = result->asUser()) {
+				peer->session().sender().request(TLshareUserWithBot(
+					peerToTdbChat(peer->id),
+					tl_int53(itemId.bare),
+					tl_int32(id),
+					tl_int53(peerToUser(user->id).bare),
+					tl_bool(false)
+				)).send();
+			} else {
+				peer->session().sender().request(TLshareChatWithBot(
+					peerToTdbChat(peer->id),
+					tl_int53(itemId.bare),
+					tl_int32(id),
+					peerToTdbChat(result->id),
+					tl_bool(false)
+				)).send();
+			}
+#if 0 // mtp
 			peer->session().api().request(MTPmessages_SendBotRequestedPeer(
 				peer->input,
 				MTP_int(itemId),
@@ -465,6 +483,7 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 			)).done([=](const MTPUpdates &result) {
 				peer->session().api().applyUpdates(result);
 			}).send();
+#endif
 		};
 		if (const auto bot = item->getMessageBot()) {
 			ShowChoosePeerBox(controller, bot, query, chosen);

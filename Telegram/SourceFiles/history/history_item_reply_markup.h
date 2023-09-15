@@ -117,7 +117,9 @@ struct HistoryMessageMarkupButton {
 
 struct HistoryMessageMarkupData {
 	HistoryMessageMarkupData() = default;
+#if 0 // mtp
 	explicit HistoryMessageMarkupData(const MTPReplyMarkup *data);
+#endif
 
 	explicit HistoryMessageMarkupData(const Tdb::TLreplyMarkup *data);
 

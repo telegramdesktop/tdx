@@ -439,6 +439,8 @@ void SendAppLog(
 		return u"forum_topic_icon"_q;
 	}, [](const TLDpremiumFeatureAppIcons &) {
 		return u"app_icons"_q;
+	}, [](const TLDpremiumFeatureRealTimeChatTranslation &) {
+		return u"translations"_q;
 	});
 }
 

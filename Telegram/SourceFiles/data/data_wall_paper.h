@@ -30,6 +30,8 @@ namespace Ui {
 [[nodiscard]] std::vector<QColor> ColorsFromFill(
 	const Tdb::TLbackgroundFill &fill,
 	bool invertTopBottom = false);
+[[nodiscard]] Tdb::TLbackgroundFill ColorsToFill(
+	const std::vector<QColor> &colors);
 
 } // namespace Ui
 
