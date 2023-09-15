@@ -44,6 +44,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 namespace {
 
+using namespace Tdb;
+
 constexpr auto kSkipAtLeastOneDuration = 3 * crl::time(1000);
 
 class ShowButton final : public RpWidget {
@@ -235,7 +237,28 @@ void TranslateBox(
 	const auto send = [=](LanguageId to) {
 		loading->show(anim::type::instant);
 		translated->hide(anim::type::instant);
-#if 0 // todo
+		const auto done = [=](const TLformattedText &result) {
+			auto text = Api::FormattedTextFromTdb(result);
+			showText(text.empty()
+				? Ui::Text::Italic(tr::lng_translate_box_error(tr::now))
+				: std::move(text));
+		};
+		const auto fail = [=] {
+			done(tl_formattedText(tl_string(), tl_vector<TLtextEntity>()));
+		};
+		if (msgId) {
+			state->api.request(TLtranslateMessageText(
+				peerToTdbChat(peer->id),
+				tl_int53(msgId.bare),
+				tl_string(to.twoLetterCode())
+			)).done(done).fail(fail).send();
+		} else {
+			state->api.request(TLtranslateText(
+				Api::FormattedTextToTdb(text),
+				tl_string(to.twoLetterCode())
+			)).done(done).fail(fail).send();
+		}
+#if 0 // mtp
 		state->api.request(MTPmessages_TranslateText(
 			MTP_flags(flags),
 			msgId ? peer->input : MTP_inputPeerEmpty(),

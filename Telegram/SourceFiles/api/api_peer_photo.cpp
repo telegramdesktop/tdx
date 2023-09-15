@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_user_photos.h"
 #include "tdb/tdb_file_generator.h"
 #include "tdb/tdb_tl_scheme.h"
+#include "data/data_wall_paper.h"
 
 #include <QtCore/QBuffer>
 
@@ -99,7 +100,6 @@ constexpr auto kSharedMediaLimit = 100;
 	result->photoThumbs = photoThumbs;
 	return result;
 }
-#endif
 
 [[nodiscard]] std::optional<MTPVideoSize> PrepareMtpMarkup(
 		not_null<Main::Session*> session,
@@ -147,6 +147,35 @@ constexpr auto kSharedMediaLimit = 100;
 			return MTP_videoSizeEmojiMarkup(
 				MTP_long(document->id),
 				MTP_vector(mtpColors));
+		}
+	}
+	return std::nullopt;
+}
+#endif
+
+[[nodiscard]] std::optional<TLchatPhotoSticker> PrepareSticker(
+		not_null<Main::Session*> session,
+		const PeerPhoto::UserPhoto &d) {
+	const auto &documentId = d.markupDocumentId;
+	const auto &colors = d.markupColors;
+	if (!documentId || colors.empty()) {
+		return std::nullopt;
+	}
+	const auto document = session->data().document(documentId);
+	if (const auto sticker = document->sticker()) {
+		if (sticker->isStatic()) {
+			return std::nullopt;
+		} else if (sticker->setType == Data::StickersType::Emoji) {
+			return tl_chatPhotoSticker(
+				tl_chatPhotoStickerTypeCustomEmoji(
+					tl_int64(document->id)),
+				Ui::ColorsToFill(colors));
+		} else if (sticker->set.id) {
+			return tl_chatPhotoSticker(
+				tl_chatPhotoStickerTypeRegularOrMask(
+					tl_int64(sticker->set.id),
+					tl_int64(document->id)),
+				Ui::ColorsToFill(colors));
 		}
 	}
 	return std::nullopt;
@@ -257,30 +286,35 @@ void PeerPhoto::upload(
 		_session->uploader().upload(fakeId, ready);
 	}
 #endif
-	// todo video markup
-	auto data = QByteArray();
-	auto jpegBuffer = QBuffer(&data);
-	image.save(&jpegBuffer, "JPG", 87);
-
-	auto generator = std::make_unique<FileGenerator>(
-		&_session->tdb(),
-		std::move(data),
-		"photo.jpg");
-	auto inputFile = tl_inputChatPhotoStatic(generator->inputFile());
+	auto generator = std::unique_ptr<FileGenerator>();
+	auto inputFile = TLinputChatPhoto();
 
 	const auto eraseExisted = [=] {
 		const auto it = _uploads.find(peer);
 		if (it != end(_uploads)) {
-			it->second.generator->cancel();
+			if (it->second.generator) {
+				it->second.generator->cancel();
+			}
 			_uploads.erase(it);
 		}
 	};
 	eraseExisted();
 
-	generator->lifetime().add([=] {
-		eraseExisted();
-	});
+	if (const auto sticker = PrepareSticker(_session, photo)) {
+		inputFile = tl_inputChatPhotoSticker(*sticker);
+	} else {
+		auto data = QByteArray();
+		auto jpegBuffer = QBuffer(&data);
+		photo.image.save(&jpegBuffer, "JPG", 87);
 
+		generator = std::make_unique<FileGenerator>(
+			&_session->tdb(),
+			std::move(data),
+			"photo.jpg");
+		inputFile = tl_inputChatPhotoStatic(generator->inputFile());
+
+		generator->lifetime().add(eraseExisted);
+	}
 	_uploads.emplace(peer, UploadValue{
 		.generator = std::move(generator),
 		.type = type,
@@ -663,6 +697,7 @@ void PeerPhoto::requestEmojiList(EmojiListType type) {
 	if (list.requestId) {
 		return;
 	}
+#if 0 // mtp
 	const auto send = [&](auto &&request) {
 		return _api.request(
 			std::move(request)
@@ -688,6 +723,33 @@ void PeerPhoto::requestEmojiList(EmojiListType type) {
 		: (type == EmojiListType::NoChannelStatus)
 		? send(MTPaccount_GetChannelRestrictedStatusEmojis())
 		: send(MTPaccount_GetDefaultBackgroundEmojis());
+#endif
+	const auto send = [&](auto &&request) {
+		return _api.request(
+			std::move(request)
+		).done([=](const TLstickers &result) {
+			auto &list = emojiList(type);
+			list.requestId = 0;
+
+			const auto &stickers = result.data().vstickers().v;
+			list.list = ranges::views::all(
+				result.data().vstickers().v
+			) | ranges::views::transform([&](const TLsticker &sticker) {
+				return _session->data().processDocument(sticker);
+			}) | ranges::views::filter([](not_null<DocumentData*> sticker) {
+				return sticker->sticker() != nullptr;
+			}) | ranges::views::transform(
+				&DocumentData::id
+			) | ranges::to_vector;
+		}).fail([=] {
+			emojiList(type).requestId = 0;
+		}).send();
+	};
+	list.requestId = (type == EmojiListType::Profile)
+		? send(TLgetDefaultProfilePhotoCustomEmojiStickers())
+		: (type == EmojiListType::Group)
+		? send(TLgetDefaultChatPhotoCustomEmojiStickers())
+		: send(TLgetDefaultBackgroundCustomEmojiStickers());
 }
 
 rpl::producer<PeerPhoto::EmojiList> PeerPhoto::emojiListValue(
