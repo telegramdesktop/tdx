@@ -378,9 +378,12 @@ ListItemSelectionData Provider::computeSelectionData(
 		result.canForward = peer->isSelf() && story->canShare();
 		result.canDelete = story->canDelete();
 		result.canUnpinStory = story->pinnedToTop();
+		result.canToggleStoryPin = story->canToggleIsPinned();
 	}
+#if 0 // mtp
 	result.canToggleStoryPin = peer->isSelf()
 		|| (channel && channel->canEditStories());
+#endif
 	return result;
 }
 
