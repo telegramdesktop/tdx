@@ -795,19 +795,45 @@ void SessionNavigation::showPeerByLinkResolved(
 	}
 }
 
+void SessionNavigation::resolveBoostLink(QString url) {
+	if (_boostLinkResolving == url) {
+		return;
+	}
+	_boostLinkResolving = url;
+	_api.request(TLgetChatBoostLinkInfo(
+		tl_string(url)
+	)).done([=](const TLDchatBoostLinkInfo &data) {
+		_boostLinkResolving = QString();
+		const auto peer = session().data().peer(
+			peerFromTdbChat(data.vchat_id()));
+		if (const auto channel = peer->asChannel()) {
+			resolveBoostState(channel);
+		}
+	}).fail([=](const Error &error) {
+		_boostLinkResolving = QString();
+		showToast(u"Error: "_q + error.message);
+	}).send();
+}
+
 void SessionNavigation::resolveBoostState(not_null<ChannelData*> channel) {
 	if (_boostStateResolving == channel) {
 		return;
 	}
 	_boostStateResolving = channel;
+#if 0 // mtp
 	_api.request(MTPpremium_GetBoostsStatus(
 		channel->input
 	)).done([=](const MTPpremium_BoostsStatus &result) {
+#endif
+	_api.request(TLgetChatBoostStatus(
+		peerToTdbChat(channel->id)
+	)).done([=](const TLchatBoostStatus &result) {
 		_boostStateResolving = nullptr;
 		channel->updateLevelHint(result.data().vlevel().v);
 		const auto submit = [=](Fn<void(Ui::BoostCounters)> done) {
 			applyBoost(channel, done);
 		};
+#if 0 // mtp
 		uiShow()->show(Box(Ui::BoostBox, Ui::BoostBoxData{
 			.name = channel->name(),
 			.boost = ParseBoostCounters(result),
@@ -818,6 +844,15 @@ void SessionNavigation::resolveBoostState(not_null<ChannelData*> channel) {
 	}).fail([=](const MTP::Error &error) {
 		_boostStateResolving = nullptr;
 		showToast(u"Error: "_q + error.type());
+#endif
+		uiShow()->show(Box(Ui::BoostBox, Ui::BoostBoxData{
+			.name = channel->name(),
+			.boost = ParseBoostCounters(result),
+			.allowMulti = (BoostsForGift(_session) > 0),
+		}, submit));
+	}).fail([=](const Error &error) {
+		_boostStateResolving = nullptr;
+		showToast(u"Error: "_q + error.message);
 	}).send();
 }
 
@@ -854,6 +889,7 @@ void SessionNavigation::resolveCollectible(
 void SessionNavigation::applyBoost(
 		not_null<ChannelData*> channel,
 		Fn<void(Ui::BoostCounters)> done) {
+#if 0 // mtp
 	_api.request(MTPpremium_GetMyBoosts(
 	)).done([=](const MTPpremium_MyBoosts &result) {
 		const auto &data = result.data();
@@ -862,6 +898,10 @@ void SessionNavigation::applyBoost(
 		const auto slots = ParseForChannelBoostSlots(
 			channel,
 			data.vmy_boosts().v);
+#endif
+	_api.request(TLgetAvailableChatBoostSlots(
+	)).done([=](const TLchatBoostSlots &result) {
+		const auto slots = ParseForChannelBoostSlots(channel, result);
 		if (!slots.free.empty()) {
 			applyBoostsChecked(channel, { slots.free.front() }, done);
 		} else if (slots.other.empty()) {
@@ -930,17 +970,42 @@ void SessionNavigation::applyBoost(
 				reassign,
 				[=] { done({}); }));
 		}
+	}).fail([=](const Error &error) {
+		showToast(u"Error: "_q + error.message);
+		done({});
+	}).send();
+#if 0 // mtp
 	}).fail([=](const MTP::Error &error) {
 		const auto type = error.type();
 		showToast(u"Error: "_q + type);
 		done({});
 	}).handleFloodErrors().send();
+#endif
 }
 
 void SessionNavigation::applyBoostsChecked(
 		not_null<ChannelData*> channel,
 		std::vector<int> slots,
 		Fn<void(Ui::BoostCounters)> done) {
+	_api.request(TLboostChat(
+		peerToTdbChat(channel->id),
+		tl_vector<TLint32>(slots
+			| ranges::views::transform(tl_int32)
+			| ranges::to<QVector>())
+	)).done([=] {
+		_api.request(TLgetChatBoostStatus(
+			peerToTdbChat(channel->id)
+		)).done([=](const TLchatBoostStatus &result) {
+			done(ParseBoostCounters(result));
+		}).fail([=](const Error &error) {
+			showToast(u"Error: "_q + error.message);
+			done({});
+		}).send();
+	}).fail([=](const Error &error) {
+		showToast(u"Error: "_q + error.message);
+		done({});
+	}).send();
+#if 0 // mtp
 	auto mtp = MTP_vector_from_range(ranges::views::all(
 		slots
 	) | ranges::views::transform([](int slot) {
@@ -964,6 +1029,7 @@ void SessionNavigation::applyBoostsChecked(
 		showToast(u"Error: "_q + error.type());
 		done({});
 	}).send();
+#endif
 }
 
 void SessionNavigation::joinVoiceChatFromLink(
