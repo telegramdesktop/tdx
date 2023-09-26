@@ -685,19 +685,45 @@ void SessionNavigation::showPeerByLinkResolved(
 	}
 }
 
+void SessionNavigation::resolveBoostLink(QString url) {
+	if (_boostLinkResolving == url) {
+		return;
+	}
+	_boostLinkResolving = url;
+	_api.request(TLgetChatBoostLinkInfo(
+		tl_string(url)
+	)).done([=](const TLDchatBoostLinkInfo &data) {
+		_boostLinkResolving = QString();
+		const auto peer = session().data().peer(
+			peerFromTdbChat(data.vchat_id()));
+		if (const auto channel = peer->asChannel()) {
+			resolveBoostState(channel);
+		}
+	}).fail([=](const Error &error) {
+		_boostLinkResolving = QString();
+		showToast(u"Error: "_q + error.message);
+	}).send();
+}
+
 void SessionNavigation::resolveBoostState(not_null<ChannelData*> channel) {
 	if (_boostStateResolving == channel) {
 		return;
 	}
 	_boostStateResolving = channel;
+#if 0 // mpt
 	_api.request(MTPstories_GetBoostsStatus(
 		channel->input
 	)).done([=](const MTPstories_BoostsStatus &result) {
+#endif
+	_api.request(TLgetChatBoostStatus(
+		peerToTdbChat(channel->id)
+	)).done([=](const TLchatBoostStatus &result) {
 		_boostStateResolving = nullptr;
 		const auto &data = result.data();
 		const auto submit = [=](Fn<void(bool)> done) {
 			applyBoost(channel, done);
 		};
+#if 0 // mtp
 		const auto next = data.vnext_level_boosts().value_or_empty();
 		uiShow()->show(Box(Ui::BoostBox, Ui::BoostBoxData{
 			.name = channel->name(),
@@ -712,12 +738,28 @@ void SessionNavigation::resolveBoostState(not_null<ChannelData*> channel) {
 	}).fail([=](const MTP::Error &error) {
 		_boostStateResolving = nullptr;
 		showToast(u"Error: "_q + error.type());
+#endif
+		const auto next = data.vnext_level_boost_count().v;
+		uiShow()->show(Box(Ui::BoostBox, Ui::BoostBoxData{
+			.name = channel->name(),
+			.boost = {
+				.level = data.vlevel().v,
+				.boosts = data.vboost_count().v,
+				.thisLevelBoosts = data.vcurrent_level_boost_count().v,
+				.nextLevelBoosts = next,
+				.mine = data.vis_boosted().v,
+			},
+		}, submit));
+	}).fail([=](const Error &error) {
+		_boostStateResolving = nullptr;
+		showToast(u"Error: "_q + error.message);
 	}).send();
 }
 
 void SessionNavigation::applyBoost(
 		not_null<ChannelData*> channel,
 		Fn<void(bool)> done) {
+#if 0 // mtp
 	_api.request(MTPstories_CanApplyBoost(
 		channel->input
 	)).done([=](const MTPstories_CanApplyBoostResult &result) {
@@ -783,6 +825,78 @@ void SessionNavigation::applyBoost(
 		}
 		done(false);
 	}).handleFloodErrors().send();
+#endif
+	_api.request(TLcanBoostChat(
+		peerToTdbChat(channel->id)
+	)).done([=](const TLcanBoostChatResult &result) {
+		result.match([&](const TLDcanBoostChatResultOk &data) {
+			const auto currentId = peerFromTdbChat(
+				data.vcurrently_boosted_chat_id());
+			if (currentId) {
+				const auto peer = _session->data().peer(currentId);
+				replaceBoostConfirm(peer, channel, done);
+			} else {
+				applyBoostChecked(channel, done);
+			}
+		}, [&](const TLDcanBoostChatResultInvalidChat &data) {
+			showToast(u"Error: Invalid chat."_q);
+			done(false);
+		}, [&](const TLDcanBoostChatResultAlreadyBoosted &) {
+			uiShow()->show(Ui::MakeConfirmBox({
+				.text = tr::lng_boost_error_already_text(
+					Ui::Text::RichLangValue),
+				.title = tr::lng_boost_error_already_title(),
+				.inform = true,
+			}));
+			done(false);
+		}, [&](const TLDcanBoostChatResultPremiumNeeded &) {
+			const auto jumpToPremium = [=] {
+				const auto id = peerToChannel(channel->id).bare;
+				Settings::ShowPremium(
+					parentController(),
+					"channel_boost__" + QString::number(id));
+			};
+			uiShow()->show(Ui::MakeConfirmBox({
+				.text = tr::lng_boost_error_premium_text(
+					Ui::Text::RichLangValue),
+				.confirmed = jumpToPremium,
+				.confirmText = tr::lng_boost_error_premium_yes(),
+				.title = tr::lng_boost_error_premium_title(),
+			}));
+			done(false);
+		}, [&](const TLDcanBoostChatResultPremiumSubscriptionNeeded &) {
+			uiShow()->show(Ui::MakeConfirmBox({
+				.text = tr::lng_boost_error_gifted_text(
+					Ui::Text::RichLangValue),
+				.title = tr::lng_boost_error_gifted_title(),
+				.inform = true,
+			}));
+			done(false);
+		}, [&](const TLDcanBoostChatResultWaitNeeded &data) {
+			const auto seconds = data.vretry_after().v;
+			const auto days = seconds / 86400;
+			const auto hours = seconds / 3600;
+			const auto minutes = seconds / 60;
+			uiShow()->show(Ui::MakeConfirmBox({
+				.text = tr::lng_boost_error_flood_text(
+					lt_left,
+					rpl::single(Ui::Text::Bold((days > 1)
+						? tr::lng_days(tr::now, lt_count, days)
+						: (hours > 1)
+						? tr::lng_hours(tr::now, lt_count, hours)
+						: (minutes > 1)
+						? tr::lng_minutes(tr::now, lt_count, minutes)
+						: tr::lng_seconds(tr::now, lt_count, seconds))),
+					Ui::Text::RichLangValue),
+				.title = tr::lng_boost_error_flood_title(),
+				.inform = true,
+			}));
+			done(false);
+		});
+	}).fail([=](const Error &error) {
+		showToast(u"Error: "_q + error.message);
+		done(false);
+	}).send();
 }
 
 void SessionNavigation::replaceBoostConfirm(
@@ -822,6 +936,15 @@ void SessionNavigation::replaceBoostConfirm(
 void SessionNavigation::applyBoostChecked(
 		not_null<ChannelData*> channel,
 		Fn<void(bool)> done) {
+	_api.request(TLboostChat(
+		peerToTdbChat(channel->id)
+	)).done([=] {
+		done(true);
+	}).fail([=](const Error &error) {
+		showToast(u"Error: "_q + error.message);
+		done(false);
+	}).send();
+#if 0 // mtp
 	_api.request(MTPstories_ApplyBoost(
 		channel->input
 	)).done([=](const MTPBool &result) {
@@ -830,6 +953,7 @@ void SessionNavigation::applyBoostChecked(
 		showToast(u"Error: "_q + error.type());
 		done(false);
 	}).send();
+#endif
 }
 
 void SessionNavigation::joinVoiceChatFromLink(
