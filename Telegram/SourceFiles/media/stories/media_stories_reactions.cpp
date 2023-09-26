@@ -145,7 +145,9 @@ private:
 		peerToUser(history->peer->id),
 		QString(),
 		TextWithEntities(),
+#if 0 // mtp
 		MTP_messageMediaEmpty(),
+#endif
 		HistoryMessageMarkupData(),
 		groupedId);
 	return AdminLog::OwnedItem(delegate, item);

@@ -1343,6 +1343,12 @@ bool HandleLocalUrl(
 		}
 		controller->show(Ui::MakeInformBox(tr::lng_change_phone_error()));
 		return true;
+	}, [&](const TLDinternalLinkTypeChatBoost &data) {
+		if (!controller) {
+			return false;
+		}
+		controller->resolveBoostLink(data.vurl().v);
+		return true;
 	}, [&](const TLDinternalLinkTypeChatInvite &data) {
 		if (!controller) {
 			return false;
