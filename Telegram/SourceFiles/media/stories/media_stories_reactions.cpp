@@ -194,7 +194,10 @@ private:
 		.flags = MessageFlag::FakeHistoryItem | MessageFlag::HasFromId,
 		.from = history->peer->id,
 		.date = base::unixtime::now(),
+	}, TextWithEntities());
+#if 0 // mtp
 	}, TextWithEntities(), MTP_messageMediaEmpty());
+#endif
 	return AdminLog::OwnedItem(delegate, item);
 }
 

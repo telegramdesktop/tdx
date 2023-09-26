@@ -187,6 +187,7 @@ public:
 	virtual not_null<SessionController*> parentController() = 0;
 
 	void showPeerByLink(const PeerByLinkInfo &info);
+	void resolveBoostLink(QString url);
 
 	void showRepliesForMessage(
 		not_null<History*> history,
@@ -320,6 +321,7 @@ private:
 	mtpRequestId _showingRepliesRequestId = 0;
 
 	ChannelData *_boostStateResolving = nullptr;
+	QString _boostLinkResolving;
 
 	QString _collectibleEntity;
 	mtpRequestId _collectibleRequestId = 0;
