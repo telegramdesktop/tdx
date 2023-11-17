@@ -1399,7 +1399,11 @@ void ApplyChannelUpdate(
 		| Flag::AntiSpam
 		| Flag::Location
 		| Flag::CanHideMembers
-		| Flag::CanEnableAntiSpam;
+		| Flag::CanEnableAntiSpam
+		| Flag::CanGetStatistics
+		| Flag::CanViewRevenue
+		| Flag::PaidMediaAllowed
+		| Flag::CanViewCreditsRevenue;
 	channel->setFlags((channel->flags() & ~mask)
 		| Flag::CanSetUsername // Creators can always set usernames.
 		| (update.vcan_get_members().v ? Flag::CanViewParticipants : Flag())
@@ -1417,6 +1421,16 @@ void ApplyChannelUpdate(
 		| (update.vcan_hide_members().v ? Flag::CanHideMembers : Flag())
 		| (update.vcan_toggle_aggressive_anti_spam().v
 			? Flag::CanEnableAntiSpam
+			: Flag())
+		| (update.vcan_get_statistics().v ? Flag::CanGetStatistics : Flag())
+		| (update.vcan_get_revenue_statistics().v
+			? Flag::CanViewRevenue
+			: Flag())
+		| (update.vhas_paid_media_allowed().v
+			? Flag::PaidMediaAllowed
+			: Flag())
+		| (update.vcan_get_star_revenue_statistics().v
+			? Flag::CanViewCreditsRevenue
 			: Flag()));
 
 	if (const auto photo = update.vphoto()) {

@@ -10,8 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_statistics_chart.h"
 #include "statistics/statistics_data_deserialize.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Api {
 
+#if 0 // mtp
 Data::StatisticalGraph StatisticalGraphFromTL(const MTPStatsGraph &tl) {
 	return tl.match([&](const MTPDstatsGraph &d) {
 		using namespace Statistic;
@@ -30,6 +33,25 @@ Data::StatisticalGraph StatisticalGraphFromTL(const MTPStatsGraph &tl) {
 		return Data::StatisticalGraph{ .error = qs(data.verror()) };
 	});
 }
+#endif
 
+Data::StatisticalGraph StatisticalGraphFromTL(
+		const Tdb::TLstatisticalGraph &tl) {
+	return tl.match([&](const Tdb::TLDstatisticalGraphData &data) {
+		using namespace Statistic;
+		return Data::StatisticalGraph{
+			StatisticalChartFromJSON(data.vjson_data().v.toUtf8()),
+			data.vzoom_token().v.toUtf8(),
+		};
+	}, [&](const Tdb::TLDstatisticalGraphAsync &data) {
+		return Data::StatisticalGraph{
+			.zoomToken = data.vtoken().v.toUtf8(),
+		};
+	}, [&](const Tdb::TLDstatisticalGraphError &data) {
+		return Data::StatisticalGraph{
+			.error = data.verror_message().v.toUtf8(),
+		};
+	});
+}
 
 } // namespace Api
