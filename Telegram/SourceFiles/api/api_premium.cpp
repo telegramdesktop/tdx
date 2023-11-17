@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_text_entities.h"
 #include "apiwrap.h"
 #include "base/random.h"
+#include "data/data_channel.h"
 #include "data/data_document.h"
 #include "data/data_peer.h"
 #include "data/data_peer_values.h"
@@ -59,25 +60,36 @@ using namespace Tdb;
 		.giveaway = data.is_via_giveaway(),
 	};
 }
+#endif
 
+#if 0 // mtp
 [[nodiscard]] Data::PremiumSubscriptionOptions GiftCodesFromTL(
 		const QVector<MTPPremiumGiftCodeOption> &tlOptions) {
+#endif
+[[nodiscard]] Data::PremiumSubscriptionOptions GiftCodesFromTL(
+		const QVector<Tdb::TLpremiumGiftCodePaymentOption> &tlOptions) {
 	auto options = PremiumSubscriptionOptionsFromTL(tlOptions);
 	for (auto i = 0; i < options.size(); i++) {
 		const auto &tlOption = tlOptions[i].data();
 		const auto perUserText = Ui::FillAmountAndCurrency(
+#if 0 // mtp
 			tlOption.vamount().v / float64(tlOption.vusers().v),
 			qs(tlOption.vcurrency()),
+#endif
+			tlOption.vamount().v / float64(tlOption.vwinner_count().v),
+			tlOption.vcurrency().v.toUtf8(),
 			false);
 		options[i].costPerMonth = perUserText
 			+ ' '
 			+ QChar(0x00D7)
 			+ ' '
+			+ QString::number(tlOption.vwinner_count().v);
+#if 0 // mtp
 			+ QString::number(tlOption.vusers().v);
+#endif
 	}
 	return options;
 }
-#endif
 
 } // namespace
 
@@ -946,7 +958,7 @@ Data::PremiumSubscriptionOptions PremiumGiftCodeOptions::options(int amount) {
 	if (it != end(_subscriptionOptions)) {
 		return it->second;
 	} else {
-#if 0 // todo
+#if 0 // mtp
 		auto tlOptions = QVector<MTPPremiumGiftCodeOption>();
 		for (auto i = 0; i < _optionsForOnePerson.months.size(); i++) {
 			tlOptions.push_back(MTP_premiumGiftCodeOption(
@@ -960,6 +972,17 @@ Data::PremiumSubscriptionOptions PremiumGiftCodeOptions::options(int amount) {
 		}
 		_subscriptionOptions[amount] = GiftCodesFromTL(tlOptions);
 #endif
+		auto tlOptions = QVector<Tdb::TLpremiumGiftCodePaymentOption>();
+		for (auto i = 0; i < _optionsForOnePerson.months.size(); i++) {
+			tlOptions.push_back(Tdb::tl_premiumGiftCodePaymentOption(
+				Tdb::tl_string(_optionsForOnePerson.currency),
+				Tdb::tl_int53(_optionsForOnePerson.totalCosts[i] * amount),
+				Tdb::tl_int32(amount),
+				Tdb::tl_int32(_optionsForOnePerson.months[i]),
+				Tdb::TLstring(),
+				Tdb::TLint32()));
+		}
+		_subscriptionOptions[amount] = GiftCodesFromTL(tlOptions);
 		return _subscriptionOptions[amount];
 	}
 }
