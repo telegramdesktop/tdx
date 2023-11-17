@@ -950,6 +950,47 @@ rpl::producer<rpl::no_value, QString> Boosts::request() {
 			consumer.put_error_copy(error.type());
 		}).send();
 #endif
+		_api.request(Tdb::TLgetChatBoostStatus(
+			peerToTdbChat(_peer->id)
+		)).done([=](const Tdb::TLDchatBoostStatus &data) {
+			_boostStatus.overview = Data::BoostsOverview{
+				.mine = bool(data.vapplied_slot_ids().v.size()),
+				.level = std::max(data.vlevel().v, 0),
+				.boostCount = std::max(
+					data.vboost_count().v,
+					data.vcurrent_level_boost_count().v),
+				.currentLevelBoostCount = data.vcurrent_level_boost_count().v,
+				.nextLevelBoostCount = data.vnext_level_boost_count().v,
+				.premiumMemberCount = data.vpremium_member_count().v,
+				.premiumMemberPercentage =
+					data.vpremium_member_percentage().v,
+			};
+			_boostStatus.link = data.vboost_url().v.toUtf8();
+
+			_boostStatus.prepaidGiveaway = ranges::views::all(
+				data.vprepaid_giveaways().v
+			) | ranges::views::transform([](
+					const Tdb::TLprepaidPremiumGiveaway &r) {
+				return Data::BoostPrepaidGiveaway{
+					.months = r.data().vmonth_count().v,
+					.id = uint64(r.data().vid().v),
+					.quantity = r.data().vwinner_count().v,
+					.date = QDateTime::fromSecsSinceEpoch(
+						r.data().vpayment_date().v),
+				};
+			}) | ranges::to_vector;
+
+			using namespace Data;
+			requestBoosts({ .gifts = false }, [=](BoostsListSlice &&slice) {
+				_boostStatus.firstSliceBoosts = std::move(slice);
+				requestBoosts({ .gifts = true }, [=](BoostsListSlice &&s) {
+					_boostStatus.firstSliceGifts = std::move(s);
+					consumer.put_done();
+				});
+			});
+		}).fail([=](const Tdb::Error &error) {
+			consumer.put_error_copy(error.message);
+		}).send();
 
 		return lifetime;
 	};
@@ -964,7 +1005,77 @@ void Boosts::requestBoosts(
 	constexpr auto kTlFirstSlice = tl::make_int(kFirstSlice);
 	constexpr auto kTlLimit = tl::make_int(kLimit);
 	const auto gifts = token.gifts;
-#if 0 // todo
+	_requestId = _api.request(Tdb::TLgetChatBoosts(
+		peerToTdbChat(_peer->id),
+		Tdb::tl_bool(gifts),
+		Tdb::tl_string(token.next),
+		token.next.isEmpty() ? kTlFirstSlice : kTlLimit
+	)).done([=](const Tdb::TLDfoundChatBoosts &data) {
+		_requestId = 0;
+
+		auto list = std::vector<Data::Boost>();
+		list.reserve(data.vboosts().v.size());
+		constexpr auto kMonthsDivider = int(30 * 86400);
+		for (const auto &boost : data.vboosts().v) {
+			const auto &data = boost.data();
+
+			const auto userId = data.vsource().match([&](const auto &d) {
+				return UserId(d.vuser_id().v);
+			});
+			const auto giftCodeLink = data.vsource().match([](
+					const Tdb::TLDchatBoostSourcePremium &) {
+				return Data::GiftCodeLink();
+			}, [&](const auto &d) {
+				const auto tlGiftCode = d.vgift_code().v.toUtf8();
+				const auto path = !tlGiftCode.isEmpty()
+					? (u"giftcode/"_q + tlGiftCode)
+					: QString();
+				return Data::GiftCodeLink{
+					_peer->session().createInternalLink(path),
+					_peer->session().createInternalLinkFull(path),
+					tlGiftCode,
+				};
+			});
+			const auto isUnclaimed = data.vsource().match([](
+					const Tdb::TLDchatBoostSourceGiveaway &d) {
+				return d.vis_unclaimed().v;
+			}, [](const auto &) {
+				return false;
+			});
+			const auto giveawayMessage = data.vsource().match([&](
+					const Tdb::TLDchatBoostSourceGiveaway &d) {
+				return FullMsgId{ _peer->id, d.vgiveaway_message_id().v };
+			}, [](const auto &) {
+				return FullMsgId();
+			});
+			list.push_back({
+				!giftCodeLink.slug.isEmpty(),
+				(!!giveawayMessage),
+				isUnclaimed,
+				data.vid().v.toUtf8(),
+				userId,
+				giveawayMessage,
+				QDateTime::fromSecsSinceEpoch(data.vstart_date().v),
+				QDateTime::fromSecsSinceEpoch(data.vexpiration_date().v),
+				(data.vexpiration_date().v - data.vstart_date().v)
+					/ kMonthsDivider,
+				std::move(giftCodeLink),
+				(data.vcount().v == 1 ? 0 : data.vcount().v),
+			});
+		}
+		done(Data::BoostsListSlice{
+			.list = std::move(list),
+			.multipliedTotal = data.vtotal_count().v,
+			.allLoaded = (data.vtotal_count().v == data.vboosts().v.size()),
+			.token = Data::BoostsListSlice::OffsetToken{
+				.next = data.vnext_offset().v.toUtf8(),
+				.gifts = gifts,
+			},
+		});
+	}).fail([=] {
+		_requestId = 0;
+	}).send();
+#if 0 // mtp
 	_requestId = _api.request(MTPpremium_GetBoostsList(
 		gifts
 			? MTP_flags(MTPpremium_GetBoostsList::Flag::f_gifts)
