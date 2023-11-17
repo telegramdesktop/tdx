@@ -302,10 +302,12 @@ struct FormUpdate : std::variant<
 
 [[nodiscard]] not_null<Main::Session*> SessionFromId(const InvoiceId &id);
 
+#if 0 // mtp
 [[nodiscard]] MTPinputStorePaymentPurpose InvoicePremiumGiftCodeGiveawayToTL(
 	const InvoicePremiumGiftCode &invoice);
 [[nodiscard]] MTPinputStorePaymentPurpose InvoiceCreditsGiveawayToTL(
 	const InvoicePremiumGiftCode &invoice);
+#endif
 
 class Form final : public base::has_weak_ptr {
 public:

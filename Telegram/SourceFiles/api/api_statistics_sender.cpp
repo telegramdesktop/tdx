@@ -20,7 +20,10 @@ StatisticsRequestSender::StatisticsRequestSender(
 , _channel(peer->asChannel())
 , _user(peer->asUser())
 , _api(&_peer->session().api().instance())
+#if 0 // mtp
 , _timer([=] { checkRequests(); }) {
+#endif
+{
 }
 
 MTP::Sender &StatisticsRequestSender::api() {
@@ -37,6 +40,7 @@ not_null<UserData*> StatisticsRequestSender::user() {
 	return _user;
 }
 
+#if 0 // mtp
 void StatisticsRequestSender::checkRequests() {
 	for (auto i = begin(_requests); i != end(_requests);) {
 		for (auto j = begin(i->second); j != end(i->second);) {
@@ -82,5 +86,6 @@ StatisticsRequestSender::~StatisticsRequestSender() {
 		}
 	}
 }
+#endif
 
 } // namespace Api

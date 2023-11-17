@@ -205,6 +205,7 @@ rpl::producer<rpl::no_value, QString> Statistics::request() {
 	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
 
+#if 0 // todo
 		if (!channel()->isMegagroup()) {
 			makeRequest(MTPstats_GetBroadcastStats(
 				MTP_flags(MTPstats_GetBroadcastStats::Flags(0)),
@@ -228,6 +229,7 @@ rpl::producer<rpl::no_value, QString> Statistics::request() {
 				consumer.put_error_copy(error.type());
 			}).send();
 		}
+#endif
 
 		return lifetime;
 	};
@@ -240,6 +242,7 @@ Statistics::GraphResult Statistics::requestZoom(
 		auto lifetime = rpl::lifetime();
 		const auto wasEmpty = _zoomDeque.empty();
 		_zoomDeque.push_back([=] {
+#if 0 // todo
 			makeRequest(MTPstats_LoadAsyncGraph(
 				MTP_flags(x
 					? MTPstats_LoadAsyncGraph::Flag::f_x
@@ -258,6 +261,7 @@ Statistics::GraphResult Statistics::requestZoom(
 			}).fail([=](const MTP::Error &error) {
 				consumer.put_error_copy(error.type());
 			}).send();
+#endif
 		});
 		if (wasEmpty) {
 			_zoomDeque.front()();
@@ -289,6 +293,7 @@ void PublicForwards::request(
 		return;
 	}
 	const auto channel = StatisticsRequestSender::channel();
+#if 0 // todo
 	const auto processResult = [=](const MTPstats_PublicForwards &tl) {
 		using Messages = QVector<Data::RecentPostId>;
 		_requestId = 0;
@@ -358,6 +363,7 @@ void PublicForwards::request(
 			kLimit
 		)).done(processResult).fail([=] { _requestId = 0; }).send();
 	}
+#endif
 }
 
 MessageStatistics::MessageStatistics(
@@ -406,6 +412,7 @@ void MessageStatistics::request(Fn<void(Data::MessageStatistics)> done) {
 	const auto requestPrivateForwards = [=](
 			const Data::StatisticalGraph &messageGraph,
 			const Data::StatisticalGraph &reactionsGraph) {
+#if 0 // todo
 		api().request(MTPchannels_GetMessages(
 			channel()->inputChannel,
 			MTP_vector<MTPInputMessage>(
@@ -456,8 +463,10 @@ void MessageStatistics::request(Fn<void(Data::MessageStatistics)> done) {
 		}).fail([=](const MTP::Error &error) {
 			requestFirstPublicForwards(messageGraph, reactionsGraph, {});
 		}).send();
+#endif
 	};
 
+#if 0 // todo
 	const auto requestStoryPrivateForwards = [=](
 			const Data::StatisticalGraph &messageGraph,
 			const Data::StatisticalGraph &reactionsGraph) {
@@ -517,6 +526,7 @@ void MessageStatistics::request(Fn<void(Data::MessageStatistics)> done) {
 			requestPrivateForwards({}, {});
 		}).send();
 	}
+#endif
 }
 
 Boosts::Boosts(not_null<PeerData*> peer)
@@ -532,6 +542,7 @@ rpl::producer<rpl::no_value, QString> Boosts::request() {
 			return lifetime;
 		}
 
+#if 0 // todo
 		_api.request(MTPpremium_GetBoostsStatus(
 			_peer->input
 		)).done([=](const MTPpremium_BoostsStatus &result) {
@@ -601,6 +612,7 @@ rpl::producer<rpl::no_value, QString> Boosts::request() {
 		}).fail([=](const MTP::Error &error) {
 			consumer.put_error_copy(error.type());
 		}).send();
+#endif
 
 		return lifetime;
 	};
@@ -615,6 +627,7 @@ void Boosts::requestBoosts(
 	constexpr auto kTlFirstSlice = tl::make_int(kFirstSlice);
 	constexpr auto kTlLimit = tl::make_int(kLimit);
 	const auto gifts = token.gifts;
+#if 0 // todo
 	_requestId = _api.request(MTPpremium_GetBoostsList(
 		gifts
 			? MTP_flags(MTPpremium_GetBoostsList::Flag::f_gifts)
@@ -675,6 +688,7 @@ void Boosts::requestBoosts(
 	}).fail([=] {
 		_requestId = 0;
 	}).send();
+#endif
 }
 
 Data::BoostStatus Boosts::boostStatus() const {

@@ -320,8 +320,12 @@ void ShareWithFriend(
 		const auto content = navigation->parentController()->content();
 		return content->shareUrl(
 			thread,
+#if 0 // mtp
 			MakeGiftCodeLink(&navigation->session(), slug).link,
 			QString());
+#endif
+			{ MakeGiftCodeLink(&navigation->session(), slug).link },
+			true);
 	};
 	Window::ShowChooseRecipientBox(navigation, chosen);
 }

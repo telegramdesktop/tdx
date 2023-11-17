@@ -31,7 +31,11 @@ constexpr auto kOutlineRatio = 0.85;
 
 auto GenerateGiveawayStart(
 	not_null<Element*> parent,
+#if 0 // mtp
 	not_null<Data::GiveawayStart*> data)
+#endif
+	not_null<Data::GiveawayStart*> data,
+	DocumentData *passedSticker)
 -> Fn<void(Fn<void(std::unique_ptr<MediaGenericPart>)>)> {
 	return [=](Fn<void(std::unique_ptr<MediaGenericPart>)> push) {
 		const auto months = data->months;
@@ -39,10 +43,14 @@ auto GenerateGiveawayStart(
 
 		using Data = StickerWithBadgePart::Data;
 		const auto sticker = [=] {
+#if 0 // mtp
 			const auto &session = parent->history()->session();
 			auto &packs = session.giftBoxStickersPacks();
 			return Data{
 				.sticker = packs.lookup(months),
+#endif
+			return Data{
+				.sticker = passedSticker,
 				.size = st::msgServiceGiftBoxStickerSize,
 				.singleTimePlayback = true,
 			};

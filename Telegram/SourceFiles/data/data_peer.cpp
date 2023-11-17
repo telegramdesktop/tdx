@@ -241,6 +241,7 @@ AllowedReactions Parse(
 	});
 }
 
+#if 0 // mtp
 PeerData *PeerFromInputMTP(
 		not_null<Session*> owner,
 		const MTPInputPeer &input) {
@@ -274,6 +275,7 @@ UserData *UserFromInputMTP(
 		return (UserData*)nullptr;
 	});
 }
+#endif
 
 } // namespace Data
 
@@ -1036,6 +1038,7 @@ void PeerData::setActionBar(const TLchatActionBar *bar) {
 	});
 }
 
+#if 0 // mtp
 bool PeerData::changeColorIndex(
 		const tl::conditional<MTPint> &cloudColorIndex) {
 	return cloudColorIndex
@@ -1049,6 +1052,7 @@ bool PeerData::changeBackgroundEmojiId(
 		? cloudBackgroundEmoji->v
 		: DocumentId());
 }
+#endif
 
 bool PeerData::changeColor(
 		const tl::conditional<MTPPeerColor> &cloudColor) {
