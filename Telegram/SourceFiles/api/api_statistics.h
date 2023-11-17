@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_statistics.h"
 #include "mtproto/sender.h"
 
+#include "tdb/tdb_sender.h"
+
 class ChannelData;
 class PeerData;
 
@@ -20,6 +22,7 @@ namespace Api {
 class StatisticsRequestSender {
 protected:
 	explicit StatisticsRequestSender(not_null<ChannelData*> channel);
+#if 0 // mtp
 	~StatisticsRequestSender();
 
 	template <
@@ -31,6 +34,10 @@ protected:
 	[[nodiscard]] MTP::Sender &api() {
 		return _api;
 	}
+#endif
+	[[nodiscard]] Tdb::Sender &api() {
+		return _api;
+	}
 	[[nodiscard]] not_null<ChannelData*> channel() {
 		return _channel;
 	}
@@ -39,9 +46,12 @@ private:
 	void checkRequests();
 
 	const not_null<ChannelData*> _channel;
+	Tdb::Sender _api;
+#if 0 // mtp
 	MTP::Sender _api;
 	base::Timer _timer;
 	base::flat_map<MTP::DcId, base::flat_set<mtpRequestId>> _requests;
+#endif
 
 };
 
@@ -119,7 +129,10 @@ private:
 	const not_null<PeerData*> _peer;
 	Data::BoostStatus _boostStatus;
 
+#if 0 // mtp
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 	mtpRequestId _requestId = 0;
 
 };

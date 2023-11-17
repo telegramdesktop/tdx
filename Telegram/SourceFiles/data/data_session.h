@@ -44,6 +44,8 @@ class TLDupdateChatLastMessage;
 class TLDupdateChatPermissions;
 class TLDupdateChatTitle;
 class TLDupdateChatPhoto;
+class TLDupdateChatAccentColor;
+class TLDupdateChatBackgroundCustomEmoji;
 } // namespace Tdb
 
 enum class SimpleDocumentType;
@@ -881,8 +883,10 @@ public:
 	[[nodiscard]] auto peerDecorationsUpdated() const
 		-> rpl::producer<not_null<PeerData*>>;
 
+#if 0 // mtp
 	void applyStatsDcId(not_null<ChannelData*>, MTP::DcId);
 	[[nodiscard]] MTP::DcId statsDcId(not_null<ChannelData*>);
+#endif
 
 	void clearLocalStorage();
 
@@ -891,6 +895,9 @@ public:
 	void applyChatPermissions(const Tdb::TLDupdateChatPermissions &data);
 	void applyChatTitle(const Tdb::TLDupdateChatTitle &data);
 	void applyChatPhoto(const Tdb::TLDupdateChatPhoto &data);
+	void applyChatAccentColor(const Tdb::TLDupdateChatAccentColor &data);
+	void applyChatBackgroundCustomEmoji(
+		const Tdb::TLDupdateChatBackgroundCustomEmoji &data);
 
 private:
 	using Messages = std::unordered_map<MsgId, not_null<HistoryItem*>>;
@@ -1197,7 +1204,9 @@ private:
 	base::flat_map<not_null<UserData*>, TimeId> _watchingForOffline;
 	base::Timer _watchForOfflineTimer;
 
+#if 0 // mtp
 	base::flat_map<not_null<ChannelData*>, MTP::DcId> _channelStatsDcIds;
+#endif
 
 	rpl::event_stream<WebViewResultSent> _webViewResultSent;
 

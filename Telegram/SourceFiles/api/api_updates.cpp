@@ -2781,6 +2781,10 @@ void Updates::applyUpdate(const TLupdate &update) {
 		owner.applyChatTitle(data);
 	}, [&](const TLDupdateChatPhoto &data) {
 		owner.applyChatPhoto(data);
+	}, [&](const TLDupdateChatAccentColor &data) {
+		owner.applyChatAccentColor(data);
+	}, [&](const TLDupdateChatBackgroundCustomEmoji &data) {
+		owner.applyChatBackgroundCustomEmoji(data);
 	}, [&](const TLDupdateChatPermissions &data) {
 		owner.applyChatPermissions(data);
 	}, [&](const TLDupdateChatLastMessage &data) {
@@ -3077,6 +3081,8 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateSelectedBackground &data) {
 	}, [&](const TLDupdateChatThemes &data) {
 		session().data().cloudThemes().applyUpdate(data);
+	}, [&](const TLDupdateAccentColors &data) {
+		session().applyAccentColors(data);
 	}, [&](const TLDupdateLanguagePackStrings &data) {
 		Lang::CurrentCloudManager().apply(data);
 	}, [&](const TLDupdateTermsOfService &data) {

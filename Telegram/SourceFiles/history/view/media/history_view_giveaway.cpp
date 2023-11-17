@@ -51,10 +51,18 @@ namespace {
 
 } // namespace
 
+#if 0 // mtp
 Giveaway::Giveaway(
 	not_null<Element*> parent,
 	not_null<Data::Giveaway*> giveaway)
 : Media(parent)
+#endif
+Giveaway::Giveaway(
+	not_null<Element*> parent,
+	not_null<Data::Giveaway*> giveaway,
+	DocumentData *sticker)
+: Media(parent)
+, _document(sticker)
 , _prizesTitle(st::msgMinWidth)
 , _prizes(st::msgMinWidth)
 , _participantsTitle(st::msgMinWidth)
@@ -400,9 +408,12 @@ void Giveaway::ensureStickerCreated() const {
 	if (_sticker) {
 		return;
 	}
+#if 0 // mtp
 	const auto &session = _parent->history()->session();
 	auto &packs = session.giftBoxStickersPacks();
 	if (const auto document = packs.lookup(_months)) {
+#endif
+	if (const auto document = _document) {
 		if (const auto sticker = document->sticker()) {
 			const auto skipPremiumEffect = false;
 			_sticker.emplace(_parent, document, skipPremiumEffect, _parent);

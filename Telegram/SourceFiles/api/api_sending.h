@@ -16,11 +16,16 @@ class PhotoData;
 class DocumentData;
 struct FileLoadResult;
 
+namespace tl {
+class int64_type;
+} // namespace tl
+
 namespace Tdb {
 class TLinputMessageContent;
 class TLmessageSchedulingState;
 class TLmessageSendOptions;
-class TLmessageReplyTo;
+class TLinputMessageReplyTo;
+using TLint53 = tl::int64_type;
 } // namespace Tdb
 
 namespace InlineBots {
@@ -57,7 +62,13 @@ void SendConfirmedFile(
 	not_null<PeerData*> peer,
 	const SendAction &action,
 	int32 sendingId = 0);
-[[nodiscard]] std::optional<Tdb::TLmessageReplyTo> MessageReplyTo(
+[[nodiscard]] std::optional<Tdb::TLinputMessageReplyTo> MessageReplyTo(
+	not_null<History*> history,
+	const FullReplyTo &replyTo);
+[[nodiscard]] std::optional<Tdb::TLinputMessageReplyTo> MessageReplyTo(
+	const SendAction &action);
+[[nodiscard]] Tdb::TLint53 MessageThreadId(
+	not_null<PeerData*> peer,
 	const SendAction &action);
 
 void SendPreparedMessage(

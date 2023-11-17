@@ -16,9 +16,11 @@ namespace Tdb {
 class TLjsonValue;
 } // namespace Tdb
 
+#if 0 // mtp
 namespace Ui {
 struct ColorIndicesCompressed;
 } // namespace Ui
+#endif
 
 namespace Main {
 
@@ -41,8 +43,10 @@ public:
 			return getString(key, fallback);
 		} else if constexpr (std::is_same_v<Type, std::vector<QString>>) {
 			return getStringArray(key, std::move(fallback));
+#if 0 // mtp
 		} else if constexpr (std::is_same_v<Type, std::vector<int>>) {
 			return getIntArray(key, std::move(fallback));
+#endif
 		} else if constexpr (std::is_same_v<
 				Type,
 				std::vector<std::map<QString, QString>>>) {
@@ -60,14 +64,18 @@ public:
 		const QString &key) const;
 	void dismissSuggestion(const QString &key);
 
+#if 0 // mtp
 	[[nodiscard]] auto colorIndicesValue() const
 		-> rpl::producer<Ui::ColorIndicesCompressed>;
+#endif
 
 	void refresh();
 
 private:
 	void refreshDelayed();
+#if 0 // mtp
 	void parseColorIndices();
+#endif
 
 	template <typename Extractor>
 	[[nodiscard]] auto getValue(
@@ -106,8 +114,10 @@ private:
 	rpl::event_stream<> _refreshed;
 	base::flat_set<QString> _dismissedSuggestions;
 
+#if 0 // mtp
 	rpl::event_stream<> _colorIndicesChanged;
 	std::unique_ptr<Ui::ColorIndicesCompressed> _colorIndicesCurrent;
+#endif
 
 	rpl::lifetime _lifetime;
 

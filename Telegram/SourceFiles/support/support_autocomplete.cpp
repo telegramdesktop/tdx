@@ -340,6 +340,7 @@ AdminLog::OwnedItem GenerateContactItem(
 		tl_bool(false), // is_pinned
 		tl_bool(false), // can_be_edited
 		tl_bool(false), // can_be_forwarded
+		tl_bool(false), // can_be_replied_in_another_chat
 		tl_bool(true), // can_be_saved
 		tl_bool(true), // can_be_deleted_only_for_self
 		tl_bool(false), // can_be_deleted_for_all_users
@@ -356,12 +357,13 @@ AdminLog::OwnedItem GenerateContactItem(
 		tl_int32(base::unixtime::now()), // date
 		tl_int32(0), // edit_date
 		tl_messageForwardInfo(
-			tl_messageForwardOriginUser(
+			tl_messageOriginUser(
 				tl_int53(history->session().userId().bare)),
 			tl_int32(base::unixtime::now()), // date
 			tl_string(), // public_service_announcement_type
 			peerToTdbChat(history->session().userPeerId()),
 			tl_int53(0)), // from_message_id
+		std::nullopt, // import_info
 		std::nullopt, // interaction_info
 		tl_vector<TLunreadReaction>(), // unread_reactions
 		std::nullopt, // reply_to

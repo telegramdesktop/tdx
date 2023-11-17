@@ -1216,6 +1216,19 @@ not_null<UserData*> Session::processUser(const TLuser &user) {
 	} else {
 		result->setEmojiStatus(0);
 	}
+	auto decorationsUpdated = false;
+	if (result->changeColorIndex(data.vaccent_color_id().v)) {
+		updateFlags |= UpdateFlag::Color;
+		decorationsUpdated = true;
+	}
+	if (result->changeBackgroundEmojiId(
+			data.vbackground_custom_emoji_id().v)) {
+		updateFlags |= UpdateFlag::BackgroundEmoji;
+		decorationsUpdated = true;
+	}
+	if (decorationsUpdated && result->isMinimalLoaded()) {
+		_peerDecorationsUpdated.fire_copy(result);
+	}
 
 	if (updateFlags) {
 		session().changes().peerUpdated(result, updateFlags);
@@ -1358,6 +1371,20 @@ not_null<PeerData*> Session::processPeer(const TLchat &dialog) {
 
 	if (const auto sender = data.vmessage_sender_id()) {
 		session().sendAsPeers().setChosen(result, peerFromSender(*sender));
+	}
+
+	auto decorationsUpdated = false;
+	if (result->changeColorIndex(data.vaccent_color_id().v)) {
+		updates |= UpdateFlag::Color;
+		decorationsUpdated = true;
+	}
+	if (result->changeBackgroundEmojiId(
+		data.vbackground_custom_emoji_id().v)) {
+		updates |= UpdateFlag::BackgroundEmoji;
+		decorationsUpdated = true;
+	}
+	if (decorationsUpdated && result->isMinimalLoaded()) {
+		_peerDecorationsUpdated.fire_copy(result);
 	}
 
 	if (!result->isFullLoaded()) {
@@ -2704,6 +2731,30 @@ void Session::applyChatPhoto(const TLDupdateChatPhoto &data) {
 			}
 		} else {
 			// Process in updateUser.
+		}
+	}
+}
+
+void Session::applyChatAccentColor(const TLDupdateChatAccentColor &data) {
+	if (const auto peer = peerLoaded(peerFromTdbChat(data.vchat_id()))) {
+		if (peer->changeColorIndex(data.vaccent_color_id().v)) {
+			peer->session().changes().peerUpdated(
+				peer,
+				PeerUpdate::Flag::Color);
+			_peerDecorationsUpdated.fire_copy(peer);
+		}
+	}
+}
+
+void Session::applyChatBackgroundCustomEmoji(
+		const TLDupdateChatBackgroundCustomEmoji &data) {
+	if (const auto peer = peerLoaded(peerFromTdbChat(data.vchat_id()))) {
+		const auto id = data.vbackground_custom_emoji_id().v;
+		if (peer->changeBackgroundEmojiId(id)) {
+			peer->session().changes().peerUpdated(
+				peer,
+				PeerUpdate::Flag::BackgroundEmoji);
+			_peerDecorationsUpdated.fire_copy(peer);
 		}
 	}
 }
@@ -5389,6 +5440,7 @@ uint64 Session::wallpapersHash() const {
 	return _wallpapersHash;
 }
 
+#if 0 // mtp
 MTP::DcId Session::statsDcId(not_null<ChannelData*> channel) {
 	const auto it = _channelStatsDcIds.find(channel);
 	return (it == end(_channelStatsDcIds)) ? MTP::DcId(0) : it->second;
@@ -5401,6 +5453,7 @@ void Session::applyStatsDcId(
 		_channelStatsDcIds[channel] = dcId;
 	}
 }
+#endif
 
 void Session::webViewResultSent(WebViewResultSent &&sent) {
 	return _webViewResultSent.fire(std::move(sent));

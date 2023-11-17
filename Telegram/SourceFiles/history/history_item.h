@@ -20,6 +20,7 @@ class TLmessage;
 class TLDmessage;
 class TLmessageContent;
 class TLDmessageForwardInfo;
+class TLDmessageImportInfo;
 class TLmessageInteractionInfo;
 class TLmessageReaction;
 class TLunreadReaction;
@@ -560,6 +561,7 @@ public:
 	void customEmojiRepaint();
 
 	void updateContent(const Tdb::TLmessageContent &content);
+	void setMediaExplicit(std::unique_ptr<Data::Media> media);
 	void updateInteractionInfo(const Tdb::TLmessageInteractionInfo *info);
 	void updateEditedInfo(
 		TimeId editDate,
@@ -650,6 +652,9 @@ private:
 	static void FillForwardedInfo(
 		CreateConfig &config,
 		const Tdb::TLDmessageForwardInfo &data);
+	static void FillImportInfo(
+		CreateConfig &config,
+		const Tdb::TLDmessageImportInfo &data);
 	void createServiceFromTdb(const Tdb::TLmessageContent &content);
 	void setServiceMessageByContent(const Tdb::TLmessageContent &content);
 	void applyContent(const Tdb::TLmessageContent &content);

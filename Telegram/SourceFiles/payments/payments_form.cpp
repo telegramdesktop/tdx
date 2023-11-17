@@ -178,6 +178,7 @@ not_null<Main::Session*> SessionFromId(const InvoiceId &id) {
 	return &giveaway.boostPeer->session();
 }
 
+#if 0 // mtp
 MTPinputStorePaymentPurpose InvoicePremiumGiftCodeGiveawayToTL(
 		const InvoicePremiumGiftCode &invoice) {
 	const auto &giveaway = v::get<InvoicePremiumGiftCodeGiveaway>(
@@ -210,6 +211,7 @@ MTPinputStorePaymentPurpose InvoicePremiumGiftCodeGiveawayToTL(
 		MTP_string(invoice.currency),
 		MTP_long(invoice.amount));
 }
+#endif
 
 Form::Form(InvoiceId id, bool receipt)
 : _id(id)

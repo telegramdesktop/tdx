@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tdb/tdb_file_generator.h"
 #include "tdb/tdb_tl_scheme.h"
 #include "inline_bots/inline_bot_result.h"
+#include "data/data_forum_topic.h"
 
 namespace Api {
 namespace {
@@ -414,16 +415,16 @@ void SendPreparedAlbumIfReady(
 	const auto session = &peer->session();
 	session->sender().request(TLsendMessageAlbum(
 		peerToTdbChat(peer->id),
-		tl_int53(action.replyTo.topicRootId.bare),
+		MessageThreadId(peer, action),
 		MessageReplyTo(action),
 		tl_messageSendOptions(
 			tl_bool(silentPost),
 			tl_bool(false), // from_background
 			tl_bool(false), // update_order_of_installed_stickers_sets
 			ScheduledToTL(action.options.scheduled),
-			tl_int32(0)), // sending_id
-		tl_vector(std::move(contents)),
-		tl_bool(false) // only_preview
+			tl_int32(0), // sending_id
+			tl_bool(false)), // only_preview
+		tl_vector(std::move(contents))
 	)).done([=](const TLmessages &result) {
 		// They should've been added by updates.
 	}).fail([=](const Error &error) {
@@ -587,7 +588,7 @@ bool SendDice(MessageToSend &message) {
 	const auto &action = message.action;
 	session->sender().request(TLsendMessage(
 		peerToTdbChat(peer->id),
-		tl_int53(action.replyTo.topicRootId.bare),
+		MessageThreadId(peer, action),
 		MessageReplyTo(action),
 		MessageSendOptions(peer, action),
 		tl_inputMessageDice(tl_string(emoji), tl_bool(action.clearDraft))
@@ -888,21 +889,54 @@ TLmessageSendOptions MessageSendOptions(
 		tl_bool(false), // from_background
 		tl_bool(false), // update_order_of_installed_stickers_sets
 		ScheduledToTL(action.options.scheduled),
-		tl_int32(sendingId));
+		tl_int32(sendingId),
+		tl_bool(false)); // only_preview
 }
 
-std::optional<TLmessageReplyTo> MessageReplyTo(
-		const SendAction &action) {
-	if (const auto &storyId = action.replyTo.storyId) {
-		return tl_messageReplyToStory(
+std::optional<TLinputMessageReplyTo> MessageReplyTo(
+		not_null<History*> history,
+		const FullReplyTo &replyTo) {
+	if (const auto &storyId = replyTo.storyId) {
+		return tl_inputMessageReplyToStory(
 			peerToTdbChat(storyId.peer),
 			tl_int32(storyId.story));
-	} else if (const auto to = action.replyTo.msgId) {
-		return tl_messageReplyToMessage(
-			peerToTdbChat(action.history->peer->id),
-			tl_int53(to.bare));
+	} else if (const auto messageId = replyTo.messageId) {
+		// Complex logic for external replies.
+		// Reply should be external if done to another thread.
+		const auto to = LookupReplyTo(history, messageId);
+		const auto replyingToTopic = replyTo.topicRootId
+			? history->peer->forumTopicFor(replyTo.topicRootId)
+			: nullptr;
+		const auto replyingToTopicId = replyTo.topicRootId
+			? (replyingToTopic
+				? replyingToTopic->rootId()
+				: Data::ForumTopic::kGeneralId)
+			: (to ? to->topicRootId() : Data::ForumTopic::kGeneralId);
+		const auto replyToTopicId = to
+			? to->topicRootId()
+			: replyingToTopicId;
+		const auto external = (replyTo.messageId.peer != history->peer->id)
+			|| (replyingToTopicId != replyToTopicId);
+
+		return tl_inputMessageReplyToMessage(
+			external ? peerToTdbChat(messageId.peer) : tl_int53(0),
+			tl_int53(messageId.msg.bare),
+			(replyTo.quote.empty()
+				? std::optional<TLformattedText>()
+				: Api::FormattedTextToTdb(replyTo.quote)));
 	}
 	return std::nullopt;
+}
+
+std::optional<TLinputMessageReplyTo> MessageReplyTo(
+		const SendAction &action) {
+	return MessageReplyTo(action.history, action.replyTo);
+}
+
+TLint53 MessageThreadId(
+		not_null<PeerData*> peer,
+		const SendAction &action) {
+	return tl_int53(action.replyTo.topicRootId.bare);
 }
 
 void SendPreparedMessage(
@@ -924,7 +958,7 @@ void SendPreparedMessage(
 	const auto sendingId = ClientMsgIndex(localId);
 	session->sender().request(TLsendMessage(
 		peerToTdbChat(peer->id),
-		tl_int53(topicRootId.bare),
+		MessageThreadId(peer, action),
 		MessageReplyTo(action),
 		MessageSendOptions(peer, action, sendingId),
 		std::move(content)
