@@ -14,7 +14,7 @@ namespace Tdb {
 class TLpremiumFeature;
 } // namespace Tdb
 
-enum class PremiumPreview;
+enum class PremiumFeature;
 
 class History;
 class ApiWrap;
@@ -72,9 +72,9 @@ struct GiveawayInfo {
 	}
 };
 
-[[nodiscard]] std::optional<PremiumPreview> PreviewFromFeature(
+[[nodiscard]] std::optional<PremiumFeature> FeatureFromTL(
 	const Tdb::TLpremiumFeature &feature);
-[[nodiscard]] Tdb::TLpremiumFeature PreviewToFeature(PremiumPreview preview);
+[[nodiscard]] Tdb::TLpremiumFeature FeatureToTL(PremiumFeature preview);
 
 class Premium final {
 public:
@@ -84,7 +84,7 @@ public:
 	[[nodiscard]] rpl::producer<TextWithEntities> statusTextValue() const;
 
 	[[nodiscard]] auto videos() const
-		-> const base::flat_map<PremiumPreview, not_null<DocumentData*>> &;
+		-> const base::flat_map<PremiumFeature, not_null<DocumentData*>> &;
 #if 0 // mtp
 		-> const base::flat_map<QString, not_null<DocumentData*>> &;
 #endif
@@ -141,7 +141,7 @@ private:
 #if 0 // mtp
 	base::flat_map<QString, not_null<DocumentData*>> _videos;
 #endif
-	base::flat_map<PremiumPreview, not_null<DocumentData*>> _videos;
+	base::flat_map<PremiumFeature, not_null<DocumentData*>> _videos;
 	rpl::event_stream<> _videosUpdated;
 
 	mtpRequestId _stickersRequestId = 0;

@@ -60,7 +60,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 #include "styles/style_widgets.h"
 
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_options.h"
+
 namespace {
+
+using namespace Tdb;
 
 using namespace Settings;
 
@@ -332,7 +338,10 @@ PreviewWrap::PreviewWrap(
 }, TextWithEntities{ _peer->isSelf()
 	? tr::lng_settings_color_reply(tr::now)
 	: tr::lng_settings_color_reply_channel(tr::now),
+}))
+#if 0 // mtp
 }, MTP_messageMediaEmpty()))
+#endif
 , _replyItem(_history->addNewLocalMessage({
 	.id = _history->nextNonHistoryEntryId(),
 	.flags = (MessageFlag::FakeHistoryItem
@@ -345,6 +354,8 @@ PreviewWrap::PreviewWrap(
 }, TextWithEntities{ _peer->isSelf()
 	? tr::lng_settings_color_text(tr::now)
 	: tr::lng_settings_color_text_channel(tr::now),
+}))
+#if 0 // mtp
 }, MTP_messageMediaWebPage(
 	MTP_flags(0),
 	MTP_webPagePending(
@@ -353,8 +364,15 @@ PreviewWrap::PreviewWrap(
 		MTPstring(),
 		MTP_int(0)))))
 , _element(_replyItem->createView(_delegate.get()))
+#endif
 , _position(0, st::msgMargin.bottom()) {
 	_style->apply(_theme.get());
+
+	_replyItem->setMediaExplicit(std::make_unique<Data::MediaWebPage>(
+		_replyItem.get(),
+		_webpage.get(),
+		MediaWebPageFlag::Manual));
+	_element = _replyItem->createView(_delegate.get());
 
 	_fake->setName(peer->name(), QString());
 	std::move(colorIndexValue) | rpl::start_with_next([=](uint8 index) {
@@ -551,6 +569,25 @@ void Set(
 			? tr::lng_settings_color_changed(tr::now)
 			: tr::lng_settings_color_changed_channel(tr::now));
 	};
+	const auto fail = [=](const Error &error) {
+		setLocal(wasIndex, wasEmojiId);
+		show->showToast(error.message);
+	};
+	const auto send = [&](auto &&request) {
+		peer->session().sender().request(
+			std::move(request)
+		).done(done).fail(fail).send();
+	};
+	if (peer->isSelf()) {
+		send(TLsetAccentColor(
+			tl_int32(values.colorIndex),
+			tl_int64(values.backgroundEmojiId)));
+	} else if (const auto channel = peer->asChannel()) {
+		send(TLsetChatAccentColor(
+			peerToTdbChat(channel->id),
+			tl_int32(values.colorIndex),
+			tl_int64(values.backgroundEmojiId)));
+#if 0 // mtp
 	const auto fail = [=](const MTP::Error &error) {
 		const auto type = error.type();
 		if (type != u"CHAT_NOT_MODIFIED"_q) {
@@ -577,6 +614,7 @@ void Set(
 			channel->inputChannel,
 			MTP_int(values.colorIndex),
 			MTP_long(values.backgroundEmojiId)));
+#endif
 
 		if (values.statusChanged
 			&& (values.statusId || peer->emojiStatusId())) {
@@ -1459,9 +1497,14 @@ void CheckBoostLevel(
 		not_null<PeerData*> peer,
 		Fn<std::optional<Ui::AskBoostReason>(int level)> askMore,
 		Fn<void()> cancel) {
+	peer->session().sender().request(TLgetChatBoostStatus(
+		peerToTdbChat(peer->id)
+	)).done([=](const TLchatBoostStatus &result) {
+#if 0 // mtp
 	peer->session().api().request(MTPpremium_GetBoostsStatus(
 		peer->input
 	)).done([=](const MTPpremium_BoostsStatus &result) {
+#endif
 		const auto &data = result.data();
 		if (const auto channel = peer->asChannel()) {
 			channel->updateLevelHint(data.vlevel().v);
@@ -1479,13 +1522,20 @@ void CheckBoostLevel(
 		auto counters = ParseBoostCounters(result);
 		counters.mine = 0; // Don't show current level as just-reached.
 		show->show(Box(Ui::AskBoostBox, Ui::AskBoostBoxData{
+#if 0 // mtp
 			.link = qs(data.vboost_url()),
+#endif
+				.link = result.data().vboost_url().v,
 			.boost = counters,
 			.reason = *reason,
 		}, openStatistics, nullptr));
 		cancel();
+#if 0 // mtp
 	}).fail([=](const MTP::Error &error) {
 		show->showToast(error.type());
+#endif
+		}).fail([=](const Error &error) {
+			show->showToast(error.message);
 		cancel();
 	}).send();
 }
