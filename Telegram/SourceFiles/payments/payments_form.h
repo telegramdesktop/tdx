@@ -16,15 +16,15 @@ class TLDpaymentForm;
 class TLDpaymentReceipt;
 class TLDinvoice;
 class TLinputInvoice;
-class TLDpaymentForm;
-class TLDpaymentReceipt;
+class TLDpaymentFormTypeRegular;
+class TLDpaymentReceiptTypeRegular;
 class TLDorderInfo;
 class TLpaymentOption;
 class TLsavedCredentials;
 class TLshippingOption;
 class TLDpaymentProviderStripe;
 class TLDpaymentProviderSmartGlocal;
-class TLpremiumGiveawayParameters;
+class TLgiveawayParameters;
 } // namespace Tdb
 
 class Image;
@@ -218,7 +218,9 @@ struct CreditsFormData {
 	QString description;
 	PhotoData *photo = nullptr;
 	InvoiceCredits invoice;
+#if 0 // mtp
 	MTPInputInvoice inputInvoice;
+#endif
 	int starGiftLimitedCount = 0;
 	bool starGiftForm = false;
 };
@@ -308,6 +310,8 @@ struct FormUpdate : std::variant<
 [[nodiscard]] MTPinputStorePaymentPurpose InvoiceCreditsGiveawayToTL(
 	const InvoicePremiumGiftCode &invoice);
 #endif
+[[nodiscard]] Tdb::TLgiveawayParameters InvoiceGiftCodeGiveawayToTL(
+	const InvoicePremiumGiftCode &invoice);
 
 class Form final : public base::has_weak_ptr {
 public:
@@ -372,8 +376,12 @@ private:
 	void processForm(const Tdb::TLDpaymentForm &data);
 	void processReceipt(const Tdb::TLDpaymentReceipt &data);
 	void processInvoice(const Tdb::TLDinvoice &data);
-	void processDetails(const Tdb::TLDpaymentForm &data);
-	void processDetails(const Tdb::TLDpaymentReceipt &data);
+	void processDetails(
+		const Tdb::TLDpaymentForm &data,
+		const Tdb::TLDpaymentFormTypeRegular &type);
+	void processDetails(
+		const Tdb::TLDpaymentReceipt &data,
+		const Tdb::TLDpaymentReceiptTypeRegular &type);
 	void processSavedInformation(const Tdb::TLDorderInfo &data);
 	void processSavedCredentials(
 		const QVector<Tdb::TLsavedCredentials> &data);

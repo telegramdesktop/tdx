@@ -226,6 +226,29 @@ MTPinputStorePaymentPurpose InvoicePremiumGiftCodeGiveawayToTL(
 }
 #endif
 
+Tdb::TLgiveawayParameters InvoiceGiftCodeGiveawayToTL(
+		const InvoicePremiumGiftCode &invoice) {
+	const auto &giveaway = v::get<InvoicePremiumGiftCodeGiveaway>(
+		invoice.purpose);
+	return Tdb::tl_giveawayParameters(
+		peerToTdbChat(giveaway.boostPeer->id),
+		Tdb::tl_vector(ranges::views::all(
+			giveaway.additionalChannels
+		) | ranges::views::transform([](not_null<ChannelData*> c) {
+			return peerToTdbChat(c->id);
+		}) | ranges::to<QVector<Tdb::TLint53>>),
+		Tdb::tl_int32(giveaway.untilDate),
+		Tdb::tl_bool(giveaway.onlyNewSubscribers),
+		Tdb::tl_bool(giveaway.showWinners),
+		Tdb::tl_vector(ranges::views::all(
+			giveaway.countries
+		) | ranges::views::transform([](QString value) {
+			return Tdb::tl_string(std::move(value));
+		}) | ranges::to<QVector<Tdb::TLstring>>),
+		tl_string(giveaway.additionalPrize));
+}
+
+#if 0 // mtp
 MTPinputStorePaymentPurpose InvoiceCreditsGiveawayToTL(
 		const InvoicePremiumGiftCode &invoice) {
 	Expects(invoice.creditsAmount.has_value());
@@ -268,6 +291,7 @@ MTPinputStorePaymentPurpose InvoiceCreditsGiveawayToTL(
 		MTP_long(invoice.amount),
 		MTP_int(invoice.users));
 }
+#endif
 
 Form::Form(InvoiceId id, bool receipt)
 : _id(id)
@@ -492,13 +516,47 @@ MTPInputInvoice Form::inputInvoice() const {
 #endif
 
 TLinputInvoice Form::inputInvoice() const {
-	if (const auto slug = std::get_if<InvoiceSlug>(&_id.value)) {
+	if (const auto message = std::get_if<InvoiceMessage>(&_id.value)) {
+		return tl_inputInvoiceMessage(
+			peerToTdbChat(message->peer->id),
+			tl_int53(message->itemId.bare));
+	} else if (const auto slug = std::get_if<InvoiceSlug>(&_id.value)) {
 		return tl_inputInvoiceName(tl_string(slug->slug));
+	} else if (const auto credits = std::get_if<InvoiceCredits>(&_id.value)) {
+		return tl_inputInvoiceTelegram(
+			tl_telegramPaymentPurposeStars(
+				tl_string(credits->currency),
+				tl_int53(credits->credits),
+				tl_int53(credits->amount)));
 	}
-	const auto message = v::get<InvoiceMessage>(_id.value);
-	return tl_inputInvoiceMessage(
-		peerToTdbChat(message.peer->id),
-		tl_int53(message.itemId.bare));
+
+	const auto &giftCode = v::get<InvoicePremiumGiftCode>(_id.value);
+	const auto users = std::get_if<InvoicePremiumGiftCodeUsers>(
+		&giftCode.purpose);
+	if (users) {
+		return Tdb::tl_inputInvoiceTelegram(
+				Tdb::tl_telegramPaymentPurposePremiumGiftCodes(
+				(users->boostPeer
+					? peerToTdbChat(users->boostPeer->id)
+					: TLint53()),
+				Tdb::tl_string(giftCode.currency),
+				Tdb::tl_int53(giftCode.amount),
+				Tdb::tl_vector(ranges::views::all(
+					users->users
+				) | ranges::views::transform([](not_null<UserData*> user) {
+					return peerToTdbChat(user->id);
+				}) | ranges::to<QVector<TLint53>>),
+				Tdb::tl_int32(giftCode.months),
+				Api::FormattedTextToTdb(users->message)));
+	} else {
+		return Tdb::tl_inputInvoiceTelegram(
+			Tdb::tl_telegramPaymentPurposePremiumGiveaway(
+				InvoiceGiftCodeGiveawayToTL(giftCode),
+				Tdb::tl_string(giftCode.currency),
+				Tdb::tl_int53(giftCode.amount),
+				Tdb::tl_int32(giftCode.users),
+				Tdb::tl_int32(giftCode.months)));
+	}
 }
 
 void Form::requestForm() {
@@ -848,42 +906,90 @@ void Form::processSavedInformation(const MTPDpaymentRequestedInfo &data) {
 #endif
 
 void Form::processForm(const TLDpaymentForm &data) {
-	processInvoice(data.vinvoice().data());
-	processDetails(data);
-	if (const auto info = data.vsaved_order_info()) {
-		processSavedInformation(info->data());
-	}
-	processSavedCredentials(data.vsaved_credentials().v);
-	data.vpayment_provider().match([&](const TLDpaymentProviderOther &data) {
-		fillPaymentMethodInformation();
-	}, [&](const TLDpaymentProviderStripe &data) {
-		fillStripeNativeMethod(data);
-		refreshPaymentMethodDetails();
-	}, [&](const TLDpaymentProviderSmartGlocal &data) {
-		fillSmartGlocalNativeMethod(data);
-		refreshPaymentMethodDetails();
+	data.vtype().match([&](const TLDpaymentFormTypeRegular &type) {
+		processDetails(data, type);
+		processInvoice(type.vinvoice().data());
+		if (const auto info = type.vsaved_order_info()) {
+			processSavedInformation(info->data());
+		}
+		processSavedCredentials(type.vsaved_credentials().v);
+		type.vpayment_provider().match([&](
+				const TLDpaymentProviderOther &data) {
+			fillPaymentMethodInformation();
+		}, [&](const TLDpaymentProviderStripe &data) {
+			fillStripeNativeMethod(data);
+			refreshPaymentMethodDetails();
+		}, [&](const TLDpaymentProviderSmartGlocal &data) {
+			fillSmartGlocalNativeMethod(data);
+			refreshPaymentMethodDetails();
+		});
+	}, [&](const TLDpaymentFormTypeStars &type) {
+		const auto amount = type.vstar_count().v;
+		if (!amount) {
+			using Type = Error::Type;
+			_updates.fire(Error{ Type::Form, u"Bad Stars Form."_q });
+			return;
+		}
+		const auto invoice = InvoiceCredits{
+			.session = _session,
+			.randomId = 0,
+			.credits = uint64(amount),
+			.currency = ::Ui::kCreditsCurrency,
+			.amount = uint64(amount),
+		};
+		const auto &product = data.vproduct_info().data();
+		const auto formData = CreditsFormData{
+			.id = _id,
+			.formId = uint64(data.vid().v),
+			.botId = uint64(data.vseller_bot_user_id().v),
+			.title = product.vtitle().v,
+			.description = Api::FormattedTextFromTdb(
+				product.vdescription()).text,
+			.photo = product.vphoto()
+				? _session->data().processPhoto(*product.vphoto()).get()
+				: nullptr,
+			.invoice = invoice,
+		};
+		_updates.fire(CreditsPaymentStarted{ .data = formData });
 	});
 	_updates.fire(FormReady{});
 }
 
 void Form::processReceipt(const TLDpaymentReceipt &data) {
-	processInvoice(data.vinvoice().data());
-	processDetails(data);
-	if (const auto info = data.vorder_info()) {
-		processSavedInformation(info->data());
-	}
-	if (const auto shipping = data.vshipping_option()) {
-		processShippingOptions({ *shipping });
-		if (!_shippingOptions.list.empty()) {
-			_shippingOptions.selectedId = _shippingOptions.list.front().id;
+	data.vtype().match([&](const TLDpaymentReceiptTypeRegular &type) {
+		processInvoice(type.vinvoice().data());
+		processDetails(data, type);
+		if (const auto info = type.vorder_info()) {
+			processSavedInformation(info->data());
 		}
-	}
-	_paymentMethod.savedCredentials = { {
-		.id = "(used)",
-		.title = data.vcredentials_title().v,
-	} };
-	fillPaymentMethodInformation();
-	_updates.fire(FormReady{});
+		if (const auto shipping = type.vshipping_option()) {
+			processShippingOptions({ *shipping });
+			if (!_shippingOptions.list.empty()) {
+				_shippingOptions.selectedId = _shippingOptions.list.front().id;
+			}
+		}
+		_paymentMethod.savedCredentials = { {
+			.id = "(used)",
+			.title = type.vcredentials_title().v,
+		} };
+		fillPaymentMethodInformation();
+		_updates.fire(FormReady{});
+	}, [&](const TLDpaymentReceiptTypeStars &type) {
+		const auto &product = data.vproduct_info().data();
+		const auto receiptData = CreditsReceiptData{
+			.id = type.vtransaction_id().v,
+			.title = product.vtitle().v,
+			.description = Api::FormattedTextFromTdb(
+				product.vdescription()).text,
+			.photo = product.vphoto()
+				? _session->data().processPhoto(*product.vphoto()).get()
+				: nullptr,
+			.peerId = peerFromUser(data.vseller_bot_user_id().v),
+			.credits = uint64(type.vstar_count().v),
+			.date = data.vdate().v,
+		};
+		_updates.fire(CreditsReceiptReady{ .data = receiptData });
+	});
 }
 
 void Form::processInvoice(const TLDinvoice &data) {
@@ -919,8 +1025,10 @@ void Form::processInvoice(const TLDinvoice &data) {
 	};
 }
 
-void Form::processDetails(const TLDpaymentForm &data) {
-	const auto url = data.vpayment_provider().match([&](
+void Form::processDetails(
+		const TLDpaymentForm &data,
+		const TLDpaymentFormTypeRegular &type) {
+	const auto url = type.vpayment_provider().match([&](
 			const TLDpaymentProviderOther &data) {
 		return data.vurl().v;
 	}, [](const auto &) { return QString(); });
@@ -929,9 +1037,9 @@ void Form::processDetails(const TLDpaymentForm &data) {
 		.formId = static_cast<uint64>(data.vid().v),
 		.url = url,
 		.botId = data.vseller_bot_user_id(),
-		.providerId = data.vpayment_provider_user_id(),
-		.canSaveCredentials = data.vcan_save_credentials().v,
-		.passwordMissing = data.vneed_password().v,
+		.providerId = type.vpayment_provider_user_id(),
+		.canSaveCredentials = type.vcan_save_credentials().v,
+		.passwordMissing = type.vneed_password().v,
 	};
 	if (const auto botId = _details.botId) {
 		if (const auto bot = _session->data().userLoaded(botId)) {
@@ -946,26 +1054,29 @@ void Form::processDetails(const TLDpaymentForm &data) {
 	}
 }
 
-void Form::processDetails(const TLDpaymentReceipt &data) {
+void Form::processDetails(
+		const TLDpaymentReceipt &data,
+		const TLDpaymentReceiptTypeRegular &type) {
 	_invoice.receipt = Ui::Receipt{
 		.date = data.vdate().v,
-		.tipAmount = data.vtip_amount().v,
+		.tipAmount = type.vtip_amount().v,
 		.currency = _invoice.currency,
 		.paid = true,
 	};
 	_details = FormDetails{
 		.botId = data.vseller_bot_user_id(),
-		.providerId = data.vpayment_provider_user_id(),
+		.providerId = type.vpayment_provider_user_id(),
 	};
 	if (_invoice.cover.title.isEmpty()
 		&& _invoice.cover.description.empty()
 		&& _invoice.cover.thumbnail.isNull()
 		&& !_thumbnailLoadProcess) {
+		const auto &product = data.vproduct_info().data();
 		_invoice.cover = Ui::Cover{
-			.title = data.vtitle().v,
-			.description = Api::FormattedTextFromTdb(data.vdescription()),
+			.title = product.vtitle().v,
+			.description = Api::FormattedTextFromTdb(product.vdescription()),
 		};
-		if (const auto photoPtr = data.vphoto()) {
+		if (const auto photoPtr = product.vphoto()) {
 			const auto photo = _session->data().processPhoto(*photoPtr);
 			loadThumbnail(photo);
 		}

@@ -22,6 +22,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "styles/style_giveaway.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Giveaway {
 namespace {
 
@@ -244,7 +246,7 @@ Main::Session &MyChannelsListController::session() const {
 
 void MyChannelsListController::prepare() {
 	delegate()->peerListSetSearchMode(PeerListSearchMode::Enabled);
-#if 0 // todo
+#if 0 // mtp
 	const auto api = _apiLifetime.make_state<MTP::Sender>(
 		&session().api().instance());
 	api->request(
@@ -275,6 +277,37 @@ void MyChannelsListController::prepare() {
 				}
 			}
 		}
+#endif
+	const auto api = _apiLifetime.make_state<Tdb::Sender>(
+		&session().sender());
+	api->request(
+		Tdb::TLgetChatsToSendStories()
+	).done([=](const Tdb::TLDchats &data) {
+		_apiLifetime.destroy();
+		auto &owner = session().data();
+		for (const auto &peerId : data.vchat_ids().v) {
+			const auto maybePeer = session().data().peerLoaded(
+				peerFromTdbChat(peerId));
+			if (maybePeer) {
+				const auto peer = not_null{ maybePeer };
+				if (!peer->isChannel() || (peer == _peer)) {
+					continue;
+				}
+				if (!delegate()->peerListFindRow(peer->id.value)) {
+					if (const auto channel = peer->asChannel()) {
+						auto row = createRow(channel);
+						const auto raw = row.get();
+						delegate()->peerListAppendRow(std::move(row));
+						if (ranges::contains(_selected, peer)) {
+							delegate()->peerListSetRowChecked(raw, true);
+							_selected.erase(
+								ranges::remove(_selected, peer),
+								end(_selected));
+						}
+					}
+				}
+			}
+		}
 		for (const auto &selected : _selected) {
 			if (const auto channel = selected->asChannel()) {
 				auto row = createRow(channel);
@@ -286,7 +319,6 @@ void MyChannelsListController::prepare() {
 		delegate()->peerListRefreshRows();
 		_selected.clear();
 	}).send();
-#endif
 }
 
 void MyChannelsListController::setCheckError(Fn<bool(int)> callback) {

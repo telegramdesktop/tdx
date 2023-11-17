@@ -39,6 +39,7 @@ template<typename Option>
 #endif
 		return min.vamount().v / float64(min.vmonth_count().v);
 	}();
+	using TLGiftCode = Tdb::TLpremiumGiftCodePaymentOption;
 	result.reserve(tlOpts.size());
 	for (const auto &tlOption : tlOpts) {
 		const auto &option = tlOption.data();
@@ -51,10 +52,6 @@ template<typename Option>
 		const auto amount = option.vamount().v;
 		const auto currency = qs(option.vcurrency());
 #endif
-		const auto lnk = option.vpayment_link();
-		if (!lnk) {
-			continue;
-		}
 #if 0 // mtp
 		const auto botUrl = !lnk
 			? QString()
@@ -78,9 +75,13 @@ template<typename Option>
 			amount,
 			currency,
 			botUrl));
-		result.back().startPayment = [=, link = *lnk](QVariant context) {
-			Core::HandleLocalUrl(link, context);
-		};
+		if constexpr (!std::is_same_v<Option, TLGiftCode>) {
+			if (const auto lnk = option.vpayment_link()) {
+				result.back().startPayment = [=, link = *lnk](QVariant c) {
+					Core::HandleLocalUrl(link, c);
+				};
+			}
+		}
 	}
 	return result;
 }
