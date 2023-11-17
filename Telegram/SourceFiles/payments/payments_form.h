@@ -26,6 +26,7 @@ class TLsavedCredentials;
 class TLshippingOption;
 class TLDpaymentProviderStripe;
 class TLDpaymentProviderSmartGlocal;
+class TLpremiumGiveawayParameters;
 } // namespace Tdb
 
 class Image;
@@ -249,6 +250,8 @@ struct InvoiceId {
 [[nodiscard]] MTPinputStorePaymentPurpose InvoicePremiumGiftCodeGiveawayToTL(
 	const InvoicePremiumGiftCode &invoice);
 #endif
+[[nodiscard]] Tdb::TLpremiumGiveawayParameters InvoiceGiftCodeGiveawayToTL(
+	const InvoicePremiumGiftCode &invoice);
 
 class Form final : public base::has_weak_ptr {
 public:
