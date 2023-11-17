@@ -9,6 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/object_ptr.h"
 
+namespace Tdb {
+class TLchatBoostStatus;
+class TLchatBoostSlots;
+} // namespace Tdb
+
 class ChannelData;
 
 namespace Main {
@@ -35,12 +40,21 @@ struct ForChannelBoostSlots {
 	std::vector<TakenBoostSlot> other;
 };
 
+#if 0 // mtp
 [[nodiscard]] ForChannelBoostSlots ParseForChannelBoostSlots(
 	not_null<ChannelData*> channel,
 	const QVector<MTPMyBoost> &boosts);
 
 [[nodiscard]] Ui::BoostCounters ParseBoostCounters(
 	const MTPpremium_BoostsStatus &status);
+#endif
+
+[[nodiscard]] ForChannelBoostSlots ParseForChannelBoostSlots(
+	not_null<ChannelData*> channel,
+	const Tdb::TLchatBoostSlots &slots);
+
+[[nodiscard]] Ui::BoostCounters ParseBoostCounters(
+	const Tdb::TLchatBoostStatus &status);
 
 [[nodiscard]] Ui::BoostFeatures LookupBoostFeatures(
 	not_null<ChannelData*> channel);

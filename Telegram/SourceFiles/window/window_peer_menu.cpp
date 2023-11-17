@@ -128,9 +128,9 @@ void ShareBotGame(
 	const auto api = &history->session().api();
 	history->session().sender().request(TLsendMessage(
 		peerToTdbChat(history->peer->id),
-		tl_int53(action.replyTo.topicRootId.bare),
+		MessageThreadId(history->peer, action),
 		MessageReplyTo(action),
-		std::nullopt, // Options.
+		std::optional<TLmessageSendOptions>(),
 		tl_inputMessageGame(
 			peerToTdbChat(bot->id),
 			tl_string(shortName))

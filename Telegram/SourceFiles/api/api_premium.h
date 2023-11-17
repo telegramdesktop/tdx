@@ -12,9 +12,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Tdb {
 class TLpremiumFeature;
+class TLgift;
+class TLuserGift;
 } // namespace Tdb
 
-enum class PremiumPreview;
+enum class PremiumFeature;
 
 class History;
 class ApiWrap;
@@ -100,9 +102,9 @@ struct UserStarGift {
 	bool mine = false;
 };
 
-[[nodiscard]] std::optional<PremiumPreview> PreviewFromFeature(
+[[nodiscard]] std::optional<PremiumFeature> FeatureFromTL(
 	const Tdb::TLpremiumFeature &feature);
-[[nodiscard]] Tdb::TLpremiumFeature PreviewToFeature(PremiumPreview preview);
+[[nodiscard]] Tdb::TLpremiumFeature FeatureToTL(PremiumFeature preview);
 
 class Premium final {
 public:
@@ -112,7 +114,7 @@ public:
 	[[nodiscard]] rpl::producer<TextWithEntities> statusTextValue() const;
 
 	[[nodiscard]] auto videos() const
-		-> const base::flat_map<PremiumPreview, not_null<DocumentData*>> &;
+		-> const base::flat_map<PremiumFeature, not_null<DocumentData*>> &;
 #if 0 // mtp
 		-> const base::flat_map<QString, not_null<DocumentData*>> &;
 #endif
@@ -169,7 +171,7 @@ private:
 #if 0 // mtp
 	base::flat_map<QString, not_null<DocumentData*>> _videos;
 #endif
-	base::flat_map<PremiumPreview, not_null<DocumentData*>> _videos;
+	base::flat_map<PremiumFeature, not_null<DocumentData*>> _videos;
 	rpl::event_stream<> _videosUpdated;
 
 	mtpRequestId _stickersRequestId = 0;
@@ -292,11 +294,19 @@ enum class RequirePremiumState {
 [[nodiscard]] rpl::producer<DocumentData*> RandomHelloStickerValue(
 	not_null<Main::Session*> session);
 
+#if 0 // mtp
 [[nodiscard]] std::optional<StarGift> FromTL(
 	not_null<Main::Session*> session,
 	const MTPstarGift &gift);
 [[nodiscard]] std::optional<UserStarGift> FromTL(
 	not_null<UserData*> to,
 	const MTPuserStarGift &gift);
+#endif
+[[nodiscard]] std::optional<StarGift> FromTL(
+	not_null<Main::Session*> session,
+	const Tdb::TLgift &gift);
+[[nodiscard]] std::optional<UserStarGift> FromTL(
+	not_null<UserData*> to,
+	const Tdb::TLuserGift &gift);
 
 } // namespace Api

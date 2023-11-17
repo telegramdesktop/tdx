@@ -78,7 +78,7 @@ void Polls::create(
 
 	_api.request(Tdb::TLsendMessage(
 		peerToTdbChat(peer->id),
-		Tdb::tl_int53(action.replyTo.topicRootId.bare),
+		MessageThreadId(peer, action),
 		MessageReplyTo(action),
 		MessageSendOptions(peer, action),
 		PollToTL(&data)

@@ -244,6 +244,7 @@ Main::Session &MyChannelsListController::session() const {
 
 void MyChannelsListController::prepare() {
 	delegate()->peerListSetSearchMode(PeerListSearchMode::Enabled);
+#if 0 // todo
 	const auto api = _apiLifetime.make_state<MTP::Sender>(
 		&session().api().instance());
 	api->request(
@@ -285,6 +286,7 @@ void MyChannelsListController::prepare() {
 		delegate()->peerListRefreshRows();
 		_selected.clear();
 	}).send();
+#endif
 }
 
 void MyChannelsListController::setCheckError(Fn<bool(int)> callback) {

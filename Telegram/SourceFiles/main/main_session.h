@@ -19,6 +19,7 @@ class Account;
 class Sender;
 class TLDupdateOption;
 class TLmessage;
+class TLDupdateAccentColors;
 } // namespace Tdb
 
 namespace Api {
@@ -266,6 +267,7 @@ public:
 	[[nodiscard]] Support::Helper &supportHelper() const;
 	[[nodiscard]] Support::Templates &supportTemplates() const;
 
+	void applyAccentColors(const Tdb::TLDupdateAccentColors &update);
 	[[nodiscard]] auto colorIndicesValue()
 		-> rpl::producer<Ui::ColorIndicesCompressed>;
 
@@ -321,6 +323,8 @@ private:
 	base::flat_set<not_null<Window::SessionController*>> _windows;
 	base::Timer _saveSettingsTimer;
 
+	rpl::event_stream<> _colorIndicesChanged;
+	std::unique_ptr<Ui::ColorIndicesCompressed> _colorIndicesCurrent;
 #if 0 // goodToRemove
 	QByteArray _tmpPassword;
 	TimeId _tmpPasswordValidUntil = 0;

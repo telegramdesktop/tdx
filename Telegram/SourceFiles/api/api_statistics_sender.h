@@ -19,6 +19,7 @@ namespace Api {
 class StatisticsRequestSender {
 protected:
 	explicit StatisticsRequestSender(not_null<PeerData*> peer);
+#if 0 // mtp
 	~StatisticsRequestSender();
 
 	template <
@@ -33,25 +34,30 @@ protected:
 			dcId ? MTP::ShiftDcId(dcId, MTP::kStatsDcShift) : 0
 		).overrideId(id));
 	}
+#endif
 
 	[[nodiscard]] MTP::Sender &api();
 	[[nodiscard]] not_null<ChannelData*> channel();
 	[[nodiscard]] not_null<UserData*> user();
 
 private:
+#if 0 // mtp
 	struct Registered final {
 		mtpRequestId id;
 		MTP::DcId dcId;
 	};
 	[[nodiscard]] Registered ensureRequestIsRegistered();
 	void checkRequests();
+#endif
 
 	const not_null<PeerData*> _peer;
 	ChannelData * const _channel;
 	UserData * const _user;
 	MTP::Sender _api;
+#if 0 // mtp
 	base::Timer _timer;
 	base::flat_map<MTP::DcId, base::flat_set<mtpRequestId>> _requests;
+#endif
 
 };
 

@@ -44,8 +44,14 @@ public:
 		} else if constexpr (
 				std::is_same_v<Type, base::flat_map<QString, QString>>) {
 			return getStringMap(key, std::move(fallback));
+#if 0 // mtp
 		} else if constexpr (std::is_same_v<Type, std::vector<int>>) {
 			return getIntArray(key, std::move(fallback));
+#endif
+		} else if constexpr (std::is_same_v<
+				Type,
+				std::vector<std::map<QString, QString>>>) {
+			return getStringMapArray(key, std::move(fallback));
 		} else if constexpr (std::is_same_v<Type, bool>) {
 			return getBool(key, fallback);
 		}

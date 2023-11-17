@@ -10,7 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/call_delayed.h"
 #include "main/main_account.h"
+#if 0 // mtp
 #include "ui/chat/chat_style.h"
+#endif
 
 #include "tdb/tdb_tl_scheme.h"
 #include "main/main_session.h"
@@ -328,6 +330,7 @@ base::flat_map<QString, QString> AppConfig::getStringMap(
 	});
 }
 
+#if 0 // mtp
 std::vector<std::map<QString, QString>> AppConfig::getStringMapArray(
 		const QString &key,
 		std::vector<std::map<QString, QString>> &&fallback) const {
@@ -379,6 +382,7 @@ std::vector<int> AppConfig::getIntArray(
 		});
 	});
 }
+#endif
 
 bool AppConfig::suggestionCurrent(const QString &key) const {
 	return !_dismissedSuggestions.contains(key)
