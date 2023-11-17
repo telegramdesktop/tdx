@@ -121,8 +121,11 @@ struct AnyStatistics final {
 
 struct PublicForwardsSlice final {
 	struct OffsetToken final {
+		QString offset;
+#if 0 // mtp
 		int rate = 0;
 		FullMsgId fullId;
+#endif
 	};
 	QVector<FullMsgId> list;
 	int total = 0;
