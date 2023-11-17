@@ -14,14 +14,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_stories.h"
 #include "data/data_story.h"
 #include "history/history.h"
+#include "history/history_item.h"
 #include "main/main_session.h"
 #include "statistics/statistics_data_deserialize.h"
+
+#include "tdb/tdb_tl_scheme.h"
 
 namespace Api {
 namespace {
 
 constexpr auto kCheckRequestsTimer = 10 * crl::time(1000);
 
+#if 0 // mtp
 [[nodiscard]] Data::StatisticalGraph StatisticalGraphFromTL(
 		const MTPStatsGraph &tl) {
 	return tl.match([&](const MTPDstatsGraph &d) {
@@ -216,6 +220,163 @@ constexpr auto kCheckRequestsTimer = 10 * crl::time(1000);
 		.topInviters = std::move(topInviters),
 	};
 }
+#endif
+
+[[nodiscard]] Data::StatisticalGraph StatisticalGraphFromTL(
+		const Tdb::TLstatisticalGraph &tl) {
+	return tl.match([&](const Tdb::TLDstatisticalGraphData &data) {
+		using namespace Statistic;
+		return Data::StatisticalGraph{
+			StatisticalChartFromJSON(data.vjson_data().v.toUtf8()),
+			data.vzoom_token().v.toUtf8(),
+		};
+	}, [&](const Tdb::TLDstatisticalGraphAsync &data) {
+		return Data::StatisticalGraph{
+			.zoomToken = data.vtoken().v.toUtf8(),
+		};
+	}, [&](const Tdb::TLDstatisticalGraphError &data) {
+		return Data::StatisticalGraph{
+			.error = data.verror_message().v.toUtf8(),
+		};
+	});
+}
+
+[[nodiscard]] Data::StatisticalValue StatisticalValueFromTL(
+		const Tdb::TLstatisticalValue &tl) {
+	return Data::StatisticalValue{
+		.value = tl.data().vvalue().v,
+		.previousValue = tl.data().vprevious_value().v,
+		.growthRatePercentage = tl.data().vgrowth_rate_percentage().v,
+	};
+}
+
+[[nodiscard]] Data::ChannelStatistics ChannelStatisticsFromTL(
+		const Tdb::TLDchatStatisticsChannel &data) {
+	const auto unmuted = data.venabled_notifications_percentage().v;
+	using Recent = Tdb::TLchatStatisticsMessageInteractionInfo;
+	auto recentMessages = ranges::views::all(
+		data.vrecent_message_interactions().v
+	) | ranges::views::transform([&](const Recent &tl) {
+		return Data::StatisticsMessageInteractionInfo{
+			.messageId = tl.data().vmessage_id().v,
+			.viewsCount = tl.data().vview_count().v,
+			.forwardsCount = tl.data().vforward_count().v,
+		};
+	}) | ranges::to_vector;
+
+	return {
+		.startDate = data.vperiod().data().vstart_date().v,
+		.endDate = data.vperiod().data().vend_date().v,
+
+		.memberCount = StatisticalValueFromTL(data.vmember_count()),
+		.meanViewCount = StatisticalValueFromTL(data.vmean_view_count()),
+		.meanShareCount = StatisticalValueFromTL(data.vmean_share_count()),
+
+		.enabledNotificationsPercentage = unmuted,
+
+		.memberCountGraph = StatisticalGraphFromTL(
+			data.vmember_count_graph()),
+
+		.joinGraph = StatisticalGraphFromTL(
+			data.vjoin_graph()),
+
+		.muteGraph = StatisticalGraphFromTL(
+			data.vmute_graph()),
+
+		.viewCountByHourGraph = StatisticalGraphFromTL(
+			data.vview_count_by_hour_graph()),
+
+		.viewCountBySourceGraph = StatisticalGraphFromTL(
+			data.vview_count_by_source_graph()),
+
+		.joinBySourceGraph = StatisticalGraphFromTL(
+			data.vjoin_by_source_graph()),
+
+		.languageGraph = StatisticalGraphFromTL(
+			data.vlanguage_graph()),
+
+		.messageInteractionGraph = StatisticalGraphFromTL(
+			data.vmessage_interaction_graph()),
+
+		.instantViewInteractionGraph = StatisticalGraphFromTL(
+			data.vinstant_view_interaction_graph()),
+
+		.recentMessageInteractions = std::move(recentMessages),
+	};
+}
+
+[[nodiscard]] Data::SupergroupStatistics SupergroupStatisticsFromTL(
+		const Tdb::TLDchatStatisticsSupergroup &data) {
+	using Senders = Tdb::TLchatStatisticsMessageSenderInfo;
+	using Administrators = Tdb::TLchatStatisticsAdministratorActionsInfo;
+	using Inviters = Tdb::TLchatStatisticsInviterInfo;
+
+	auto topSenders = ranges::views::all(
+		data.vtop_senders().v
+	) | ranges::views::transform([&](const Senders &tl) {
+		return Data::StatisticsMessageSenderInfo{
+			.userId = UserId(tl.data().vuser_id().v),
+			.sentMessageCount = tl.data().vsent_message_count().v,
+			.averageCharacterCount = tl.data().vaverage_character_count().v,
+		};
+	}) | ranges::to_vector;
+	auto topAdministrators = ranges::views::all(
+		data.vtop_administrators().v
+	) | ranges::views::transform([&](const Administrators &tl) {
+		return Data::StatisticsAdministratorActionsInfo{
+			.userId = UserId(tl.data().vuser_id().v),
+			.deletedMessageCount = tl.data().vdeleted_message_count().v,
+			.bannedUserCount = tl.data().vbanned_user_count().v,
+			.restrictedUserCount = tl.data().vrestricted_user_count().v,
+		};
+	}) | ranges::to_vector;
+	auto topInviters = ranges::views::all(
+		data.vtop_inviters().v
+	) | ranges::views::transform([&](const Inviters &tl) {
+		return Data::StatisticsInviterInfo{
+			.userId = UserId(tl.data().vuser_id().v),
+			.addedMemberCount = tl.data().vadded_member_count().v,
+		};
+	}) | ranges::to_vector;
+
+	return {
+		.startDate = data.vperiod().data().vstart_date().v,
+		.endDate = data.vperiod().data().vend_date().v,
+
+		.memberCount = StatisticalValueFromTL(data.vmember_count()),
+		.messageCount = StatisticalValueFromTL(data.vmessage_count()),
+		.viewerCount = StatisticalValueFromTL(data.vviewer_count()),
+		.senderCount = StatisticalValueFromTL(data.vsender_count()),
+
+		.memberCountGraph = StatisticalGraphFromTL(
+			data.vmember_count_graph()),
+
+		.joinGraph = StatisticalGraphFromTL(
+			data.vjoin_graph()),
+
+		.joinBySourceGraph = StatisticalGraphFromTL(
+			data.vjoin_by_source_graph()),
+
+		.languageGraph = StatisticalGraphFromTL(
+			data.vlanguage_graph()),
+
+		.messageContentGraph = StatisticalGraphFromTL(
+			data.vmessage_content_graph()),
+
+		.actionGraph = StatisticalGraphFromTL(
+			data.vaction_graph()),
+
+		.dayGraph = StatisticalGraphFromTL(
+			data.vday_graph()),
+
+		.weekGraph = StatisticalGraphFromTL(
+			data.vweek_graph()),
+
+		.topSenders = std::move(topSenders),
+		.topAdministrators = std::move(topAdministrators),
+		.topInviters = std::move(topInviters),
+	};
+}
 
 } // namespace
 
@@ -287,7 +448,7 @@ rpl::producer<rpl::no_value, QString> Statistics::request() {
 	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
 
-#if 0 // todo
+#if 0 // mtp
 		if (!channel()->isMegagroup()) {
 			makeRequest(MTPstats_GetBroadcastStats(
 				MTP_flags(MTPstats_GetBroadcastStats::Flags(0)),
@@ -312,6 +473,19 @@ rpl::producer<rpl::no_value, QString> Statistics::request() {
 			}).send();
 		}
 #endif
+		api().request(Tdb::TLgetChatStatistics(
+			peerToTdbChat(channel()->id),
+			Tdb::tl_bool(false)
+		)).done([=](const Tdb::TLchatStatistics &result) {
+			result.match([&](const Tdb::TLDchatStatisticsChannel &data) {
+				_channelStats = ChannelStatisticsFromTL(data);
+			}, [&](const Tdb::TLDchatStatisticsSupergroup &data) {
+				_supergroupStats = SupergroupStatisticsFromTL(data);
+			});
+			consumer.put_done();
+		}).fail([=](const Tdb::Error &error) {
+			consumer.put_error_copy(error.message);
+		}).send();
 
 		return lifetime;
 	};
@@ -324,7 +498,7 @@ Statistics::GraphResult Statistics::requestZoom(
 		auto lifetime = rpl::lifetime();
 		const auto wasEmpty = _zoomDeque.empty();
 		_zoomDeque.push_back([=] {
-#if 0 // todo
+#if 0 // mtp
 			makeRequest(MTPstats_LoadAsyncGraph(
 				MTP_flags(x
 					? MTPstats_LoadAsyncGraph::Flag::f_x
@@ -344,6 +518,22 @@ Statistics::GraphResult Statistics::requestZoom(
 				consumer.put_error_copy(error.type());
 			}).send();
 #endif
+			api().request(Tdb::TLgetStatisticalGraph(
+				peerToTdbChat(channel()->id),
+				Tdb::tl_string(token),
+				Tdb::tl_int53(x)
+			)).done([=](const Tdb::TLstatisticalGraph &result) {
+				consumer.put_next(StatisticalGraphFromTL(result));
+				consumer.put_done();
+				if (!_zoomDeque.empty()) {
+					_zoomDeque.pop_front();
+					if (!_zoomDeque.empty()) {
+						_zoomDeque.front()();
+					}
+				}
+			}).fail([=](const Tdb::Error &error) {
+				consumer.put_error_copy(error.message);
+			}).send();
 		});
 		if (wasEmpty) {
 			_zoomDeque.front()();
@@ -375,7 +565,48 @@ void PublicForwards::request(
 		return;
 	}
 	const auto channel = StatisticsRequestSender::channel();
-#if 0 // todo
+
+	// todo stories
+	constexpr auto kLimit = tl::make_int(100);
+	_requestId = api().request(Tdb::TLgetMessagePublicForwards(
+		peerToTdbChat(channel->id),
+		Tdb::tl_int53(_fullId.msg.bare),
+		Tdb::tl_string(token.offset),
+		kLimit
+	)).done([=](const Tdb::TLfoundMessages &result) {
+		using Messages = QVector<FullMsgId>;
+		_requestId = 0;
+
+		auto nextToken = Data::PublicForwardsSlice::OffsetToken{
+			result.data().vnext_offset().v.toUtf8()
+		};
+		auto messages = Messages();
+		messages.reserve(result.data().vmessages().v.size());
+		for (const auto &message : result.data().vmessages().v) {
+			messages.push_back(channel->owner().processMessage(
+				message,
+				NewMessageType::Existing)->fullId());
+		}
+
+		auto allLoaded = false;
+		auto fullCount = result.data().vtotal_count().v;
+
+		if (nextToken.offset == token.offset || nextToken.offset.isEmpty()) {
+			allLoaded = true;
+		}
+
+		_lastTotal = std::max(_lastTotal, fullCount);
+		done({
+			.list = std::move(messages),
+			.total = _lastTotal,
+			.allLoaded = allLoaded,
+			.token = std::move(nextToken),
+		});
+	}).fail([=] {
+		_requestId = 0;
+	}).send();
+
+#if 0 // mtp
 	const auto processResult = [=](const MTPstats_PublicForwards &tl) {
 		using Messages = QVector<Data::RecentPostId>;
 		_requestId = 0;
@@ -494,7 +725,7 @@ void MessageStatistics::request(Fn<void(Data::MessageStatistics)> done) {
 	const auto requestPrivateForwards = [=](
 			const Data::StatisticalGraph &messageGraph,
 			const Data::StatisticalGraph &reactionsGraph) {
-#if 0 // todo
+#if 0 // mtp
 		api().request(MTPchannels_GetMessages(
 			channel()->inputChannel,
 			MTP_vector<MTPInputMessage>(
@@ -546,9 +777,39 @@ void MessageStatistics::request(Fn<void(Data::MessageStatistics)> done) {
 			requestFirstPublicForwards(messageGraph, reactionsGraph, {});
 		}).send();
 #endif
+		api().request(Tdb::TLgetMessage(
+			peerToTdbChat(channel()->id),
+			Tdb::tl_int53(_fullId.msg.bare)
+		)).done([=](const Tdb::TLDmessage &data) {
+			auto info = Data::StatisticsMessageInteractionInfo{
+				.messageId = data.vid().v,
+				.viewsCount = data.vinteraction_info()
+					? data.vinteraction_info()->data().vview_count().v
+					: 0,
+				.forwardsCount = data.vinteraction_info()
+					? data.vinteraction_info()->data().vforward_count().v
+					: 0,
+			};
+
+			requestFirstPublicForwards(messageGraph, std::move(info));
+		}).fail([=](const Tdb::Error &error) {
+			requestFirstPublicForwards(messageGraph, {});
+		}).send();
 	};
 
-#if 0 // todo
+	// todo stories
+	api().request(Tdb::TLgetMessageStatistics(
+		peerToTdbChat(channel()->id),
+		Tdb::tl_int53(_fullId.msg.bare),
+		Tdb::tl_bool(false)
+	)).done([=](const Tdb::TLDmessageStatistics &data) {
+		requestPrivateForwards(
+			StatisticalGraphFromTL(data.vmessage_interaction_graph()));
+	}).fail([=](const Tdb::Error &error) {
+		requestPrivateForwards({});
+	}).send();
+
+#if 0 // mtp
 	const auto requestStoryPrivateForwards = [=](
 			const Data::StatisticalGraph &messageGraph,
 			const Data::StatisticalGraph &reactionsGraph) {
@@ -627,7 +888,7 @@ rpl::producer<rpl::no_value, QString> Boosts::request() {
 			return lifetime;
 		}
 
-#if 0 // todo
+#if 0 // mtp
 		_api.request(MTPpremium_GetBoostsStatus(
 			_peer->input
 		)).done([=](const MTPpremium_BoostsStatus &result) {
