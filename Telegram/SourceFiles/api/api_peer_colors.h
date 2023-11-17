@@ -41,6 +41,8 @@ public:
 		PeerId channel,
 		uint8 index) const;
 
+	void apply(const TLDupdateAccentColors &update);
+
 private:
 	void request();
 	void apply(const MTPDhelp_peerColors &data);

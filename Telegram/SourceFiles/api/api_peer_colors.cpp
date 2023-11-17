@@ -50,6 +50,10 @@ std::vector<uint8> PeerColors::suggested() const {
 }
 
 rpl::producer<std::vector<uint8>> PeerColors::suggestedValue() const {
+	if (_suggested.current().empty()) {
+		const_cast<PeerColors*>(this)->_suggested
+			= std::vector<uint8>{ 0, 1, 2, 3, 4, 5, 6 };
+	}
 	return _suggested.value();
 }
 
@@ -163,6 +167,54 @@ void PeerColors::apply(const MTPDhelp_peerColors &data) {
 		_colorIndicesChanged.fire({});
 	}
 	_suggested = std::move(suggested);
+}
+
+void PeerColors::apply(const TLDupdateAccentColors &update) {
+	using ThemeColors = std::array<uint32, Ui::kColorPatternsCount>;
+	constexpr auto parseColors = [](const TLvector<TLint32> &values) {
+		const auto &list = values.v;
+		const auto count = int(list.size());
+		if (count > Ui::kColorPatternsCount) {
+			LOG(("API Error: Bad accentColor list size: %1").arg(count));
+			return ThemeColors();
+		}
+		auto result = ThemeColors();
+		for (auto i = 0; i != count; ++i) {
+			result[i] = list[i].v;
+		}
+		return result;
+	};
+	const auto parseColorIndex = [&](const TLDaccentColor &data) {
+		return Ui::ColorIndexData{
+			.light = parseColors(data.vlight_theme_colors()),
+			.dark = parseColors(data.vdark_theme_colors()),
+		};
+	};
+	auto colors = std::make_shared<
+		std::array<Ui::ColorIndexData, Ui::kColorIndexCount>>();
+	for (const auto &color : update.vcolors().v) {
+		const auto &data = color.data();
+		const auto index = data.vid().v;
+		if (index < Ui::kSimpleColorIndexCount
+			|| index >= Ui::kColorIndexCount) {
+			LOG(("API Error: Bad index for accentColor: %1").arg(index));
+			continue;
+		}
+		(*colors)[index] = parseColorIndex(data);
+	}
+
+	if (!_colorIndicesCurrent) {
+		_colorIndicesCurrent = std::make_unique<Ui::ColorIndicesCompressed>(
+			Ui::ColorIndicesCompressed{ std::move(colors) });
+		_colorIndicesChanged.fire({});
+	} else if (*_colorIndicesCurrent->colors != *colors) {
+		_colorIndicesCurrent->colors = std::move(colors);
+		_colorIndicesChanged.fire({});
+	}
+
+	_suggested = update.vavailable_accent_color_ids().v
+		| ranges::views::transform([](TLint32 v) { return uint8(v.v); })
+		| ranges::to_vector;
 }
 
 } // namespace Api

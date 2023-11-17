@@ -48,6 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tdb/tdb_tl_scheme.h"
 #include "tdb/tdb_option.h"
 #include "api/api_global_privacy.h"
+#include "ui/chat/chat_style.h"
 
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 #include "chat_helpers/spellchecker_common.h"
@@ -557,6 +558,10 @@ Window::SessionController *Session::tryResolveWindow() const {
 		}
 	}
 	return _windows.front();
+}
+
+void Session::applyAccentColors(const TLDupdateAccentColors &update) {
+	api().peerColors().apply(update);
 }
 
 auto Session::colorIndicesValue()

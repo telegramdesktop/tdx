@@ -28,7 +28,11 @@ namespace HistoryView {
 
 auto GenerateGiveawayStart(
 	not_null<Element*> parent,
+#if 0 // mtp
 	not_null<Data::GiveawayStart*> data)
+#endif
+	not_null<Data::GiveawayStart*> data,
+	DocumentData *sticker)
 -> Fn<void(Fn<void(std::unique_ptr<MediaGenericPart>)>)> {
 	return [=](Fn<void(std::unique_ptr<MediaGenericPart>)> push) {
 		const auto months = data->months;
@@ -36,10 +40,14 @@ auto GenerateGiveawayStart(
 
 		using Data = StickerWithBadgePart::Data;
 		const auto sticker = [=] {
+#if 0 // mtp
 			const auto &session = parent->history()->session();
 			auto &packs = session.giftBoxStickersPacks();
 			return Data{
 				.sticker = packs.lookup(months),
+#endif
+			return Data{
+				.sticker = sticker,
 				.size = st::msgServiceGiftBoxStickerSize,
 				.singleTimePlayback = true,
 			};
@@ -172,11 +180,15 @@ auto GenerateGiveawayResults(
 
 		using Data = StickerWithBadgePart::Data;
 		const auto sticker = [=] {
+#if 0 // mtp
 			const auto &session = parent->history()->session();
 			auto &packs = session.diceStickersPacks();
 			const auto &emoji = Stickers::DicePacks::kPartyPopper;
 			return Data{
 				.sticker = packs.lookup(emoji, 0),
+#endif
+			return Data{
+				.sticker = sticker,
 				.skipTop = st::chatGiveawayWinnersTopSkip,
 				.singleTimePlayback = true,
 			};

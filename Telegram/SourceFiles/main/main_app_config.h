@@ -16,9 +16,11 @@ namespace Tdb {
 class TLjsonValue;
 } // namespace Tdb
 
+#if 0 // mtp
 namespace Ui {
 struct ColorIndicesCompressed;
 } // namespace Ui
+#endif
 
 namespace Main {
 
@@ -41,8 +43,10 @@ public:
 			return getString(key, fallback);
 		} else if constexpr (std::is_same_v<Type, std::vector<QString>>) {
 			return getStringArray(key, std::move(fallback));
+#if 0 // mtp
 		} else if constexpr (std::is_same_v<Type, std::vector<int>>) {
 			return getIntArray(key, std::move(fallback));
+#endif
 		} else if constexpr (std::is_same_v<
 				Type,
 				std::vector<std::map<QString, QString>>>) {

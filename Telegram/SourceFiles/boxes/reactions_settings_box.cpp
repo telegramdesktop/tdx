@@ -57,6 +57,8 @@ PeerId GenerateUser(not_null<History*> history, const QString &name) {
 		Tdb::TLstring(), // phone_number
 		Tdb::tl_userStatusEmpty(), // status
 		Tdb::null, // profile_photo
+		Tdb::tl_int32(Data::DecideColorIndex(peerId)),
+		Tdb::tl_int64(0), // background_custom_emoji_id
 		Tdb::null, // emoji_status
 		Tdb::tl_bool(false), // is_contact
 		Tdb::tl_bool(false), // is_mutual_contact

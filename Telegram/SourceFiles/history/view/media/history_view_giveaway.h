@@ -19,12 +19,20 @@ class MediaGenericPart;
 
 [[nodiscard]] auto GenerateGiveawayStart(
 	not_null<Element*> parent,
+#if 0 // mtp
 	not_null<Data::GiveawayStart*> data)
+#endif
+	not_null<Data::GiveawayStart*> data,
+	DocumentData *sticker)
 -> Fn<void(Fn<void(std::unique_ptr<MediaGenericPart>)>)>;
 
 [[nodiscard]] auto GenerateGiveawayResults(
 	not_null<Element*> parent,
+#if 0 // mtp
 	not_null<Data::GiveawayResults*> data)
+#endif
+	not_null<Data::GiveawayResults*> data,
+	DocumentData *sticker)
 -> Fn<void(Fn<void(std::unique_ptr<MediaGenericPart>)>)>;
 
 } // namespace HistoryView

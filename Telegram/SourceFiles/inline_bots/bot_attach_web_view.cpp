@@ -954,7 +954,7 @@ void AttachWebView::request(const WebViewButton &button) {
 		tl_string(_startCommand.isEmpty() ? button.url : _startCommand),
 		Window::Theme::WebViewTheme(),
 		tl_string("tdesktop"),
-		tl_int53(action.replyTo.topicRootId.bare),
+		MessageThreadId(action.history->peer, action),
 		MessageReplyTo(action)
 	)).done([=](const TLwebAppInfo &result) {
 		_requestId = 0;
@@ -1415,7 +1415,7 @@ void AttachWebView::requestMenu(
 			tl_string(url),
 			Window::Theme::WebViewTheme(),
 			tl_string("tdesktop"),
-			tl_int53(action.replyTo.topicRootId.bare),
+			MessageThreadId(action.history->peer, action),
 			MessageReplyTo(action)
 		)).done([=](const TLwebAppInfo &result) {
 			_requestId = 0;

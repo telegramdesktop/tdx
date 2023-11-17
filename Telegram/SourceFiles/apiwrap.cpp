@@ -4192,11 +4192,11 @@ void ApiWrap::forwardMessages(
 				tl_bool(false), // from_background
 				tl_bool(false), // update_order_of_installed_stickers_sets
 				Api::ScheduledToTL(action.options.scheduled),
-				tl_int32(0)), // sending_id
+				tl_int32(0), // sending_id
+				tl_bool(false)), // only_preview
 			tl_bool(draft.options != Data::ForwardOptions::PreserveInfo),
 			tl_bool(
-				draft.options == Data::ForwardOptions::NoNamesAndCaptions),
-			tl_bool(false) // only_preview
+				draft.options == Data::ForwardOptions::NoNamesAndCaptions)
 		)).done([=](const TLmessages &result) {
 			// They should've been added by updates.
 		}).fail([=](const Error &error) {
@@ -4899,7 +4899,7 @@ void ApiWrap::sendInlineResult(
 	const auto sendingId = ClientMsgIndex(localId);
 	sender().request(TLsendInlineQueryResultMessage(
 		peerToTdbChat(peer->id),
-		tl_int53(action.replyTo.topicRootId.bare),
+		MessageThreadId(peer, action),
 		MessageReplyTo(action),
 		MessageSendOptions(peer, action, sendingId),
 		tl_int64(data->getQueryId()),
