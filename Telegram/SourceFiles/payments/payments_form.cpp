@@ -213,6 +213,26 @@ MTPinputStorePaymentPurpose InvoicePremiumGiftCodeGiveawayToTL(
 }
 #endif
 
+Tdb::TLpremiumGiveawayParameters InvoiceGiftCodeGiveawayToTL(
+		const InvoicePremiumGiftCode &invoice) {
+	const auto &giveaway = v::get<InvoicePremiumGiftCodeGiveaway>(
+		invoice.purpose);
+	return Tdb::tl_premiumGiveawayParameters(
+		peerToTdbChat(giveaway.boostPeer->id),
+		Tdb::tl_vector(ranges::views::all(
+			giveaway.additionalChannels
+		) | ranges::views::transform([](not_null<ChannelData*> c) {
+			return peerToTdbChat(c->id);
+		}) | ranges::to<QVector<Tdb::TLint53>>),
+		Tdb::tl_int32(giveaway.untilDate),
+		Tdb::tl_bool(giveaway.onlyNewSubscribers),
+		Tdb::tl_vector(ranges::views::all(
+			giveaway.countries
+		) | ranges::views::transform([](QString value) {
+			return Tdb::tl_string(std::move(value));
+		}) | ranges::to<QVector<Tdb::TLstring>>));
+}
+
 Form::Form(InvoiceId id, bool receipt)
 : _id(id)
 , _session(SessionFromId(id))
@@ -400,13 +420,40 @@ MTPInputInvoice Form::inputInvoice() const {
 #endif
 
 TLinputInvoice Form::inputInvoice() const {
-	if (const auto slug = std::get_if<InvoiceSlug>(&_id.value)) {
+	if (const auto message = std::get_if<InvoiceMessage>(&_id.value)) {
+		return tl_inputInvoiceMessage(
+			peerToTdbChat(message->peer->id),
+			tl_int53(message->itemId.bare));
+	} else if (const auto slug = std::get_if<InvoiceSlug>(&_id.value)) {
 		return tl_inputInvoiceName(tl_string(slug->slug));
 	}
-	const auto message = v::get<InvoiceMessage>(_id.value);
-	return tl_inputInvoiceMessage(
-		peerToTdbChat(message.peer->id),
-		tl_int53(message.itemId.bare));
+
+	const auto &giftCode = v::get<InvoicePremiumGiftCode>(_id.value);
+	const auto users = std::get_if<InvoicePremiumGiftCodeUsers>(
+		&giftCode.purpose);
+	if (users) {
+		return Tdb::tl_inputInvoiceTelegram(
+				Tdb::tl_telegramPaymentPurposePremiumGiftCodes(
+				users->boostPeer
+					? peerToTdbChat(users->boostPeer->id)
+					: TLint53(),
+				Tdb::tl_string(giftCode.currency),
+				Tdb::tl_int53(giftCode.amount),
+				Tdb::tl_vector(ranges::views::all(
+					users->users
+				) | ranges::views::transform([](not_null<UserData*> user) {
+					return peerToTdbChat(user->id);
+				}) | ranges::to<QVector<TLint53>>),
+				Tdb::tl_int32(giftCode.months)));
+	} else {
+		return Tdb::tl_inputInvoiceTelegram(
+			Tdb::tl_telegramPaymentPurposePremiumGiveaway(
+				InvoiceGiftCodeGiveawayToTL(giftCode),
+				Tdb::tl_string(giftCode.currency),
+				Tdb::tl_int53(giftCode.amount),
+				Tdb::tl_int32(giftCode.users),
+				Tdb::tl_int32(giftCode.months)));
+	}
 }
 
 void Form::requestForm() {
