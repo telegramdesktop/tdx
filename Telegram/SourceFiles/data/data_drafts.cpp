@@ -180,7 +180,6 @@ void ApplyPeerCloudDraft(
 		auto cloudDraft = std::make_unique<Draft>(
 			textWithTags,
 			replyTo,
-			topicRootId,
 			MessageCursor(Ui::kQFixedMax, Ui::kQFixedMax, Ui::kQFixedMax),
 			std::move(webpage));
 		cloudDraft->date = date;

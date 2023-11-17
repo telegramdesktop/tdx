@@ -26,9 +26,15 @@ namespace HistoryView {
 
 class Giveaway final : public Media {
 public:
+#if 0 // mtp
 	Giveaway(
 		not_null<Element*> parent,
 		not_null<Data::Giveaway*> giveaway);
+#endif
+	Giveaway(
+		not_null<Element*> parent,
+		not_null<Data::Giveaway*> giveaway,
+		DocumentData *sticker);
 	~Giveaway();
 
 	void draw(Painter &p, const PaintContext &context) const override;
@@ -86,6 +92,7 @@ private:
 
 	[[nodiscard]] QMargins inBubblePadding() const;
 
+	DocumentData *_document = nullptr;
 	mutable std::optional<Sticker> _sticker;
 
 	Ui::Text::String _prizesTitle;

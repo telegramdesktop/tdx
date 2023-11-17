@@ -30,6 +30,19 @@ namespace {
 
 using namespace Tdb;
 
+[[nodiscard]] GiftCode Parse(const TLDpremiumGiftCodeInfo &data) {
+	return {
+		.from = peerFromSender(data.vcreator_id()),
+		.to = data.vuser_id().v ? peerFromUser(data.vuser_id()) : PeerId(),
+		.giveawayId = data.vgiveaway_message_id().v,
+		.date = data.vcreation_date().v,
+		.used = data.vuse_date().v,
+		.months = data.vmonth_count().v,
+		.giveaway = data.vis_from_giveaway().v,
+	};
+}
+
+#if 0 // mtp
 [[nodiscard]] GiftCode Parse(const MTPDpayments_checkedGiftCode &data) {
 	return {
 		.from = peerFromMTP(data.vfrom_id()),
@@ -59,6 +72,7 @@ using namespace Tdb;
 	}
 	return options;
 }
+#endif
 
 } // namespace
 
@@ -398,6 +412,16 @@ void Premium::checkGiftCode(
 		_api.request(_giftCodeRequestId).cancel();
 	}
 	_giftCodeSlug = slug;
+	_giftCodeRequestId = _api.request(TLcheckPremiumGiftCode(
+		tl_string(slug)
+	)).done([=](const TLDpremiumGiftCodeInfo &data) {
+		_giftCodeRequestId = 0;
+		done(updateGiftCode(slug, Parse(data)));
+	}).fail([=] {
+		_giftCodeRequestId = 0;
+		done(updateGiftCode(slug, {}));
+	}).send();
+#if 0 // mtp
 	_giftCodeRequestId = _api.request(MTPpayments_CheckGiftCode(
 		MTP_string(slug)
 	)).done([=](const MTPpayments_CheckedGiftCode &result) {
@@ -412,6 +436,7 @@ void Premium::checkGiftCode(
 
 		done(updateGiftCode(slug, {}));
 	}).send();
+#endif
 }
 
 GiftCode Premium::updateGiftCode(
@@ -435,6 +460,14 @@ rpl::producer<GiftCode> Premium::giftCodeValue(const QString &slug) const {
 }
 
 void Premium::applyGiftCode(const QString &slug, Fn<void(QString)> done) {
+	_api.request(TLapplyPremiumGiftCode(
+		tl_string(slug)
+	)).done([=] {
+		done({});
+	}).fail([=](const Error &error) {
+		done(error.message);
+	}).send();
+#if 0 // mtp
 	_api.request(MTPpayments_ApplyGiftCode(
 		MTP_string(slug)
 	)).done([=](const MTPUpdates &result) {
@@ -443,6 +476,7 @@ void Premium::applyGiftCode(const QString &slug, Fn<void(QString)> done) {
 	}).fail([=](const MTP::Error &error) {
 		done(error.type());
 	}).send();
+#endif
 }
 
 void Premium::resolveGiveawayInfo(
@@ -461,6 +495,7 @@ void Premium::resolveGiveawayInfo(
 	}
 	_giveawayInfoPeer = peer;
 	_giveawayInfoMessageId = messageId;
+#if 0 // mtp
 	_giveawayInfoRequestId = _api.request(MTPpayments_GetGiveawayInfo(
 		_giveawayInfoPeer->input,
 		MTP_int(_giveawayInfoMessageId.bare)
@@ -490,6 +525,49 @@ void Premium::resolveGiveawayInfo(
 			info.finishDate = data.vfinish_date().v;
 			info.startDate = data.vstart_date().v;
 		});
+#endif
+	_giveawayInfoRequestId = _api.request(TLgetPremiumGiveawayInfo(
+		peerToTdbChat(_giveawayInfoPeer->id),
+		tl_int53(_giveawayInfoMessageId.bare)
+	)).done([=](const TLpremiumGiveawayInfo &result) {
+		_giveawayInfoRequestId = 0;
+
+		auto info = GiveawayInfo();
+		result.match([&](const TLDpremiumGiveawayInfoOngoing &data) {
+			using AlreadyWasMember
+				= TLDpremiumGiveawayParticipantStatusAlreadyWasMember;
+			using Participating
+				= TLDpremiumGiveawayParticipantStatusParticipating;
+			using Administrator
+				= TLDpremiumGiveawayParticipantStatusAdministrator;
+			using DisallowedCountry
+				= TLDpremiumGiveawayParticipantStatusDisallowedCountry;
+
+			data.vstatus().match([&](
+				const TLDpremiumGiveawayParticipantStatusEligible &) {
+			}, [&](const Participating &) {
+				info.participating = true;
+			}, [&](const AlreadyWasMember &data) {
+				info.tooEarlyDate = data.vjoined_chat_date().v;
+			}, [&](const Administrator &data) {
+				info.adminChannelId = peerToChannel(
+					peerFromTdbChat(data.vchat_id()));
+			}, [&](const DisallowedCountry &data) {
+				info.disallowedCountry = data.vuser_country_code().v;
+			});
+			info.state = data.vis_ended().v
+				? GiveawayState::Preparing
+				: GiveawayState::Running;
+			info.startDate = data.vcreation_date().v;
+		}, [&](const TLDpremiumGiveawayInfoCompleted &data) {
+			info.state = data.vwas_refunded().v
+				? GiveawayState::Refunded
+				: GiveawayState::Finished;
+			info.giftCode = data.vgift_code().v;
+			info.activatedCount = data.vactivation_count().v;
+			info.finishDate = data.vactual_winners_selection_date().v;
+			info.startDate = data.vcreation_date().v;
+		});
 		_giveawayInfoDone(std::move(info));
 	}).fail([=] {
 		_giveawayInfoRequestId = 0;
@@ -503,7 +581,10 @@ const Data::SubscriptionOptions &Premium::subscriptionOptions() const {
 
 PremiumGiftCodeOptions::PremiumGiftCodeOptions(not_null<PeerData*> peer)
 : _peer(peer)
+#if 0 // mtp
 , _api(&peer->session().api().instance()) {
+#endif
+, _api(&peer->session().sender()) {
 }
 
 rpl::producer<rpl::no_value, QString> PremiumGiftCodeOptions::request() {
@@ -514,6 +595,7 @@ rpl::producer<rpl::no_value, QString> PremiumGiftCodeOptions::request() {
 			return lifetime;
 		}
 
+#if 0 // todo
 		using TLOption = MTPPremiumGiftCodeOption;
 		_api.request(MTPpayments_GetPremiumGiftCodeOptions(
 			MTP_flags(
@@ -552,6 +634,7 @@ rpl::producer<rpl::no_value, QString> PremiumGiftCodeOptions::request() {
 		}).fail([=](const MTP::Error &error) {
 			consumer.put_error_copy(error.type());
 		}).send();
+#endif
 
 		return lifetime;
 	};
@@ -567,6 +650,7 @@ rpl::producer<rpl::no_value, QString> PremiumGiftCodeOptions::applyPrepaid(
 			return lifetime;
 		}
 
+#if 0 // todo
 		_api.request(MTPpayments_LaunchPrepaidGiveaway(
 			_peer->input,
 			MTP_long(prepaidId),
@@ -577,6 +661,7 @@ rpl::producer<rpl::no_value, QString> PremiumGiftCodeOptions::applyPrepaid(
 		}).fail([=](const MTP::Error &error) {
 			consumer.put_error_copy(error.type());
 		}).send();
+#endif
 
 		return lifetime;
 	};
@@ -612,6 +697,7 @@ Data::SubscriptionOptions PremiumGiftCodeOptions::options(int amount) {
 	if (it != end(_subscriptionOptions)) {
 		return it->second;
 	} else {
+#if 0 // todo
 		auto tlOptions = QVector<MTPPremiumGiftCodeOption>();
 		for (auto i = 0; i < _optionsForOnePerson.months.size(); i++) {
 			tlOptions.push_back(MTP_premiumGiftCodeOption(
@@ -624,6 +710,7 @@ Data::SubscriptionOptions PremiumGiftCodeOptions::options(int amount) {
 				MTP_long(_optionsForOnePerson.totalCosts[i] * amount)));
 		}
 		_subscriptionOptions[amount] = GiftCodesFromTL(tlOptions);
+#endif
 		return _subscriptionOptions[amount];
 	}
 }

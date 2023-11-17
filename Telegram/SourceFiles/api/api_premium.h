@@ -215,7 +215,10 @@ private:
 
 	base::flat_map<Token, Store> _stores;
 
+#if 0 // mtp
 	MTP::Sender _api;
+#endif
+	Tdb::Sender _api;
 
 };
 

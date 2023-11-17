@@ -593,8 +593,12 @@ void GiftCodeBox(
 			const auto content = controller->parentController()->content();
 			return content->shareUrl(
 				thread,
+#if 0 // mtp
 				MakeGiftCodeLink(&controller->session(), slug).link,
 				QString());
+#endif
+				{ MakeGiftCodeLink(&controller->session(), slug).link },
+				true);
 		};
 		Window::ShowChooseRecipientBox(controller, chosen);
 		return false;

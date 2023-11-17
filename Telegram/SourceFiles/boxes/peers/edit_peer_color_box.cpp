@@ -47,7 +47,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 #include "styles/style_widgets.h"
 
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_options.h"
+
 namespace {
+
+using namespace Tdb;
 
 using namespace Settings;
 
@@ -299,7 +305,9 @@ PreviewWrap::PreviewWrap(
 		? tr::lng_settings_color_reply(tr::now)
 		: tr::lng_settings_color_reply_channel(tr::now),
 	},
+#if 0 // mtp
 	MTP_messageMediaEmpty(),
+#endif
 	HistoryMessageMarkupData(),
 	uint64(0)))
 , _replyItem(_history->addNewLocalMessage(
@@ -317,6 +325,7 @@ PreviewWrap::PreviewWrap(
 		? tr::lng_settings_color_text(tr::now)
 		: tr::lng_settings_color_text_channel(tr::now),
 	},
+#if 0 // mtp
 	MTP_messageMediaWebPage(
 		MTP_flags(0),
 		MTP_webPagePending(
@@ -324,11 +333,20 @@ PreviewWrap::PreviewWrap(
 			MTP_long(_webpage->id),
 			MTPstring(),
 			MTP_int(0))),
+#endif
 	HistoryMessageMarkupData(),
 	uint64(0)))
+#if 0 // mtp
 , _element(_replyItem->createView(_delegate.get()))
+#endif
 , _position(0, st::msgMargin.bottom()) {
 	_style->apply(_theme.get());
+
+	_replyItem->setMediaExplicit(std::make_unique<Data::MediaWebPage>(
+		_replyItem.get(),
+		_webpage.get(),
+		MediaWebPageFlag::Manual));
+	_element = _replyItem->createView(_delegate.get());
 
 	_fake->setName(peer->name(), QString());
 	std::move(colorIndexValue) | rpl::start_with_next([=](uint8 index) {
@@ -450,6 +468,25 @@ void Set(
 			? tr::lng_settings_color_changed(tr::now)
 			: tr::lng_settings_color_changed_channel(tr::now));
 	};
+	const auto fail = [=](const Error &error) {
+		setLocal(wasIndex, wasEmojiId);
+		show->showToast(error.message);
+	};
+	const auto send = [&](auto &&request) {
+		peer->session().sender().request(
+			std::move(request)
+		).done(done).fail(fail).send();
+	};
+	if (peer->isSelf()) {
+		send(TLsetAccentColor(
+			tl_int32(colorIndex),
+			tl_int64(backgroundEmojiId)));
+	} else if (const auto channel = peer->asChannel()) {
+		send(TLsetChatAccentColor(
+			peerToTdbChat(channel->id),
+			tl_int32(colorIndex),
+			tl_int64(backgroundEmojiId)));
+#if 0 // mtp
 	const auto fail = [=](const MTP::Error &error) {
 		setLocal(wasIndex, wasEmojiId);
 		show->showToast(error.type());
@@ -472,6 +509,7 @@ void Set(
 			channel->inputChannel,
 			MTP_int(colorIndex),
 			MTP_long(backgroundEmojiId)));
+#endif
 	} else {
 		Unexpected("Invalid peer type in Set(colorIndex).");
 	}
@@ -504,6 +542,10 @@ void Apply(
 		Set(show, peer, colorIndex, backgroundEmojiId);
 		close();
 	} else {
+		session->sender().request(TLgetChatBoostStatus(
+			peerToTdbChat(peer->id)
+		)).done([=](const TLchatBoostStatus &result) {
+#if 0 // mtp
 		session->api().request(MTPpremium_GetBoostsStatus(
 			peer->input
 		)).done([=](const MTPpremium_BoostsStatus &result) {
@@ -512,6 +554,11 @@ void Apply(
 				"channel_color_level_min",
 				5);
 			if (data.vlevel().v >= required) {
+#endif
+			const auto options = &session->account().options();
+			const auto required
+				= options->channelCustomAccentColorBoostLevelMin();
+			if (5 >= required) {
 				Set(show, peer, colorIndex, backgroundEmojiId);
 				close();
 				return;
@@ -525,13 +572,20 @@ void Apply(
 			auto counters = ParseBoostCounters(result);
 			counters.mine = 0; // Don't show current level as just-reached.
 			show->show(Box(Ui::AskBoostBox, Ui::AskBoostBoxData{
+#if 0 // mtp
 				.link = qs(data.vboost_url()),
+#endif
+				.link = result.data().vboost_url().v,
 				.boost = counters,
 				.requiredLevel = required,
 			}, openStatistics, nullptr));
 			cancel();
+#if 0 // mtp
 		}).fail([=](const MTP::Error &error) {
 			show->showToast(error.type());
+#endif
+		}).fail([=](const Error &error) {
+			show->showToast(error.message);
 			cancel();
 		}).send();
 	}
@@ -787,6 +841,7 @@ void EditPeerColorBox(
 		state->emojiId.value()
 	), {});
 
+#if 0 // mtp
 	const auto appConfig = &peer->session().account().appConfig();
 	auto indices = rpl::single(
 		rpl::empty
@@ -800,6 +855,8 @@ void EditPeerColorBox(
 			return uint8(i);
 		}) | ranges::to_vector;
 	});
+#endif
+	auto indices = peer->session().availableColorIndicesValue();
 	const auto margin = st::settingsColorRadioMargin;
 	const auto skip = st::settingsColorRadioSkip;
 	box->addRow(
