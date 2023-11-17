@@ -33,6 +33,21 @@ namespace {
 
 using namespace Tdb;
 
+[[nodiscard]] GiftCode Parse(const TLDpremiumGiftCodeInfo &data) {
+	return {
+		.from = (data.vcreator_id()
+			? peerFromSender(*data.vcreator_id())
+			: PeerId()),
+		.to = data.vuser_id().v ? peerFromUser(data.vuser_id()) : PeerId(),
+		.giveawayId = data.vgiveaway_message_id().v,
+		.date = data.vcreation_date().v,
+		.used = data.vuse_date().v,
+		.months = data.vmonth_count().v,
+		.giveaway = data.vis_from_giveaway().v,
+	};
+}
+
+#if 0 // mtp
 [[nodiscard]] GiftCode Parse(const MTPDpayments_checkedGiftCode &data) {
 	return {
 		.from = data.vfrom_id() ? peerFromMTP(*data.vfrom_id()) : PeerId(),
@@ -62,88 +77,113 @@ using namespace Tdb;
 	}
 	return options;
 }
+#endif
 
 } // namespace
 
-std::optional<PremiumPreview> PreviewFromFeature(
+std::optional<PremiumFeature> FeatureFromTL(
 		const TLpremiumFeature &feature) {
 	const auto result = feature.match([](
 			const TLDpremiumFeatureUpgradedStories &) {
-		return PremiumPreview::Stories;
+		return PremiumFeature::Stories;
 	}, [](const TLDpremiumFeatureChatBoost &) {
-		return PremiumPreview::kCount;
+		return PremiumFeature::kCount;
 	}, [](const TLDpremiumFeatureAccentColor &) {
-		return PremiumPreview::kCount;
+		return PremiumFeature::kCount;
 	}, [](const TLDpremiumFeatureIncreasedLimits &) {
-		return PremiumPreview::DoubleLimits;
+		return PremiumFeature::DoubleLimits;
 	}, [](const TLDpremiumFeatureIncreasedUploadFileSize &) {
-		return PremiumPreview::MoreUpload;
+		return PremiumFeature::MoreUpload;
 	}, [](const TLDpremiumFeatureImprovedDownloadSpeed &) {
-		return PremiumPreview::FasterDownload;
+		return PremiumFeature::FasterDownload;
 	}, [](const TLDpremiumFeatureVoiceRecognition &) {
-		return PremiumPreview::VoiceToText;
+		return PremiumFeature::VoiceToText;
 	}, [](const TLDpremiumFeatureDisabledAds &) {
-		return PremiumPreview::NoAds;
+		return PremiumFeature::NoAds;
 	}, [](const TLDpremiumFeatureUniqueReactions &) {
-		return PremiumPreview::InfiniteReactions;
+		return PremiumFeature::InfiniteReactions;
 	}, [](const TLDpremiumFeatureUniqueStickers &) {
-		return PremiumPreview::Stickers;
+		return PremiumFeature::Stickers;
 	}, [](const TLDpremiumFeatureCustomEmoji &) {
-		return PremiumPreview::AnimatedEmoji;
+		return PremiumFeature::AnimatedEmoji;
 	}, [](const TLDpremiumFeatureAdvancedChatManagement &) {
-		return PremiumPreview::AdvancedChatManagement;
+		return PremiumFeature::AdvancedChatManagement;
 	}, [](const TLDpremiumFeatureProfileBadge &) {
-		return PremiumPreview::ProfileBadge;
+		return PremiumFeature::ProfileBadge;
 	}, [](const TLDpremiumFeatureEmojiStatus &) {
-		return PremiumPreview::EmojiStatus;
+		return PremiumFeature::EmojiStatus;
 	}, [](const TLDpremiumFeatureAnimatedProfilePhoto &) {
-		return PremiumPreview::AnimatedUserpics;
+		return PremiumFeature::AnimatedUserpics;
 	}, [](const TLDpremiumFeatureForumTopicIcon &) {
-		return PremiumPreview::kCount;
+		return PremiumFeature::kCount;
 	}, [](const TLDpremiumFeatureAppIcons &) {
-		return PremiumPreview::kCount;
+		return PremiumFeature::kCount;
 	}, [](const TLDpremiumFeatureRealTimeChatTranslation &) {
-		return PremiumPreview::RealTimeTranslation;
+		return PremiumFeature::RealTimeTranslation;
+	}, [](const TLDpremiumFeatureBackgroundForBoth &) {
+		return PremiumFeature::Wallpapers;
+	}, [](const TLDpremiumFeatureSavedMessagesTags &) {
+		return PremiumFeature::TagsForMessages;
+	}, [](const TLDpremiumFeatureMessagePrivacy &) {
+		return PremiumFeature::MessagePrivacy;
+	}, [](const TLDpremiumFeatureLastSeenTimes &) {
+		return PremiumFeature::LastSeen;
+	}, [](const TLDpremiumFeatureBusiness &) {
+		return PremiumFeature::Business;
+	}, [](const TLDpremiumFeatureMessageEffects &) {
+		return PremiumFeature::Effects;
 	});
-	return (result != PremiumPreview::kCount)
+	return (result != PremiumFeature::kCount)
 		? result
-		: std::optional<PremiumPreview>();
+		: std::optional<PremiumFeature>();
 }
 
-TLpremiumFeature PreviewToFeature(PremiumPreview preview) {
-	Expects(preview != PremiumPreview::kCount);
+TLpremiumFeature FeatureToTL(PremiumFeature preview) {
+	Expects(preview != PremiumFeature::kCount);
 
 	switch (preview) {
-	case PremiumPreview::Stories:
+	case PremiumFeature::Stories:
 		return tl_premiumFeatureUpgradedStories();
-	case PremiumPreview::DoubleLimits:
+	case PremiumFeature::DoubleLimits:
 		return tl_premiumFeatureIncreasedLimits();
-	case PremiumPreview::MoreUpload:
+	case PremiumFeature::MoreUpload:
 		return tl_premiumFeatureIncreasedUploadFileSize();
-	case PremiumPreview::FasterDownload:
+	case PremiumFeature::FasterDownload:
 		return tl_premiumFeatureImprovedDownloadSpeed();
-	case PremiumPreview::VoiceToText:
+	case PremiumFeature::VoiceToText:
 		return tl_premiumFeatureVoiceRecognition();
-	case PremiumPreview::NoAds:
+	case PremiumFeature::NoAds:
 		return tl_premiumFeatureDisabledAds();
-	case PremiumPreview::InfiniteReactions:
+	case PremiumFeature::InfiniteReactions:
 		return tl_premiumFeatureUniqueReactions();
-	case PremiumPreview::Stickers:
+	case PremiumFeature::Stickers:
 		return tl_premiumFeatureUniqueStickers();
-	case PremiumPreview::AnimatedEmoji:
+	case PremiumFeature::AnimatedEmoji:
 		return tl_premiumFeatureCustomEmoji();
-	case PremiumPreview::AdvancedChatManagement:
+	case PremiumFeature::AdvancedChatManagement:
 		return tl_premiumFeatureAdvancedChatManagement();
-	case PremiumPreview::ProfileBadge:
+	case PremiumFeature::ProfileBadge:
 		return tl_premiumFeatureProfileBadge();
-	case PremiumPreview::EmojiStatus:
+	case PremiumFeature::EmojiStatus:
 		return tl_premiumFeatureEmojiStatus();
-	case PremiumPreview::AnimatedUserpics:
+	case PremiumFeature::AnimatedUserpics:
 		return tl_premiumFeatureAnimatedProfilePhoto();
-	case PremiumPreview::RealTimeTranslation:
+	case PremiumFeature::RealTimeTranslation:
 		return tl_premiumFeatureRealTimeChatTranslation();
+	case PremiumFeature::Wallpapers:
+		return tl_premiumFeatureBackgroundForBoth();
+	case PremiumFeature::TagsForMessages:
+		return tl_premiumFeatureSavedMessagesTags();
+	case PremiumFeature::MessagePrivacy:
+		return tl_premiumFeatureMessagePrivacy();
+	case PremiumFeature::LastSeen:
+		return tl_premiumFeatureLastSeenTimes();
+	case PremiumFeature::Business:
+		return tl_premiumFeatureBusiness();
+	case PremiumFeature::Effects:
+		return tl_premiumFeatureMessageEffects();
 	}
-	Unexpected("PremiumPreview value in PreviewToFeature.");
+	Unexpected("PremiumFeature value in PreviewToFeature.");
 }
 
 Premium::Premium(not_null<ApiWrap*> api)
@@ -169,7 +209,7 @@ rpl::producer<TextWithEntities> Premium::statusTextValue() const {
 }
 
 auto Premium::videos() const
--> const base::flat_map<PremiumPreview, not_null<DocumentData*>> & {
+-> const base::flat_map<PremiumFeature, not_null<DocumentData*>> & {
 #if 0 // mtp
 -> const base::flat_map<QString, not_null<DocumentData*>> & {
 #endif
@@ -238,7 +278,7 @@ void Premium::reloadPromo() {
 			return option.data().vpayment_option();
 		}) | ranges::to<QVector>();
 
-		_subscriptionOptions = SubscriptionOptionsFromTL(list);
+		_subscriptionOptions = PremiumSubscriptionOptionsFromTL(list);
 		for (const auto &option : list) {
 			if (option.data().vmonth_count().v == 1) {
 				_monthlyAmount = option.data().vamount().v;
@@ -253,7 +293,7 @@ void Premium::reloadPromo() {
 		_statusText = text;
 		_statusTextUpdates.fire(std::move(text));
 		auto videos = base::flat_map<
-			PremiumPreview,
+			PremiumFeature,
 			not_null<DocumentData*>>();
 		videos.reserve(data.vanimations().v.size());
 		for (const auto &single : data.vanimations().v) {
@@ -263,7 +303,7 @@ void Premium::reloadPromo() {
 				|| !document->supportsStreaming()) {
 				document->forceIsStreamedAnimation();
 			}
-			const auto type = PreviewFromFeature(single.data().vfeature());
+			const auto type = FeatureFromTL(single.data().vfeature());
 			if (type) {
 				videos.emplace(*type, document);
 			}
@@ -404,6 +444,7 @@ void Premium::reloadHelloStickers() {
 	if (_helloStickersRequestId) {
 		return;
 	}
+#if 0 // mtp
 	_helloStickersRequestId = _api.request(MTPmessages_GetStickers(
 		MTP_string("\xf0\x9f\x91\x8b\xe2\xad\x90\xef\xb8\x8f"),
 		MTP_long(_helloStickersHash)
@@ -412,6 +453,11 @@ void Premium::reloadHelloStickers() {
 		result.match([&](const MTPDmessages_stickersNotModified &) {
 		}, [&](const MTPDmessages_stickers &data) {
 			_helloStickersHash = data.vhash().v;
+#endif
+	_helloStickersRequestId = _api.request(TLgetGreetingStickers(
+	)).done([=](const TLstickers &result) {
+		_helloStickersRequestId = 0;
+		const auto &data = result.data();
 			const auto owner = &_session->data();
 			_helloStickers.clear();
 			for (const auto &sticker : data.vstickers().v) {
@@ -421,7 +467,9 @@ void Premium::reloadHelloStickers() {
 				}
 			}
 			_helloStickersUpdated.fire({});
+#if 0 // mtp
 		});
+#endif
 	}).fail([=] {
 		_helloStickersRequestId = 0;
 	}).send();
@@ -437,6 +485,16 @@ void Premium::checkGiftCode(
 		_api.request(_giftCodeRequestId).cancel();
 	}
 	_giftCodeSlug = slug;
+	_giftCodeRequestId = _api.request(TLcheckPremiumGiftCode(
+		tl_string(slug)
+	)).done([=](const TLDpremiumGiftCodeInfo &data) {
+		_giftCodeRequestId = 0;
+		done(updateGiftCode(slug, Parse(data)));
+	}).fail([=] {
+		_giftCodeRequestId = 0;
+		done(updateGiftCode(slug, {}));
+	}).send();
+#if 0 // mtp
 	_giftCodeRequestId = _api.request(MTPpayments_CheckGiftCode(
 		MTP_string(slug)
 	)).done([=](const MTPpayments_CheckedGiftCode &result) {
@@ -451,6 +509,7 @@ void Premium::checkGiftCode(
 
 		done(updateGiftCode(slug, {}));
 	}).send();
+#endif
 }
 
 GiftCode Premium::updateGiftCode(
@@ -474,6 +533,14 @@ rpl::producer<GiftCode> Premium::giftCodeValue(const QString &slug) const {
 }
 
 void Premium::applyGiftCode(const QString &slug, Fn<void(QString)> done) {
+	_api.request(TLapplyPremiumGiftCode(
+		tl_string(slug)
+	)).done([=] {
+		done({});
+	}).fail([=](const Error &error) {
+		done(error.message);
+	}).send();
+#if 0 // mtp
 	_api.request(MTPpayments_ApplyGiftCode(
 		MTP_string(slug)
 	)).done([=](const MTPUpdates &result) {
@@ -482,6 +549,7 @@ void Premium::applyGiftCode(const QString &slug, Fn<void(QString)> done) {
 	}).fail([=](const MTP::Error &error) {
 		done(error.type());
 	}).send();
+#endif
 }
 
 void Premium::resolveGiveawayInfo(
@@ -500,6 +568,7 @@ void Premium::resolveGiveawayInfo(
 	}
 	_giveawayInfoPeer = peer;
 	_giveawayInfoMessageId = messageId;
+#if 0 // mtp
 	_giveawayInfoRequestId = _api.request(MTPpayments_GetGiveawayInfo(
 		_giveawayInfoPeer->input,
 		MTP_int(_giveawayInfoMessageId.bare)
@@ -529,6 +598,49 @@ void Premium::resolveGiveawayInfo(
 			info.finishDate = data.vfinish_date().v;
 			info.startDate = data.vstart_date().v;
 			info.credits = data.vstars_prize().value_or_empty();
+		});
+#endif
+	_giveawayInfoRequestId = _api.request(TLgetGiveawayInfo(
+		peerToTdbChat(_giveawayInfoPeer->id),
+		tl_int53(_giveawayInfoMessageId.bare)
+	)).done([=](const TLgiveawayInfo &result) {
+		_giveawayInfoRequestId = 0;
+
+		auto info = GiveawayInfo();
+		result.match([&](const TLDgiveawayInfoOngoing &data) {
+			using AlreadyWasMember
+				= TLDgiveawayParticipantStatusAlreadyWasMember;
+			using Participating
+				= TLDgiveawayParticipantStatusParticipating;
+			using Administrator
+				= TLDgiveawayParticipantStatusAdministrator;
+			using DisallowedCountry
+				= TLDgiveawayParticipantStatusDisallowedCountry;
+
+			data.vstatus().match([&](
+				const TLDgiveawayParticipantStatusEligible &) {
+			}, [&](const Participating &) {
+				info.participating = true;
+			}, [&](const AlreadyWasMember &data) {
+				info.tooEarlyDate = data.vjoined_chat_date().v;
+			}, [&](const Administrator &data) {
+				info.adminChannelId = peerToChannel(
+					peerFromTdbChat(data.vchat_id()));
+			}, [&](const DisallowedCountry &data) {
+				info.disallowedCountry = data.vuser_country_code().v;
+			});
+			info.state = data.vis_ended().v
+				? GiveawayState::Preparing
+				: GiveawayState::Running;
+			info.startDate = data.vcreation_date().v;
+		}, [&](const TLDgiveawayInfoCompleted &data) {
+			info.state = data.vwas_refunded().v
+				? GiveawayState::Refunded
+				: GiveawayState::Finished;
+			info.giftCode = data.vgift_code().v;
+			info.activatedCount = data.vactivation_count().v;
+			info.finishDate = data.vactual_winners_selection_date().v;
+			info.startDate = data.vcreation_date().v;
 		});
 		_giveawayInfoDone(std::move(info));
 	}).fail([=] {
@@ -563,12 +675,16 @@ void Premium::requestPremiumRequiredSlice() {
 		return;
 	}
 	constexpr auto kPerRequest = 100;
+#if 0 // mtp
 	auto users = MTP_vector_from_range(_resolvePremiumRequiredUsers
 		| ranges::views::transform(&UserData::inputUser));
 	if (users.v.size() > kPerRequest) {
 		auto shortened = users.v;
 		shortened.resize(kPerRequest);
 		users = MTP_vector<MTPInputUser>(std::move(shortened));
+#endif
+	auto users = _resolvePremiumRequiredUsers | ranges::to_vector;
+	if (users.size() > kPerRequest) {
 		const auto from = begin(_resolvePremiumRequiredUsers);
 		_resolvePremiumRequestedUsers = { from, from + kPerRequest };
 		_resolvePremiumRequiredUsers.erase(from, from + kPerRequest);
@@ -576,6 +692,7 @@ void Premium::requestPremiumRequiredSlice() {
 		_resolvePremiumRequestedUsers
 			= base::take(_resolvePremiumRequiredUsers);
 	}
+#if 0 // mtp
 	const auto finish = [=](const QVector<MTPBool> &list) {
 		constexpr auto me = UserDataFlag::MeRequiresPremiumToWrite;
 		constexpr auto known = UserDataFlag::RequirePremiumToWriteKnown;
@@ -605,17 +722,59 @@ void Premium::requestPremiumRequiredSlice() {
 	}).fail([=] {
 		finish({});
 	}).send();
+#endif
+	const auto waiting = std::make_shared<int>(
+		_resolvePremiumRequestedUsers.size());
+	for (const auto &user : _resolvePremiumRequestedUsers) {
+		const auto finish = [=](bool require) {
+			constexpr auto me = UserDataFlag::MeRequiresPremiumToWrite;
+			constexpr auto known = UserDataFlag::RequirePremiumToWriteKnown;
+			constexpr auto mask = me | known;
+
+			user->setFlags((user->flags() & ~mask)
+				| known
+				| (require ? me : UserDataFlag()));
+			if (!--*waiting) {
+				if (!_premiumRequiredRequestScheduled
+					&& !_resolvePremiumRequiredUsers.empty()) {
+					_premiumRequiredRequestScheduled = true;
+					crl::on_main(_session, [=] {
+						requestPremiumRequiredSlice();
+					});
+				}
+				_somePremiumRequiredResolved.fire({});
+			}
+		};
+		user->session().sender().request(TLcanSendMessageToUser(
+			tl_int53(peerToUser(user->id).bare),
+			tl_bool(false)
+		)).done([=](const TLcanSendMessageToUserResult &result) {
+			result.match([&](const TLDcanSendMessageToUserResultOk &) {
+				finish(false);
+			}, [&](const TLDcanSendMessageToUserResultUserIsDeleted &) {
+				finish(false);
+			}, [&](const TLDcanSendMessageToUserResultUserRestrictsNewChats &) {
+				finish(true);
+			});
+		}).fail([=] {
+			finish(false);
+		}).send();
+	}
 }
 
 PremiumGiftCodeOptions::PremiumGiftCodeOptions(not_null<PeerData*> peer)
 : _peer(peer)
+#if 0 // mtp
 , _api(&peer->session().api().instance()) {
+#endif
+, _api(&peer->session().sender()) {
 }
 
 rpl::producer<rpl::no_value, QString> PremiumGiftCodeOptions::request() {
 	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
 
+#if 0 // mtp
 		using TLOption = MTPPremiumGiftCodeOption;
 		_api.request(MTPpayments_GetPremiumGiftCodeOptions(
 			MTP_flags(_peer->isChannel()
@@ -655,6 +814,44 @@ rpl::producer<rpl::no_value, QString> PremiumGiftCodeOptions::request() {
 		}).fail([=](const MTP::Error &error) {
 			consumer.put_error_copy(error.type());
 		}).send();
+#endif
+		using TLOption = Tdb::TLpremiumGiftCodePaymentOption;
+		_api.request(Tdb::TLgetPremiumGiftCodePaymentOptions(
+			peerToTdbChat(_peer->id)
+		)).done([=](const Tdb::TLDpremiumGiftCodePaymentOptions &data) {
+			auto tlMapOptions = base::flat_map<Amount, QVector<TLOption>>();
+			for (const auto &tlOption : data.voptions().v) {
+				const auto &data = tlOption.data();
+				const auto userCount = data.vwinner_count().v;
+				tlMapOptions[userCount].push_back(tlOption);
+
+				const auto token = Token{ userCount, data.vmonth_count().v };
+				_stores[token] = Store{
+					.amount = uint64(data.vamount().v),
+					.product = data.vstore_product_id().v.toUtf8(),
+					.quantity = data.vstore_product_quantity().v,
+				};
+				if (!ranges::contains(_availablePresets, userCount)) {
+					_availablePresets.push_back(userCount);
+				}
+			}
+			for (const auto &[amount, tlOptions] : tlMapOptions) {
+				if (amount == 1 && _optionsForOnePerson.currency.isEmpty()) {
+					_optionsForOnePerson.currency =
+						tlOptions.front().data().vcurrency().v.toUtf8();
+					for (const auto &option : tlOptions) {
+						_optionsForOnePerson.months.push_back(
+							option.data().vmonth_count().v);
+						_optionsForOnePerson.totalCosts.push_back(
+							option.data().vamount().v);
+					}
+				}
+				_subscriptionOptions[amount] = GiftCodesFromTL(tlOptions);
+			}
+			consumer.put_done();
+		}).fail([=](const Tdb::Error &error) {
+			consumer.put_error_copy(error.message);
+		}).send();
 
 		return lifetime;
 	};
@@ -670,6 +867,7 @@ rpl::producer<rpl::no_value, QString> PremiumGiftCodeOptions::applyPrepaid(
 			return lifetime;
 		}
 
+#if 0 // mtp
 		_api.request(MTPpayments_LaunchPrepaidGiveaway(
 			_peer->input,
 			MTP_long(prepaidId),
@@ -681,6 +879,17 @@ rpl::producer<rpl::no_value, QString> PremiumGiftCodeOptions::applyPrepaid(
 			consumer.put_done();
 		}).fail([=](const MTP::Error &error) {
 			consumer.put_error_copy(error.type());
+		}).send();
+#endif
+		_api.request(Tdb::TLlaunchPrepaidGiveaway(
+			Tdb::tl_int64(prepaidId),
+			Payments::InvoiceGiftCodeGiveawayToTL(invoice),
+			tl_int32(invoice.users),
+			tl_int53(invoice.creditsAmount.value_or(0))
+		)).done([=](const Tdb::TLok &) {
+			consumer.put_done();
+		}).fail([=](const Tdb::Error &error) {
+			consumer.put_error_copy(error.message);
 		}).send();
 
 		return lifetime;
@@ -737,6 +946,7 @@ Data::PremiumSubscriptionOptions PremiumGiftCodeOptions::options(int amount) {
 	if (it != end(_subscriptionOptions)) {
 		return it->second;
 	} else {
+#if 0 // todo
 		auto tlOptions = QVector<MTPPremiumGiftCodeOption>();
 		for (auto i = 0; i < _optionsForOnePerson.months.size(); i++) {
 			tlOptions.push_back(MTP_premiumGiftCodeOption(
@@ -749,6 +959,7 @@ Data::PremiumSubscriptionOptions PremiumGiftCodeOptions::options(int amount) {
 				MTP_long(_optionsForOnePerson.totalCosts[i] * amount)));
 		}
 		_subscriptionOptions[amount] = GiftCodesFromTL(tlOptions);
+#endif
 		return _subscriptionOptions[amount];
 	}
 }
@@ -758,6 +969,7 @@ auto PremiumGiftCodeOptions::requestStarGifts()
 	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
 
+#if 0 // mtp
 		_api.request(MTPpayments_GetStarGifts(
 			MTP_int(0)
 		)).done([=](const MTPpayments_StarGifts &result) {
@@ -778,6 +990,24 @@ auto PremiumGiftCodeOptions::requestStarGifts()
 			consumer.put_done();
 		}).fail([=](const MTP::Error &error) {
 			consumer.put_error_copy(error.type());
+		}).send();
+#endif
+		_api.request(TLgetAvailableGifts(
+		)).done([=](const TLgifts &result) {
+			const auto &data = result.data();
+			const auto &list = data.vgifts().v;
+			const auto session = &_peer->session();
+			auto gifts = std::vector<StarGift>();
+			gifts.reserve(list.size());
+			for (const auto &gift : list) {
+				if (auto parsed = FromTL(session, gift)) {
+					gifts.push_back(std::move(*parsed));
+				}
+			}
+			_gifts = std::move(gifts);
+			consumer.put_done();
+		}).fail([=](const Error &error) {
+			consumer.put_error_copy(error.message);
 		}).send();
 
 		return lifetime;
@@ -845,12 +1075,21 @@ rpl::producer<rpl::no_value, QString> SponsoredToggle::setToggled(bool v) {
 	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
 
+#if 0 // mtp
 		_api.request(MTPaccount_ToggleSponsoredMessages(
 			MTP_bool(v)
 		)).done([=] {
 			consumer.put_done();
 		}).fail([=](const MTP::Error &error) {
 			consumer.put_error_copy(error.type());
+		}).send();
+#endif
+		_api.request(TLtoggleHasSponsoredMessagesEnabled(
+			tl_bool(v)
+		)).done([=] {
+			consumer.put_done();
+		}).fail([=](const Error &error) {
+			consumer.put_error_copy(error.message);
 		}).send();
 
 		return lifetime;
@@ -922,6 +1161,7 @@ rpl::producer<DocumentData*> RandomHelloStickerValue(
 	}) | rpl::take(1) | rpl::map(random));
 }
 
+#if 0 // mtp
 std::optional<StarGift> FromTL(
 		not_null<Main::Session*> session,
 		const MTPstarGift &gift) {
@@ -970,6 +1210,48 @@ std::optional<UserStarGift> FromTL(
 		.date = data.vdate().v,
 		.anonymous = data.is_name_hidden(),
 		.hidden = data.is_unsaved(),
+		.mine = to->isSelf(),
+	};
+}
+#endif
+
+std::optional<StarGift> FromTL(
+		not_null<Main::Session*> session,
+		const TLgift &gift) {
+	const auto &data = gift.data();
+	const auto document = session->data().processDocument(
+		data.vsticker());
+	if (!document->sticker()) {
+		return {};
+	}
+	return StarGift{
+		.id = uint64(data.vid().v),
+		.stars = int64(data.vstar_count().v),
+		.convertStars = int64(data.vdefault_sell_star_count().v),
+		.document = document,
+		.limitedLeft = data.vremaining_count().v,
+		.limitedCount = data.vtotal_count().v,
+	};
+}
+
+std::optional<UserStarGift> FromTL(
+		not_null<UserData*> to,
+		const TLuserGift &gift) {
+	const auto session = &to->session();
+	const auto &data = gift.data();
+	auto parsed = FromTL(session, data.vgift());
+	if (!parsed) {
+		return {};
+	}
+	return UserStarGift{
+		.gift = std::move(*parsed),
+		.message = Api::FormattedTextFromTdb(data.vtext()),
+		.convertStars = data.vsell_star_count().v,
+		.fromId = peerFromUser(data.vsender_user_id()),
+		.messageId = data.vmessage_id().v,
+		.date = data.vdate().v,
+		.anonymous = data.vis_private().v,
+		.hidden = !data.vis_saved().v,
 		.mine = to->isSelf(),
 	};
 }

@@ -169,7 +169,9 @@ using namespace Tdb;
 				tl_bool(true), // from_background.
 				tl_bool(false), // update_order_of_installed_stickers_sets
 				Api::ScheduledToTL(action.options.scheduled),
-				tl_int32(0));
+				tl_int64(options.effectId),
+				tl_int32(0), // sending_id
+				tl_bool(false)); // only_preview
 			sender.request(TLsendMessage(
 				peerToTdbChat(threadPeer->id),
 				tl_int53(action.replyTo.topicRootId.bare),

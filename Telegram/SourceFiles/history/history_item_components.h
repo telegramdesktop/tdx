@@ -15,6 +15,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "ui/chat/message_bubble.h"
 
+namespace Tdb {
+class TLmessageReplyTo;
+} // namespace Tdb
+
 struct WebPageData;
 class VoiceSeekClickHandler;
 class ReplyKeyboard;
@@ -281,6 +285,10 @@ struct ReplyFields {
 	not_null<History*> history,
 	const MTPInputReplyTo &reply);
 #endif
+
+[[nodiscard]] ReplyFields ReplyFieldsFromTL(
+	not_null<HistoryItem*> item,
+	const Tdb::TLmessageReplyTo &reply);
 
 struct HistoryMessageReply
 	: public RuntimeComponent<HistoryMessageReply, HistoryItem> {

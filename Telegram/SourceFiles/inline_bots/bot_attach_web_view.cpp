@@ -990,7 +990,7 @@ void WebViewInstance::requestButton() {
 			: _button.startCommand),
 		Window::Theme::WebViewTheme(),
 		tl_string("tdesktop"),
-		tl_int53(action.replyTo.topicRootId.bare),
+		MessageThreadId(action.history->peer, action),
 		MessageReplyTo(action)
 	)).done([=](const TLwebAppInfo &result) {
 		const auto &data = result.data();

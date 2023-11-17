@@ -933,8 +933,10 @@ public:
 	[[nodiscard]] auto peerDecorationsUpdated() const
 		-> rpl::producer<not_null<PeerData*>>;
 
+#if 0 // mtp
 	void applyStatsDcId(not_null<PeerData*>, MTP::DcId);
 	[[nodiscard]] MTP::DcId statsDcId(not_null<PeerData*>);
+#endif
 
 	void viewTagsChanged(
 		not_null<ViewElement*> view,
@@ -948,6 +950,7 @@ public:
 	void applyChatPermissions(const Tdb::TLDupdateChatPermissions &data);
 	void applyChatTitle(const Tdb::TLDupdateChatTitle &data);
 	void applyChatPhoto(const Tdb::TLDupdateChatPhoto &data);
+	void applyChatAccentColors(const Tdb::TLDupdateChatAccentColors &data);
 
 private:
 	using Messages = std::unordered_map<MsgId, not_null<HistoryItem*>>;
@@ -1269,7 +1272,9 @@ private:
 	base::flat_map<not_null<UserData*>, TimeId> _watchingForOffline;
 	base::Timer _watchForOfflineTimer;
 
+#if 0 // mtp
 	base::flat_map<not_null<PeerData*>, MTP::DcId> _peerStatsDcIds;
+#endif
 
 	rpl::event_stream<WebViewResultSent> _webViewResultSent;
 

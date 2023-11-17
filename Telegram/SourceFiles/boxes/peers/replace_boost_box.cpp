@@ -36,7 +36,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_premium.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kWaitingOpacity = 0.5;
 
@@ -382,18 +386,30 @@ object_ptr<Ui::BoxContent> ReassignBoostSingleBox(
 
 } // namespace
 
+#if 0 // mtp
 ForChannelBoostSlots ParseForChannelBoostSlots(
 		not_null<ChannelData*> channel,
 		const QVector<MTPMyBoost> &boosts) {
+#endif
+ForChannelBoostSlots ParseForChannelBoostSlots(
+		not_null<ChannelData*> channel,
+		const TLchatBoostSlots &slots) {
+	const auto &boosts = slots.data().vslots().v;
 	auto result = ForChannelBoostSlots();
 	const auto now = base::unixtime::now();
 	for (const auto &my : boosts) {
 		const auto &data = my.data();
+#if 0 // mtp
 		const auto id = data.vslot().v;
 		const auto cooldown = data.vcooldown_until_date().value_or(0);
 		const auto peerId = data.vpeer()
 			? peerFromMTP(*data.vpeer())
 			: PeerId();
+#endif
+		const auto id = data.vslot_id().v;
+		const auto cooldown = data.vcooldown_until_date().v;
+		const auto peerId = peerFromTdbChat(
+			data.vcurrently_boosted_chat_id());
 		if (!peerId && cooldown <= now) {
 			result.free.push_back(id);
 		} else if (peerId == channel->id) {
@@ -401,7 +417,10 @@ ForChannelBoostSlots ParseForChannelBoostSlots(
 		} else {
 			result.other.push_back({
 				.id = id,
+#if 0 // mtp
 				.expires = data.vexpires().v,
+#endif
+				.expires = data.vexpiration_date().v,
 				.peerId = peerId,
 				.cooldown = cooldown,
 			});
@@ -410,6 +429,7 @@ ForChannelBoostSlots ParseForChannelBoostSlots(
 	return result;
 }
 
+#if 0 // mtp
 Ui::BoostCounters ParseBoostCounters(
 		const MTPpremium_BoostsStatus &status) {
 	const auto &data = status.data();
@@ -420,6 +440,18 @@ Ui::BoostCounters ParseBoostCounters(
 		.thisLevelBoosts = data.vcurrent_level_boosts().v,
 		.nextLevelBoosts = data.vnext_level_boosts().value_or_empty(),
 		.mine = slots ? int(slots->v.size()) : 0,
+	};
+}
+#endif
+
+Ui::BoostCounters ParseBoostCounters(const TLchatBoostStatus &status) {
+	const auto &data = status.data();
+	return {
+		.level = data.vlevel().v,
+		.boosts = data.vboost_count().v,
+		.thisLevelBoosts = data.vcurrent_level_boost_count().v,
+		.nextLevelBoosts = data.vnext_level_boost_count().v,
+		.mine = int(data.vapplied_slot_ids().v.size()),
 	};
 }
 

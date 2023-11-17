@@ -282,6 +282,8 @@ rpl::producer<QString> PreviewWrap::showLinkSelector(
 	}, HighlightParsedLinks({
 		message.text,
 		TextUtilities::ConvertTextTagsToEntities(message.tags),
+	}, links));
+#if 0 // mtp
 	}, links), MTP_messageMediaWebPage(
 		MTP_flags(Flag()
 			| (webpage.forceLargeMedia
@@ -297,6 +299,17 @@ rpl::producer<QString> PreviewWrap::showLinkSelector(
 			MTP_long(webpage.id),
 			MTP_string(webpage.url),
 			MTP_int(0))));
+#endif
+	_draftItem->setMediaExplicit(std::make_unique<Data::MediaWebPage>(
+		_draftItem,
+		_history->owner().webpage(webpage.id),
+		(MediaWebPageFlag::Manual
+			| (webpage.forceLargeMedia
+				? MediaWebPageFlag::ForceLargeMedia
+				: MediaWebPageFlag())
+			| (webpage.forceSmallMedia
+				? MediaWebPageFlag::ForceSmallMedia
+				: MediaWebPageFlag()))));
 	_element = _draftItem->createView(_delegate.get());
 	_selectType = TextSelectType::Letters;
 	_symbol = _selectionStartSymbol = 0;

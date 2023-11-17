@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tdb/tdb_file_generator.h"
 #include "tdb/tdb_tl_scheme.h"
 #include "inline_bots/inline_bot_result.h"
+#include "data/data_forum_topic.h"
 
 namespace Api {
 namespace {
@@ -505,7 +506,7 @@ void SendPreparedAlbumIfReady(
 	const auto session = &peer->session();
 	session->sender().request(TLsendMessageAlbum(
 		peerToTdbChat(peer->id),
-		tl_int53(action.replyTo.topicRootId.bare),
+		MessageThreadId(peer, action),
 		MessageReplyTo(action),
 		tl_messageSendOptions(
 			tl_bool(silentPost),
@@ -678,7 +679,7 @@ bool SendDice(MessageToSend &message) {
 
 	session->sender().request(TLsendMessage(
 		peerToTdbChat(peer->id),
-		tl_int53(action.replyTo.topicRootId.bare),
+		MessageThreadId(peer, action),
 		MessageReplyTo(action),
 		MessageSendOptions(peer, action),
 		tl_inputMessageDice(tl_string(emoji), tl_bool(action.clearDraft))
@@ -1100,7 +1101,7 @@ void SendPreparedMessage(
 	const auto sendingId = ClientMsgIndex(localId);
 	session->sender().request(TLsendMessage(
 		peerToTdbChat(peer->id),
-		tl_int53(topicRootId.bare),
+		MessageThreadId(peer, action),
 		MessageReplyTo(action),
 		MessageSendOptions(peer, action, sendingId),
 		std::move(content)

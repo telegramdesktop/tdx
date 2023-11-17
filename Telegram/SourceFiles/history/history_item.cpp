@@ -512,25 +512,29 @@ void HistoryItem::FillForwardedInfo(
 		const TLDmessageForwardInfo &data) {
 	config.originalDate = data.vdate().v;
 	config.forwardPsaType = data.vpublic_service_announcement_type().v;
-	data.vorigin().match([&](const TLDmessageForwardOriginUser &data) {
-		config.senderOriginal = peerFromUser(data.vsender_user_id());
-	}, [&](const TLDmessageForwardOriginChat &data) {
-		config.senderOriginal = peerFromTdbChat(data.vsender_chat_id());
-	}, [&](const TLDmessageForwardOriginHiddenUser &data) {
-		config.senderNameOriginal = data.vsender_name().v;
-	}, [&](const TLDmessageForwardOriginChannel &data) {
-		config.senderOriginal = peerFromTdbChat(data.vchat_id());
+	data.vorigin().match([&](const TLDmessageOriginUser &data) {
+		config.originalSenderId = peerFromUser(data.vsender_user_id());
+	}, [&](const TLDmessageOriginChat &data) {
+		config.originalSenderId = peerFromTdbChat(data.vsender_chat_id());
+	}, [&](const TLDmessageOriginHiddenUser &data) {
+		config.originalSenderName = data.vsender_name().v;
+	}, [&](const TLDmessageOriginChannel &data) {
+		config.originalSenderId = peerFromTdbChat(data.vchat_id());
 		config.originalId = data.vmessage_id().v;
-		config.authorOriginal = data.vauthor_signature().v;
-	}, [&](const TLDmessageForwardOriginMessageImport &data) {
-		config.senderNameOriginal = data.vsender_name().v;
-		config.imported = true;
+		config.originalPostAuthor = data.vauthor_signature().v;
 	});
 	if (const auto source = data.vsource()) {
 		const auto &data = source->data();
 		config.savedFromPeer = peerFromTdbChat(data.vchat_id());
 		config.savedFromMsgId = data.vmessage_id().v;
 	}
+}
+
+void HistoryItem::FillImportInfo(
+		CreateConfig &config,
+		const TLDmessageImportInfo &data) {
+	config.originalSenderName = data.vsender_name().v;
+	config.imported = true;
 }
 
 HistoryItem::HistoryItem(
@@ -549,22 +553,14 @@ HistoryItem::HistoryItem(
 	if (const auto forwarded = data.vforward_info()) {
 		FillForwardedInfo(config, forwarded->data());
 	}
-	if (const auto replyTo = data.vreply_to()) {
-		config.replyToTop = data.vmessage_thread_id().v;
-		config.replyIsTopicPost = data.vis_topic_message().v;
-		replyTo->match([&](const TLDmessageReplyToMessage &data) {
-			config.replyToPeer = peerFromTdbChat(data.vchat_id());
-			config.replyTo = data.vmessage_id().v;
-		}, [&](const TLDmessageReplyToStory &data) {
-			config.replyToPeer = peerFromTdbChat(
-				data.vstory_sender_chat_id());
-			config.replyToStory = data.vstory_id().v;
-		});
-	} else if (data.vis_topic_message().v) {
-		const auto threadId = data.vmessage_thread_id().v;
-		config.replyTo = config.replyToTop = threadId;
-		config.replyIsTopicPost = true;
+	if (const auto imported = data.vimport_info()) {
+		FillImportInfo(config, imported->data());
 	}
+	if (const auto replyTo = data.vreply_to()) {
+		config.reply = ReplyFieldsFromTL(this, *replyTo);
+	}
+	config.reply.topMessageId = data.vmessage_thread_id().v;
+	config.reply.topicPost = data.vis_topic_message().v;
 	config.viaBotId = data.vvia_bot_user_id().v;
 	const auto interaction = data.vinteraction_info();
 	if (interaction) {
@@ -582,7 +578,7 @@ HistoryItem::HistoryItem(
 	}
 	config.markup = HistoryMessageMarkupData(data.vreply_markup());
 	config.editDate = data.vedit_date().v;
-	config.author = data.vauthor_signature().v;
+	config.postAuthor = data.vauthor_signature().v;
 
 	createComponents(std::move(config));
 
@@ -4224,8 +4220,8 @@ void HistoryItem::createServiceFromTdb(const TLmessageContent &content) {
 	auto replyInPeerId = PeerId();
 	const auto reply = Get<HistoryMessageReply>();
 	if (reply) {
-		replyToMsgId = reply->replyToMsgId;
-		replyInPeerId = reply->replyToPeerId;
+		replyToMsgId = reply->messageId();
+		replyInPeerId = reply->externalPeerId();
 		reply->clearData(this);
 	}
 	RemoveComponents(
@@ -5338,6 +5334,11 @@ void HistoryItem::setMedia(const TLmessageContent &content) {
 	if (!_media || !_media->updateContent(content)) {
 		_media = CreateMedia(this, content);
 	}
+	checkBuyButton();
+}
+
+void HistoryItem::setMediaExplicit(std::unique_ptr<Data::Media> media) {
+	_media = std::move(media);
 	checkBuyButton();
 }
 

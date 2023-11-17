@@ -221,9 +221,13 @@ LevelLimits::LevelLimits(not_null<Main::Session*> session)
 }
 
 int LevelLimits::channelColorLevelMin() const {
+	const auto options = &_session->account().options();
+	return options->channelCustomAccentColorBoostLevelMin();
+#if 0 // mtp
 	return _session->appConfig().get<int>(
 		u"channel_color_level_min"_q,
 		5);
+#endif
 }
 
 int LevelLimits::channelBgIconLevelMin() const {

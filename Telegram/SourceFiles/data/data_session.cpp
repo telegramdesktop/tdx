@@ -1216,14 +1216,7 @@ not_null<UserData*> Session::processUser(const TLuser &user) {
 	if (result->updateLastseen(lastseen)) {
 		updateFlags |= UpdateFlag::OnlineStatus;
 	}
-	if (const auto &status = data.vemoji_status()) {
-		const auto &data = status->data();
-		result->setEmojiStatus(
-			data.vcustom_emoji_id().v,
-			data.vexpiration_date().v);
-	} else {
-		result->setEmojiStatus(0);
-	}
+	result->setEmojiStatus(data.vemoji_status());
 	auto decorationsUpdated = false;
 	if (result->changeColorIndex(data.vaccent_color_id().v)) {
 		updateFlags |= UpdateFlag::Color;
@@ -1236,14 +1229,6 @@ not_null<UserData*> Session::processUser(const TLuser &user) {
 	}
 	if (decorationsUpdated && result->isMinimalLoaded()) {
 		_peerDecorationsUpdated.fire_copy(result);
-	}
-	if (const auto &status = data.vemoji_status()) {
-		const auto &data = status->data();
-		result->setEmojiStatus(
-			data.vcustom_emoji_id().v,
-			data.vexpiration_date().v);
-	} else {
-		result->setEmojiStatus(0);
 	}
 
 	if (updateFlags) {
@@ -1285,6 +1270,7 @@ not_null<PeerData*> Session::processPeer(const TLchat &dialog) {
 		data.vlast_read_outbox_message_id().v);
 	history->unreadMentions().setCount(data.vunread_mention_count().v);
 	history->unreadReactions().setCount(data.vunread_reaction_count().v);
+	history->peer->setEmojiStatus(data.vemoji_status());
 	history->setUnreadMark(data.vis_marked_as_unread().v);
 	history->owner().notifySettings().apply(
 		history->peer,
@@ -1387,6 +1373,20 @@ not_null<PeerData*> Session::processPeer(const TLchat &dialog) {
 
 	if (const auto sender = data.vmessage_sender_id()) {
 		session().sendAsPeers().setChosen(result, peerFromSender(*sender));
+	}
+
+	auto decorationsUpdated = false;
+	if (result->changeColorIndex(data.vaccent_color_id().v)) {
+		updates |= UpdateFlag::Color;
+		decorationsUpdated = true;
+	}
+	if (result->changeBackgroundEmojiId(
+		data.vbackground_custom_emoji_id().v)) {
+		updates |= UpdateFlag::BackgroundEmoji;
+		decorationsUpdated = true;
+	}
+	if (decorationsUpdated && result->isMinimalLoaded()) {
+		_peerDecorationsUpdated.fire_copy(result);
 	}
 
 	if (!result->isFullLoaded()) {
@@ -2814,6 +2814,23 @@ void Session::applyChatPhoto(const TLDupdateChatPhoto &data) {
 			}
 		} else {
 			// Process in updateUser.
+		}
+	}
+}
+
+void Session::applyChatAccentColors(const TLDupdateChatAccentColors &data) {
+	if (const auto peer = peerLoaded(peerFromTdbChat(data.vchat_id()))) {
+		auto flags = PeerUpdate::Flags();
+		if (peer->changeColorIndex(data.vaccent_color_id().v)) {
+			flags |= PeerUpdate::Flag::Color;
+		}
+		const auto id = data.vbackground_custom_emoji_id().v;
+		if (peer->changeBackgroundEmojiId(id)) {
+			flags |= PeerUpdate::Flag::BackgroundEmoji;
+		}
+		if (flags) {
+			peer->session().changes().peerUpdated(peer, flags);
+			_peerDecorationsUpdated.fire_copy(peer);
 		}
 	}
 }
@@ -5627,6 +5644,7 @@ uint64 Session::wallpapersHash() const {
 	return _wallpapersHash;
 }
 
+#if 0 // mtp
 MTP::DcId Session::statsDcId(not_null<PeerData*> peer) {
 	const auto it = _peerStatsDcIds.find(peer);
 	return (it == end(_peerStatsDcIds)) ? MTP::DcId(0) : it->second;
@@ -5639,6 +5657,7 @@ void Session::applyStatsDcId(
 		_peerStatsDcIds[peer] = dcId;
 	}
 }
+#endif
 
 void Session::saveViewAsMessages(
 		not_null<Forum*> forum,

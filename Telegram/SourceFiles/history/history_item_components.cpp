@@ -55,9 +55,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 #include "styles/style_widgets.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 #include <QtGui/QGuiApplication>
 
 namespace {
+
+using namespace Tdb;
 
 const auto kPsaForwardedPrefix = "cloud_lng_forwarded_psa_";
 
@@ -405,6 +409,45 @@ FullReplyTo ReplyToFromMTP(
 	});
 }
 #endif
+
+ReplyFields ReplyFieldsFromTL(
+		not_null<HistoryItem*> item,
+		const Tdb::TLmessageReplyTo &reply) {
+	return reply.match([&](const TLDmessageReplyToMessage &data) {
+		auto result = ReplyFields();
+		result.messageId = data.vmessage_id().v;
+		const auto externalPeerId = peerFromTdbChat(data.vchat_id());
+		if (externalPeerId != item->history()->peer->id) {
+			result.externalPeerId = externalPeerId;
+		}
+		if (const auto content = data.vcontent()) {
+			result.externalMedia = HistoryItem::CreateMedia(item, *content);
+		}
+		if (const auto quote = data.vquote()) {
+			result.quote = Api::FormattedTextFromTdb(quote->data().vtext());
+			result.quoteOffset = quote->data().vposition().v;
+			result.manualQuote = quote->data().vis_manual().v;
+		}
+		if (const auto origin = data.vorigin()) {
+			origin->match([&](const TLDmessageOriginUser &data) {
+				result.externalSenderId = peerFromUser(data.vsender_user_id());
+			}, [&](const TLDmessageOriginChat &data) {
+				result.externalSenderId = peerFromTdbChat(data.vsender_chat_id());
+			}, [&](const TLDmessageOriginHiddenUser &data) {
+				result.externalSenderName = data.vsender_name().v;
+			}, [&](const TLDmessageOriginChannel &data) {
+				result.externalSenderId = peerFromTdbChat(data.vchat_id());
+				result.externalPostAuthor = data.vauthor_signature().v;
+			});
+		}
+		return result;
+	}, [&](const TLDmessageReplyToStory &data) {
+		return ReplyFields{
+			.externalPeerId = peerFromTdbChat(data.vstory_sender_chat_id()),
+			.storyId = data.vstory_id().v,
+		};
+	});
+}
 
 HistoryMessageReply::HistoryMessageReply() = default;
 

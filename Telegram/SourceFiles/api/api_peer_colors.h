@@ -8,7 +8,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/timer.h"
+#if 0 // mtp
 #include "mtproto/sender.h"
+#endif
+
+namespace Tdb {
+class TLDupdateAccentColors;
+} // namespace Tdb
 
 class ApiWrap;
 
@@ -41,7 +47,10 @@ public:
 		PeerId channel,
 		uint8 index) const;
 
+	void apply(const Tdb::TLDupdateAccentColors &update);
+
 private:
+#if 0 // mtp
 	void request();
 	void apply(const MTPDhelp_peerColors &data);
 
@@ -50,6 +59,7 @@ private:
 
 	mtpRequestId _requestId = 0;
 	base::Timer _timer;
+#endif
 	rpl::variable<std::vector<uint8>> _suggested;
 	base::flat_map<uint8, int> _requiredLevelsGroup;
 	base::flat_map<uint8, int> _requiredLevelsChannel;
