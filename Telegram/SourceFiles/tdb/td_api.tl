@@ -288,13 +288,13 @@ thumbnailFormatMpeg4 = ThumbnailFormat;
 //@description The thumbnail is in PNG format. It will be used only for background patterns
 thumbnailFormatPng = ThumbnailFormat;
 
-//@description The thumbnail is in TGS format. It will be used only for TGS sticker sets
+//@description The thumbnail is in TGS format. It will be used only for sticker sets
 thumbnailFormatTgs = ThumbnailFormat;
 
-//@description The thumbnail is in WEBM format. It will be used only for WEBM sticker sets
+//@description The thumbnail is in WEBM format. It will be used only for sticker sets
 thumbnailFormatWebm = ThumbnailFormat;
 
-//@description The thumbnail is in WEBP format. It will be used only for some stickers
+//@description The thumbnail is in WEBP format. It will be used only for some stickers and sticker sets
 thumbnailFormatWebp = ThumbnailFormat;
 
 
@@ -482,7 +482,7 @@ videoNote duration:int32 waveform:bytes length:int32 minithumbnail:minithumbnail
 voiceNote duration:int32 waveform:bytes mime_type:string speech_recognition_result:SpeechRecognitionResult voice:file = VoiceNote;
 
 //@description Describes an animated or custom representation of an emoji
-//@sticker Sticker for the emoji; may be null if yet unknown for a custom emoji. If the sticker is a custom emoji, it can have arbitrary format different from stickerFormatTgs
+//@sticker Sticker for the emoji; may be null if yet unknown for a custom emoji. If the sticker is a custom emoji, then it can have arbitrary format
 //@sticker_width Expected width of the sticker, which can be used if the sticker is null
 //@sticker_height Expected height of the sticker, which can be used if the sticker is null
 //@fitzpatrick_type Emoji modifier fitzpatrick type; 0-6; 0 if none
@@ -549,7 +549,7 @@ poll id:int64 question:string options:vector<pollOption> total_voter_count:int32
 //@is_default True, if this is one of default backgrounds
 //@is_dark True, if the background is dark and is recommended to be used with dark theme
 //@name Unique background name
-//@document Document with the background; may be null. Null only for filled backgrounds
+//@document Document with the background; may be null. Null only for filled and chat theme backgrounds
 //@type Type of the background
 background id:int64 is_default:Bool is_dark:Bool name:string document:document type:BackgroundType = Background;
 
@@ -559,7 +559,7 @@ backgrounds backgrounds:vector<background> = Backgrounds;
 
 //@description Describes a background set for a specific chat
 //@background The background
-//@dark_theme_dimming Dimming of the background in dark themes, as a percentage; 0-100
+//@dark_theme_dimming Dimming of the background in dark themes, as a percentage; 0-100. Applied only to Wallpaper and Fill types of background
 chatBackground background:background dark_theme_dimming:int32 = ChatBackground;
 
 
@@ -597,8 +597,9 @@ userTypeDeleted = UserType;
 //@is_inline True, if the bot supports inline queries
 //@inline_query_placeholder Placeholder for inline queries (displayed on the application input field)
 //@need_location True, if the location of the user is expected to be sent with every inline query to this bot
+//@can_connect_to_business True, if the bot supports connection to Telegram Business accounts
 //@can_be_added_to_attachment_menu True, if the bot can be added to attachment or side menu
-userTypeBot can_be_edited:Bool can_join_groups:Bool can_read_all_group_messages:Bool is_inline:Bool inline_query_placeholder:string need_location:Bool can_be_added_to_attachment_menu:Bool = UserType;
+userTypeBot can_be_edited:Bool can_join_groups:Bool can_read_all_group_messages:Bool is_inline:Bool inline_query_placeholder:string need_location:Bool can_connect_to_business:Bool can_be_added_to_attachment_menu:Bool = UserType;
 
 //@description No information on the user besides the user identifier is available, yet this user has not been deleted. This object is extremely rare and must be handled like a deleted user. It is not possible to perform any actions on users of this type
 userTypeUnknown = UserType;
@@ -624,6 +625,98 @@ botMenuButton text:string url:string = BotMenuButton;
 //@location The location
 //@address Location address; 1-64 characters, as defined by the chat owner
 chatLocation location:location address:string = ChatLocation;
+
+
+//@description Represents a birthdate of a user
+//@day Day of the month; 1-31
+//@month Month of the year; 1-12
+//@year Birth year; 0 if unknown
+birthdate day:int32 month:int32 year:int32 = Birthdate;
+
+//@description Describes a user that had or will have a birthday soon
+//@user_id User identifier
+//@birthdate Birthdate of the user
+closeBirthdayUser user_id:int53 birthdate:birthdate = CloseBirthdayUser;
+
+
+//@class BusinessAwayMessageSchedule
+//@description Describes conditions for sending of away messages by a Telegram Business account
+
+//@description Send away messages always
+businessAwayMessageScheduleAlways = BusinessAwayMessageSchedule;
+
+//@description Send away messages outside of the business opening hours
+businessAwayMessageScheduleOutsideOfOpeningHours = BusinessAwayMessageSchedule;
+
+//@description Send away messages only in the specified time span
+//@start_date Point in time (Unix timestamp) when the away messages will start to be sent
+//@end_date Point in time (Unix timestamp) when the away messages will stop to be sent
+businessAwayMessageScheduleCustom start_date:int32 end_date:int32 = BusinessAwayMessageSchedule;
+
+
+//@description Represents a location of a business
+//@location The location; may be null if not specified
+//@address Location address; 1-96 characters
+businessLocation location:location address:string = BusinessLocation;
+
+//@description Describes private chats chosen for automatic interaction with a business
+//@chat_ids Identifiers of selected private chats
+//@excluded_chat_ids Identifiers of private chats that are always excluded; for businessConnectedBot only
+//@select_existing_chats True, if all existing private chats are selected
+//@select_new_chats True, if all new private chats are selected
+//@select_contacts True, if all private chats with contacts are selected
+//@select_non_contacts True, if all private chats with non-contacts are selected
+//@exclude_selected If true, then all private chats except the selected are chosen. Otherwise, only the selected chats are chosen
+businessRecipients chat_ids:vector<int53> excluded_chat_ids:vector<int53> select_existing_chats:Bool select_new_chats:Bool select_contacts:Bool select_non_contacts:Bool exclude_selected:Bool = BusinessRecipients;
+
+//@description Describes settings for messages that are automatically sent by a Telegram Business account when it is away
+//@shortcut_id Unique quick reply shortcut identifier for the away messages
+//@recipients Chosen recipients of the away messages
+//@schedule Settings used to check whether the current user is away
+//@offline_only True, if the messages must not be sent if the account was online in the last 10 minutes
+businessAwayMessageSettings shortcut_id:int32 recipients:businessRecipients schedule:BusinessAwayMessageSchedule offline_only:Bool = BusinessAwayMessageSettings;
+
+//@description Describes settings for greeting messages that are automatically sent by a Telegram Business account as response to incoming messages in an inactive private chat
+//@shortcut_id Unique quick reply shortcut identifier for the greeting messages
+//@recipients Chosen recipients of the greeting messages
+//@inactivity_days The number of days after which a chat will be considered as inactive; currently, must be on of 7, 14, 21, or 28
+businessGreetingMessageSettings shortcut_id:int32 recipients:businessRecipients inactivity_days:int32 = BusinessGreetingMessageSettings;
+
+//@description Describes a bot connected to a business account
+//@bot_user_id User identifier of the bot
+//@recipients Private chats that will be accessible to the bot
+//@can_reply True, if the bot can send messages to the private chats; false otherwise
+businessConnectedBot bot_user_id:int53 recipients:businessRecipients can_reply:Bool = BusinessConnectedBot;
+
+//@description Describes settings for a business account intro
+//@title Title text of the intro
+//@message Message text of the intro
+//@sticker Greeting sticker of the intro; may be null if none
+businessIntro title:string message:string sticker:sticker = BusinessIntro;
+
+//@description Describes settings for a business account intro to set
+//@title Title text of the intro; 0-getOption("business_intro_title_length_max") characters
+//@message Message text of the intro; 0-getOption("business_intro_message_length_max") characters
+//@sticker Greeting sticker of the intro; pass null if none. The sticker must belong to a sticker set and must not be a custom emoji
+inputBusinessIntro title:string message:string sticker:InputFile = InputBusinessIntro;
+
+//@description Describes an interval of time when the business is open
+//@start_minute The first minute of the interval since start of the week; 0-7*24*60
+//@end_minute The first minute after the end of the interval since start of the week; 1-8*24*60
+businessOpeningHoursInterval start_minute:int32 end_minute:int32 = BusinessOpeningHoursInterval;
+
+//@description Describes opening hours of a business
+//@time_zone_id Unique time zone identifier
+//@opening_hours Intervals of the time when the business is open
+businessOpeningHours time_zone_id:string opening_hours:vector<businessOpeningHoursInterval> = BusinessOpeningHours;
+
+//@description Contains information about a Telegram Business account
+//@location Location of the business; may be null if none
+//@opening_hours Opening hours of the business; may be null if none. The hours are guaranteed to be valid and has already been split by week days
+//@greeting_message_settings The greeting message; may be null if none or the Business account is not of the current user
+//@away_message_settings The away message; may be null if none or the Business account is not of the current user
+//@intro Information about intro of the business; may be null if none
+businessInfo location:businessLocation opening_hours:businessOpeningHours greeting_message_settings:businessGreetingMessageSettings away_message_settings:businessAwayMessageSettings intro:businessIntro = BusinessInfo;
 
 
 //@class ChatPhotoStickerType
@@ -689,7 +782,7 @@ inputChatPhotoSticker sticker:chatPhotoSticker = InputChatPhoto;
 
 
 //@description Describes actions that a user is allowed to take in a chat
-//@can_send_basic_messages True, if the user can send text messages, contacts, giveaways, invoices, locations, and venues
+//@can_send_basic_messages True, if the user can send text messages, contacts, giveaways, giveaway winners, invoices, locations, and venues
 //@can_send_audios True, if the user can send music files
 //@can_send_documents True, if the user can send documents
 //@can_send_photos True, if the user can send photos
@@ -702,11 +795,11 @@ inputChatPhotoSticker sticker:chatPhotoSticker = InputChatPhoto;
 //@can_change_info True, if the user can change the chat title, photo, and other settings
 //@can_invite_users True, if the user can invite new users to the chat
 //@can_pin_messages True, if the user can pin messages
-//@can_manage_topics True, if the user can manage topics
-chatPermissions can_send_basic_messages:Bool can_send_audios:Bool can_send_documents:Bool can_send_photos:Bool can_send_videos:Bool can_send_video_notes:Bool can_send_voice_notes:Bool can_send_polls:Bool can_send_other_messages:Bool can_add_web_page_previews:Bool can_change_info:Bool can_invite_users:Bool can_pin_messages:Bool can_manage_topics:Bool = ChatPermissions;
+//@can_create_topics True, if the user can create topics
+chatPermissions can_send_basic_messages:Bool can_send_audios:Bool can_send_documents:Bool can_send_photos:Bool can_send_videos:Bool can_send_video_notes:Bool can_send_voice_notes:Bool can_send_polls:Bool can_send_other_messages:Bool can_add_web_page_previews:Bool can_change_info:Bool can_invite_users:Bool can_pin_messages:Bool can_create_topics:Bool = ChatPermissions;
 
 //@description Describes rights of the administrator
-//@can_manage_chat True, if the administrator can get chat event log, get chat boosts in channels, get channel members, report supergroup spam messages, see anonymous administrators in supergroups and ignore slow mode. Implied by any other privilege; applicable to supergroups and channels only
+//@can_manage_chat True, if the administrator can access the chat event log, get boost list, see hidden supergroup and channel members, report supergroup spam messages and ignore slow mode. Implied by any other privilege; applicable to supergroups and channels only
 //@can_change_info True, if the administrator can change the chat title, photo, and other settings
 //@can_post_messages True, if the administrator can create channel posts or view channel statistics; applicable to channels only
 //@can_edit_messages True, if the administrator can edit messages of other users and pin messages; applicable to channels only
@@ -714,12 +807,12 @@ chatPermissions can_send_basic_messages:Bool can_send_audios:Bool can_send_docum
 //@can_invite_users True, if the administrator can invite new users to the chat
 //@can_restrict_members True, if the administrator can restrict, ban, or unban chat members or view supergroup statistics; always true for channels
 //@can_pin_messages True, if the administrator can pin messages; applicable to basic groups and supergroups only
-//@can_manage_topics True, if the administrator can manage topics; applicable to forum supergroups only
+//@can_manage_topics True, if the administrator can create, rename, close, reopen, hide, and unhide forum topics; applicable to forum supergroups only
 //@can_promote_members True, if the administrator can add new administrators with a subset of their own privileges or demote administrators that were directly or indirectly promoted by them
 //@can_manage_video_chats True, if the administrator can manage video chats
-//@can_post_stories True, if the administrator can create new channel stories, or edit and delete posted stories; applicable to channels only
-//@can_edit_stories True, if the administrator can edit stories posted by other users, pin stories and access story archive; applicable to channels only
-//@can_delete_stories True, if the administrator can delete stories posted by other users; applicable to channels only
+//@can_post_stories True, if the administrator can create new chat stories, or edit and delete posted stories; applicable to supergroups and channels only
+//@can_edit_stories True, if the administrator can edit stories posted by other users, pin stories and access story archive; applicable to supergroups and channels only
+//@can_delete_stories True, if the administrator can delete stories posted by other users; applicable to supergroups and channels only
 //@is_anonymous True, if the administrator isn't shown in the chat member list and sends messages anonymously; applicable to supergroups only
 chatAdministratorRights can_manage_chat:Bool can_change_info:Bool can_post_messages:Bool can_edit_messages:Bool can_delete_messages:Bool can_invite_users:Bool can_restrict_members:Bool can_pin_messages:Bool can_manage_topics:Bool can_promote_members:Bool can_manage_video_chats:Bool can_post_stories:Bool can_edit_stories:Bool can_delete_stories:Bool is_anonymous:Bool = ChatAdministratorRights;
 
@@ -728,7 +821,7 @@ chatAdministratorRights can_manage_chat:Bool can_change_info:Bool can_post_messa
 //@currency ISO 4217 currency code for Telegram Premium subscription payment
 //@amount The amount to pay, in the smallest units of the currency
 //@discount_percentage The discount associated with this option, as a percentage
-//@month_count Number of month the Telegram Premium subscription will be active
+//@month_count Number of months the Telegram Premium subscription will be active
 //@store_product_id Identifier of the store product associated with the option
 //@payment_link An internal link to be opened for buying Telegram Premium to the user if store payment isn't possible; may be null if direct payment isn't available
 premiumPaymentOption currency:string amount:int53 discount_percentage:int32 month_count:int32 store_product_id:string payment_link:InternalLinkType = PremiumPaymentOption;
@@ -744,7 +837,7 @@ premiumStatePaymentOption payment_option:premiumPaymentOption is_current:Bool is
 //@currency ISO 4217 currency code for Telegram Premium gift code payment
 //@amount The amount to pay, in the smallest units of the currency
 //@user_count Number of users which will be able to activate the gift codes
-//@month_count Number of month the Telegram Premium subscription will be active
+//@month_count Number of months the Telegram Premium subscription will be active
 //@store_product_id Identifier of the store product associated with the option; may be empty if none
 //@store_product_quantity Number of times the store product must be paid
 premiumGiftCodePaymentOption currency:string amount:int53 user_count:int32 month_count:int32 store_product_id:string store_product_quantity:int32 = PremiumGiftCodePaymentOption;
@@ -754,11 +847,11 @@ premiumGiftCodePaymentOption currency:string amount:int53 user_count:int32 month
 premiumGiftCodePaymentOptions options:vector<premiumGiftCodePaymentOption> = PremiumGiftCodePaymentOptions;
 
 //@description Contains information about a Telegram Premium gift code
-//@creator_id Identifier of a chat or a user that created the gift code
+//@creator_id Identifier of a chat or a user that created the gift code; may be null if unknown. If null and the code is from messagePremiumGiftCode message, then creator_id from the message can be used
 //@creation_date Point in time (Unix timestamp) when the code was created
 //@is_from_giveaway True, if the gift code was created for a giveaway
 //@giveaway_message_id Identifier of the corresponding giveaway message in the creator_id chat; can be 0 or an identifier of a deleted message
-//@month_count Number of month the Telegram Premium subscription will be active after code activation
+//@month_count Number of months the Telegram Premium subscription will be active after code activation
 //@user_id Identifier of a user for which the code was created; 0 if none
 //@use_date Point in time (Unix timestamp) when the code was activated; 0 if none
 premiumGiftCodeInfo creator_id:MessageSender creation_date:int32 is_from_giveaway:Bool giveaway_message_id:int53 month_count:int32 user_id:int53 use_date:int32 = PremiumGiftCodeInfo;
@@ -810,14 +903,29 @@ premiumGiveawayInfoCompleted creation_date:int32 actual_winners_selection_date:i
 //@built_in_accent_color_id Identifier of a built-in color to use in places, where only one color is needed; 0-6
 //@light_theme_colors The list of 1-3 colors in RGB format, describing the accent color, as expected to be shown in light themes
 //@dark_theme_colors The list of 1-3 colors in RGB format, describing the accent color, as expected to be shown in dark themes
-accentColor id:int32 built_in_accent_color_id:int32 light_theme_colors:vector<int32> dark_theme_colors:vector<int32> = AccentColor;
+//@min_channel_chat_boost_level The minimum chat boost level required to use the color in a channel chat
+accentColor id:int32 built_in_accent_color_id:int32 light_theme_colors:vector<int32> dark_theme_colors:vector<int32> min_channel_chat_boost_level:int32 = AccentColor;
+
+//@description Contains information about supported accent colors for user profile photo background in RGB format
+//@palette_colors The list of 1-2 colors in RGB format, describing the colors, as expected to be shown in the color palette settings
+//@background_colors The list of 1-2 colors in RGB format, describing the colors, as expected to be used for the profile photo background
+//@story_colors The list of 2 colors in RGB format, describing the colors of the gradient to be used for the unread active story indicator around profile photo
+profileAccentColors palette_colors:vector<int32> background_colors:vector<int32> story_colors:vector<int32> = ProfileAccentColors;
+
+//@description Contains information about supported accent color for user profile photo background
+//@id Profile accent color identifier
+//@light_theme_colors Accent colors expected to be used in light themes
+//@dark_theme_colors Accent colors expected to be used in dark themes
+//@min_supergroup_chat_boost_level The minimum chat boost level required to use the color in a supergroup chat
+//@min_channel_chat_boost_level The minimum chat boost level required to use the color in a channel chat
+profileAccentColor id:int32 light_theme_colors:profileAccentColors dark_theme_colors:profileAccentColors min_supergroup_chat_boost_level:int32 min_channel_chat_boost_level:int32 = ProfileAccentColor;
 
 //@description Describes a custom emoji to be shown instead of the Telegram Premium badge
 //@custom_emoji_id Identifier of the custom emoji in stickerFormatTgs format
 //@expiration_date Point in time (Unix timestamp) when the status will expire; 0 if never
 emojiStatus custom_emoji_id:int64 expiration_date:int32 = EmojiStatus;
 
-//@description Contains a list of custom emoji identifiers, which can be set as emoji statuses
+//@description Contains a list of custom emoji identifiers for emoji statuses
 //@custom_emoji_ids The list of custom emoji identifiers
 emojiStatuses custom_emoji_ids:vector<int64> = EmojiStatuses;
 
@@ -825,7 +933,7 @@ emojiStatuses custom_emoji_ids:vector<int64> = EmojiStatuses;
 //@description Describes usernames assigned to a user, a supergroup, or a channel
 //@active_usernames List of active usernames; the first one must be shown as the primary username. The order of active usernames can be changed with reorderActiveUsernames, reorderBotActiveUsernames or reorderSupergroupActiveUsernames
 //@disabled_usernames List of currently disabled usernames; the username can be activated with toggleUsernameIsActive, toggleBotUsernameIsActive, or toggleSupergroupUsernameIsActive
-//@editable_username The active username, which can be changed with setUsername or setSupergroupUsername
+//@editable_username The active username, which can be changed with setUsername or setSupergroupUsername. Information about other active usernames can be received using getCollectibleItemInfo
 usernames active_usernames:vector<string> disabled_usernames:vector<string> editable_username:string = Usernames;
 
 
@@ -837,8 +945,10 @@ usernames active_usernames:vector<string> disabled_usernames:vector<string> edit
 //@phone_number Phone number of the user
 //@status Current online status of the user
 //@profile_photo Profile photo of the user; may be null
-//@accent_color_id Identifier of the accent color for name, and backgrounds of profile photo, reply header, and link preview
-//@background_custom_emoji_id Identifier of a custom emoji to be shown on the reply header background; 0 if none. For Telegram Premium users only
+//@accent_color_id Identifier of the accent color for name, and backgrounds of profile photo, reply header, and link preview. For Telegram Premium users only
+//@background_custom_emoji_id Identifier of a custom emoji to be shown on the reply header and link preview background; 0 if none. For Telegram Premium users only
+//@profile_accent_color_id Identifier of the accent color for the user's profile; -1 if none. For Telegram Premium users only
+//@profile_background_custom_emoji_id Identifier of a custom emoji to be shown on the background of the user's profile; 0 if none. For Telegram Premium users only
 //@emoji_status Emoji status to be shown instead of the default Telegram Premium badge; may be null. For Telegram Premium users only
 //@is_contact The user is a contact of the current user
 //@is_mutual_contact The user is a contact of the current user and the current user is a contact of the user
@@ -851,11 +961,12 @@ usernames active_usernames:vector<string> disabled_usernames:vector<string> edit
 //@is_fake True, if many users reported this user as a fake account
 //@has_active_stories True, if the user has non-expired stories available to the current user
 //@has_unread_active_stories True, if the user has unread non-expired stories available to the current user
+//@restricts_new_chats True, if the user may restrict new chats with non-contacts. Use canSendMessageToUser to check whether the current user can message the user or try to create a chat with them
 //@have_access If false, the user is inaccessible, and the only information known about the user is inside this class. Identifier of the user can't be passed to any method
 //@type Type of the user
 //@language_code IETF language tag of the user's language; only available to bots
 //@added_to_attachment_menu True, if the user added the current bot to attachment menu; only available to bots
-user id:int53 first_name:string last_name:string usernames:usernames phone_number:string status:UserStatus profile_photo:profilePhoto accent_color_id:int32 background_custom_emoji_id:int64 emoji_status:emojiStatus is_contact:Bool is_mutual_contact:Bool is_close_friend:Bool is_verified:Bool is_premium:Bool is_support:Bool restriction_reason:string is_scam:Bool is_fake:Bool has_active_stories:Bool has_unread_active_stories:Bool have_access:Bool type:UserType language_code:string added_to_attachment_menu:Bool = User;
+user id:int53 first_name:string last_name:string usernames:usernames phone_number:string status:UserStatus profile_photo:profilePhoto accent_color_id:int32 background_custom_emoji_id:int64 profile_accent_color_id:int32 profile_background_custom_emoji_id:int64 emoji_status:emojiStatus is_contact:Bool is_mutual_contact:Bool is_close_friend:Bool is_verified:Bool is_premium:Bool is_support:Bool restriction_reason:string is_scam:Bool is_fake:Bool has_active_stories:Bool has_unread_active_stories:Bool restricts_new_chats:Bool have_access:Bool type:UserType language_code:string added_to_attachment_menu:Bool = User;
 
 
 //@description Contains information about a bot
@@ -888,11 +999,15 @@ botInfo short_description:string description:string photo:photo animation:animat
 //@has_restricted_voice_and_video_note_messages True, if voice and video notes can't be sent or forwarded to the user
 //@has_pinned_stories True, if the user has pinned stories
 //@need_phone_number_privacy_exception True, if the current user needs to explicitly allow to share their phone number with the user when the method addContact is used
+//@set_chat_background True, if the user set chat background for both chat users and it wasn't reverted yet
 //@bio A short user bio; may be null for bots
+//@birthdate Birthdate of the user; may be null if unknown
+//@personal_chat_id Identifier of the personal chat of the user; 0 if none
 //@premium_gift_options The list of available options for gifting Telegram Premium to the user
 //@group_in_common_count Number of group chats where both the other user and the current user are a member; 0 for the current user
+//@business_info Information about business settings for Telegram Business accounts; may be null if none
 //@bot_info For bots, information about the bot; may be null if the user isn't a bot
-userFullInfo personal_photo:chatPhoto photo:chatPhoto public_photo:chatPhoto block_list:BlockList can_be_called:Bool supports_video_calls:Bool has_private_calls:Bool has_private_forwards:Bool has_restricted_voice_and_video_note_messages:Bool has_pinned_stories:Bool need_phone_number_privacy_exception:Bool bio:formattedText premium_gift_options:vector<premiumPaymentOption> group_in_common_count:int32 bot_info:botInfo = UserFullInfo;
+userFullInfo personal_photo:chatPhoto photo:chatPhoto public_photo:chatPhoto block_list:BlockList can_be_called:Bool supports_video_calls:Bool has_private_calls:Bool has_private_forwards:Bool has_restricted_voice_and_video_note_messages:Bool has_pinned_stories:Bool need_phone_number_privacy_exception:Bool set_chat_background:Bool bio:formattedText birthdate:birthdate personal_chat_id:int53 premium_gift_options:vector<premiumPaymentOption> group_in_common_count:int32 business_info:businessInfo bot_info:botInfo = UserFullInfo;
 
 //@description Represents a list of users
 //@total_count Approximate total number of users found
@@ -1135,8 +1250,11 @@ basicGroupFullInfo photo:chatPhoto description:string creator_user_id:int53 memb
 //@usernames Usernames of the supergroup or channel; may be null
 //@date Point in time (Unix timestamp) when the current user joined, or the point in time when the supergroup or channel was created, in case the user is not a member
 //@status Status of the current user in the supergroup or channel; custom title will always be empty
-//@member_count Number of members in the supergroup or channel; 0 if unknown. Currently, it is guaranteed to be known only if the supergroup or channel was received
-//-through searchPublicChats, searchChatsNearby, getInactiveSupergroupChats, getSuitableDiscussionChats, getGroupsInCommon, getUserPrivacySettingRules, or in chatFolderInviteLinkInfo.missing_chat_ids
+//@member_count Number of members in the supergroup or channel; 0 if unknown. Currently, it is guaranteed to be known only if the supergroup or channel was received through
+//-getChatSimilarChats, getChatsToSendStories, getCreatedPublicChats, getGroupsInCommon, getInactiveSupergroupChats, getSuitableDiscussionChats, getUserPrivacySettingRules, getVideoChatAvailableParticipants,
+//-searchChatsNearby, searchPublicChats, or in chatFolderInviteLinkInfo.missing_chat_ids, or for public chats in which where sent messages and posted stories from publicForwards,
+//-or for public chats in which where sent messages from getMessagePublicForwards response
+//@boost_level Approximate boost level for the chat
 //@has_linked_chat True, if the channel has a discussion group, or the supergroup is the designated discussion group for a channel
 //@has_location True, if the supergroup is connected to a location, i.e. the supergroup is a location-based supergroup
 //@sign_messages True, if messages sent to the channel need to contain information about the sender. This field is only applicable to channels
@@ -1145,14 +1263,14 @@ basicGroupFullInfo photo:chatPhoto description:string creator_user_id:int53 memb
 //@is_slow_mode_enabled True, if the slow mode is enabled in the supergroup
 //@is_channel True, if the supergroup is a channel
 //@is_broadcast_group True, if the supergroup is a broadcast group, i.e. only administrators can send messages and there is no limit on the number of members
-//@is_forum True, if the supergroup must be shown as a forum by default
+//@is_forum True, if the supergroup is a forum with topics
 //@is_verified True, if the supergroup or channel is verified
 //@restriction_reason If non-empty, contains a human-readable description of the reason why access to this supergroup or channel must be restricted
 //@is_scam True, if many users reported this supergroup or channel as a scam
 //@is_fake True, if many users reported this supergroup or channel as a fake account
-//@has_active_stories True, if the channel has non-expired stories available to the current user
-//@has_unread_active_stories True, if the channel has unread non-expired stories available to the current user
-supergroup id:int53 usernames:usernames date:int32 status:ChatMemberStatus member_count:int32 has_linked_chat:Bool has_location:Bool sign_messages:Bool join_to_send_messages:Bool join_by_request:Bool is_slow_mode_enabled:Bool is_channel:Bool is_broadcast_group:Bool is_forum:Bool is_verified:Bool restriction_reason:string is_scam:Bool is_fake:Bool has_active_stories:Bool has_unread_active_stories:Bool = Supergroup;
+//@has_active_stories True, if the supergroup or channel has non-expired stories available to the current user
+//@has_unread_active_stories True, if the supergroup or channel has unread non-expired stories available to the current user
+supergroup id:int53 usernames:usernames date:int32 status:ChatMemberStatus member_count:int32 boost_level:int32 has_linked_chat:Bool has_location:Bool sign_messages:Bool join_to_send_messages:Bool join_by_request:Bool is_slow_mode_enabled:Bool is_channel:Bool is_broadcast_group:Bool is_forum:Bool is_verified:Bool restriction_reason:string is_scam:Bool is_fake:Bool has_active_stories:Bool has_unread_active_stories:Bool = Supergroup;
 
 //@description Contains full information about a supergroup or channel
 //@photo Chat photo; may be null if empty or unknown. If non-null, then it is the same photo as in chat.photo
@@ -1174,14 +1292,17 @@ supergroup id:int53 usernames:usernames date:int32 status:ChatMemberStatus membe
 //@is_all_history_available True, if new chat members will have access to old messages. In public, discussion, of forum groups and all channels, old messages are always available,
 //-so this option affects only private non-forum supergroups without a linked chat. The value of this field is only available to chat administrators
 //@has_aggressive_anti_spam_enabled True, if aggressive anti-spam checks are enabled in the supergroup. The value of this field is only available to chat administrators
-//@has_pinned_stories True, if the channel has pinned stories
-//@sticker_set_id Identifier of the supergroup sticker set; 0 if none
+//@has_pinned_stories True, if the supergroup or channel has pinned stories
+//@my_boost_count Number of times the current user boosted the supergroup or channel
+//@unrestrict_boost_count Number of times the supergroup must be boosted by a user to ignore slow mode and chat permission restrictions; 0 if unspecified
+//@sticker_set_id Identifier of the supergroup sticker set that must be shown before user sticker sets; 0 if none
+//@custom_emoji_sticker_set_id Identifier of the custom emoji sticker set that can be used in the supergroup without Telegram Premium subscription; 0 if none
 //@location Location to which the supergroup is connected; may be null if none
 //@invite_link Primary invite link for the chat; may be null. For chat administrators with can_invite_users right only
 //@bot_commands List of commands of bots in the group
 //@upgraded_from_basic_group_id Identifier of the basic group from which supergroup was upgraded; 0 if none
 //@upgraded_from_max_message_id Identifier of the last message in the basic group from which supergroup was upgraded; 0 if none
-supergroupFullInfo photo:chatPhoto description:string member_count:int32 administrator_count:int32 restricted_count:int32 banned_count:int32 linked_chat_id:int53 slow_mode_delay:int32 slow_mode_delay_expires_in:double can_get_members:Bool has_hidden_members:Bool can_hide_members:Bool can_set_sticker_set:Bool can_set_location:Bool can_get_statistics:Bool can_toggle_aggressive_anti_spam:Bool is_all_history_available:Bool has_aggressive_anti_spam_enabled:Bool has_pinned_stories:Bool sticker_set_id:int64 location:chatLocation invite_link:chatInviteLink bot_commands:vector<botCommands> upgraded_from_basic_group_id:int53 upgraded_from_max_message_id:int53 = SupergroupFullInfo;
+supergroupFullInfo photo:chatPhoto description:string member_count:int32 administrator_count:int32 restricted_count:int32 banned_count:int32 linked_chat_id:int53 slow_mode_delay:int32 slow_mode_delay_expires_in:double can_get_members:Bool has_hidden_members:Bool can_hide_members:Bool can_set_sticker_set:Bool can_set_location:Bool can_get_statistics:Bool can_toggle_aggressive_anti_spam:Bool is_all_history_available:Bool has_aggressive_anti_spam_enabled:Bool has_pinned_stories:Bool my_boost_count:int32 unrestrict_boost_count:int32 sticker_set_id:int64 custom_emoji_sticker_set_id:int64 location:chatLocation invite_link:chatInviteLink bot_commands:vector<botCommands> upgraded_from_basic_group_id:int53 upgraded_from_max_message_id:int53 = SupergroupFullInfo;
 
 
 //@class SecretChatState
@@ -1237,6 +1358,26 @@ chatMessageSender sender:MessageSender needs_premium:Bool = ChatMessageSender;
 chatMessageSenders senders:vector<chatMessageSender> = ChatMessageSenders;
 
 
+//@class MessageReadDate
+//@description Describes read date of a recent outgoing message in a private chat
+
+//@description Contains read date of the message
+//@read_date Point in time (Unix timestamp) when the message was read by the other user
+messageReadDateRead read_date:int32 = MessageReadDate;
+
+//@description The message is unread yet
+messageReadDateUnread = MessageReadDate;
+
+//@description The message is too old to get read date
+messageReadDateTooOld = MessageReadDate;
+
+//@description The read date is unknown due to privacy settings of the other user
+messageReadDateUserPrivacyRestricted = MessageReadDate;
+
+//@description The read date is unknown due to privacy settings of the current user, but will be known if the user subscribes to Telegram Premium
+messageReadDateMyPrivacyRestricted = MessageReadDate;
+
+
 //@description Represents a viewer of a message
 //@user_id User identifier of the viewer
 //@view_date Approximate point in time (Unix timestamp) when the message was viewed
@@ -1270,6 +1411,16 @@ messageOriginChat sender_chat_id:int53 author_signature:string = MessageOrigin;
 messageOriginChannel chat_id:int53 message_id:int53 author_signature:string = MessageOrigin;
 
 
+//@description Contains information about the last message from which a new message was forwarded last time
+//@chat_id Identifier of the chat to which the message that was forwarded belonged; may be 0 if unknown
+//@message_id Identifier of the message; may be 0 if unknown
+//@sender_id Identifier of the sender of the message; may be null if unknown or the new message was forwarded not to Saved Messages
+//@sender_name Name of the sender of the message if the sender is hidden by their privacy settings
+//@date Point in time (Unix timestamp) when the message is sent; 0 if unknown
+//@is_outgoing True, if the message that was forwarded is outgoing; always false if sender is unknown
+forwardSource chat_id:int53 message_id:int53 sender_id:MessageSender sender_name:string date:int32 is_outgoing:Bool = ForwardSource;
+
+
 //@class ReactionType
 //@description Describes type of message reaction
 
@@ -1285,10 +1436,9 @@ reactionTypeCustomEmoji custom_emoji_id:int64 = ReactionType;
 //@description Contains information about a forwarded message
 //@origin Origin of the forwarded message
 //@date Point in time (Unix timestamp) when the message was originally sent
+//@source For messages forwarded to the chat with the current user (Saved Messages), to the Replies bot chat, or to the channel's discussion group, information about the source message from which the message was forwarded last time; may be null for other forwards or if unknown
 //@public_service_announcement_type The type of a public service announcement for the forwarded message
-//@from_chat_id For messages forwarded to the chat with the current user (Saved Messages), to the Replies bot chat, or to the channel's discussion group, the identifier of the chat from which the message was forwarded last time; 0 if unknown
-//@from_message_id For messages forwarded to the chat with the current user (Saved Messages), to the Replies bot chat, or to the channel's discussion group, the identifier of the original message from which the new message was forwarded last time; 0 if unknown
-messageForwardInfo origin:MessageOrigin date:int32 public_service_announcement_type:string from_chat_id:int53 from_message_id:int53 = MessageForwardInfo;
+messageForwardInfo origin:MessageOrigin date:int32 source:forwardSource public_service_announcement_type:string = MessageForwardInfo;
 
 //@description Contains information about a message created with importMessages
 //@sender_name Name of the original sender
@@ -1311,13 +1461,18 @@ messageReplyInfo reply_count:int32 recent_replier_ids:vector<MessageSender> last
 //@recent_sender_ids Identifiers of at most 3 recent message senders, added the reaction; available in private, basic group and supergroup chats
 messageReaction type:ReactionType total_count:int32 is_chosen:Bool used_sender_id:MessageSender recent_sender_ids:vector<MessageSender> = MessageReaction;
 
+//@description Contains a list of reactions added to a message
+//@reactions List of added reactions
+//@are_tags True, if the reactions are tags and Telegram Premium users can filter messages by them
+messageReactions reactions:vector<messageReaction> are_tags:Bool = MessageReactions;
+
 
 //@description Contains information about interactions with a message
 //@view_count Number of times the message was viewed
 //@forward_count Number of times the message was forwarded
 //@reply_info Information about direct or indirect replies to the message; may be null. Currently, available only in channels with a discussion supergroup and discussion supergroups for messages, which are not replies itself
-//@reactions The list of reactions added to the message
-messageInteractionInfo view_count:int32 forward_count:int32 reply_info:messageReplyInfo reactions:vector<messageReaction> = MessageInteractionInfo;
+//@reactions The list of reactions or tags added to the message; may be null
+messageInteractionInfo view_count:int32 forward_count:int32 reply_info:messageReplyInfo reactions:messageReactions = MessageInteractionInfo;
 
 //@description Contains information about an unread reaction to a message
 //@type Type of the reaction
@@ -1343,20 +1498,32 @@ messageSendingStatePending sending_id:int32 = MessageSendingState;
 messageSendingStateFailed error:error can_retry:Bool need_another_sender:Bool need_another_reply_quote:Bool need_drop_reply:Bool retry_after:double = MessageSendingState;
 
 
+//@description Describes manually or automatically chosen quote from another message
+//@text Text of the quote. Only Bold, Italic, Underline, Strikethrough, Spoiler, and CustomEmoji entities can be present in the text
+//@position Approximate quote position in the original message in UTF-16 code units as specified by the message sender
+//@is_manual True, if the quote was manually chosen by the message sender
+textQuote text:formattedText position:int32 is_manual:Bool = TextQuote;
+
+//@description Describes manually chosen quote from another message
+//@text Text of the quote; 0-getOption("message_reply_quote_length_max") characters. Only Bold, Italic, Underline, Strikethrough, Spoiler, and CustomEmoji entities are allowed to be kept and must be kept in the quote
+//@position Quote position in the original message in UTF-16 code units
+inputTextQuote text:formattedText position:int32 = InputTextQuote;
+
+
 //@class MessageReplyTo
 //@description Contains information about the message or the story a message is replying to
 
 //@description Describes a message replied by a given message
 //@chat_id The identifier of the chat to which the message belongs; may be 0 if the replied message is in unknown chat
 //@message_id The identifier of the message; may be 0 if the replied message is in unknown chat
-//@quote Manually or automatically chosen quote from the replied message; may be null if none. Only Bold, Italic, Underline, Strikethrough, Spoiler, and CustomEmoji entities can be present in the quote
-//@is_quote_manual True, if the quote was manually chosen by the message sender
+//@quote Chosen quote from the replied message; may be null if none
 //@origin Information about origin of the message if the message was from another chat or topic; may be null for messages from the same chat
 //@origin_send_date Point in time (Unix timestamp) when the message was sent if the message was from another chat or topic; 0 for messages from the same chat
 //@content Media content of the message if the message was from another chat or topic; may be null for messages from the same chat and messages without media.
 //-Can be only one of the following types: messageAnimation, messageAudio, messageContact, messageDice, messageDocument, messageGame, messageInvoice, messageLocation,
-//-messagePhoto, messagePoll, messagePremiumGiveaway, messageSticker, messageStory, messageText (for link preview), messageVenue, messageVideo, messageVideoNote, or messageVoiceNote
-messageReplyToMessage chat_id:int53 message_id:int53 quote:formattedText is_quote_manual:Bool origin:MessageOrigin origin_send_date:int32 content:MessageContent = MessageReplyTo;
+//-messagePhoto, messagePoll, messagePremiumGiveaway, messagePremiumGiveawayWinners, messageSticker, messageStory, messageText (for link preview), messageVenue,
+//-messageVideo, messageVideoNote, or messageVoiceNote
+messageReplyToMessage chat_id:int53 message_id:int53 quote:textQuote origin:MessageOrigin origin_send_date:int32 content:MessageContent = MessageReplyTo;
 
 //@description Describes a story replied by a given message
 //@story_sender_chat_id The identifier of the sender of the story
@@ -1370,12 +1537,11 @@ messageReplyToStory story_sender_chat_id:int53 story_id:int32 = MessageReplyTo;
 //@description Describes a message to be replied
 //@chat_id The identifier of the chat to which the message to be replied belongs; pass 0 if the message to be replied is in the same chat. Must always be 0 for replies in secret chats. A message can be replied in another chat or topic only if message.can_be_replied_in_another_chat
 //@message_id The identifier of the message to be replied in the same or the specified chat
-//@quote Manually chosen quote from the message to be replied; pass null if none; 0-getOption("message_reply_quote_length_max") characters. Must always be null for replies in secret chats.
-//-Only Bold, Italic, Underline, Strikethrough, Spoiler, and CustomEmoji entities are allowed to be kept and must be kept in the quote
-inputMessageReplyToMessage chat_id:int53 message_id:int53 quote:formattedText = InputMessageReplyTo;
+//@quote Quote from the message to be replied; pass null if none. Must always be null for replies in secret chats
+inputMessageReplyToMessage chat_id:int53 message_id:int53 quote:inputTextQuote = InputMessageReplyTo;
 
 //@description Describes a story to be replied
-//@story_sender_chat_id The identifier of the sender of the story. Currently, stories can be replied only in the sender's chat
+//@story_sender_chat_id The identifier of the sender of the story. Currently, stories can be replied only in the sender's chat and channel stories can't be replied
 //@story_id The identifier of the story
 inputMessageReplyToStory story_sender_chat_id:int53 story_id:int32 = InputMessageReplyTo;
 
@@ -1388,6 +1554,7 @@ inputMessageReplyToStory story_sender_chat_id:int53 story_id:int32 = InputMessag
 //@scheduling_state The scheduling state of the message; may be null if the message isn't scheduled
 //@is_outgoing True, if the message is outgoing
 //@is_pinned True, if the message is pinned
+//@is_from_offline True, if the message was sent because of a scheduled action by the message sender, for example, as away, or greeting service message
 //@can_be_edited True, if the message can be edited. For live location and poll messages this fields shows whether editMessageLiveLocation or stopPoll can be used with this message by the application
 //@can_be_forwarded True, if the message can be forwarded
 //@can_be_replied_in_another_chat True, if the message can be replied in another chat or topic
@@ -1397,6 +1564,7 @@ inputMessageReplyToStory story_sender_chat_id:int53 story_id:int32 = InputMessag
 //@can_get_added_reactions True, if the list of added reactions is available through getMessageAddedReactions
 //@can_get_statistics True, if the message statistics are available through getMessageStatistics
 //@can_get_message_thread True, if information about the message thread is available through getMessageThread and getMessageThreadHistory
+//@can_get_read_date True, if read date of the message can be received through getMessageReadDate
 //@can_get_viewers True, if chat members already viewed the message can be received through getMessageViewers
 //@can_get_media_timestamp_links True, if media timestamp links can be generated for media timestamp entities in the message text, caption or web page description through getMessageLink
 //@can_report_reactions True, if reactions on the message can be reported through reportMessageReactions
@@ -1412,16 +1580,19 @@ inputMessageReplyToStory story_sender_chat_id:int53 story_id:int32 = InputMessag
 //@unread_reactions Information about unread reactions added to the message
 //@reply_to Information about the message or the story this message is replying to; may be null if none
 //@message_thread_id If non-zero, the identifier of the message thread the message belongs to; unique within the chat to which the message belongs
+//@saved_messages_topic_id Identifier of the Saved Messages topic for the message; 0 for messages not from Saved Messages
 //@self_destruct_type The message's self-destruct type; may be null if none
 //@self_destruct_in Time left before the message self-destruct timer expires, in seconds; 0 if self-destruction isn't scheduled yet
 //@auto_delete_in Time left before the message will be automatically deleted by message_auto_delete_time setting of the chat, in seconds; 0 if never
-//@via_bot_user_id If non-zero, the user identifier of the bot through which this message was sent
+//@via_bot_user_id If non-zero, the user identifier of the inline bot through which this message was sent
+//@sender_business_bot_user_id If non-zero, the user identifier of the business bot that sent this message
+//@sender_boost_count Number of times the sender of the message boosted the supergroup at the time the message was sent; 0 if none or unknown. For messages sent by the current user, supergroupFullInfo.my_boost_count must be used instead
 //@author_signature For channel posts and anonymous group messages, optional author signature
 //@media_album_id Unique identifier of an album this message belongs to. Only audios, documents, photos and videos can be grouped together in albums
 //@restriction_reason If non-empty, contains a human-readable description of the reason why access to this message must be restricted
 //@content Content of the message
 //@reply_markup Reply markup for the message; may be null if none
-message id:int53 sender_id:MessageSender chat_id:int53 sending_state:MessageSendingState scheduling_state:MessageSchedulingState is_outgoing:Bool is_pinned:Bool can_be_edited:Bool can_be_forwarded:Bool can_be_replied_in_another_chat:Bool can_be_saved:Bool can_be_deleted_only_for_self:Bool can_be_deleted_for_all_users:Bool can_get_added_reactions:Bool can_get_statistics:Bool can_get_message_thread:Bool can_get_viewers:Bool can_get_media_timestamp_links:Bool can_report_reactions:Bool has_timestamped_media:Bool is_channel_post:Bool is_topic_message:Bool contains_unread_mention:Bool date:int32 edit_date:int32 forward_info:messageForwardInfo import_info:messageImportInfo interaction_info:messageInteractionInfo unread_reactions:vector<unreadReaction> reply_to:MessageReplyTo message_thread_id:int53 self_destruct_type:MessageSelfDestructType self_destruct_in:double auto_delete_in:double via_bot_user_id:int53 author_signature:string media_album_id:int64 restriction_reason:string content:MessageContent reply_markup:ReplyMarkup = Message;
+message id:int53 sender_id:MessageSender chat_id:int53 sending_state:MessageSendingState scheduling_state:MessageSchedulingState is_outgoing:Bool is_pinned:Bool is_from_offline:Bool can_be_edited:Bool can_be_forwarded:Bool can_be_replied_in_another_chat:Bool can_be_saved:Bool can_be_deleted_only_for_self:Bool can_be_deleted_for_all_users:Bool can_get_added_reactions:Bool can_get_statistics:Bool can_get_message_thread:Bool can_get_read_date:Bool can_get_viewers:Bool can_get_media_timestamp_links:Bool can_report_reactions:Bool has_timestamped_media:Bool is_channel_post:Bool is_topic_message:Bool contains_unread_mention:Bool date:int32 edit_date:int32 forward_info:messageForwardInfo import_info:messageImportInfo interaction_info:messageInteractionInfo unread_reactions:vector<unreadReaction> reply_to:MessageReplyTo message_thread_id:int53 saved_messages_topic_id:int53 self_destruct_type:MessageSelfDestructType self_destruct_in:double auto_delete_in:double via_bot_user_id:int53 sender_business_bot_user_id:int53 sender_boost_count:int32 author_signature:string media_album_id:int64 restriction_reason:string content:MessageContent reply_markup:ReplyMarkup = Message;
 
 //@description Contains a list of messages
 //@total_count Approximate total number of messages found
@@ -1431,7 +1602,7 @@ messages total_count:int32 messages:vector<message> = Messages;
 //@description Contains a list of messages found by a search
 //@total_count Approximate total number of messages found; -1 if unknown
 //@messages List of messages
-//@next_offset The offset for the next request. If empty, there are no more results
+//@next_offset The offset for the next request. If empty, then there are no more results
 foundMessages total_count:int32 messages:vector<message> next_offset:string = FoundMessages;
 
 //@description Contains a list of messages found by a search in a given chat
@@ -1460,6 +1631,16 @@ messageCalendarDay total_count:int32 message:message = MessageCalendarDay;
 //@total_count Total number of found messages
 //@days Information about messages sent
 messageCalendar total_count:int32 days:vector<messageCalendarDay> = MessageCalendar;
+
+
+//@description Describes a message from a business account as received by a bot
+//@message The message
+//@reply_to_message Message that is replied by the message in the same chat; may be null if none
+businessMessage message:message reply_to_message:message = BusinessMessage;
+
+//@description Contains a list of messages from a business account as received by a bot
+//@messages List of business messages
+businessMessages messages:vector<businessMessage> = BusinessMessages;
 
 
 //@class MessageSource
@@ -1504,6 +1685,11 @@ messageSourceOther = MessageSource;
 //@link An internal link to be opened when the sponsored message is clicked
 messageSponsorTypeBot bot_user_id:int53 link:InternalLinkType = MessageSponsorType;
 
+//@description The sponsor is a web app
+//@web_app_title Web App title
+//@link An internal link to be opened when the sponsored message is clicked
+messageSponsorTypeWebApp web_app_title:string link:InternalLinkType = MessageSponsorType;
+
 //@description The sponsor is a public channel chat
 //@chat_id Sponsor chat identifier
 //@link An internal link to be opened when the sponsored message is clicked; may be null if the sponsor chat needs to be opened instead
@@ -1529,15 +1715,43 @@ messageSponsor type:MessageSponsorType photo:chatPhotoInfo info:string = Message
 //@description Describes a sponsored message
 //@message_id Message identifier; unique for the chat to which the sponsored message belongs among both ordinary and sponsored messages
 //@is_recommended True, if the message needs to be labeled as "recommended" instead of "sponsored"
+//@can_be_reported True, if the message can be reported to Telegram moderators through reportChatSponsoredMessage
 //@content Content of the message. Currently, can be only of the type messageText
 //@sponsor Information about the sponsor of the message
+//@button_text If non-empty, text for the message action button
 //@additional_info If non-empty, additional information about the sponsored message to be shown along with the message
-sponsoredMessage message_id:int53 is_recommended:Bool content:MessageContent sponsor:messageSponsor additional_info:string = SponsoredMessage;
+sponsoredMessage message_id:int53 is_recommended:Bool can_be_reported:Bool content:MessageContent sponsor:messageSponsor button_text:string additional_info:string = SponsoredMessage;
 
 //@description Contains a list of sponsored messages
 //@messages List of sponsored messages
 //@messages_between The minimum number of messages between shown sponsored messages, or 0 if only one sponsored message must be shown after all ordinary messages
 sponsoredMessages messages:vector<sponsoredMessage> messages_between:int32 = SponsoredMessages;
+
+//@description Describes an option to report a sponsored message
+//@id Unique identifier of the option
+//@text Text of the option
+reportChatSponsoredMessageOption id:bytes text:string = ReportChatSponsoredMessageOption;
+
+
+//@class ReportChatSponsoredMessageResult
+//@description Describes result of sponsored message report
+
+//@description The message was reported successfully
+reportChatSponsoredMessageResultOk = ReportChatSponsoredMessageResult;
+
+//@description The sponsored message is too old or not found
+reportChatSponsoredMessageResultFailed = ReportChatSponsoredMessageResult;
+
+//@description The user must choose an option to report the message and repeat request with the chosen option
+//@title Title for the option choice
+//@options List of available options
+reportChatSponsoredMessageResultOptionRequired title:string options:vector<reportChatSponsoredMessageOption> = ReportChatSponsoredMessageResult;
+
+//@description Sponsored messages were hidden for the user in all chats
+reportChatSponsoredMessageResultAdsHidden = ReportChatSponsoredMessageResult;
+
+//@description The user asked to hide sponsored messages, but Telegram Premium is required for this
+reportChatSponsoredMessageResultPremiumRequired = ReportChatSponsoredMessageResult;
 
 
 //@description Describes a file added to file download list
@@ -1557,7 +1771,7 @@ downloadedFileCounts active_count:int32 paused_count:int32 completed_count:int32
 //@description Contains a list of downloaded files, found by a search
 //@total_counts Total number of suitable files, ignoring offset
 //@files The list of files
-//@next_offset The offset for the next request. If empty, there are no more results
+//@next_offset The offset for the next request. If empty, then there are no more results
 foundFileDownloads total_counts:downloadedFileCounts files:vector<fileDownload> next_offset:string = FoundFileDownloads;
 
 
@@ -1575,21 +1789,21 @@ notificationSettingsScopeChannelChats = NotificationSettingsScope;
 
 
 //@description Contains information about notification settings for a chat or a forum topic
-//@use_default_mute_for If true, mute_for is ignored and the value for the relevant type of chat or the forum chat is used instead
+//@use_default_mute_for If true, the value for the relevant type of chat or the forum chat is used instead of mute_for
 //@mute_for Time left before notifications will be unmuted, in seconds
 //@use_default_sound If true, the value for the relevant type of chat or the forum chat is used instead of sound_id
 //@sound_id Identifier of the notification sound to be played for messages; 0 if sound is disabled
-//@use_default_show_preview If true, show_preview is ignored and the value for the relevant type of chat or the forum chat is used instead
+//@use_default_show_preview If true, the value for the relevant type of chat or the forum chat is used instead of show_preview
 //@show_preview True, if message content must be displayed in notifications
-//@use_default_mute_stories If true, mute_stories is ignored and the value for the relevant type of chat is used instead
+//@use_default_mute_stories If true, the value for the relevant type of chat is used instead of mute_stories
 //@mute_stories True, if story notifications are disabled for the chat
 //@use_default_story_sound If true, the value for the relevant type of chat is used instead of story_sound_id
 //@story_sound_id Identifier of the notification sound to be played for stories; 0 if sound is disabled
-//@use_default_show_story_sender If true, show_story_sender is ignored and the value for the relevant type of chat is used instead
+//@use_default_show_story_sender If true, the value for the relevant type of chat is used instead of show_story_sender
 //@show_story_sender True, if the sender of stories must be displayed in notifications
-//@use_default_disable_pinned_message_notifications If true, disable_pinned_message_notifications is ignored and the value for the relevant type of chat or the forum chat is used instead
+//@use_default_disable_pinned_message_notifications If true, the value for the relevant type of chat or the forum chat is used instead of disable_pinned_message_notifications
 //@disable_pinned_message_notifications If true, notifications for incoming pinned messages will be created as for an ordinary unread message
-//@use_default_disable_mention_notifications If true, disable_mention_notifications is ignored and the value for the relevant type of chat or the forum chat is used instead
+//@use_default_disable_mention_notifications If true, the value for the relevant type of chat or the forum chat is used instead of disable_mention_notifications
 //@disable_mention_notifications If true, notifications for messages with mentions will be created as for an ordinary unread message
 chatNotificationSettings use_default_mute_for:Bool mute_for:int32 use_default_sound:Bool sound_id:int64 use_default_show_preview:Bool show_preview:Bool use_default_mute_stories:Bool mute_stories:Bool use_default_story_sound:Bool story_sound_id:int64 use_default_show_story_sender:Bool show_story_sender:Bool use_default_disable_pinned_message_notifications:Bool disable_pinned_message_notifications:Bool use_default_disable_mention_notifications:Bool disable_mention_notifications:Bool = ChatNotificationSettings;
 
@@ -1597,8 +1811,8 @@ chatNotificationSettings use_default_mute_for:Bool mute_for:int32 use_default_so
 //@mute_for Time left before notifications will be unmuted, in seconds
 //@sound_id Identifier of the notification sound to be played; 0 if sound is disabled
 //@show_preview True, if message content must be displayed in notifications
-//@use_default_mute_stories If true, mute_stories is ignored and story notifications are received only for the first 5 chats from topChatCategoryUsers
-//@mute_stories True, if story notifications are disabled for the chat
+//@use_default_mute_stories If true, story notifications are received only for the first 5 chats from topChatCategoryUsers regardless of the value of mute_stories
+//@mute_stories True, if story notifications are disabled
 //@story_sound_id Identifier of the notification sound to be played for stories; 0 if sound is disabled
 //@show_story_sender True, if the sender of stories must be displayed in notifications
 //@disable_pinned_message_notifications True, if notifications for incoming pinned messages will be created as for an ordinary unread message
@@ -1609,7 +1823,7 @@ scopeNotificationSettings mute_for:int32 sound_id:int64 show_preview:Bool use_de
 //@description Contains information about a message draft
 //@reply_to Information about the message to be replied; must be of the type inputMessageReplyToMessage; may be null if none
 //@date Point in time (Unix timestamp) when the draft was created
-//@input_message_text Content of the message draft; must be of the type inputMessageText
+//@input_message_text Content of the message draft; must be of the type inputMessageText, inputMessageVideoNote, or inputMessageVoiceNote
 draftMessage reply_to:InputMessageReplyTo date:int32 input_message_text:InputMessageContent = DraftMessage;
 
 
@@ -1643,6 +1857,7 @@ chatFolderIcon name:string = ChatFolderIcon;
 //@description Represents a folder for user chats
 //@title The title of the folder; 1-12 characters without line feeds
 //@icon The chosen icon for the chat folder; may be null. If null, use getChatFolderDefaultIconName to get default icon name for the folder
+//@color_id The identifier of the chosen color for the chat folder icon; from -1 to 6. If -1, then color is didabled. Can't be changed if folder tags are disabled or the current user doesn't have Telegram Premium subscription
 //@is_shareable True, if at least one link has been created for the folder
 //@pinned_chat_ids The chat identifiers of pinned chats in the folder. There can be up to getOption("chat_folder_chosen_chat_count_max") pinned and always included non-secret chats and the same number of secret chats, but the limit can be increased with Telegram Premium
 //@included_chat_ids The chat identifiers of always included chats in the folder. There can be up to getOption("chat_folder_chosen_chat_count_max") pinned and always included non-secret chats and the same number of secret chats, but the limit can be increased with Telegram Premium
@@ -1655,15 +1870,16 @@ chatFolderIcon name:string = ChatFolderIcon;
 //@include_bots True, if bots need to be included
 //@include_groups True, if basic groups and supergroups need to be included
 //@include_channels True, if channels need to be included
-chatFolder title:string icon:chatFolderIcon is_shareable:Bool pinned_chat_ids:vector<int53> included_chat_ids:vector<int53> excluded_chat_ids:vector<int53> exclude_muted:Bool exclude_read:Bool exclude_archived:Bool include_contacts:Bool include_non_contacts:Bool include_bots:Bool include_groups:Bool include_channels:Bool = ChatFolder;
+chatFolder title:string icon:chatFolderIcon color_id:int32 is_shareable:Bool pinned_chat_ids:vector<int53> included_chat_ids:vector<int53> excluded_chat_ids:vector<int53> exclude_muted:Bool exclude_read:Bool exclude_archived:Bool include_contacts:Bool include_non_contacts:Bool include_bots:Bool include_groups:Bool include_channels:Bool = ChatFolder;
 
 //@description Contains basic information about a chat folder
 //@id Unique chat folder identifier
 //@title The title of the folder; 1-12 characters without line feeds
 //@icon The chosen or default icon for the chat folder
+//@color_id The identifier of the chosen color for the chat folder icon; from -1 to 6. If -1, then color is didabled
 //@is_shareable True, if at least one link has been created for the folder
 //@has_my_invite_links True, if the chat folder has invite links created by the current user
-chatFolderInfo id:int32 title:string icon:chatFolderIcon is_shareable:Bool has_my_invite_links:Bool = ChatFolderInfo;
+chatFolderInfo id:int32 title:string icon:chatFolderIcon color_id:int32 is_shareable:Bool has_my_invite_links:Bool = ChatFolderInfo;
 
 //@description Contains a chat folder invite link
 //@invite_link The chat folder invite link
@@ -1746,6 +1962,17 @@ chatAvailableReactionsAll = ChatAvailableReactions;
 chatAvailableReactionsSome reactions:vector<ReactionType> = ChatAvailableReactions;
 
 
+//@description Represents a tag used in Saved Messages or a Saved Messages topic
+//@tag The tag
+//@label Label of the tag; 0-12 characters. Always empty if the tag is returned for a Saved Messages topic
+//@count Number of times the tag was used; may be 0 if the tag has non-empty label
+savedMessagesTag tag:ReactionType label:string count:int32 = SavedMessagesTag;
+
+//@description Contains a list of tags used in Saved Messages
+//@tags List of tags
+savedMessagesTags tags:vector<savedMessagesTag> = SavedMessagesTags;
+
+
 //@description Describes a video chat
 //@group_call_id Group call identifier of an active video chat; 0 if none. Full information about the video chat can be received through the method getGroupCall
 //@has_participants True, if the video chat has participants
@@ -1759,15 +1986,19 @@ videoChat group_call_id:int32 has_participants:Bool default_participant_id:Messa
 //@title Chat title
 //@photo Chat photo; may be null
 //@accent_color_id Identifier of the accent color for message sender name, and backgrounds of chat photo, reply header, and link preview
-//@background_custom_emoji_id Identifier of a custom emoji to be shown on the reply header background in replies to messages sent by the chat; 0 if none
+//@background_custom_emoji_id Identifier of a custom emoji to be shown on the reply header and link preview background for messages sent by the chat; 0 if none
+//@profile_accent_color_id Identifier of the profile accent color for the chat's profile; -1 if none
+//@profile_background_custom_emoji_id Identifier of a custom emoji to be shown on the background of the chat's profile; 0 if none
 //@permissions Actions that non-administrator chat members are allowed to take in the chat
 //@last_message Last message in the chat; may be null if none or unknown
 //@positions Positions of the chat in chat lists
+//@chat_lists Chat lists to which the chat belongs. A chat can have a non-zero position in a chat list even it doesn't belong to the chat list and have no position in a chat list even it belongs to the chat list
 //@message_sender_id Identifier of a user or chat that is selected to send messages in the chat; may be null if the user can't change message sender
 //@block_list Block list to which the chat is added; may be null if none
 //@has_protected_content True, if chat content can't be saved locally, forwarded, or copied
 //@is_translatable True, if translation of all messages in the chat must be suggested to the user
 //@is_marked_as_unread True, if the chat is marked as unread
+//@view_as_topics True, if the chat is a forum supergroup that must be shown in the "View as topics" mode, or Saved Messages chat that must be shown in the "View as chats"
 //@has_scheduled_messages True, if the chat has scheduled messages
 //@can_be_deleted_only_for_self True, if the chat messages can be deleted only for the current user while other users will continue to see the messages
 //@can_be_deleted_for_all_users True, if the chat messages can be deleted for all users
@@ -1781,6 +2012,7 @@ videoChat group_call_id:int32 has_participants:Bool default_participant_id:Messa
 //@notification_settings Notification settings for the chat
 //@available_reactions Types of reaction, available in the chat
 //@message_auto_delete_time Current message auto-delete or self-destruct timer setting for the chat, in seconds; 0 if disabled. Self-destruct timer in secret chats starts after the message or its content is viewed. Auto-delete timer in other chats starts from the send date
+//@emoji_status Emoji status to be shown along with chat title; may be null
 //@background Background set for the chat; may be null if none
 //@theme_name If non-empty, name of a theme, set for the chat
 //@action_bar Information about actions which must be possible to do through the chat action bar; may be null if none
@@ -1789,7 +2021,7 @@ videoChat group_call_id:int32 has_participants:Bool default_participant_id:Messa
 //@reply_markup_message_id Identifier of the message from which reply markup needs to be used; 0 if there is no default custom reply markup in the chat
 //@draft_message A draft of a message in the chat; may be null if none
 //@client_data Application-specific data associated with the chat. (For example, the chat scroll position or local chat notification settings can be stored here.) Persistent if the message database is used
-chat id:int53 type:ChatType title:string photo:chatPhotoInfo accent_color_id:int32 background_custom_emoji_id:int64 permissions:chatPermissions last_message:message positions:vector<chatPosition> message_sender_id:MessageSender block_list:BlockList has_protected_content:Bool is_translatable:Bool is_marked_as_unread:Bool has_scheduled_messages:Bool can_be_deleted_only_for_self:Bool can_be_deleted_for_all_users:Bool can_be_reported:Bool default_disable_notification:Bool unread_count:int32 last_read_inbox_message_id:int53 last_read_outbox_message_id:int53 unread_mention_count:int32 unread_reaction_count:int32 notification_settings:chatNotificationSettings available_reactions:ChatAvailableReactions message_auto_delete_time:int32 background:chatBackground theme_name:string action_bar:ChatActionBar video_chat:videoChat pending_join_requests:chatJoinRequestsInfo reply_markup_message_id:int53 draft_message:draftMessage client_data:string = Chat;
+chat id:int53 type:ChatType title:string photo:chatPhotoInfo accent_color_id:int32 background_custom_emoji_id:int64 profile_accent_color_id:int32 profile_background_custom_emoji_id:int64 permissions:chatPermissions last_message:message positions:vector<chatPosition> chat_lists:vector<ChatList> message_sender_id:MessageSender block_list:BlockList has_protected_content:Bool is_translatable:Bool is_marked_as_unread:Bool view_as_topics:Bool has_scheduled_messages:Bool can_be_deleted_only_for_self:Bool can_be_deleted_for_all_users:Bool can_be_reported:Bool default_disable_notification:Bool unread_count:int32 last_read_inbox_message_id:int53 last_read_outbox_message_id:int53 unread_mention_count:int32 unread_reaction_count:int32 notification_settings:chatNotificationSettings available_reactions:ChatAvailableReactions message_auto_delete_time:int32 emoji_status:emojiStatus background:chatBackground theme_name:string action_bar:ChatActionBar video_chat:videoChat pending_join_requests:chatJoinRequestsInfo reply_markup_message_id:int53 draft_message:draftMessage client_data:string = Chat;
 
 //@description Represents a list of chats
 //@total_count Approximate total number of chats found
@@ -1867,13 +2099,17 @@ keyboardButtonTypeRequestLocation = KeyboardButtonType;
 //@force_quiz If true, only polls in quiz mode must be allowed to create
 keyboardButtonTypeRequestPoll force_regular:Bool force_quiz:Bool = KeyboardButtonType;
 
-//@description A button that requests a user to be shared by the current user; available only in private chats. Use the method shareUserWithBot to complete the request
+//@description A button that requests users to be shared by the current user; available only in private chats. Use the method shareUsersWithBot to complete the request
 //@id Unique button identifier
-//@restrict_user_is_bot True, if the shared user must or must not be a bot
-//@user_is_bot True, if the shared user must be a bot; otherwise, the shared user must no be a bot. Ignored if restrict_user_is_bot is false
-//@restrict_user_is_premium True, if the shared user must or must not be a Telegram Premium user
-//@user_is_premium True, if the shared user must be a Telegram Premium user; otherwise, the shared user must no be a Telegram Premium user. Ignored if restrict_user_is_premium is false
-keyboardButtonTypeRequestUser id:int32 restrict_user_is_bot:Bool user_is_bot:Bool restrict_user_is_premium:Bool user_is_premium:Bool = KeyboardButtonType;
+//@restrict_user_is_bot True, if the shared users must or must not be bots
+//@user_is_bot True, if the shared users must be bots; otherwise, the shared users must not be bots. Ignored if restrict_user_is_bot is false
+//@restrict_user_is_premium True, if the shared users must or must not be Telegram Premium users
+//@user_is_premium True, if the shared users must be Telegram Premium users; otherwise, the shared users must not be Telegram Premium users. Ignored if restrict_user_is_premium is false
+//@max_quantity The maximum number of users to share
+//@request_name Pass true to request name of the users; bots only
+//@request_username Pass true to request username of the users; bots only
+//@request_photo Pass true to request photo of the users; bots only
+keyboardButtonTypeRequestUsers id:int32 restrict_user_is_bot:Bool user_is_bot:Bool restrict_user_is_premium:Bool user_is_premium:Bool max_quantity:int32 request_name:Bool request_username:Bool request_photo:Bool = KeyboardButtonType;
 
 //@description A button that requests a chat to be shared by the current user; available only in private chats. Use the method shareChatWithBot to complete the request
 //@id Unique button identifier
@@ -1886,7 +2122,10 @@ keyboardButtonTypeRequestUser id:int32 restrict_user_is_bot:Bool user_is_bot:Boo
 //@user_administrator_rights Expected user administrator rights in the chat; may be null if they aren't restricted
 //@bot_administrator_rights Expected bot administrator rights in the chat; may be null if they aren't restricted
 //@bot_is_member True, if the bot must be a member of the chat; for basic group and supergroup chats only
-keyboardButtonTypeRequestChat id:int32 chat_is_channel:Bool restrict_chat_is_forum:Bool chat_is_forum:Bool restrict_chat_has_username:Bool chat_has_username:Bool chat_is_created:Bool user_administrator_rights:chatAdministratorRights bot_administrator_rights:chatAdministratorRights bot_is_member:Bool = KeyboardButtonType;
+//@request_title Pass true to request title of the chat; bots only
+//@request_username Pass true to request username of the chat; bots only
+//@request_photo Pass true to request photo of the chat; bots only
+keyboardButtonTypeRequestChat id:int32 chat_is_channel:Bool restrict_chat_is_forum:Bool chat_is_forum:Bool restrict_chat_has_username:Bool chat_has_username:Bool chat_is_created:Bool user_administrator_rights:chatAdministratorRights bot_administrator_rights:chatAdministratorRights bot_is_member:Bool request_title:Bool request_username:Bool request_photo:Bool = KeyboardButtonType;
 
 //@description A button that opens a Web App by calling getWebAppUrl
 //@url An HTTP URL to pass to getWebAppUrl
@@ -2010,6 +2249,30 @@ webAppInfo launch_id:int64 url:string = WebAppInfo;
 messageThreadInfo chat_id:int53 message_thread_id:int53 reply_info:messageReplyInfo unread_message_count:int32 messages:vector<message> draft_message:draftMessage = MessageThreadInfo;
 
 
+//@class SavedMessagesTopicType
+//@description Describes type of a Saved Messages topic
+
+//@description Topic containing messages sent by the current user of forwarded from an unknown chat
+savedMessagesTopicTypeMyNotes = SavedMessagesTopicType;
+
+//@description Topic containing messages forwarded from a user with hidden privacy
+savedMessagesTopicTypeAuthorHidden = SavedMessagesTopicType;
+
+//@description Topic containing messages forwarded from a specific chat
+//@chat_id Identifier of the chat
+savedMessagesTopicTypeSavedFromChat chat_id:int53 = SavedMessagesTopicType;
+
+
+//@description Contains information about a Saved Messages topic
+//@id Unique topic identifier
+//@type Type of the topic
+//@is_pinned True, if the topic is pinned
+//@order A parameter used to determine order of the topic in the topic list. Topics must be sorted by the order in descending order
+//@last_message Last message in the topic; may be null if none or unknown
+//@draft_message A draft of a message in the topic; may be null if none
+savedMessagesTopic id:int53 type:SavedMessagesTopicType is_pinned:Bool order:int64 last_message:message draft_message:draftMessage = SavedMessagesTopic;
+
+
 //@description Describes a forum topic icon
 //@color Color of the topic icon in RGB format
 //@custom_emoji_id Unique identifier of the custom emoji shown on the topic icon; 0 if none
@@ -2056,6 +2319,22 @@ forumTopics total_count:int32 topics:vector<forumTopic> next_offset_date:int32 n
 //@force_large_media True, if shown media preview must be large; ignored in secret chats or if the URL isn't explicitly specified
 //@show_above_text True, if link preview must be shown above message text; otherwise, the link preview will be shown below the message text; ignored in secret chats
 linkPreviewOptions is_disabled:Bool url:string force_small_media:Bool force_large_media:Bool show_above_text:Bool = LinkPreviewOptions;
+
+
+//@description Contains information about a user shared with a bot
+//@user_id User identifier
+//@first_name First name of the user; for bots only
+//@last_name Last name of the user; for bots only
+//@username Username of the user; for bots only
+//@photo Profile photo of the user; for bots only; may be null
+sharedUser user_id:int53 first_name:string last_name:string username:string photo:photo = SharedUser;
+
+//@description Contains information about a chat shared with a bot
+//@chat_id Chat identifier
+//@title Title of the chat; for bots only
+//@username Username of the chat; for bots only
+//@photo Photo of the chat; for bots only; may be null
+sharedChat chat_id:int53 title:string username:string photo:photo = SharedChat;
 
 
 //@class RichText
@@ -2409,8 +2688,30 @@ countries countries:vector<countryInfo> = Countries;
 //@country Information about the country to which the phone number belongs; may be null
 //@country_calling_code The part of the phone number denoting country calling code or its part
 //@formatted_phone_number The phone number without country calling code formatted accordingly to local rules. Expected digits are returned as '-', but even more digits might be entered by the user
-//@is_anonymous True, if the phone number was bought on Fragment and isn't tied to a SIM card
+//@is_anonymous True, if the phone number was bought at https://fragment.com and isn't tied to a SIM card. Information about the phone number can be received using getCollectibleItemInfo
 phoneNumberInfo country:countryInfo country_calling_code:string formatted_phone_number:string is_anonymous:Bool = PhoneNumberInfo;
+
+
+//@class CollectibleItemType
+//@description Describes a collectible item that can be purchased at https://fragment.com
+
+//@description A username
+//@username The username
+collectibleItemTypeUsername username:string = CollectibleItemType;
+
+//@description A phone number
+//@phone_number The phone number
+collectibleItemTypePhoneNumber phone_number:string = CollectibleItemType;
+
+
+//@description Contains information about a collectible item and its last purchase
+//@purchase_date Point in time (Unix timestamp) when the item was purchased
+//@currency Currency for the paid amount
+//@amount The paid amount, in the smallest units of the currency
+//@cryptocurrency Cryptocurrency used to pay for the item
+//@cryptocurrency_amount The paid amount, in the smallest units of the cryptocurrency
+//@url Individual URL for the item on https://fragment.com
+collectibleItemInfo purchase_date:int32 currency:string amount:int53 cryptocurrency:string cryptocurrency_amount:int64 url:string = CollectibleItemInfo;
 
 
 //@description Describes an action associated with a bank card number
@@ -2518,7 +2819,8 @@ inputCredentialsGooglePay data:string = InputCredentials;
 
 //@description Smart Glocal payment provider
 //@public_token Public payment token
-paymentProviderSmartGlocal public_token:string = PaymentProvider;
+//@tokenize_url URL for sending card tokenization requests
+paymentProviderSmartGlocal public_token:string tokenize_url:string = PaymentProvider;
 
 //@description Stripe payment provider
 //@publishable_key Stripe API publishable key
@@ -2602,7 +2904,7 @@ inputInvoiceTelegram purpose:TelegramPaymentPurpose = InputInvoice;
 //@description The media is hidden until the invoice is paid
 //@width Media width; 0 if unknown
 //@height Media height; 0 if unknown
-//@duration Media duration; 0 if unknown
+//@duration Media duration, in seconds; 0 if unknown
 //@minithumbnail Media minithumbnail; may be null
 //@caption Media caption
 messageExtendedMediaPreview width:int32 height:int32 duration:int32 minithumbnail:minithumbnail caption:formattedText = MessageExtendedMedia;
@@ -2623,13 +2925,16 @@ messageExtendedMediaUnsupported caption:formattedText = MessageExtendedMedia;
 
 
 //@description Describes parameters of a Telegram Premium giveaway
-//@boosted_chat_id Identifier of the channel chat, which will be automatically boosted by the winners of the giveaway for duration of the Premium subscription
-//@additional_chat_ids Identifiers of other channel chats that must be subscribed by the users to be eligible for the giveaway. There can be up to getOption("giveaway_additional_chat_count_max") additional chats
+//@boosted_chat_id Identifier of the supergroup or channel chat, which will be automatically boosted by the winners of the giveaway for duration of the Premium subscription.
+//-If the chat is a channel, then can_post_messages right is required in the channel, otherwise, the user must be an administrator in the supergroup
+//@additional_chat_ids Identifiers of other supergroup or channel chats that must be subscribed by the users to be eligible for the giveaway. There can be up to getOption("giveaway_additional_chat_count_max") additional chats
 //@winners_selection_date Point in time (Unix timestamp) when the giveaway is expected to be performed; must be 60-getOption("giveaway_duration_max") seconds in the future in scheduled giveaways
-//@only_new_members True, if only new subscribers of the chats will be eligible for the giveaway
+//@only_new_members True, if only new members of the chats will be eligible for the giveaway
+//@has_public_winners True, if the list of winners of the giveaway will be available to everyone
 //@country_codes The list of two-letter ISO 3166-1 alpha-2 codes of countries, users from which will be eligible for the giveaway. If empty, then all users can participate in the giveaway.
-//-There can be up to getOption("giveaway_country_count_max") chosen countries. Users with phone number that was bought on Fragment can participate in any giveaway and the country code "FT" must not be specified in the list
-premiumGiveawayParameters boosted_chat_id:int53 additional_chat_ids:vector<int53> winners_selection_date:int32 only_new_members:Bool country_codes:vector<string> = PremiumGiveawayParameters;
+//-There can be up to getOption("giveaway_country_count_max") chosen countries. Users with phone number that was bought at https://fragment.com can participate in any giveaway and the country code "FT" must not be specified in the list
+//@prize_description Additional description of the giveaway prize; 0-128 characters
+premiumGiveawayParameters boosted_chat_id:int53 additional_chat_ids:vector<int53> winners_selection_date:int32 only_new_members:Bool has_public_winners:Bool country_codes:vector<string> prize_description:string = PremiumGiveawayParameters;
 
 
 //@description File with the date it was uploaded
@@ -2984,7 +3289,7 @@ inputPassportElementError type:PassportElementType message:string source:InputPa
 //@description A text message
 //@text Text of the message
 //@web_page A link preview attached to the message; may be null
-//@link_preview_options Options which was used for generation of the link preview; may be null if default options were used
+//@link_preview_options Options which were used for generation of the link preview; may be null if default options were used
 messageText text:formattedText web_page:webPage link_preview_options:linkPreviewOptions = MessageContent;
 
 //@description An animation message (GIF-style).
@@ -3011,9 +3316,6 @@ messageDocument document:document caption:formattedText = MessageContent;
 //@is_secret True, if the photo must be blurred and must be shown only while tapped
 messagePhoto photo:photo caption:formattedText has_spoiler:Bool is_secret:Bool = MessageContent;
 
-//@description A self-destructed photo message
-messageExpiredPhoto = MessageContent;
-
 //@description A sticker message
 //@sticker The sticker description
 //@is_premium True, if premium animation of the sticker must be played
@@ -3026,9 +3328,6 @@ messageSticker sticker:sticker is_premium:Bool = MessageContent;
 //@is_secret True, if the video thumbnail must be blurred and the video must be shown only while tapped
 messageVideo video:video caption:formattedText has_spoiler:Bool is_secret:Bool = MessageContent;
 
-//@description A self-destructed video message
-messageExpiredVideo = MessageContent;
-
 //@description A video note message
 //@video_note The video note description
 //@is_viewed True, if at least one of the recipients has viewed the video note
@@ -3040,6 +3339,18 @@ messageVideoNote video_note:videoNote is_viewed:Bool is_secret:Bool = MessageCon
 //@caption Voice note caption
 //@is_listened True, if at least one of the recipients has listened to the voice note
 messageVoiceNote voice_note:voiceNote caption:formattedText is_listened:Bool = MessageContent;
+
+//@description A self-destructed photo message
+messageExpiredPhoto = MessageContent;
+
+//@description A self-destructed video message
+messageExpiredVideo = MessageContent;
+
+//@description A self-destructed video note message
+messageExpiredVideoNote = MessageContent;
+
+//@description A self-destructed voice note message
+messageExpiredVoiceNote = MessageContent;
 
 //@description A message with a location
 //@location The location description
@@ -3174,7 +3485,8 @@ messageScreenshotTaken = MessageContent;
 //@description A new background was set in the chat
 //@old_background_message_id Identifier of the message with a previously set same background; 0 if none. Can be an identifier of a deleted message
 //@background The new background
-messageChatSetBackground old_background_message_id:int53 background:chatBackground = MessageContent;
+//@only_for_self True, if the background was set only for self
+messageChatSetBackground old_background_message_id:int53 background:chatBackground only_for_self:Bool = MessageContent;
 
 //@description A theme in the chat has been changed
 //@theme_name If non-empty, name of a new theme, set for the chat. Otherwise, chat theme was reset to the default one
@@ -3184,6 +3496,10 @@ messageChatSetTheme theme_name:string = MessageContent;
 //@message_auto_delete_time New value auto-delete or self-destruct time, in seconds; 0 if disabled
 //@from_user_id If not 0, a user identifier, which default setting was automatically applied
 messageChatSetMessageAutoDeleteTime message_auto_delete_time:int32 from_user_id:int53 = MessageContent;
+
+//@description The chat was boosted by the sender of the message
+//@boost_count Number of times the chat was boosted
+messageChatBoost boost_count:int32 = MessageContent;
 
 //@description A forum topic has been created
 //@name Name of the topic
@@ -3245,19 +3561,23 @@ messagePaymentSuccessfulBot currency:string total_amount:int53 is_recurring:Bool
 //@currency Currency for the paid amount
 //@amount The paid amount, in the smallest units of the currency
 //@cryptocurrency Cryptocurrency used to pay for the gift; may be empty if none
-//@cryptocurrency_amount The paid amount, in the smallest units of the cryptocurrency
-//@month_count Number of month the Telegram Premium subscription will be active
+//@cryptocurrency_amount The paid amount, in the smallest units of the cryptocurrency; 0 if none
+//@month_count Number of months the Telegram Premium subscription will be active
 //@sticker A sticker to be shown in the message; may be null if unknown
 messageGiftedPremium gifter_user_id:int53 currency:string amount:int53 cryptocurrency:string cryptocurrency_amount:int64 month_count:int32 sticker:sticker = MessageContent;
 
 //@description A Telegram Premium gift code was created for the user
-//@creator_id Identifier of a chat or a user that created the gift code
+//@creator_id Identifier of a chat or a user that created the gift code; may be null if unknown
 //@is_from_giveaway True, if the gift code was created for a giveaway
 //@is_unclaimed True, if the winner for the corresponding Telegram Premium subscription wasn't chosen
-//@month_count Number of month the Telegram Premium subscription will be active after code activation
+//@currency Currency for the paid amount; empty if unknown
+//@amount The paid amount, in the smallest units of the currency; 0 if unknown
+//@cryptocurrency Cryptocurrency used to pay for the gift; may be empty if none or unknown
+//@cryptocurrency_amount The paid amount, in the smallest units of the cryptocurrency; 0 if unknown
+//@month_count Number of months the Telegram Premium subscription will be active after code activation
 //@sticker A sticker to be shown in the message; may be null if unknown
 //@code The gift code
-messagePremiumGiftCode creator_id:MessageSender is_from_giveaway:Bool is_unclaimed:Bool month_count:int32 sticker:sticker code:string = MessageContent;
+messagePremiumGiftCode creator_id:MessageSender is_from_giveaway:Bool is_unclaimed:Bool currency:string amount:int53 cryptocurrency:string cryptocurrency_amount:int64 month_count:int32 sticker:sticker code:string = MessageContent;
 
 //@description A Telegram Premium giveaway was created for the chat
 messagePremiumGiveawayCreated = MessageContent;
@@ -3265,22 +3585,42 @@ messagePremiumGiveawayCreated = MessageContent;
 //@description A Telegram Premium giveaway
 //@parameters Giveaway parameters
 //@winner_count Number of users which will receive Telegram Premium subscription gift codes
-//@month_count Number of month the Telegram Premium subscription will be active after code activation
+//@month_count Number of months the Telegram Premium subscription will be active after code activation
 //@sticker A sticker to be shown in the message; may be null if unknown
 messagePremiumGiveaway parameters:premiumGiveawayParameters winner_count:int32 month_count:int32 sticker:sticker = MessageContent;
+
+//@description A Telegram Premium giveaway without public winners has been completed for the chat
+//@giveaway_message_id Identifier of the message with the giveaway; can be 0 if the message was deleted
+//@winner_count Number of winners in the giveaway
+//@unclaimed_prize_count Number of undistributed prizes
+messagePremiumGiveawayCompleted giveaway_message_id:int53 winner_count:int32 unclaimed_prize_count:int32 = MessageContent;
+
+//@description A Telegram Premium giveaway with public winners has been completed for the chat
+//@boosted_chat_id Identifier of the channel chat, which was automatically boosted by the winners of the giveaway for duration of the Premium subscription
+//@giveaway_message_id Identifier of the message with the giveaway in the boosted chat
+//@additional_chat_count Number of other chats that participated in the giveaway
+//@actual_winners_selection_date Point in time (Unix timestamp) when the winners were selected. May be bigger than winners selection date specified in parameters of the giveaway
+//@only_new_members True, if only new members of the chats were eligible for the giveaway
+//@was_refunded True, if the giveaway was canceled and was fully refunded
+//@month_count Number of months the Telegram Premium subscription will be active after code activation
+//@prize_description Additional description of the giveaway prize
+//@winner_count Total number of winners in the giveaway
+//@winner_user_ids Up to 100 user identifiers of the winners of the giveaway
+//@unclaimed_prize_count Number of undistributed prizes
+messagePremiumGiveawayWinners boosted_chat_id:int53 giveaway_message_id:int53 additional_chat_count:int32 actual_winners_selection_date:int32 only_new_members:Bool was_refunded:Bool month_count:int32 prize_description:string winner_count:int32 winner_user_ids:vector<int53> unclaimed_prize_count:int32 = MessageContent;
 
 //@description A contact has registered with Telegram
 messageContactRegistered = MessageContent;
 
-//@description The current user shared a user, which was requested by the bot
-//@user_id Identifier of the shared user
+//@description The current user shared users, which were requested by the bot
+//@users The shared users
 //@button_id Identifier of the keyboard button with the request
-messageUserShared user_id:int53 button_id:int32 = MessageContent;
+messageUsersShared users:vector<sharedUser> button_id:int32 = MessageContent;
 
 //@description The current user shared a chat, which was requested by the bot
-//@chat_id Identifier of the shared chat
+//@chat The shared chat
 //@button_id Identifier of the keyboard button with the request
-messageChatShared chat_id:int53 button_id:int32 = MessageContent;
+messageChatShared chat:sharedChat button_id:int32 = MessageContent;
 
 //@description The user allowed the bot to send messages
 //@reason The reason why the bot was allowed to write messages
@@ -3425,7 +3765,7 @@ messageSelfDestructTypeImmediately = MessageSelfDestructType;
 //@only_preview Pass true to get a fake message instead of actually sending them
 messageSendOptions disable_notification:Bool from_background:Bool protect_content:Bool update_order_of_installed_sticker_sets:Bool scheduling_state:MessageSchedulingState sending_id:int32 only_preview:Bool = MessageSendOptions;
 
-//@description Options to be used when a message content is copied without reference to the original sender. Service messages, and messages with messageInvoice or messagePremiumGiveaway content can't be copied
+//@description Options to be used when a message content is copied without reference to the original sender. Service messages, messages with messageInvoice, messagePremiumGiveaway, or messagePremiumGiveawayWinners content can't be copied
 //@send_copy True, if content of the message needs to be copied without reference to the original sender. Always true if the message is forwarded to a secret chat or is local
 //@replace_caption True, if media caption of the message copy needs to be replaced. Ignored if send_copy is false
 //@new_caption New message caption; pass null to copy message without caption. Ignored if replace_caption is false
@@ -3437,7 +3777,7 @@ messageCopyOptions send_copy:Bool replace_caption:Bool new_caption:formattedText
 
 //@description A text message
 //@text Formatted text to be sent; 0-getOption("message_text_length_max") characters. Only Bold, Italic, Underline, Strikethrough, Spoiler, CustomEmoji, BlockQuote, Code, Pre, PreCode, TextUrl and MentionName entities are allowed to be specified manually
-//@link_preview_options Options to be used for generation of a link preview; pass null to use default link preview options
+//@link_preview_options Options to be used for generation of a link preview; may be null if none; pass null to use default link preview options
 //@clear_draft True, if a chat message draft must be deleted
 inputMessageText text:formattedText link_preview_options:linkPreviewOptions clear_draft:Bool = InputMessageContent;
 
@@ -3464,7 +3804,7 @@ inputMessageAudio audio:InputFile album_cover_thumbnail:inputThumbnail duration:
 //@description A document message (general file)
 //@document Document to be sent
 //@thumbnail Document thumbnail; pass null to skip thumbnail uploading
-//@disable_content_type_detection True, if automatic file type detection is disabled and the document must be sent as a file. Always true for files sent to secret chats
+//@disable_content_type_detection Pass true to disable automatic file type detection and send the document as a file. Always true for files sent to secret chats
 //@caption Document caption; pass null to use an empty caption; 0-getOption("message_caption_length_max") characters
 inputMessageDocument document:InputFile thumbnail:inputThumbnail disable_content_type_detection:Bool caption:formattedText = InputMessageContent;
 
@@ -3478,7 +3818,6 @@ inputMessageDocument document:InputFile thumbnail:inputThumbnail disable_content
 //@self_destruct_type Photo self-destruct type; pass null if none; private chats only
 //@has_spoiler True, if the photo preview must be covered by a spoiler animation; not supported in secret chats
 inputMessagePhoto photo:InputFile thumbnail:inputThumbnail added_sticker_file_ids:vector<int32> width:int32 height:int32 caption:formattedText self_destruct_type:MessageSelfDestructType has_spoiler:Bool = InputMessageContent;
-
 
 //@description A sticker message
 //@sticker Sticker to be sent
@@ -3503,17 +3842,19 @@ inputMessageVideo video:InputFile thumbnail:inputThumbnail added_sticker_file_id
 
 //@description A video note message
 //@video_note Video note to be sent
-//@thumbnail Video thumbnail; pass null to skip thumbnail uploading
-//@duration Duration of the video, in seconds
+//@thumbnail Video thumbnail; may be null if empty; pass null to skip thumbnail uploading
+//@duration Duration of the video, in seconds; 0-60
 //@length Video width and height; must be positive and not greater than 640
-inputMessageVideoNote video_note:InputFile thumbnail:inputThumbnail duration:int32 length:int32 = InputMessageContent;
+//@self_destruct_type Video note self-destruct type; may be null if none; pass null if none; private chats only
+inputMessageVideoNote video_note:InputFile thumbnail:inputThumbnail duration:int32 length:int32 self_destruct_type:MessageSelfDestructType = InputMessageContent;
 
 //@description A voice note message
 //@voice_note Voice note to be sent
 //@duration Duration of the voice note, in seconds
 //@waveform Waveform representation of the voice note in 5-bit format
-//@caption Voice note caption; pass null to use an empty caption; 0-getOption("message_caption_length_max") characters
-inputMessageVoiceNote voice_note:InputFile duration:int32 waveform:bytes caption:formattedText = InputMessageContent;
+//@caption Voice note caption; may be null if empty; pass null to use an empty caption; 0-getOption("message_caption_length_max") characters
+//@self_destruct_type Voice note self-destruct type; may be null if none; pass null if none; private chats only
+inputMessageVoiceNote voice_note:InputFile duration:int32 waveform:bytes caption:formattedText self_destruct_type:MessageSelfDestructType = InputMessageContent;
 
 //@description A message with a location
 //@location Location to be sent
@@ -3691,7 +4032,7 @@ chatActionCancel = ChatAction;
 //@class UserStatus
 //@description Describes the last time the user was online
 
-//@description The user status was never changed
+//@description The user's status has never been changed
 userStatusEmpty = UserStatus;
 
 //@description The user is online
@@ -3703,14 +4044,26 @@ userStatusOnline expires:int32 = UserStatus;
 userStatusOffline was_online:int32 = UserStatus;
 
 //@description The user was online recently
-userStatusRecently = UserStatus;
+//@by_my_privacy_settings Exact user's status is hidden because the current user enabled userPrivacySettingShowStatus privacy setting for the user and has no Telegram Premium
+userStatusRecently by_my_privacy_settings:Bool = UserStatus;
 
 //@description The user is offline, but was online last week
-userStatusLastWeek = UserStatus;
+//@by_my_privacy_settings Exact user's status is hidden because the current user enabled userPrivacySettingShowStatus privacy setting for the user and has no Telegram Premium
+userStatusLastWeek by_my_privacy_settings:Bool = UserStatus;
 
 //@description The user is offline, but was online last month
-userStatusLastMonth = UserStatus;
+//@by_my_privacy_settings Exact user's status is hidden because the current user enabled userPrivacySettingShowStatus privacy setting for the user and has no Telegram Premium
+userStatusLastMonth by_my_privacy_settings:Bool = UserStatus;
 
+
+//@description Represents an emoji with its keyword
+//@emoji The emoji
+//@keyword The keyword
+emojiKeyword emoji:string keyword:string = EmojiKeyword;
+
+//@description Represents a list of emoji with their keywords
+//@emoji_keywords List of emoji with their keywords
+emojiKeywords emoji_keywords:vector<emojiKeyword> = EmojiKeywords;
 
 //@description Represents a list of stickers
 //@stickers List of stickers
@@ -3726,33 +4079,35 @@ emojis emojis:vector<string> = Emojis;
 //@name Name of the sticker set
 //@thumbnail Sticker set thumbnail in WEBP, TGS, or WEBM format with width and height 100; may be null. The file can be downloaded only before the thumbnail is changed
 //@thumbnail_outline Sticker set thumbnail's outline represented as a list of closed vector paths; may be empty. The coordinate system origin is in the upper-left corner
+//@is_owned True, if the sticker set is owned by the current user
 //@is_installed True, if the sticker set has been installed by the current user
 //@is_archived True, if the sticker set has been archived. A sticker set can't be installed and archived simultaneously
 //@is_official True, if the sticker set is official
-//@sticker_format Format of the stickers in the set
 //@sticker_type Type of the stickers in the set
 //@needs_repainting True, if stickers in the sticker set are custom emoji that must be repainted; for custom emoji sticker sets only
+//@is_allowed_as_chat_emoji_status True, if stickers in the sticker set are custom emoji that can be used as chat emoji status; for custom emoji sticker sets only
 //@is_viewed True for already viewed trending sticker sets
 //@stickers List of stickers in this set
 //@emojis A list of emoji corresponding to the stickers in the same order. The list is only for informational purposes, because a sticker is always sent with a fixed emoji from the corresponding Sticker object
-stickerSet id:int64 title:string name:string thumbnail:thumbnail thumbnail_outline:vector<closedVectorPath> is_installed:Bool is_archived:Bool is_official:Bool sticker_format:StickerFormat sticker_type:StickerType needs_repainting:Bool is_viewed:Bool stickers:vector<sticker> emojis:vector<emojis> = StickerSet;
+stickerSet id:int64 title:string name:string thumbnail:thumbnail thumbnail_outline:vector<closedVectorPath> is_owned:Bool is_installed:Bool is_archived:Bool is_official:Bool sticker_type:StickerType needs_repainting:Bool is_allowed_as_chat_emoji_status:Bool is_viewed:Bool stickers:vector<sticker> emojis:vector<emojis> = StickerSet;
 
 //@description Represents short information about a sticker set
 //@id Identifier of the sticker set
 //@title Title of the sticker set
 //@name Name of the sticker set
-//@thumbnail Sticker set thumbnail in WEBP, TGS, or WEBM format with width and height 100; may be null
+//@thumbnail Sticker set thumbnail in WEBP, TGS, or WEBM format with width and height 100; may be null. The file can be downloaded only before the thumbnail is changed
 //@thumbnail_outline Sticker set thumbnail's outline represented as a list of closed vector paths; may be empty. The coordinate system origin is in the upper-left corner
+//@is_owned True, if the sticker set is owned by the current user
 //@is_installed True, if the sticker set has been installed by the current user
 //@is_archived True, if the sticker set has been archived. A sticker set can't be installed and archived simultaneously
 //@is_official True, if the sticker set is official
-//@sticker_format Format of the stickers in the set
 //@sticker_type Type of the stickers in the set
 //@needs_repainting True, if stickers in the sticker set are custom emoji that must be repainted; for custom emoji sticker sets only
+//@is_allowed_as_chat_emoji_status True, if stickers in the sticker set are custom emoji that can be used as chat emoji status; for custom emoji sticker sets only
 //@is_viewed True for already viewed trending sticker sets
 //@size Total number of stickers in the set
 //@covers Up to the first 5 stickers from the set, depending on the context. If the application needs more stickers the full sticker set needs to be requested
-stickerSetInfo id:int64 title:string name:string thumbnail:thumbnail thumbnail_outline:vector<closedVectorPath> is_installed:Bool is_archived:Bool is_official:Bool sticker_format:StickerFormat sticker_type:StickerType needs_repainting:Bool is_viewed:Bool size:int32 covers:vector<sticker> = StickerSetInfo;
+stickerSetInfo id:int64 title:string name:string thumbnail:thumbnail thumbnail_outline:vector<closedVectorPath> is_owned:Bool is_installed:Bool is_archived:Bool is_official:Bool sticker_type:StickerType needs_repainting:Bool is_allowed_as_chat_emoji_status:Bool is_viewed:Bool size:int32 covers:vector<sticker> = StickerSetInfo;
 
 //@description Represents a list of sticker sets
 //@total_count Approximate total number of sticker sets found
@@ -3790,21 +4145,6 @@ emojiCategoryTypeEmojiStatus = EmojiCategoryType;
 emojiCategoryTypeChatPhoto = EmojiCategoryType;
 
 
-//@description Represents a viewer of a story
-//@user_id User identifier of the viewer
-//@view_date Approximate point in time (Unix timestamp) when the story was viewed
-//@block_list Block list to which the user is added; may be null if none
-//@chosen_reaction_type Type of the reaction that was chosen by the user; may be null if none
-storyViewer user_id:int53 view_date:int32 block_list:BlockList chosen_reaction_type:ReactionType = StoryViewer;
-
-//@description Represents a list of story viewers
-//@total_count Approximate total number of story viewers found
-//@total_reaction_count Approximate total number of reactions set by found story viewers
-//@viewers List of story viewers
-//@next_offset The offset for the next request. If empty, there are no more results
-storyViewers total_count:int32 total_reaction_count:int32 viewers:vector<storyViewer> next_offset:string = StoryViewers;
-
-
 //@description Describes position of a clickable rectangle area on a story media
 //@x_percentage The abscissa of the rectangle's center, as a percentage of the media width
 //@y_percentage The ordinate of the rectangle's center, as a percentage of the media height
@@ -3831,6 +4171,11 @@ storyAreaTypeVenue venue:venue = StoryAreaType;
 //@is_dark True, if reaction has a dark background
 //@is_flipped True, if reaction corner is flipped
 storyAreaTypeSuggestedReaction reaction_type:ReactionType total_count:int32 is_dark:Bool is_flipped:Bool = StoryAreaType;
+
+//@description An area pointing to a message
+//@chat_id Identifier of the chat with the message
+//@message_id Identifier of the message
+storyAreaTypeMessage chat_id:int53 message_id:int53 = StoryAreaType;
 
 
 //@description Describes a clickable rectangle area on a story media
@@ -3862,6 +4207,11 @@ inputStoryAreaTypePreviousVenue venue_provider:string venue_id:string = InputSto
 //@is_flipped True, if reaction corner is flipped
 inputStoryAreaTypeSuggestedReaction reaction_type:ReactionType is_dark:Bool is_flipped:Bool = InputStoryAreaType;
 
+//@description An area pointing to a message
+//@chat_id Identifier of the chat with the message. Currently, the chat must be a supergroup or a channel chat
+//@message_id Identifier of the message. Only successfully sent non-scheduled messages can be specified
+inputStoryAreaTypeMessage chat_id:int53 message_id:int53 = InputStoryAreaType;
+
 
 //@description Describes a clickable rectangle area on a story media to be added
 //@position Position of the area
@@ -3869,7 +4219,9 @@ inputStoryAreaTypeSuggestedReaction reaction_type:ReactionType is_dark:Bool is_f
 inputStoryArea position:storyAreaPosition type:InputStoryAreaType = InputStoryArea;
 
 //@description Contains a list of story areas to be added
-//@areas List of 0-10 input story areas
+//@areas List of input story areas. Currently, a story can have
+//-up to 10 inputStoryAreaTypeLocation, inputStoryAreaTypeFoundVenue, and inputStoryAreaTypePreviousVenue areas,
+//-up to getOption("story_suggested_reaction_area_count_max") inputStoryAreaTypeSuggestedReaction areas, and up to 1 inputStoryAreaTypeMessage area
 inputStoryAreas areas:vector<inputStoryArea> = InputStoryAreas;
 
 
@@ -3928,6 +4280,24 @@ storyListMain = StoryList;
 storyListArchive = StoryList;
 
 
+//@class StoryOrigin
+//@description Contains information about the origin of a story that was reposted
+
+//@description The original story was a public story with known sender
+//@chat_id Identifier of the chat that posted original story
+//@story_id Story identifier of the original story
+storyOriginPublicStory chat_id:int53 story_id:int32 = StoryOrigin;
+
+//@description The original story was sent by an unknown user
+//@sender_name Name of the story sender
+storyOriginHiddenUser sender_name:string = StoryOrigin;
+
+
+//@description Contains information about original story that was reposted
+//@origin Origin of the story that was reposted
+//@is_content_modified True, if story content was modified during reposting; otherwise, story wasn't modified
+storyRepostInfo origin:StoryOrigin is_content_modified:Bool = StoryRepostInfo;
+
 //@description Contains information about interactions with a story
 //@view_count Number of times the story was viewed
 //@forward_count Number of times the story was forwarded; 0 if none or unknown
@@ -3938,6 +4308,7 @@ storyInteractionInfo view_count:int32 forward_count:int32 reaction_count:int32 r
 //@description Represents a story
 //@id Unique story identifier among stories of the given sender
 //@sender_chat_id Identifier of the chat that posted the story
+//@sender_id Identifier of the sender of the story; may be null if the story is posted on behalf of the sender_chat_id
 //@date Point in time (Unix timestamp) when the story was published
 //@is_being_sent True, if the story is being sent by the current user
 //@is_being_edited True, if the story is being edited by the current user
@@ -3949,20 +4320,27 @@ storyInteractionInfo view_count:int32 forward_count:int32 reaction_count:int32 r
 //@can_be_forwarded True, if the story can be forwarded as a message. Otherwise, screenshots and saving of the story content must be also forbidden
 //@can_be_replied True, if the story can be replied in the chat with the story sender
 //@can_toggle_is_pinned True, if the story's is_pinned value can be changed
-//@can_get_viewers True, if users viewed the story can be received through getStoryViewers
+//@can_get_statistics True, if the story statistics are available through getStoryStatistics
+//@can_get_interactions True, if interactions with the story can be received through getStoryInteractions
 //@has_expired_viewers True, if users viewed the story can't be received, because the story has expired more than getOption("story_viewers_expiration_delay") seconds ago
+//@repost_info Information about the original story; may be null if the story wasn't reposted
 //@interaction_info Information about interactions with the story; may be null if the story isn't owned or there were no interactions
 //@chosen_reaction_type Type of the chosen reaction; may be null if none
 //@privacy_settings Privacy rules affecting story visibility; may be approximate for non-owned stories
 //@content Content of the story
 //@areas Clickable areas to be shown on the story content
 //@caption Caption of the story
-story id:int32 sender_chat_id:int53 date:int32 is_being_sent:Bool is_being_edited:Bool is_edited:Bool is_pinned:Bool is_visible_only_for_self:Bool can_be_deleted:Bool can_be_edited:Bool can_be_forwarded:Bool can_be_replied:Bool can_toggle_is_pinned:Bool can_get_viewers:Bool has_expired_viewers:Bool interaction_info:storyInteractionInfo chosen_reaction_type:ReactionType privacy_settings:StoryPrivacySettings content:StoryContent areas:vector<storyArea> caption:formattedText = Story;
+story id:int32 sender_chat_id:int53 sender_id:MessageSender date:int32 is_being_sent:Bool is_being_edited:Bool is_edited:Bool is_pinned:Bool is_visible_only_for_self:Bool can_be_deleted:Bool can_be_edited:Bool can_be_forwarded:Bool can_be_replied:Bool can_toggle_is_pinned:Bool can_get_statistics:Bool can_get_interactions:Bool has_expired_viewers:Bool repost_info:storyRepostInfo interaction_info:storyInteractionInfo chosen_reaction_type:ReactionType privacy_settings:StoryPrivacySettings content:StoryContent areas:vector<storyArea> caption:formattedText = Story;
 
 //@description Represents a list of stories
 //@total_count Approximate total number of stories found
 //@stories The list of stories
 stories total_count:int32 stories:vector<story> = Stories;
+
+//@description Contains identifier of a story along with identifier of its sender
+//@sender_chat_id Identifier of the chat that posted the story
+//@story_id Unique story identifier among stories of the given sender
+storyFullId sender_chat_id:int53 story_id:int32 = StoryFullId;
 
 //@description Contains basic information about a story
 //@story_id Unique story identifier among stories of the given sender
@@ -3977,6 +4355,104 @@ storyInfo story_id:int32 date:int32 is_for_close_friends:Bool = StoryInfo;
 //@max_read_story_id Identifier of the last read active story
 //@stories Basic information about the stories; use getStory to get full information about the stories. The stories are in a chronological order (i.e., in order of increasing story identifiers)
 chatActiveStories chat_id:int53 list:StoryList order:int53 max_read_story_id:int32 stories:vector<storyInfo> = ChatActiveStories;
+
+
+//@class StoryInteractionType
+//@description Describes type of interaction with a story
+
+//@description A view of the story
+//@chosen_reaction_type Type of the reaction that was chosen by the viewer; may be null if none
+storyInteractionTypeView chosen_reaction_type:ReactionType = StoryInteractionType;
+
+//@description A forward of the story as a message
+//@message The message with story forward
+storyInteractionTypeForward message:message = StoryInteractionType;
+
+//@description A repost of the story as a story
+//@story The reposted story
+storyInteractionTypeRepost story:story = StoryInteractionType;
+
+
+//@description Represents interaction with a story
+//@actor_id Identifier of the user or chat that made the interaction
+//@interaction_date Approximate point in time (Unix timestamp) when the interaction happened
+//@block_list Block list to which the actor is added; may be null if none or for chat stories
+//@type Type of the interaction
+storyInteraction actor_id:MessageSender interaction_date:int32 block_list:BlockList type:StoryInteractionType = StoryInteraction;
+
+//@description Represents a list of interactions with a story
+//@total_count Approximate total number of interactions found
+//@total_forward_count Approximate total number of found forwards and reposts; always 0 for chat stories
+//@total_reaction_count Approximate total number of found reactions; always 0 for chat stories
+//@interactions List of story interactions
+//@next_offset The offset for the next request. If empty, then there are no more results
+storyInteractions total_count:int32 total_forward_count:int32 total_reaction_count:int32 interactions:vector<storyInteraction> next_offset:string = StoryInteractions;
+
+
+//@description Describes a message that can be used for quick reply
+//@id Unique message identifier among all quick replies
+//@sending_state The sending state of the message; may be null if the message isn't being sent and didn't fail to be sent
+//@can_be_edited True, if the message can be edited
+//@reply_to_message_id Information about the identifier of the quick reply message to which the message replies
+//@via_bot_user_id If non-zero, the user identifier of the bot through which this message was sent
+//@media_album_id Unique identifier of an album this message belongs to. Only audios, documents, photos and videos can be grouped together in albums
+//@content Content of the message
+//@reply_markup Inline keyboard reply markup for the message; may be null if none
+quickReplyMessage id:int53 sending_state:MessageSendingState can_be_edited:Bool reply_to_message_id:int53 via_bot_user_id:int53 media_album_id:int64 content:MessageContent reply_markup:ReplyMarkup = QuickReplyMessage;
+
+//@description Describes a shortcut that can be used for a quick reply
+//@id Unique shortcut identifier
+//@name The name of the shortcut that can be used to use the shortcut
+//@first_message The first shortcut message
+//@message_count The total number of messages in the shortcut
+quickReplyShortcut id:int32 name:string first_message:quickReplyMessage message_count:int32 = QuickReplyShortcut;
+
+
+//@class PublicForward
+//@description Describes a public forward or repost of a story
+
+//@description Contains a public forward as a message
+//@message Information about the message
+publicForwardMessage message:message = PublicForward;
+
+//@description Contains a public repost to a story
+//@story Information about the story
+publicForwardStory story:story = PublicForward;
+
+
+//@description Represents a list of public forwards and reposts as a story of a message or a story
+//@total_count Approximate total number of messages and stories found
+//@forwards List of found public forwards and reposts
+//@next_offset The offset for the next request. If empty, then there are no more results
+publicForwards total_count:int32 forwards:vector<PublicForward> next_offset:string = PublicForwards;
+
+
+//@description Contains a list of features available on a specific chat boost level
+//@level Target chat boost level
+//@story_per_day_count Number of stories that the chat can publish daily
+//@custom_emoji_reaction_count Number of custom emoji reactions that can be added to the list of available reactions
+//@title_color_count Number of custom colors for chat title
+//@profile_accent_color_count Number of custom colors for profile photo background
+//@can_set_profile_background_custom_emoji True, if custom emoji for profile background can be set
+//@accent_color_count Number of custom colors for background of empty chat photo, replies to messages and link previews
+//@can_set_background_custom_emoji True, if custom emoji for reply header and link preview background can be set
+//@can_set_emoji_status True, if emoji status can be set
+//@chat_theme_background_count Number of chat theme backgrounds that can be set as chat background
+//@can_set_custom_background True, if custom background can be set in the chat for all users
+//@can_set_custom_emoji_sticker_set True, if custom emoji sticker set can be set for the chat
+//@can_recognize_speech True, if speech recognition can be used for video note and voice note messages by all users
+chatBoostLevelFeatures level:int32 story_per_day_count:int32 custom_emoji_reaction_count:int32 title_color_count:int32 profile_accent_color_count:int32 can_set_profile_background_custom_emoji:Bool accent_color_count:int32 can_set_background_custom_emoji:Bool can_set_emoji_status:Bool chat_theme_background_count:int32 can_set_custom_background:Bool can_set_custom_emoji_sticker_set:Bool can_recognize_speech:Bool = ChatBoostLevelFeatures;
+
+//@description Contains a list of features available on the first chat boost levels
+//@features The list of features
+//@min_profile_background_custom_emoji_boost_level The minimum boost level required to set custom emoji for profile background
+//@min_background_custom_emoji_boost_level The minimum boost level required to set custom emoji for reply header and link preview background; for channel chats only
+//@min_emoji_status_boost_level The minimum boost level required to set emoji status
+//@min_chat_theme_background_boost_level The minimum boost level required to set a chat theme background as chat background
+//@min_custom_background_boost_level The minimum boost level required to set custom chat background
+//@min_custom_emoji_sticker_set_boost_level The minimum boost level required to set custom emoji sticker set for the chat; for supergroup chats only
+//@min_speech_recognition_boost_level The minimum boost level allowing to recognize speech in video note and voice note messages for non-Premium users; for supergroup chats only
+chatBoostFeatures features:vector<chatBoostLevelFeatures> min_profile_background_custom_emoji_boost_level:int32 min_background_custom_emoji_boost_level:int32 min_emoji_status_boost_level:int32 min_chat_theme_background_boost_level:int32 min_custom_background_boost_level:int32 min_custom_emoji_sticker_set_boost_level:int32 min_speech_recognition_boost_level:int32 = ChatBoostFeatures;
 
 
 //@class ChatBoostSource
@@ -4002,7 +4478,7 @@ chatBoostSourcePremium user_id:int53 = ChatBoostSource;
 //@description Describes a prepaid Telegram Premium giveaway
 //@id Unique identifier of the prepaid giveaway
 //@winner_count Number of users which will receive Telegram Premium subscription gift codes
-//@month_count Number of month the Telegram Premium subscription will be active after code activation
+//@month_count Number of months the Telegram Premium subscription will be active after code activation
 //@payment_date Point in time (Unix timestamp) when the giveaway was paid
 prepaidPremiumGiveaway id:int64 winner_count:int32 month_count:int32 payment_date:int32 = PrepaidPremiumGiveaway;
 
@@ -4030,7 +4506,7 @@ chatBoost id:string count:int32 source:ChatBoostSource start_date:int32 expirati
 //@description Contains a list of boosts applied to a chat
 //@total_count Total number of boosts applied to the chat
 //@boosts List of boosts
-//@next_offset The offset for the next request. If empty, there are no more results
+//@next_offset The offset for the next request. If empty, then there are no more results
 foundChatBoosts total_count:int32 boosts:vector<chatBoost> next_offset:string = FoundChatBoosts;
 
 //@description Describes a slot for chat boost
@@ -4306,7 +4782,7 @@ addedReaction type:ReactionType sender_id:MessageSender is_outgoing:Bool date:in
 //@description Represents a list of reactions added to a message
 //@total_count The total number of found reactions
 //@reactions The list of added reactions
-//@next_offset The offset for the next request. If empty, there are no more results
+//@next_offset The offset for the next request. If empty, then there are no more results
 addedReactions total_count:int32 reactions:vector<addedReaction> next_offset:string = AddedReactions;
 
 //@description Represents an available reaction
@@ -4318,10 +4794,12 @@ availableReaction type:ReactionType needs_premium:Bool = AvailableReaction;
 //@top_reactions List of reactions to be shown at the top
 //@recent_reactions List of recently used reactions
 //@popular_reactions List of popular reactions
-//@allow_custom_emoji True, if custom emoji reactions could be added by Telegram Premium subscribers
-availableReactions top_reactions:vector<availableReaction> recent_reactions:vector<availableReaction> popular_reactions:vector<availableReaction> allow_custom_emoji:Bool = AvailableReactions;
+//@allow_custom_emoji True, if any custom emoji reaction can be added by Telegram Premium subscribers
+//@are_tags True, if the reactions will be tags and the message can be found by them
+//@unavailability_reason The reason why the current user can't add reactions to the message, despite some other users can; may be null if none
+availableReactions top_reactions:vector<availableReaction> recent_reactions:vector<availableReaction> popular_reactions:vector<availableReaction> allow_custom_emoji:Bool are_tags:Bool unavailability_reason:ReactionUnavailabilityReason = AvailableReactions;
 
-//@description Contains information about a emoji reaction
+//@description Contains information about an emoji reaction
 //@emoji Text representation of the reaction
 //@title Reaction title
 //@is_active True, if the reaction can be added to new messages and enabled in chats
@@ -4333,6 +4811,16 @@ availableReactions top_reactions:vector<availableReaction> recent_reactions:vect
 //@around_animation Around animation for the reaction; may be null
 //@center_animation Center animation for the reaction; may be null
 emojiReaction emoji:string title:string is_active:Bool static_icon:sticker appear_animation:sticker select_animation:sticker activate_animation:sticker effect_animation:sticker around_animation:sticker center_animation:sticker = EmojiReaction;
+
+
+//@class ReactionUnavailabilityReason
+//@description Describes why the current user can't add reactions to the message, despite some other users can
+
+//@description The user is an anonymous administrator in the supergroup, but isn't a creator of it, so they can't vote on behalf of the supergroup
+reactionUnavailabilityReasonAnonymousAdministrator = ReactionUnavailabilityReason;
+
+//@description The user isn't a member of the supergroup and can't send messages and reactions there without joining
+reactionUnavailabilityReasonGuest = ReactionUnavailabilityReason;
 
 
 //@description Represents a list of animations
@@ -4374,8 +4862,18 @@ speechRecognitionResultPending partial_text:string = SpeechRecognitionResult;
 speechRecognitionResultText text:string = SpeechRecognitionResult;
 
 //@description The speech recognition failed
-//@error Recognition error
+//@error Recognition error. An error with a message "MSG_VOICE_TOO_LONG" is returned when media duration is too big to be recognized
 speechRecognitionResultError error:error = SpeechRecognitionResult;
+
+
+//@description Describes a connection of the bot with a business account
+//@id Unique identifier of the connection
+//@user_id Identifier of the business user that created the connection
+//@user_chat_id Chat identifier of the private chat with the user
+//@date Point in time (Unix timestamp) when the connection was established
+//@can_reply True, if the bot can send messages to the connected user; false otherwise
+//@is_enabled True, if the connection is enabled; false otherwise
+businessConnection id:string user_id:int53 user_chat_id:int53 date:int32 can_reply:Bool is_enabled:Bool = BusinessConnection;
 
 
 //@description Describes a color to highlight a bot added to attachment menu
@@ -4682,7 +5180,7 @@ inlineQueryResultsButton text:string type:InlineQueryResultsButtonType = InlineQ
 //@inline_query_id Unique identifier of the inline query
 //@button Button to be shown above inline query results; may be null
 //@results Results of the query
-//@next_offset The offset for the next request. If empty, there are no more results
+//@next_offset The offset for the next request. If empty, then there are no more results
 inlineQueryResults inline_query_id:int64 button:inlineQueryResultsButton results:vector<InlineQueryResult> next_offset:string = InlineQueryResults;
 
 
@@ -4789,10 +5287,20 @@ chatEventMemberRestricted member_id:MessageSender old_status:ChatMemberStatus ne
 //@new_available_reactions New chat available reactions
 chatEventAvailableReactionsChanged old_available_reactions:ChatAvailableReactions new_available_reactions:ChatAvailableReactions = ChatEventAction;
 
+//@description The chat background was changed
+//@old_background Previous background; may be null if none
+//@new_background New background; may be null if none
+chatEventBackgroundChanged old_background:chatBackground new_background:chatBackground = ChatEventAction;
+
 //@description The chat description was changed
 //@old_description Previous chat description
 //@new_description New chat description
 chatEventDescriptionChanged old_description:string new_description:string = ChatEventAction;
+
+//@description The chat emoji status was changed
+//@old_emoji_status Previous emoji status; may be null if none
+//@new_emoji_status New emoji status; may be null if none
+chatEventEmojiStatusChanged old_emoji_status:emojiStatus new_emoji_status:emojiStatus = ChatEventAction;
 
 //@description The linked chat of a supergroup was changed
 //@old_linked_chat_id Previous supergroup linked chat identifier
@@ -4809,7 +5317,7 @@ chatEventLocationChanged old_location:chatLocation new_location:chatLocation = C
 //@new_message_auto_delete_time New value of message_auto_delete_time
 chatEventMessageAutoDeleteTimeChanged old_message_auto_delete_time:int32 new_message_auto_delete_time:int32 = ChatEventAction;
 
-//@description The chat permissions was changed
+//@description The chat permissions were changed
 //@old_permissions Previous chat permissions
 //@new_permissions New chat permissions
 chatEventPermissionsChanged old_permissions:chatPermissions new_permissions:chatPermissions = ChatEventAction;
@@ -4829,6 +5337,11 @@ chatEventSlowModeDelayChanged old_slow_mode_delay:int32 new_slow_mode_delay:int3
 //@new_sticker_set_id New identifier of the chat sticker set; 0 if none
 chatEventStickerSetChanged old_sticker_set_id:int64 new_sticker_set_id:int64 = ChatEventAction;
 
+//@description The supergroup sticker set with allowed custom emoji was changed
+//@old_sticker_set_id Previous identifier of the chat sticker set; 0 if none
+//@new_sticker_set_id New identifier of the chat sticker set; 0 if none
+chatEventCustomEmojiStickerSetChanged old_sticker_set_id:int64 new_sticker_set_id:int64 = ChatEventAction;
+
 //@description The chat title was changed
 //@old_title Previous chat title
 //@new_title New chat title
@@ -4844,15 +5357,19 @@ chatEventUsernameChanged old_username:string new_username:string = ChatEventActi
 //@new_usernames New list of active usernames
 chatEventActiveUsernamesChanged old_usernames:vector<string> new_usernames:vector<string> = ChatEventAction;
 
-//@description The chat accent color was changed
+//@description The chat accent color or background custom emoji were changed
 //@old_accent_color_id Previous identifier of chat accent color
-//@new_accent_color_id New identifier of chat accent color
-chatEventAccentColorChanged old_accent_color_id:int32 new_accent_color_id:int32 = ChatEventAction;
-
-//@description The chat's custom emoji for reply background was changed
 //@old_background_custom_emoji_id Previous identifier of the custom emoji; 0 if none
+//@new_accent_color_id New identifier of chat accent color
 //@new_background_custom_emoji_id New identifier of the custom emoji; 0 if none
-chatEventBackgroundCustomEmojiChanged old_background_custom_emoji_id:int64 new_background_custom_emoji_id:int64 = ChatEventAction;
+chatEventAccentColorChanged old_accent_color_id:int32 old_background_custom_emoji_id:int64 new_accent_color_id:int32 new_background_custom_emoji_id:int64 = ChatEventAction;
+
+//@description The chat's profile accent color or profile background custom emoji were changed
+//@old_profile_accent_color_id Previous identifier of chat's profile accent color; -1 if none
+//@old_profile_background_custom_emoji_id Previous identifier of the custom emoji; 0 if none
+//@new_profile_accent_color_id New identifier of chat's profile accent color; -1 if none
+//@new_profile_background_custom_emoji_id New identifier of the custom emoji; 0 if none
+chatEventProfileAccentColorChanged old_profile_accent_color_id:int32 old_profile_background_custom_emoji_id:int64 new_profile_accent_color_id:int32 new_profile_background_custom_emoji_id:int64 = ChatEventAction;
 
 //@description The has_protected_content setting of a channel was toggled
 //@has_protected_content New value of has_protected_content
@@ -5044,6 +5561,9 @@ premiumLimitTypeChatFolderChosenChatCount = PremiumLimitType;
 //@description The maximum number of pinned chats in the archive chat list
 premiumLimitTypePinnedArchivedChatCount = PremiumLimitType;
 
+//@description The maximum number of pinned Saved Messages topics
+premiumLimitTypePinnedSavedMessagesTopicCount = PremiumLimitType;
+
 //@description The maximum length of sent media caption
 premiumLimitTypeCaptionLength = PremiumLimitType;
 
@@ -5070,6 +5590,9 @@ premiumLimitTypeStoryCaptionLength = PremiumLimitType;
 
 //@description The maximum number of suggested reaction areas on a story
 premiumLimitTypeStorySuggestedReactionAreaCount = PremiumLimitType;
+
+//@description The maximum number of received similar chats
+premiumLimitTypeSimilarChatCount = PremiumLimitType;
 
 
 //@class PremiumFeature
@@ -5105,7 +5628,7 @@ premiumFeatureAdvancedChatManagement = PremiumFeature;
 //@description A badge in the user's profile
 premiumFeatureProfileBadge = PremiumFeature;
 
-//@description An emoji status shown along with the user's name
+//@description The ability to show an emoji status along with the user's name
 premiumFeatureEmojiStatus = PremiumFeature;
 
 //@description Profile photo animation on message and chat screens
@@ -5126,14 +5649,67 @@ premiumFeatureUpgradedStories = PremiumFeature;
 //@description The ability to boost chats
 premiumFeatureChatBoost = PremiumFeature;
 
-//@description The ability to choose accent color
+//@description The ability to choose accent color for replies and user profile
 premiumFeatureAccentColor = PremiumFeature;
+
+//@description The ability to set private chat background for both users
+premiumFeatureBackgroundForBoth = PremiumFeature;
+
+//@description The ability to use tags in Saved Messages
+premiumFeatureSavedMessagesTags = PremiumFeature;
+
+//@description The ability to disallow incoming voice and video note messages in private chats using setUserPrivacySettingRules with userPrivacySettingAllowPrivateVoiceAndVideoNoteMessages
+//-and to restrict incoming messages from non-contacts using setNewChatPrivacySettings
+premiumFeatureMessagePrivacy = PremiumFeature;
+
+//@description The ability to view last seen and read times of other users even they can't view last seen or read time for the current user
+premiumFeatureLastSeenTimes = PremiumFeature;
+
+//@description The ability to use Business features
+premiumFeatureBusiness = PremiumFeature;
+
+
+//@class BusinessFeature
+//@description Describes a feature available to Business user accounts
+
+//@description The ability to set location
+businessFeatureLocation = BusinessFeature;
+
+//@description The ability to set opening hours
+businessFeatureOpeningHours = BusinessFeature;
+
+//@description The ability to use quick replies
+businessFeatureQuickReplies = BusinessFeature;
+
+//@description The ability to set up a greeting message
+businessFeatureGreetingMessage = BusinessFeature;
+
+//@description The ability to set up an away message
+businessFeatureAwayMessage = BusinessFeature;
+
+//@description The ability to create links to the business account with predefined message text
+businessFeatureAccountLinks = BusinessFeature;
+
+//@description The ability to customize intro
+businessFeatureIntro = BusinessFeature;
+
+//@description The ability to connect a bot to the account
+businessFeatureBots = BusinessFeature;
+
+//@description The ability to show an emoji status along with the business name
+businessFeatureEmojiStatus = BusinessFeature;
+
+//@description The ability to display folder names for each chat in the chat list
+businessFeatureChatFolderTags = BusinessFeature;
+
+//@description Allowed to use many additional features for stories
+businessFeatureUpgradedStories = BusinessFeature;
 
 
 //@class PremiumStoryFeature
 //@description Describes a story feature available to Premium users
 
-//@description User stories are displayed before stories of non-premium contacts and channels
+//@description Stories of the current user are displayed before stories of non-Premium contacts, supergroups, and channels
 premiumStoryFeaturePriorityOrder = PremiumStoryFeature;
 
 //@description The ability to hide the fact that the user viewed other's stories
@@ -5151,6 +5727,9 @@ premiumStoryFeatureSaveStories = PremiumStoryFeature;
 //@description The ability to use links and formatting in story caption
 premiumStoryFeatureLinksAndFormatting = PremiumStoryFeature;
 
+//@description The ability to choose better quality for viewed stories
+premiumStoryFeatureVideoQuality = PremiumStoryFeature;
+
 
 //@description Contains information about a limit, increased for Premium users
 //@type The type of the limit
@@ -5164,6 +5743,10 @@ premiumLimit type:PremiumLimitType default_value:int32 premium_value:int32 = Pre
 //@payment_link An internal link to be opened to pay for Telegram Premium if store payment isn't possible; may be null if direct payment isn't available
 premiumFeatures features:vector<PremiumFeature> limits:vector<premiumLimit> payment_link:InternalLinkType = PremiumFeatures;
 
+//@description Contains information about features, available to Business user accounts
+//@features The list of available business features
+businessFeatures features:vector<BusinessFeature> = BusinessFeatures;
+
 
 //@class PremiumSource
 //@description Describes a source from which the Premium features screen is opened
@@ -5175,6 +5758,10 @@ premiumSourceLimitExceeded limit_type:PremiumLimitType = PremiumSource;
 //@description A user tried to use a Premium feature
 //@feature The used feature
 premiumSourceFeature feature:PremiumFeature = PremiumSource;
+
+//@description A user tried to use a Business feature
+//@feature The used feature; pass null if none specific feature was used
+premiumSourceBusinessFeature feature:BusinessFeature = PremiumSource;
 
 //@description A user tried to use a Premium story feature
 //@feature The used feature
@@ -5193,11 +5780,17 @@ premiumSourceSettings = PremiumSource;
 //@animation Promotion animation for the feature
 premiumFeaturePromotionAnimation feature:PremiumFeature animation:animation = PremiumFeaturePromotionAnimation;
 
+//@description Describes a promotion animation for a Business feature
+//@feature Business feature
+//@animation Promotion animation for the feature
+businessFeaturePromotionAnimation feature:BusinessFeature animation:animation = BusinessFeaturePromotionAnimation;
+
 //@description Contains state of Telegram Premium subscription and promotion videos for Premium features
 //@state Text description of the state of the current Premium subscription; may be empty if the current user has no Telegram Premium subscription
 //@payment_options The list of available options for buying Telegram Premium
 //@animations The list of available promotion animations for Premium features
-premiumState state:formattedText payment_options:vector<premiumStatePaymentOption> animations:vector<premiumFeaturePromotionAnimation> = PremiumState;
+//@business_animations The list of available promotion animations for Business features
+premiumState state:formattedText payment_options:vector<premiumStatePaymentOption> animations:vector<premiumFeaturePromotionAnimation> business_animations:vector<businessFeaturePromotionAnimation> = PremiumState;
 
 
 //@class StorePaymentPurpose
@@ -5215,13 +5808,13 @@ storePaymentPurposePremiumSubscription is_restore:Bool is_upgrade:Bool = StorePa
 storePaymentPurposeGiftedPremium user_id:int53 currency:string amount:int53 = StorePaymentPurpose;
 
 //@description The user creating Telegram Premium gift codes for other users
-//@boosted_chat_id Identifier of the channel chat, which will be automatically boosted by the users for duration of the Premium subscription and which is administered by the user; 0 if none
+//@boosted_chat_id Identifier of the supergroup or channel chat, which will be automatically boosted by the users for duration of the Premium subscription and which is administered by the user; 0 if none
 //@currency ISO 4217 currency code of the payment currency
 //@amount Paid amount, in the smallest units of the currency
 //@user_ids Identifiers of the users which can activate the gift codes
 storePaymentPurposePremiumGiftCodes boosted_chat_id:int53 currency:string amount:int53 user_ids:vector<int53> = StorePaymentPurpose;
 
-//@description The user creating a Telegram Premium giveaway for subscribers of channel chats; requires can_post_messages rights in the channels
+//@description The user creating a Telegram Premium giveaway
 //@parameters Giveaway parameters
 //@currency ISO 4217 currency code of the payment currency
 //@amount Paid amount, in the smallest units of the currency
@@ -5232,19 +5825,19 @@ storePaymentPurposePremiumGiveaway parameters:premiumGiveawayParameters currency
 //@description Describes a purpose of a payment toward Telegram
 
 //@description The user creating Telegram Premium gift codes for other users
-//@boosted_chat_id Identifier of the channel chat, which will be automatically boosted by the users for duration of the Premium subscription and which is administered by the user; 0 if none
+//@boosted_chat_id Identifier of the supergroup or channel chat, which will be automatically boosted by the users for duration of the Premium subscription and which is administered by the user; 0 if none
 //@currency ISO 4217 currency code of the payment currency
 //@amount Paid amount, in the smallest units of the currency
 //@user_ids Identifiers of the users which can activate the gift codes
-//@month_count Number of month the Telegram Premium subscription will be active for the users
+//@month_count Number of months the Telegram Premium subscription will be active for the users
 telegramPaymentPurposePremiumGiftCodes boosted_chat_id:int53 currency:string amount:int53 user_ids:vector<int53> month_count:int32 = TelegramPaymentPurpose;
 
-//@description The user creating a Telegram Premium giveaway for subscribers of channel chats; requires can_post_messages rights in the channels
+//@description The user creating a Telegram Premium giveaway
 //@parameters Giveaway parameters
 //@currency ISO 4217 currency code of the payment currency
 //@amount Paid amount, in the smallest units of the currency
 //@winner_count Number of users which will be able to activate the gift codes
-//@month_count Number of month the Telegram Premium subscription will be active for the users
+//@month_count Number of months the Telegram Premium subscription will be active for the users
 telegramPaymentPurposePremiumGiveaway parameters:premiumGiveawayParameters currency:string amount:int53 winner_count:int32 month_count:int32 = TelegramPaymentPurpose;
 
 
@@ -5350,6 +5943,10 @@ backgroundTypePattern fill:BackgroundFill intensity:int32 is_inverted:Bool is_mo
 //@fill The background fill
 backgroundTypeFill fill:BackgroundFill = BackgroundType;
 
+//@description A background from a chat theme; can be used only as a chat background in channels
+//@theme_name Name of the chat theme
+backgroundTypeChatTheme theme_name:string = BackgroundType;
+
 
 //@class InputBackground
 //@description Contains information about background to set
@@ -5383,6 +5980,17 @@ themeSettings accent_color:int32 background:background outgoing_message_fill:Bac
 chatTheme name:string light_settings:themeSettings dark_settings:themeSettings = ChatTheme;
 
 
+//@description Describes a time zone
+//@id Unique time zone identifier
+//@name Time zone name
+//@utc_time_offset Current UTC time offset for the time zone
+timeZone id:string name:string utc_time_offset:int32 = TimeZone;
+
+//@description Contains a list of time zones
+//@time_zones A list of time zones
+timeZones time_zones:vector<timeZone> = TimeZones;
+
+
 //@description Contains a list of hashtags
 //@hashtags A list of hashtags
 hashtags hashtags:vector<string> = Hashtags;
@@ -5397,7 +6005,7 @@ canSendStoryResultOk = CanSendStoryResult;
 //@description The user must subscribe to Telegram Premium to be able to post stories
 canSendStoryResultPremiumNeeded = CanSendStoryResult;
 
-//@description The channel chat must be boosted first by Telegram Premium subscribers to post more stories. Call getChatBoostStatus to get current boost status of the chat
+//@description The chat must be boosted first by Telegram Premium subscribers to post more stories. Call getChatBoostStatus to get current boost status of the chat
 canSendStoryResultBoostNeeded = CanSendStoryResult;
 
 //@description The limit for the number of active stories exceeded. The user can buy Telegram Premium, delete an active story, or wait for the oldest story to expire
@@ -5442,7 +6050,7 @@ checkChatUsernameResultUsernameInvalid = CheckChatUsernameResult;
 //@description The username is occupied
 checkChatUsernameResultUsernameOccupied = CheckChatUsernameResult;
 
-//@description The username can be purchased at fragment.com
+//@description The username can be purchased at https://fragment.com. Information about the username can be received using getCollectibleItemInfo
 checkChatUsernameResultUsernamePurchasable = CheckChatUsernameResult;
 
 //@description The user has too many chats with username, one of them must be made private first
@@ -5483,15 +6091,15 @@ resetPasswordResultDeclined retry_date:int32 = ResetPasswordResult;
 //@class MessageFileType
 //@description Contains information about a file with messages exported from another app
 
-//@description The messages was exported from a private chat
+//@description The messages were exported from a private chat
 //@name Name of the other party; may be empty if unrecognized
 messageFileTypePrivate name:string = MessageFileType;
 
-//@description The messages was exported from a group chat
+//@description The messages were exported from a group chat
 //@title Title of the group chat; may be empty if unrecognized
 messageFileTypeGroup title:string = MessageFileType;
 
-//@description The messages was exported from a chat of unknown type
+//@description The messages were exported from a chat of unknown type
 messageFileTypeUnknown = MessageFileType;
 
 
@@ -5561,12 +6169,12 @@ pushMessageContentPhoto photo:photo caption:string is_secret:Bool is_pinned:Bool
 pushMessageContentPoll question:string is_regular:Bool is_pinned:Bool = PushMessageContent;
 
 //@description A message with a Telegram Premium gift code created for the user
-//@month_count Number of month the Telegram Premium subscription will be active after code activation
+//@month_count Number of months the Telegram Premium subscription will be active after code activation
 pushMessageContentPremiumGiftCode month_count:int32 = PushMessageContent;
 
 //@description A message with a Telegram Premium giveaway
 //@winner_count Number of users which will receive Telegram Premium subscription gift codes; 0 for pinned message
-//@month_count Number of month the Telegram Premium subscription will be active after code activation; 0 for pinned message
+//@month_count Number of months the Telegram Premium subscription will be active after code activation; 0 for pinned message
 //@is_pinned True, if the message is a pinned message with the specified content
 pushMessageContentPremiumGiveaway winner_count:int32 month_count:int32 is_pinned:Bool = PushMessageContent;
 
@@ -5810,6 +6418,9 @@ userPrivacySettingRuleAllowAll = UserPrivacySettingRule;
 //@description A rule to allow all contacts of the user to do something
 userPrivacySettingRuleAllowContacts = UserPrivacySettingRule;
 
+//@description A rule to allow all Premium Users to do something; currently, allowed only for userPrivacySettingAllowChatInvites
+userPrivacySettingRuleAllowPremiumUsers = UserPrivacySettingRule;
+
 //@description A rule to allow certain specified users to do something
 //@user_ids The user identifiers, total number of users in all rules must not exceed 1000
 userPrivacySettingRuleAllowUsers user_ids:vector<int53> = UserPrivacySettingRule;
@@ -5855,6 +6466,9 @@ userPrivacySettingShowPhoneNumber = UserPrivacySetting;
 //@description A privacy setting for managing whether the user's bio is visible
 userPrivacySettingShowBio = UserPrivacySetting;
 
+//@description A privacy setting for managing whether the user's birthdate is visible
+userPrivacySettingShowBirthdate = UserPrivacySetting;
+
 //@description A privacy setting for managing whether the user can be invited to chats
 userPrivacySettingAllowChatInvites = UserPrivacySetting;
 
@@ -5867,8 +6481,30 @@ userPrivacySettingAllowPeerToPeerCalls = UserPrivacySetting;
 //@description A privacy setting for managing whether the user can be found by their phone number. Checked only if the phone number is not known to the other user. Can be set only to "Allow contacts" or "Allow all"
 userPrivacySettingAllowFindingByPhoneNumber = UserPrivacySetting;
 
-//@description A privacy setting for managing whether the user can receive voice and video messages in private chats
+//@description A privacy setting for managing whether the user can receive voice and video messages in private chats; for Telegram Premium users only
 userPrivacySettingAllowPrivateVoiceAndVideoNoteMessages = UserPrivacySetting;
+
+
+//@description Contains privacy settings for message read date in private chats. Read dates are always shown to the users that can see online status of the current user regardless of this setting
+//@show_read_date True, if message read date is shown to other users in private chats. If false and the current user isn't a Telegram Premium user, then they will not be able to see other's message read date.
+readDatePrivacySettings show_read_date:Bool = ReadDatePrivacySettings;
+
+//@description Contains privacy settings for new chats with non-contacts
+//@allow_new_chats_from_unknown_users True, if non-contacts users are able to write first to the current user. Telegram Premium subscribers are able to write first regardless of this setting
+newChatPrivacySettings allow_new_chats_from_unknown_users:Bool = NewChatPrivacySettings;
+
+
+//@class CanSendMessageToUserResult
+//@description Describes result of canSendMessageToUser
+
+//@description The user can be messaged
+canSendMessageToUserResultOk = CanSendMessageToUserResult;
+
+//@description The user can't be messaged, because they are deleted or unknown
+canSendMessageToUserResultUserIsDeleted = CanSendMessageToUserResult;
+
+//@description The user can't be messaged, because they restrict new chats with non-contacts
+canSendMessageToUserResultUserRestrictsNewChats = CanSendMessageToUserResult;
 
 
 //@description Contains information about the period of inactivity after which the current user's account will automatically be deleted
@@ -6042,7 +6678,7 @@ targetChatInternalLink link:InternalLinkType = TargetChat;
 //@class InternalLinkType
 //@description Describes an internal https://t.me or tg: link, which must be processed by the application in a special way
 
-//@description The link is a link to the active sessions section of the application. Use getActiveSessions to handle the link
+//@description The link is a link to the Devices section of the application. Use getActiveSessions to get the list of active sessions and show them to the user
 internalLinkTypeActiveSessions = InternalLinkType;
 
 //@description The link is a link to an attachment menu bot to be opened in the specified or a chosen chat. Process given target_chat to open the chat.
@@ -6060,6 +6696,7 @@ internalLinkTypeAttachmentMenuBot target_chat:TargetChat bot_username:string url
 internalLinkTypeAuthenticationCode code:string = InternalLinkType;
 
 //@description The link is a link to a background. Call searchBackground with the given background name to process the link
+//-If background is found and the user wants to apply it, then call setDefaultBackground
 //@background_name Name of the background
 internalLinkTypeBackground background_name:string = InternalLinkType;
 
@@ -6097,14 +6734,16 @@ internalLinkTypeChangePhoneNumber = InternalLinkType;
 //@url URL to be passed to getChatBoostLinkInfo
 internalLinkTypeChatBoost url:string = InternalLinkType;
 
-//@description The link is an invite link to a chat folder. Call checkChatFolderInviteLink with the given invite link to process the link
+//@description The link is an invite link to a chat folder. Call checkChatFolderInviteLink with the given invite link to process the link.
+//-If the link is valid and the user wants to join the chat folder, then call addChatFolderByInviteLink
 //@invite_link Internal representation of the invite link
 internalLinkTypeChatFolderInvite invite_link:string = InternalLinkType;
 
 //@description The link is a link to the folder section of the app settings
 internalLinkTypeChatFolderSettings = InternalLinkType;
 
-//@description The link is a chat invite link. Call checkChatInviteLink with the given invite link to process the link
+//@description The link is a chat invite link. Call checkChatInviteLink with the given invite link to process the link.
+//-If the link is valid and the user wants to join the chat, then call joinChatByInviteLink
 //@invite_link Internal representation of the invite link
 internalLinkTypeChatInvite invite_link:string = InternalLinkType;
 
@@ -6114,12 +6753,14 @@ internalLinkTypeDefaultMessageAutoDeleteTimerSettings = InternalLinkType;
 //@description The link is a link to the edit profile section of the app settings
 internalLinkTypeEditProfileSettings = InternalLinkType;
 
-//@description The link is a link to a game. Call searchPublicChat with the given bot username, check that the user is a bot, ask the current user to select a chat to send the game, and then call sendMessage with inputMessageGame
+//@description The link is a link to a game. Call searchPublicChat with the given bot username, check that the user is a bot,
+//-ask the current user to select a chat to send the game, and then call sendMessage with inputMessageGame
 //@bot_username Username of the bot that owns the game
 //@game_short_name Short name of the game
 internalLinkTypeGame bot_username:string game_short_name:string = InternalLinkType;
 
-//@description The link must be opened in an Instant View. Call getWebPageInstantView with the given URL to process the link
+//@description The link must be opened in an Instant View. Call getWebPageInstantView with the given URL to process the link.
+//-If Instant View is found, then show it, otherwise, open the fallback URL in an external browser
 //@url URL to be passed to getWebPageInstantView
 //@fallback_url An URL to open if getWebPageInstantView fails
 internalLinkTypeInstantView url:string fallback_url:string = InternalLinkType;
@@ -6128,14 +6769,16 @@ internalLinkTypeInstantView url:string fallback_url:string = InternalLinkType;
 //@invoice_name Name of the invoice
 internalLinkTypeInvoice invoice_name:string = InternalLinkType;
 
-//@description The link is a link to a language pack. Call getLanguagePackInfo with the given language pack identifier to process the link
+//@description The link is a link to a language pack. Call getLanguagePackInfo with the given language pack identifier to process the link.
+//-If the language pack is found and the user wants to apply it, then call setOption for the option "language_pack_id"
 //@language_pack_id Language pack identifier
 internalLinkTypeLanguagePack language_pack_id:string = InternalLinkType;
 
 //@description The link is a link to the language section of the app settings
 internalLinkTypeLanguageSettings = InternalLinkType;
 
-//@description The link is a link to a Telegram message or a forum topic. Call getMessageLinkInfo with the given URL to process the link
+//@description The link is a link to a Telegram message or a forum topic. Call getMessageLinkInfo with the given URL to process the link,
+//-and then open received forum topic or chat and show the message there
 //@url URL to be passed to getMessageLinkInfo
 internalLinkTypeMessage url:string = InternalLinkType;
 
@@ -6145,7 +6788,7 @@ internalLinkTypeMessage url:string = InternalLinkType;
 internalLinkTypeMessageDraft text:formattedText contains_link:Bool = InternalLinkType;
 
 //@description The link contains a request of Telegram passport data. Call getPassportAuthorizationForm with the given parameters to process the link if the link was received from outside of the application; otherwise, ignore it
-//@bot_user_id User identifier of the service's bot
+//@bot_user_id User identifier of the service's bot; the corresponding user may be unknown yet
 //@scope Telegram Passport element types requested by the service
 //@public_key Service's public key
 //@nonce Unique request identifier provided by the service
@@ -6153,7 +6796,8 @@ internalLinkTypeMessageDraft text:formattedText contains_link:Bool = InternalLin
 //-If empty, then onActivityResult method must be used to return response on Android, or the link tgbot{bot_user_id}://passport/success or tgbot{bot_user_id}://passport/cancel must be opened otherwise
 internalLinkTypePassportDataRequest bot_user_id:int53 scope:string public_key:string nonce:string callback_url:string = InternalLinkType;
 
-//@description The link can be used to confirm ownership of a phone number to prevent account deletion. Call sendPhoneNumberConfirmationCode with the given hash and phone number to process the link
+//@description The link can be used to confirm ownership of a phone number to prevent account deletion. Call sendPhoneNumberConfirmationCode with the given hash and phone number to process the link.
+//-If succeeded, call checkPhoneNumberConfirmationCode to check entered by the user code, or resendPhoneNumberConfirmationCode to resend it
 //@hash Hash value from the link
 //@phone_number Phone number value from the link
 internalLinkTypePhoneNumberConfirmation hash:string phone_number:string = InternalLinkType;
@@ -6162,7 +6806,12 @@ internalLinkTypePhoneNumberConfirmation hash:string phone_number:string = Intern
 //@referrer Referrer specified in the link
 internalLinkTypePremiumFeatures referrer:string = InternalLinkType;
 
-//@description The link is a link with a Telegram Premium gift code. Call checkPremiumGiftCode with the given code to process the link. If the code is valid and the user wants to apply it, then call applyPremiumGiftCode
+//@description The link is a link to the screen for gifting Telegram Premium subscriptions to friends via inputInvoiceTelegram payments or in-store purchases
+//@referrer Referrer specified in the link
+internalLinkTypePremiumGift referrer:string = InternalLinkType;
+
+//@description The link is a link with a Telegram Premium gift code. Call checkPremiumGiftCode with the given code to process the link.
+//-If the code is valid and the user wants to apply it, then call applyPremiumGiftCode
 //@code The Telegram Premium gift code
 internalLinkTypePremiumGiftCode code:string = InternalLinkType;
 
@@ -6176,6 +6825,7 @@ internalLinkTypePrivacyAndSecuritySettings = InternalLinkType;
 internalLinkTypeProxy server:string port:int32 type:ProxyType = InternalLinkType;
 
 //@description The link is a link to a chat by its username. Call searchPublicChat with the given chat username to process the link
+//-If the chat is found, open its profile information screen or the chat itself
 //@chat_username Username of the chat
 internalLinkTypePublicChat chat_username:string = InternalLinkType;
 
@@ -6192,17 +6842,18 @@ internalLinkTypeSettings = InternalLinkType;
 //@description The link is a link to a bot, which can be installed to the side menu. Call searchPublicChat with the given bot username, check that the user is a bot and can be added to attachment menu.
 //-Then, use getAttachmentMenuBot to receive information about the bot. If the bot isn't added to side menu, then show a disclaimer about Mini Apps being a third-party apps,
 //-ask the user to accept their Terms of service and confirm adding the bot to side and attachment menu. If the user accept the terms and confirms adding, then use toggleBotIsAddedToAttachmentMenu to add the bot.
-//-If the bot is added to side menu, then use getWebAppUrl with the given URL
+//-If the bot is added to side menu, then use getWebAppUrl with the given URL and open the returned URL as a Web App
 //@bot_username Username of the bot
 //@url URL to be passed to getWebAppUrl
 internalLinkTypeSideMenuBot bot_username:string url:string = InternalLinkType;
 
-//@description The link is a link to a sticker set. Call searchStickerSet with the given sticker set name to process the link and show the sticker set
+//@description The link is a link to a sticker set. Call searchStickerSet with the given sticker set name to process the link and show the sticker set.
+//-If the sticker set is found and the user wants to add it, then call changeStickerSet
 //@sticker_set_name Name of the sticker set
 //@expect_custom_emoji True, if the sticker set is expected to contain custom emoji
 internalLinkTypeStickerSet sticker_set_name:string expect_custom_emoji:Bool = InternalLinkType;
 
-//@description The link is a link to a story. Call searchPublicChat with the given sender username, then call getStory with the received chat identifier and the given story identifier
+//@description The link is a link to a story. Call searchPublicChat with the given sender username, then call getStory with the received chat identifier and the given story identifier, then show the story if received
 //@story_sender_username Username of the sender of the story
 //@story_id Story identifier
 internalLinkTypeStory story_sender_username:string story_id:int32 = InternalLinkType;
@@ -6221,11 +6872,13 @@ internalLinkTypeUnknownDeepLink link:string = InternalLinkType;
 //@description The link is a link to an unsupported proxy. An alert can be shown to the user
 internalLinkTypeUnsupportedProxy = InternalLinkType;
 
-//@description The link is a link to a user by its phone number. Call searchUserByPhoneNumber with the given phone number to process the link
+//@description The link is a link to a user by its phone number. Call searchUserByPhoneNumber with the given phone number to process the link.
+//-If the user is found, then call createPrivateChat and open the chat
 //@phone_number Phone number of the user
 internalLinkTypeUserPhoneNumber phone_number:string = InternalLinkType;
 
-//@description The link is a link to a user by a temporary token. Call searchUserByToken with the given token to process the link
+//@description The link is a link to a user by a temporary token. Call searchUserByToken with the given token to process the link.
+//-If the user is found, then call createPrivateChat and open the chat
 //@token The token
 internalLinkTypeUserToken token:string = InternalLinkType;
 
@@ -6479,16 +7132,16 @@ autosaveSettings private_chat_settings:scopeAutosaveSettings group_settings:scop
 //@class ConnectionState
 //@description Describes the current state of the connection to Telegram servers
 
-//@description Currently waiting for the network to become available. Use setNetworkType to change the available network type
+//@description Waiting for the network to become available. Use setNetworkType to change the available network type
 connectionStateWaitingForNetwork = ConnectionState;
 
-//@description Currently establishing a connection with a proxy server
+//@description Establishing a connection with a proxy server
 connectionStateConnectingToProxy = ConnectionState;
 
-//@description Currently establishing a connection to the Telegram servers
+//@description Establishing a connection to the Telegram servers
 connectionStateConnecting = ConnectionState;
 
-//@description Downloading data received while the application was offline
+//@description Downloading data supposed to be received while the application was offline
 connectionStateUpdating = ConnectionState;
 
 //@description There is a working connection to the Telegram servers
@@ -6591,6 +7244,12 @@ suggestedActionRestorePremium = SuggestedAction;
 //@description Suggests the user to subscribe to the Premium subscription with annual payments
 suggestedActionSubscribeToAnnualPremium = SuggestedAction;
 
+//@description Suggests the user to gift Telegram Premium to friends for Christmas
+suggestedActionGiftPremiumForChristmas = SuggestedAction;
+
+//@description Suggests the user to set birthdate
+suggestedActionSetBirthdate = SuggestedAction;
+
 
 //@description Contains a counter
 //@count Count
@@ -6662,10 +7321,11 @@ proxies proxies:vector<proxy> = Proxies;
 //@description A sticker to be added to a sticker set
 //@sticker File with the sticker; must fit in a 512x512 square. For WEBP stickers the file must be in WEBP or PNG format, which will be converted to WEBP server-side.
 //-See https://core.telegram.org/animated_stickers#technical-requirements for technical requirements
+//@format Format of the sticker
 //@emojis String with 1-20 emoji corresponding to the sticker
 //@mask_position Position where the mask is placed; pass null if not specified
 //@keywords List of up to 20 keywords with total length up to 64 characters, which can be used to find the sticker
-inputSticker sticker:InputFile emojis:string mask_position:maskPosition keywords:vector<string> = InputSticker;
+inputSticker sticker:InputFile format:StickerFormat emojis:string mask_position:maskPosition keywords:vector<string> = InputSticker;
 
 
 //@description Represents a date range
@@ -6698,11 +7358,24 @@ statisticalGraphAsync token:string = StatisticalGraph;
 statisticalGraphError error_message:string = StatisticalGraph;
 
 
-//@description Contains statistics about interactions with a message
+//@class ChatStatisticsObjectType
+//@description Describes type of an object, for which statistics are provided
+
+//@description Describes a message sent in the chat
 //@message_id Message identifier
-//@view_count Number of times the message was viewed
-//@forward_count Number of times the message was forwarded
-chatStatisticsMessageInteractionInfo message_id:int53 view_count:int32 forward_count:int32 = ChatStatisticsMessageInteractionInfo;
+chatStatisticsObjectTypeMessage message_id:int53 = ChatStatisticsObjectType;
+
+//@description Describes a story sent by the chat
+//@story_id Story identifier
+chatStatisticsObjectTypeStory story_id:int32 = ChatStatisticsObjectType;
+
+
+//@description Contains statistics about interactions with a message sent in the chat or a story sent by the chat
+//@object_type Type of the object
+//@view_count Number of times the object was viewed
+//@forward_count Number of times the object was forwarded
+//@reaction_count Number of times reactions were added to the object
+chatStatisticsInteractionInfo object_type:ChatStatisticsObjectType view_count:int32 forward_count:int32 reaction_count:int32 = ChatStatisticsInteractionInfo;
 
 //@description Contains statistics about messages sent by a user
 //@user_id User identifier
@@ -6748,8 +7421,12 @@ chatStatisticsSupergroup period:dateRange member_count:statisticalValue message_
 //@description A detailed statistics about a channel chat
 //@period A period to which the statistics applies
 //@member_count Number of members in the chat
-//@mean_view_count Mean number of times the recently sent messages was viewed
-//@mean_share_count Mean number of times the recently sent messages was shared
+//@mean_message_view_count Mean number of times the recently sent messages were viewed
+//@mean_message_share_count Mean number of times the recently sent messages were shared
+//@mean_message_reaction_count Mean number of times reactions were added to the recently sent messages
+//@mean_story_view_count Mean number of times the recently sent stories were viewed
+//@mean_story_share_count Mean number of times the recently sent stories were shared
+//@mean_story_reaction_count Mean number of times reactions were added to the recently sent stories
 //@enabled_notifications_percentage A percentage of users with enabled notifications for the chat; 0-100
 //@member_count_graph A graph containing number of members in the chat
 //@join_graph A graph containing number of members joined and left the chat
@@ -6759,14 +7436,23 @@ chatStatisticsSupergroup period:dateRange member_count:statisticalValue message_
 //@join_by_source_graph A graph containing number of new member joins per source
 //@language_graph A graph containing number of users viewed chat messages per language
 //@message_interaction_graph A graph containing number of chat message views and shares
+//@message_reaction_graph A graph containing number of reactions on messages
+//@story_interaction_graph A graph containing number of story views and shares
+//@story_reaction_graph A graph containing number of reactions on stories
 //@instant_view_interaction_graph A graph containing number of views of associated with the chat instant views
-//@recent_message_interactions Detailed statistics about number of views and shares of recently sent messages
-chatStatisticsChannel period:dateRange member_count:statisticalValue mean_view_count:statisticalValue mean_share_count:statisticalValue enabled_notifications_percentage:double member_count_graph:StatisticalGraph join_graph:StatisticalGraph mute_graph:StatisticalGraph view_count_by_hour_graph:StatisticalGraph view_count_by_source_graph:StatisticalGraph join_by_source_graph:StatisticalGraph language_graph:StatisticalGraph message_interaction_graph:StatisticalGraph instant_view_interaction_graph:StatisticalGraph recent_message_interactions:vector<chatStatisticsMessageInteractionInfo> = ChatStatistics;
+//@recent_interactions Detailed statistics about number of views and shares of recently sent messages and stories
+chatStatisticsChannel period:dateRange member_count:statisticalValue mean_message_view_count:statisticalValue mean_message_share_count:statisticalValue mean_message_reaction_count:statisticalValue mean_story_view_count:statisticalValue mean_story_share_count:statisticalValue mean_story_reaction_count:statisticalValue enabled_notifications_percentage:double member_count_graph:StatisticalGraph join_graph:StatisticalGraph mute_graph:StatisticalGraph view_count_by_hour_graph:StatisticalGraph view_count_by_source_graph:StatisticalGraph join_by_source_graph:StatisticalGraph language_graph:StatisticalGraph message_interaction_graph:StatisticalGraph message_reaction_graph:StatisticalGraph story_interaction_graph:StatisticalGraph story_reaction_graph:StatisticalGraph instant_view_interaction_graph:StatisticalGraph recent_interactions:vector<chatStatisticsInteractionInfo> = ChatStatistics;
 
 
 //@description A detailed statistics about a message
 //@message_interaction_graph A graph containing number of message views and shares
-messageStatistics message_interaction_graph:StatisticalGraph = MessageStatistics;
+//@message_reaction_graph A graph containing number of message reactions
+messageStatistics message_interaction_graph:StatisticalGraph message_reaction_graph:StatisticalGraph = MessageStatistics;
+
+//@description A detailed statistics about a story
+//@story_interaction_graph A graph containing number of story views and shares
+//@story_reaction_graph A graph containing number of story reactions
+storyStatistics story_interaction_graph:StatisticalGraph story_reaction_graph:StatisticalGraph = StoryStatistics;
 
 
 //@description A point on a Cartesian plane
@@ -6908,17 +7594,15 @@ updateChatTitle chat_id:int53 title:string = Update;
 //@photo The new chat photo; may be null
 updateChatPhoto chat_id:int53 photo:chatPhotoInfo = Update;
 
-//@description A chat accent color has changed
+//@description Chat accent colors have changed
 //@chat_id Chat identifier
 //@accent_color_id The new chat accent color identifier
-updateChatAccentColor chat_id:int53 accent_color_id:int32 = Update;
+//@background_custom_emoji_id The new identifier of a custom emoji to be shown on the reply header and link preview background; 0 if none
+//@profile_accent_color_id The new chat profile accent color identifier; -1 if none
+//@profile_background_custom_emoji_id The new identifier of a custom emoji to be shown on the profile background; 0 if none
+updateChatAccentColors chat_id:int53 accent_color_id:int32 background_custom_emoji_id:int64 profile_accent_color_id:int32 profile_background_custom_emoji_id:int64 = Update;
 
-//@description A chat's custom emoji for reply background has changed
-//@chat_id Chat identifier
-//@background_custom_emoji_id The new identifier of a custom emoji to be shown on the reply header background; 0 if none
-updateChatBackgroundCustomEmoji chat_id:int53 background_custom_emoji_id:int64 = Update;
-
-//@description Chat permissions was changed
+//@description Chat permissions were changed
 //@chat_id Chat identifier
 //@permissions The new chat permissions
 updateChatPermissions chat_id:int53 permissions:chatPermissions = Update;
@@ -6933,6 +7617,16 @@ updateChatLastMessage chat_id:int53 last_message:message positions:vector<chatPo
 //@chat_id Chat identifier
 //@position New chat position. If new order is 0, then the chat needs to be removed from the list
 updateChatPosition chat_id:int53 position:chatPosition = Update;
+
+//@description A chat was added to a chat list
+//@chat_id Chat identifier
+//@chat_list The chat list to which the chat was added
+updateChatAddedToList chat_id:int53 chat_list:ChatList = Update;
+
+//@description A chat was removed from a chat list
+//@chat_id Chat identifier
+//@chat_list The chat list from which the chat was removed
+updateChatRemovedFromList chat_id:int53 chat_list:ChatList = Update;
 
 //@description Incoming messages were read or the number of unread messages has been changed
 //@chat_id Chat identifier
@@ -6957,9 +7651,14 @@ updateChatAvailableReactions chat_id:int53 available_reactions:ChatAvailableReac
 
 //@description A chat draft has changed. Be aware that the update may come in the currently opened chat but with old content of the draft. If the user has changed the content of the draft, this update mustn't be applied
 //@chat_id Chat identifier
-//@draft_message The new draft message; may be null
+//@draft_message The new draft message; may be null if none
 //@positions The new chat positions in the chat lists
 updateChatDraftMessage chat_id:int53 draft_message:draftMessage positions:vector<chatPosition> = Update;
+
+//@description Chat emoji status has changed
+//@chat_id Chat identifier
+//@emoji_status The new chat emoji status; may be null
+updateChatEmojiStatus chat_id:int53 emoji_status:emojiStatus = Update;
 
 //@description The message sender that is selected to send messages in a chat has changed
 //@chat_id Chat identifier
@@ -7031,6 +7730,11 @@ updateChatIsTranslatable chat_id:int53 is_translatable:Bool = Update;
 //@is_marked_as_unread New value of is_marked_as_unread
 updateChatIsMarkedAsUnread chat_id:int53 is_marked_as_unread:Bool = Update;
 
+//@description A chat default appearance has changed
+//@chat_id Chat identifier
+//@view_as_topics New value of view_as_topics
+updateChatViewAsTopics chat_id:int53 view_as_topics:Bool = Update;
+
 //@description A chat was blocked or unblocked
 //@chat_id Chat identifier
 //@block_list Block list to which the chat is added; may be null if none
@@ -7044,13 +7748,39 @@ updateChatHasScheduledMessages chat_id:int53 has_scheduled_messages:Bool = Updat
 //@description The list of chat folders or a chat folder has changed
 //@chat_folders The new list of chat folders
 //@main_chat_list_position Position of the main chat list among chat folders, 0-based
-updateChatFolders chat_folders:vector<chatFolderInfo> main_chat_list_position:int32 = Update;
+//@are_tags_enabled True, if folder tags are enabled
+updateChatFolders chat_folders:vector<chatFolderInfo> main_chat_list_position:int32 are_tags_enabled:Bool = Update;
 
 //@description The number of online group members has changed. This update with non-zero number of online group members is sent only for currently opened chats.
 //-There is no guarantee that it is sent just after the number of online users has changed
 //@chat_id Identifier of the chat
 //@online_member_count New number of online members in the chat, or 0 if unknown
 updateChatOnlineMemberCount chat_id:int53 online_member_count:int32 = Update;
+
+//@description Basic information about a Saved Messages topic has changed. This update is guaranteed to come before the topic identifier is returned to the application
+//@topic New data about the topic
+updateSavedMessagesTopic topic:savedMessagesTopic = Update;
+
+//@description Number of Saved Messages topics has changed
+//@topic_count Approximate total number of Saved Messages topics
+updateSavedMessagesTopicCount topic_count:int32 = Update;
+
+//@description Basic information about a quick reply shortcut has changed. This update is guaranteed to come before the quick shortcut name is returned to the application
+//@shortcut New data about the shortcut
+updateQuickReplyShortcut shortcut:quickReplyShortcut = Update;
+
+//@description A quick reply shortcut and all its messages were deleted
+//@shortcut_id The identifier of the deleted shortcut
+updateQuickReplyShortcutDeleted shortcut_id:int32 = Update;
+
+//@description The list of quick reply shortcuts has changed
+//@shortcut_ids The new list of identifiers of quick reply shortcuts
+updateQuickReplyShortcuts shortcut_ids:vector<int32> = Update;
+
+//@description The list of quick reply shortcut messages has changed
+//@shortcut_id The identifier of the shortcut
+//@messages The new list of quick reply messages for the shortcut in order from the first to the last sent
+updateQuickReplyShortcutMessages shortcut_id:int32 messages:vector<quickReplyMessage> = Update;
 
 //@description Basic information about a topic in a forum chat was changed
 //@chat_id Chat identifier
@@ -7078,7 +7808,7 @@ updateNotification notification_group_id:int32 notification:notification = Updat
 //@removed_notification_ids Identifiers of removed group notifications, sorted by notification identifier
 updateNotificationGroup notification_group_id:int32 type:NotificationGroupType chat_id:int53 notification_settings_chat_id:int53 notification_sound_id:int64 total_count:int32 added_notifications:vector<notification> removed_notification_ids:vector<int32> = Update;
 
-//@description Contains active notifications that was shown on previous application launches. This update is sent only if the message database is used. In that case it comes once before any updateNotification and updateNotificationGroup update
+//@description Contains active notifications that were shown on previous application launches. This update is sent only if the message database is used. In that case it comes once before any updateNotification and updateNotificationGroup update
 //@groups Lists of active notification groups
 updateActiveNotifications groups:vector<notificationGroup> = Update;
 
@@ -7096,7 +7826,7 @@ updateDeleteMessages chat_id:int53 message_ids:vector<int53> is_permanent:Bool f
 
 //@description A message sender activity in the chat has changed
 //@chat_id Chat identifier
-//@message_thread_id If not 0, a message thread identifier in which the action was performed
+//@message_thread_id If not 0, the message thread identifier in which the action was performed
 //@sender_id Identifier of a message sender performing the action
 //@action The action
 updateChatAction chat_id:int53 message_thread_id:int53 sender_id:MessageSender action:ChatAction = Update;
@@ -7284,14 +8014,14 @@ updateFavoriteStickers sticker_ids:vector<int32> = Update;
 //@animation_ids The new list of file identifiers of saved animations
 updateSavedAnimations animation_ids:vector<int32> = Update;
 
-//@description The list of saved notifications sounds was updated. This update may not be sent until information about a notification sound was requested for the first time
+//@description The list of saved notification sounds was updated. This update may not be sent until information about a notification sound was requested for the first time
 //@notification_sound_ids The new list of identifiers of saved notification sounds
 updateSavedNotificationSounds notification_sound_ids:vector<int64> = Update;
 
-//@description The selected background has changed
-//@for_dark_theme True, if background for dark theme has changed
-//@background The new selected background; may be null
-updateSelectedBackground for_dark_theme:Bool background:background = Update;
+//@description The default background has changed
+//@for_dark_theme True, if default background for dark theme has changed
+//@background The new default background; may be null
+updateDefaultBackground for_dark_theme:Bool background:background = Update;
 
 //@description The list of available chat themes has changed
 //@chat_themes The new list of chat themes
@@ -7302,6 +8032,11 @@ updateChatThemes chat_themes:vector<chatTheme> = Update;
 //-and aren't included in the list. The exact colors for the accent colors with identifiers 0-6 must be taken from the app theme
 //@available_accent_color_ids The list of accent color identifiers, which can be set through setAccentColor and setChatAccentColor. The colors must be shown in the specififed order
 updateAccentColors colors:vector<accentColor> available_accent_color_ids:vector<int32> = Update;
+
+//@description The list of supported accent colors for user profiles has changed
+//@colors Information about supported colors
+//@available_accent_color_ids The list of accent color identifiers, which can be set through setProfileAccentColor and setChatProfileAccentColor. The colors must be shown in the specififed order
+updateProfileAccentColors colors:vector<profileAccentColor> available_accent_color_ids:vector<int32> = Update;
 
 //@description Some language pack strings have been updated
 //@localization_target Localization target to which the language pack belongs
@@ -7342,6 +8077,18 @@ updateActiveEmojiReactions emojis:vector<string> = Update;
 //@reaction_type The new type of the default reaction
 updateDefaultReactionType reaction_type:ReactionType = Update;
 
+//@description Tags used in Saved Messages or a Saved Messages topic have changed
+//@saved_messages_topic_id Identifier of Saved Messages topic which tags were changed; 0 if tags for the whole chat has changed
+//@tags The new tags
+updateSavedMessagesTags saved_messages_topic_id:int53 tags:savedMessagesTags = Update;
+
+//@description The parameters of speech recognition without Telegram Premium subscription has changed
+//@max_media_duration The maximum allowed duration of media for speech recognition without Telegram Premium subscription, in seconds
+//@weekly_count The total number of allowed speech recognitions per week; 0 if none
+//@left_count Number of left speech recognition attempts this week
+//@next_reset_date Point in time (Unix timestamp) when the weekly number of tries will reset; 0 if unknown
+updateSpeechRecognitionTrial max_media_duration:int32 weekly_count:int32 left_count:int32 next_reset_date:int32 = Update;
+
 //@description The list of supported dice emojis has changed
 //@emojis The new list of supported dice emojis
 updateDiceEmojis emojis:vector<string> = Update;
@@ -7362,6 +8109,10 @@ updateAnimationSearchParameters provider:string emojis:vector<string> = Update;
 //@removed_actions Removed suggested actions
 updateSuggestedActions added_actions:vector<SuggestedAction> removed_actions:vector<SuggestedAction> = Update;
 
+//@description The list of contacts that had birthdays recently or will have birthday soon has changed
+//@close_birthday_users List of contact users with close birthday
+updateContactCloseBirthdays close_birthday_users:vector<closeBirthdayUser> = Update;
+
 //@description Adding users to a chat has failed because of their privacy settings. An invite link can be shared with the users if appropriate
 //@chat_id Chat identifier
 //@user_ids Identifiers of users, which weren't added because of their privacy settings
@@ -7371,6 +8122,26 @@ updateAddChatMembersPrivacyForbidden chat_id:int53 user_ids:vector<int53> = Upda
 //@scope Type of chats for which autosave settings were updated
 //@settings The new autosave settings; may be null if the settings are reset to default
 updateAutosaveSettings scope:AutosaveSettingsScope settings:scopeAutosaveSettings = Update;
+
+//@description A business connection has changed; for bots only
+//@connection New data about the connection
+updateBusinessConnection connection:businessConnection = Update;
+
+//@description A new message was added to a business account; for bots only
+//@connection_id Unique identifier of the business connection
+//@message The new message
+updateNewBusinessMessage connection_id:string message:businessMessage = Update;
+
+//@description A message in a business account was edited; for bots only
+//@connection_id Unique identifier of the business connection
+//@message The edited message
+updateBusinessMessageEdited connection_id:string message:businessMessage = Update;
+
+//@description Messages in a business account were deleted; for bots only
+//@connection_id Unique identifier of the business connection
+//@chat_id Identifier of a chat in the business account in which messages were deleted
+//@message_ids Unique message identifiers of the deleted messages
+updateBusinessMessagesDeleted connection_id:string chat_id:int53 message_ids:vector<int53> = Update;
 
 //@description A new incoming inline query; for bots only
 //@id Unique query identifier
@@ -7446,7 +8217,7 @@ updatePollAnswer poll_id:int64 voter_id:MessageSender option_ids:vector<int32> =
 //@description User rights changed in a chat; for bots only
 //@chat_id Chat identifier
 //@actor_user_id Identifier of the user, changing the rights
-//@date Point in time (Unix timestamp) when the user rights was changed
+//@date Point in time (Unix timestamp) when the user rights were changed
 //@invite_link If user has joined the chat using an invite link, the invite link; may be null
 //@via_chat_folder_invite_link True, if the user has joined the chat using an invite link for a chat folder
 //@old_chat_member Previous chat member
@@ -7464,6 +8235,22 @@ updateNewChatJoinRequest chat_id:int53 request:chatJoinRequest user_chat_id:int5
 //@chat_id Chat identifier
 //@boost New information about the boost
 updateChatBoost chat_id:int53 boost:chatBoost = Update;
+
+//@description User changed its reactions on a message with public reactions; for bots only
+//@chat_id Chat identifier
+//@message_id Message identifier
+//@actor_id Identifier of the user or chat that changed reactions
+//@date Point in time (Unix timestamp) when the reactions were changed
+//@old_reaction_types Old list of chosen reactions
+//@new_reaction_types New list of chosen reactions
+updateMessageReaction chat_id:int53 message_id:int53 actor_id:MessageSender date:int32 old_reaction_types:vector<ReactionType> new_reaction_types:vector<ReactionType> = Update;
+
+//@description Reactions added to a message with anonymous reactions have changed; for bots only
+//@chat_id Chat identifier
+//@message_id Message identifier
+//@date Point in time (Unix timestamp) when the reactions were changed
+//@reactions The list of reactions added to the message
+updateMessageReactions chat_id:int53 message_id:int53 date:int32 reactions:vector<messageReaction> = Update;
 
 
 //@description Contains a list of updates
@@ -7546,9 +8333,7 @@ getAuthorizationState = AuthorizationState;
 //@device_model Model of the device the application is being run on; must be non-empty
 //@system_version Version of the operating system the application is being run on. If empty, the version is automatically detected by TDLib
 //@application_version Application version; must be non-empty
-//@enable_storage_optimizer Pass true to automatically delete old files in background
-//@ignore_file_names Pass true to ignore original file names for downloaded files. Otherwise, downloaded files are saved under names as close as possible to the original name
-setTdlibParameters use_test_dc:Bool database_directory:string files_directory:string database_encryption_key:bytes use_file_database:Bool use_chat_info_database:Bool use_message_database:Bool use_secret_chats:Bool api_id:int32 api_hash:string system_language_code:string device_model:string system_version:string application_version:string enable_storage_optimizer:Bool ignore_file_names:Bool = Ok;
+setTdlibParameters use_test_dc:Bool database_directory:string files_directory:string database_encryption_key:bytes use_file_database:Bool use_chat_info_database:Bool use_message_database:Bool use_secret_chats:Bool api_id:int32 api_hash:string system_language_code:string device_model:string system_version:string application_version:string = Ok;
 
 //@description Sets the phone number of the user and sends an authentication code to the user. Works only when the current authorization state is authorizationStateWaitPhoneNumber,
 //-or if there is no pending authentication query and the current authorization state is authorizationStateWaitEmailAddress, authorizationStateWaitEmailCode, authorizationStateWaitCode, authorizationStateWaitRegistration, or authorizationStateWaitPassword
@@ -7580,7 +8365,8 @@ requestQrCodeAuthentication other_user_ids:vector<int53> = Ok;
 //@description Finishes user registration. Works only when the current authorization state is authorizationStateWaitRegistration
 //@first_name The first name of the user; 1-64 characters
 //@last_name The last name of the user; 0-64 characters
-registerUser first_name:string last_name:string = Ok;
+//@disable_notification Pass true to disable notification about the current user joining Telegram for other users that added them to contact list
+registerUser first_name:string last_name:string disable_notification:Bool = Ok;
 
 //@description Resets the login email address. May return an error with a message "TASK_ALREADY_EXISTS" if reset is still pending.
 //-Works only when the current authorization state is authorizationStateWaitEmailCode and authorization_state.can_reset_email_address == true
@@ -7676,6 +8462,9 @@ checkRecoveryEmailAddressCode code:string = PasswordState;
 //@description Resends the 2-step verification recovery email address verification code
 resendRecoveryEmailAddressCode = PasswordState;
 
+//@description Cancels verification of the 2-step verification recovery email address
+cancelRecoveryEmailAddressVerification = PasswordState;
+
 //@description Requests to send a 2-step verification password recovery code to an email address that was previously set up
 requestPasswordRecovery = EmailAddressAuthenticationCodeInfo;
 
@@ -7750,8 +8539,8 @@ getMessage chat_id:int53 message_id:int53 = Message;
 getMessageLocally chat_id:int53 message_id:int53 = Message;
 
 //@description Returns information about a non-bundled message that is replied by a given message. Also, returns the pinned message, the game message, the invoice message,
-//-the message with a previously set same background, and the topic creation message for messages of the types
-//-messagePinMessage, messageGameScore, messagePaymentSuccessful, messageChatSetBackground and topic messages without non-bundled replied message respectively
+//-the message with a previously set same background, the giveaway message, and the topic creation message for messages of the types
+//-messagePinMessage, messageGameScore, messagePaymentSuccessful, messageChatSetBackground, messagePremiumGiveawayCompleted and topic messages without non-bundled replied message respectively
 //@chat_id Identifier of the chat the message belongs to
 //@message_id Identifier of the reply message
 getRepliedMessage chat_id:int53 message_id:int53 = Message;
@@ -7775,6 +8564,11 @@ getMessages chat_id:int53 message_ids:vector<int53> = Messages;
 //@chat_id Chat identifier
 //@message_id Identifier of the message
 getMessageThread chat_id:int53 message_id:int53 = MessageThreadInfo;
+
+//@description Returns read date of a recent outgoing message in a private chat. The method can be called if message.can_get_read_date == true and the message is read
+//@chat_id Chat identifier
+//@message_id Identifier of the message
+getMessageReadDate chat_id:int53 message_id:int53 = MessageReadDate;
 
 //@description Returns viewers of a recent outgoing message in a basic group or a supergroup chat. For video notes and voice notes only users, opened content of the message, are returned. The method can be called if message.can_get_viewers == true
 //@chat_id Chat identifier
@@ -7824,6 +8618,20 @@ searchChatsOnServer query:string limit:int32 = Chats;
 //-The request must be sent again every 25 seconds with adjusted location to not miss new chats
 //@location Current user location
 searchChatsNearby location:location = ChatsNearby;
+
+//@description Returns a list of chats similar to the given chat
+//@chat_id Identifier of the target chat; must be an identifier of a channel chat
+getChatSimilarChats chat_id:int53 = Chats;
+
+//@description Returns approximate number of chats similar to the given chat
+//@chat_id Identifier of the target chat; must be an identifier of a channel chat
+//@return_local Pass true to get the number of chats without sending network requests, or -1 if the number of chats is unknown locally
+getChatSimilarChatCount chat_id:int53 return_local:Bool = Count;
+
+//@description Informs TDLib that a chat was opened from the list of similar chats. The method is independent from openChat and closeChat methods
+//@chat_id Identifier of the original chat, which similar chats were requested
+//@opened_chat_id Identifier of the opened chat
+openChatSimilarChat chat_id:int53 opened_chat_id:int53 = Ok;
 
 //@description Returns a list of frequently used chats
 //@category Category of chats to be returned
@@ -7875,6 +8683,46 @@ getSuitableDiscussionChats = Chats;
 //@description Returns a list of recently inactive supergroups and channels. Can be used when user reaches limit on the number of joined supergroups and channels and receives CHANNELS_TOO_MUCH error. Also, the limit can be increased with Telegram Premium
 getInactiveSupergroupChats = Chats;
 
+//@description Returns a list of channel chats, which can be used as a personal chat
+getSuitablePersonalChats = Chats;
+
+
+//@description Loads more Saved Messages topics. The loaded topics will be sent through updateSavedMessagesTopic. Topics are sorted by their topic.order in descending order. Returns a 404 error if all topics have been loaded
+//@limit The maximum number of topics to be loaded. For optimal performance, the number of loaded topics is chosen by TDLib and can be smaller than the specified limit, even if the end of the list is not reached
+loadSavedMessagesTopics limit:int32 = Ok;
+
+//@description Returns messages in a Saved Messages topic. The messages are returned in a reverse chronological order (i.e., in order of decreasing message_id)
+//@saved_messages_topic_id Identifier of Saved Messages topic which messages will be fetched
+//@from_message_id Identifier of the message starting from which messages must be fetched; use 0 to get results from the last message
+//@offset Specify 0 to get results from exactly the message from_message_id or a negative offset up to 99 to get additionally some newer messages
+//@limit The maximum number of messages to be returned; must be positive and can't be greater than 100. If the offset is negative, the limit must be greater than or equal to -offset.
+//-For optimal performance, the number of returned messages is chosen by TDLib and can be smaller than the specified limit
+getSavedMessagesTopicHistory saved_messages_topic_id:int53 from_message_id:int53 offset:int32 limit:int32 = Messages;
+
+//@description Returns the last message sent in a Saved Messages topic no later than the specified date
+//@saved_messages_topic_id Identifier of Saved Messages topic which message will be returned
+//@date Point in time (Unix timestamp) relative to which to search for messages
+getSavedMessagesTopicMessageByDate saved_messages_topic_id:int53 date:int32 = Message;
+
+//@description Deletes all messages in a Saved Messages topic
+//@saved_messages_topic_id Identifier of Saved Messages topic which messages will be deleted
+deleteSavedMessagesTopicHistory saved_messages_topic_id:int53 = Ok;
+
+//@description Deletes all messages between the specified dates in a Saved Messages topic. Messages sent in the last 30 seconds will not be deleted
+//@saved_messages_topic_id Identifier of Saved Messages topic which messages will be deleted
+//@min_date The minimum date of the messages to delete
+//@max_date The maximum date of the messages to delete
+deleteSavedMessagesTopicMessagesByDate saved_messages_topic_id:int53 min_date:int32 max_date:int32 = Ok;
+
+//@description Changes the pinned state of a Saved Messages topic. There can be up to getOption("pinned_saved_messages_topic_count_max") pinned topics. The limit can be increased with Telegram Premium
+//@saved_messages_topic_id Identifier of Saved Messages topic to pin or unpin
+//@is_pinned Pass true to pin the topic; pass false to unpin it
+toggleSavedMessagesTopicIsPinned saved_messages_topic_id:int53 is_pinned:Bool = Ok;
+
+//@description Changes the order of pinned Saved Messages topics
+//@saved_messages_topic_ids Identifiers of the new pinned Saved Messages topics
+setPinnedSavedMessagesTopics saved_messages_topic_ids:vector<int53> = Ok;
+
 
 //@description Returns a list of common group chats with a given user. Chats are sorted by their type and creation date
 //@user_id User identifier
@@ -7887,7 +8735,7 @@ getGroupsInCommon user_id:int53 offset_chat_id:int53 limit:int32 = Chats;
 //-For optimal performance, the number of returned messages is chosen by TDLib. This is an offline request if only_local is true
 //@chat_id Chat identifier
 //@from_message_id Identifier of the message starting from which history must be fetched; use 0 to get results from the last message
-//@offset Specify 0 to get results from exactly the from_message_id or a negative offset up to 99 to get additionally some newer messages
+//@offset Specify 0 to get results from exactly the message from_message_id or a negative offset up to 99 to get additionally some newer messages
 //@limit The maximum number of messages to be returned; must be positive and can't be greater than 100. If the offset is negative, the limit must be greater than or equal to -offset.
 //-For optimal performance, the number of returned messages is chosen by TDLib and can be smaller than the specified limit
 //@only_local Pass true to get only messages that are available without sending network requests
@@ -7898,7 +8746,7 @@ getChatHistory chat_id:int53 from_message_id:int53 offset:int32 limit:int32 only
 //@chat_id Chat identifier
 //@message_id Message identifier, which thread history needs to be returned
 //@from_message_id Identifier of the message starting from which history must be fetched; use 0 to get results from the last message
-//@offset Specify 0 to get results from exactly the from_message_id or a negative offset up to 99 to get additionally some newer messages
+//@offset Specify 0 to get results from exactly the message from_message_id or a negative offset up to 99 to get additionally some newer messages
 //@limit The maximum number of messages to be returned; must be positive and can't be greater than 100. If the offset is negative, the limit must be greater than or equal to -offset.
 //-For optimal performance, the number of returned messages is chosen by TDLib and can be smaller than the specified limit
 getMessageThreadHistory chat_id:int53 message_id:int53 from_message_id:int53 offset:int32 limit:int32 = Messages;
@@ -7921,12 +8769,13 @@ deleteChat chat_id:int53 = Ok;
 //@query Query to search for
 //@sender_id Identifier of the sender of messages to search for; pass null to search for messages from any sender. Not supported in secret chats
 //@from_message_id Identifier of the message starting from which history must be fetched; use 0 to get results from the last message
-//@offset Specify 0 to get results from exactly the from_message_id or a negative offset to get the specified message and some newer messages
+//@offset Specify 0 to get results from exactly the message from_message_id or a negative offset to get the specified message and some newer messages
 //@limit The maximum number of messages to be returned; must be positive and can't be greater than 100. If the offset is negative, the limit must be greater than -offset.
 //-For optimal performance, the number of returned messages is chosen by TDLib and can be smaller than the specified limit
 //@filter Additional filter for messages to search; pass null to search for all messages
 //@message_thread_id If not 0, only messages in the specified thread will be returned; supergroups only
-searchChatMessages chat_id:int53 query:string sender_id:MessageSender from_message_id:int53 offset:int32 limit:int32 filter:SearchMessagesFilter message_thread_id:int53 = FoundChatMessages;
+//@saved_messages_topic_id If not 0, only messages in the specified Saved Messages topic will be returned; pass 0 to return all messages, or for chats other than Saved Messages
+searchChatMessages chat_id:int53 query:string sender_id:MessageSender from_message_id:int53 offset:int32 limit:int32 filter:SearchMessagesFilter message_thread_id:int53 saved_messages_topic_id:int53 = FoundChatMessages;
 
 //@description Searches for messages in all chats except secret chats. Returns the results in reverse chronological order (i.e., in order of decreasing (date, chat_id, message_id)).
 //-For optimal performance, the number of returned messages is chosen by TDLib and can be smaller than the specified limit
@@ -7946,6 +8795,18 @@ searchMessages chat_list:ChatList query:string offset:string limit:int32 filter:
 //@limit The maximum number of messages to be returned; up to 100. For optimal performance, the number of returned messages is chosen by TDLib and can be smaller than the specified limit
 //@filter Additional filter for messages to search; pass null to search for all messages
 searchSecretMessages chat_id:int53 query:string offset:string limit:int32 filter:SearchMessagesFilter = FoundMessages;
+
+//@description Searches for messages tagged by the given reaction and with the given words in the Saved Messages chat; for Telegram Premium users only.
+//-Returns the results in reverse chronological order, i.e. in order of decreasing message_id
+//-For optimal performance, the number of returned messages is chosen by TDLib and can be smaller than the specified limit
+//@saved_messages_topic_id If not 0, only messages in the specified Saved Messages topic will be considered; pass 0 to consider all messages
+//@tag Tag to search for; pass null to return all suitable messages
+//@query Query to search for
+//@from_message_id Identifier of the message starting from which messages must be fetched; use 0 to get results from the last message
+//@offset Specify 0 to get results from exactly the message from_message_id or a negative offset to get the specified message and some newer messages
+//@limit The maximum number of messages to be returned; must be positive and can't be greater than 100. If the offset is negative, the limit must be greater than -offset.
+//-For optimal performance, the number of returned messages is chosen by TDLib and can be smaller than the specified limit
+searchSavedMessages saved_messages_topic_id:int53 tag:ReactionType query:string from_message_id:int53 offset:int32 limit:int32 = FoundChatMessages;
 
 //@description Searches for call messages. Returns the results in reverse chronological order (i.e., in order of decreasing message_id). For optimal performance, the number of returned messages is chosen by TDLib
 //@offset Offset of the first entry to return as received from the previous request; use empty string to get the first chunk of results
@@ -7981,26 +8842,30 @@ getChatMessageByDate chat_id:int53 date:int32 = Message;
 //@filter Filter for message content. Filters searchMessagesFilterEmpty, searchMessagesFilterMention, searchMessagesFilterUnreadMention, and searchMessagesFilterUnreadReaction are unsupported in this function
 //@from_message_id The message identifier from which to return information about message positions
 //@limit The expected number of message positions to be returned; 50-2000. A smaller number of positions can be returned, if there are not enough appropriate messages
-getChatSparseMessagePositions chat_id:int53 filter:SearchMessagesFilter from_message_id:int53 limit:int32 = MessagePositions;
+//@saved_messages_topic_id If not 0, only messages in the specified Saved Messages topic will be considered; pass 0 to consider all messages, or for chats other than Saved Messages
+getChatSparseMessagePositions chat_id:int53 filter:SearchMessagesFilter from_message_id:int53 limit:int32 saved_messages_topic_id:int53 = MessagePositions;
 
 //@description Returns information about the next messages of the specified type in the chat split by days. Returns the results in reverse chronological order. Can return partial result for the last returned day. Behavior of this method depends on the value of the option "utc_time_offset"
 //@chat_id Identifier of the chat in which to return information about messages
 //@filter Filter for message content. Filters searchMessagesFilterEmpty, searchMessagesFilterMention, searchMessagesFilterUnreadMention, and searchMessagesFilterUnreadReaction are unsupported in this function
 //@from_message_id The message identifier from which to return information about messages; use 0 to get results from the last message
-getChatMessageCalendar chat_id:int53 filter:SearchMessagesFilter from_message_id:int53 = MessageCalendar;
+//@saved_messages_topic_id If not0, only messages in the specified Saved Messages topic will be considered; pass 0 to consider all messages, or for chats other than Saved Messages
+getChatMessageCalendar chat_id:int53 filter:SearchMessagesFilter from_message_id:int53 saved_messages_topic_id:int53 = MessageCalendar;
 
 //@description Returns approximate number of messages of the specified type in the chat
 //@chat_id Identifier of the chat in which to count messages
 //@filter Filter for message content; searchMessagesFilterEmpty is unsupported in this function
+//@saved_messages_topic_id If not 0, only messages in the specified Saved Messages topic will be counted; pass 0 to count all messages, or for chats other than Saved Messages
 //@return_local Pass true to get the number of messages without sending network requests, or -1 if the number of messages is unknown locally
-getChatMessageCount chat_id:int53 filter:SearchMessagesFilter return_local:Bool = Count;
+getChatMessageCount chat_id:int53 filter:SearchMessagesFilter saved_messages_topic_id:int53 return_local:Bool = Count;
 
 //@description Returns approximate 1-based position of a message among messages, which can be found by the specified filter in the chat. Cannot be used in secret chats
 //@chat_id Identifier of the chat in which to find message position
 //@message_id Message identifier
 //@filter Filter for message content; searchMessagesFilterEmpty, searchMessagesFilterUnreadMention, searchMessagesFilterUnreadReaction, and searchMessagesFilterFailedToSend are unsupported in this function
 //@message_thread_id If not 0, only messages in the specified thread will be considered; supergroups only
-getChatMessagePosition chat_id:int53 message_id:int53 filter:SearchMessagesFilter message_thread_id:int53 = Count;
+//@saved_messages_topic_id If not 0, only messages in the specified Saved Messages topic will be considered; pass 0 to consider all relevant messages, or for chats other than Saved Messages
+getChatMessagePosition chat_id:int53 message_id:int53 filter:SearchMessagesFilter message_thread_id:int53 saved_messages_topic_id:int53 = Count;
 
 //@description Returns all scheduled messages in a chat. The messages are returned in a reverse chronological order (i.e., in order of decreasing message_id)
 //@chat_id Chat identifier
@@ -8014,6 +8879,12 @@ getChatSponsoredMessages chat_id:int53 = SponsoredMessages;
 //@chat_id Chat identifier of the sponsored message
 //@message_id Identifier of the sponsored message
 clickChatSponsoredMessage chat_id:int53 message_id:int53 = Ok;
+
+//@description Reports a sponsored message to Telegram moderators
+//@chat_id Chat identifier of the sponsored message
+//@message_id Identifier of the sponsored message
+//@option_id Option identifier chosen by the user; leave empty for the initial request
+reportChatSponsoredMessage chat_id:int53 message_id:int53 option_id:bytes = ReportChatSponsoredMessageResult;
 
 
 //@description Removes an active notification from notification list. Needs to be called only if the notification is removed by the current user
@@ -8065,7 +8936,7 @@ translateText text:formattedText to_language_code:string = FormattedText;
 //-"st", "sn", "sd", "si", "sk", "sl", "so", "es", "su", "sw", "sv", "tl", "tg", "ta", "tt", "te", "th", "tr", "tk", "uk", "ur", "ug", "uz", "vi", "cy", "xh", "yi", "ji", "yo", "zu"
 translateMessageText chat_id:int53 message_id:int53 to_language_code:string = FormattedText;
 
-//@description Recognizes speech in a video note or a voice note message. The message must be successfully sent and must not be scheduled. May return an error with a message "MSG_VOICE_TOO_LONG" if media duration is too big to be recognized
+//@description Recognizes speech in a video note or a voice note message. The message must be successfully sent, must not be scheduled, and must be from a non-secret chat
 //@chat_id Identifier of the chat to which the message belongs
 //@message_id Identifier of the message
 recognizeSpeech chat_id:int53 message_id:int53 = Ok;
@@ -8088,22 +8959,24 @@ setChatMessageSender chat_id:int53 message_sender_id:MessageSender = Ok;
 
 //@description Sends a message. Returns the sent message
 //@chat_id Target chat
-//@message_thread_id If not 0, a message thread identifier in which the message will be sent
+//@message_thread_id If not 0, the message thread identifier in which the message will be sent
 //@reply_to Information about the message or story to be replied; pass null if none
 //@options Options to be used to send the message; pass null to use default options
 //@reply_markup Markup for replying to the message; pass null if none; for bots only
 //@input_message_content The content of the message to be sent
 sendMessage chat_id:int53 message_thread_id:int53 reply_to:InputMessageReplyTo options:messageSendOptions reply_markup:ReplyMarkup input_message_content:InputMessageContent = Message;
 
-//@description Sends 2-10 messages grouped together into an album. Currently, only audio, document, photo and video messages can be grouped into an album. Documents and audio files can be only grouped in an album with messages of the same type. Returns sent messages
+//@description Sends 2-10 messages grouped together into an album. Currently, only audio, document, photo and video messages can be grouped into an album.
+//-Documents and audio files can be only grouped in an album with messages of the same type. Returns sent messages
 //@chat_id Target chat
-//@message_thread_id If not 0, a message thread identifier in which the messages will be sent
+//@message_thread_id If not 0, the message thread identifier in which the messages will be sent
 //@reply_to Information about the message or story to be replied; pass null if none
 //@options Options to be used to send the messages; pass null to use default options
 //@input_message_contents Contents of messages to be sent. At most 10 messages can be added to an album
 sendMessageAlbum chat_id:int53 message_thread_id:int53 reply_to:InputMessageReplyTo options:messageSendOptions input_message_contents:vector<InputMessageContent> = Messages;
 
-//@description Invites a bot to a chat (if it is not yet a member) and sends it the /start command. Bots can't be invited to a private chat other than the chat with the bot. Bots can't be invited to channels (although they can be added as admins) and secret chats. Returns the sent message
+//@description Invites a bot to a chat (if it is not yet a member) and sends it the /start command; requires can_invite_users member right. Bots can't be invited to a private chat other than the chat with the bot.
+//-Bots can't be invited to channels (although they can be added as admins) and secret chats. Returns the sent message
 //@bot_user_id Identifier of the bot
 //@chat_id Identifier of the target chat
 //@parameter A hidden parameter sent to the bot for deep linking purposes (https://core.telegram.org/bots#deep-linking)
@@ -8111,7 +8984,7 @@ sendBotStartMessage bot_user_id:int53 chat_id:int53 parameter:string = Message;
 
 //@description Sends the result of an inline query as a message. Returns the sent message. Always clears a chat draft message
 //@chat_id Target chat
-//@message_thread_id If not 0, a message thread identifier in which the message will be sent
+//@message_thread_id If not 0, the message thread identifier in which the message will be sent
 //@reply_to Information about the message or story to be replied; pass null if none
 //@options Options to be used to send the message; pass null to use default options
 //@query_id Identifier of the inline query
@@ -8121,7 +8994,7 @@ sendInlineQueryResultMessage chat_id:int53 message_thread_id:int53 reply_to:Inpu
 
 //@description Forwards previously sent messages. Returns the forwarded messages in the same order as the message identifiers passed in message_ids. If a message can't be forwarded, null will be returned instead of the message
 //@chat_id Identifier of the chat to which to forward messages
-//@message_thread_id If not 0, a message thread identifier in which the message will be sent; for forum threads only
+//@message_thread_id If not 0, the message thread identifier in which the message will be sent; for forum threads only
 //@from_chat_id Identifier of the chat from which to forward messages
 //@message_ids Identifiers of the messages to forward. Message identifiers must be in a strictly increasing order. At most 100 messages can be forwarded simultaneously. A message can be forwarded only if message.can_be_forwarded
 //@options Options to be used to send the messages; pass null to use default options
@@ -8129,12 +9002,18 @@ sendInlineQueryResultMessage chat_id:int53 message_thread_id:int53 reply_to:Inpu
 //@remove_caption Pass true to remove media captions of message copies. Ignored if send_copy is false
 forwardMessages chat_id:int53 message_thread_id:int53 from_chat_id:int53 message_ids:vector<int53> options:messageSendOptions send_copy:Bool remove_caption:Bool = Messages;
 
+//@description Sends messages from a quick reply shortcut. Requires Telegram Business subscription
+//@chat_id Identifier of the chat to which to send messages. The chat must be a private chat with a regular user
+//@shortcut_id Unique identifier of the quick reply shortcut
+//@sending_id Non-persistent identifier, which will be returned back in messageSendingStatePending object and can be used to match sent messages and corresponding updateNewMessage updates
+sendQuickReplyShortcutMessages chat_id:int53 shortcut_id:int32 sending_id:int32 = Messages;
+
 //@description Resends messages which failed to send. Can be called only for messages for which messageSendingStateFailed.can_retry is true and after specified in messageSendingStateFailed.retry_after time passed.
 //-If a message is re-sent, the corresponding failed to send message is deleted. Returns the sent messages in the same order as the message identifiers passed in message_ids. If a message can't be re-sent, null will be returned instead of the message
 //@chat_id Identifier of the chat to send messages
 //@message_ids Identifiers of the messages to resend. Message identifiers must be in a strictly increasing order
 //@quote New manually chosen quote from the message to be replied; pass null if none. Ignored if more than one message is re-sent, or if messageSendingStateFailed.need_another_reply_quote == false
-resendMessages chat_id:int53 message_ids:vector<int53> quote:formattedText = Messages;
+resendMessages chat_id:int53 message_ids:vector<int53> quote:inputTextQuote = Messages;
 
 //@description Adds a local message to a chat. The message is persistent across application restarts only if the message database is used. Returns the added message
 //@chat_id Target chat
@@ -8238,16 +9117,67 @@ editInlineMessageReplyMarkup inline_message_id:string reply_markup:ReplyMarkup =
 editMessageSchedulingState chat_id:int53 message_id:int53 scheduling_state:MessageSchedulingState = Ok;
 
 
+//@description Sends a message on behalf of a business account; for bots only. Returns the message after it was sent
+//@business_connection_id Unique identifier of business connection on behalf of which to send the request
+//@chat_id Target chat
+//@reply_to Information about the message to be replied; pass null if none
+//@disable_notification Pass true to disable notification for the message
+//@protect_content Pass true if the content of the message must be protected from forwarding and saving
+//@reply_markup Markup for replying to the message; pass null if none
+//@input_message_content The content of the message to be sent
+sendBusinessMessage business_connection_id:string chat_id:int53 reply_to:InputMessageReplyTo disable_notification:Bool protect_content:Bool reply_markup:ReplyMarkup input_message_content:InputMessageContent = BusinessMessage;
+
+//@description Sends 2-10 messages grouped together into an album on behalf of a business account; for bots only. Currently, only audio, document, photo and video messages can be grouped into an album.
+//-Documents and audio files can be only grouped in an album with messages of the same type. Returns sent messages
+//@business_connection_id Unique identifier of business connection on behalf of which to send the request
+//@chat_id Target chat
+//@reply_to Information about the message to be replied; pass null if none
+//@disable_notification Pass true to disable notification for the message
+//@protect_content Pass true if the content of the message must be protected from forwarding and saving
+//@input_message_contents Contents of messages to be sent. At most 10 messages can be added to an album
+sendBusinessMessageAlbum business_connection_id:string chat_id:int53 reply_to:InputMessageReplyTo disable_notification:Bool protect_content:Bool input_message_contents:vector<InputMessageContent> = BusinessMessages;
+
+
+//@description Checks validness of a name for a quick reply shortcut. Can be called synchronously
+//@name The name of the shortcut; 1-32 characters
+checkQuickReplyShortcutName name:string = Ok;
+
+//@description Loads quick reply shortcuts created by the current user. The loaded topics will be sent through updateQuickReplyShortcuts
+loadQuickReplyShortcuts = Ok;
+
+//@description Changes name of a quick reply shortcut
+//@shortcut_id Unique identifier of the quick reply shortcut
+//@name New name for the shortcut. Use checkQuickReplyShortcutName to check its validness
+setQuickReplyShortcutName shortcut_id:int32 name:string = Ok;
+
+//@description Deletes a quick reply shortcut
+//@shortcut_id Unique identifier of the quick reply shortcut
+deleteQuickReplyShortcut shortcut_id:int32 = Ok;
+
+//@description Changes the order of quick reply shortcuts
+//@shortcut_ids The new order of quick reply shortcuts
+reorderQuickReplyShortcuts shortcut_ids:vector<int32> = Ok;
+
+//@description Loads quick reply messages that can be sent by a given quick reply shortcut. The loaded messages will be sent through updateQuickReplyShortcutMessages
+//@shortcut_id Unique identifier of the quick reply shortcut
+loadQuickReplyShortcutMessages shortcut_id:int32 = Ok;
+
+//@description Deletes specified quick reply messages
+//@shortcut_id Unique identifier of the quick reply shortcut to which the messages belong
+//@message_ids Unique identifiers of the messages
+deleteQuickReplyShortcutMessages shortcut_id:int32 message_ids:vector<int53> = Ok;
+
+
 //@description Returns list of custom emojis, which can be used as forum topic icon by all users
 getForumTopicDefaultIcons = Stickers;
 
-//@description Creates a topic in a forum supergroup chat; requires can_manage_topics rights in the supergroup
+//@description Creates a topic in a forum supergroup chat; requires can_manage_topics administrator or can_create_topics member right in the supergroup
 //@chat_id Identifier of the chat
 //@name Name of the topic; 1-128 characters
 //@icon Icon of the topic. Icon color must be one of 0x6FB9F0, 0xFFD67E, 0xCB86DB, 0x8EEE98, 0xFF93B2, or 0xFB6F5F. Telegram Premium users can use any custom emoji as topic icon, other users can use only a custom emoji returned by getForumTopicDefaultIcons
 createForumTopic chat_id:int53 name:string icon:forumTopicIcon = ForumTopicInfo;
 
-//@description Edits title and icon of a topic in a forum supergroup chat; requires can_manage_topics administrator right in the supergroup unless the user is creator of the topic
+//@description Edits title and icon of a topic in a forum supergroup chat; requires can_manage_topics right in the supergroup unless the user is creator of the topic
 //@chat_id Identifier of the chat
 //@message_thread_id Message thread identifier of the forum topic
 //@name New name of the topic; 0-128 characters. If empty, the previous topic name is kept
@@ -8280,24 +9210,24 @@ getForumTopics chat_id:int53 query:string offset_date:int32 offset_message_id:in
 //@notification_settings New notification settings for the forum topic. If the topic is muted for more than 366 days, it is considered to be muted forever
 setForumTopicNotificationSettings chat_id:int53 message_thread_id:int53 notification_settings:chatNotificationSettings = Ok;
 
-//@description Toggles whether a topic is closed in a forum supergroup chat; requires can_manage_topics administrator right in the supergroup unless the user is creator of the topic
+//@description Toggles whether a topic is closed in a forum supergroup chat; requires can_manage_topics right in the supergroup unless the user is creator of the topic
 //@chat_id Identifier of the chat
 //@message_thread_id Message thread identifier of the forum topic
 //@is_closed Pass true to close the topic; pass false to reopen it
 toggleForumTopicIsClosed chat_id:int53 message_thread_id:int53 is_closed:Bool = Ok;
 
-//@description Toggles whether a General topic is hidden in a forum supergroup chat; requires can_manage_topics administrator right in the supergroup
+//@description Toggles whether a General topic is hidden in a forum supergroup chat; requires can_manage_topics right in the supergroup
 //@chat_id Identifier of the chat
 //@is_hidden Pass true to hide and close the General topic; pass false to unhide it
 toggleGeneralForumTopicIsHidden chat_id:int53 is_hidden:Bool = Ok;
 
-//@description Changes the pinned state of a forum topic; requires can_manage_topics administrator right in the supergroup. There can be up to getOption("pinned_forum_topic_count_max") pinned forum topics
+//@description Changes the pinned state of a forum topic; requires can_manage_topics right in the supergroup. There can be up to getOption("pinned_forum_topic_count_max") pinned forum topics
 //@chat_id Chat identifier
 //@message_thread_id Message thread identifier of the forum topic
 //@is_pinned Pass true to pin the topic; pass false to unpin it
 toggleForumTopicIsPinned chat_id:int53 message_thread_id:int53 is_pinned:Bool = Ok;
 
-//@description Changes the order of pinned forum topics
+//@description Changes the order of pinned forum topics; requires can_manage_topics right in the supergroup
 //@chat_id Chat identifier
 //@message_thread_ids The new list of pinned forum topics
 setPinnedForumTopics chat_id:int53 message_thread_ids:vector<int53> = Ok;
@@ -8308,7 +9238,7 @@ setPinnedForumTopics chat_id:int53 message_thread_ids:vector<int53> = Ok;
 deleteForumTopic chat_id:int53 message_thread_id:int53 = Ok;
 
 
-//@description Returns information about a emoji reaction. Returns a 404 error if the reaction is not found
+//@description Returns information about an emoji reaction. Returns a 404 error if the reaction is not found
 //@emoji Text representation of the reaction
 getEmojiReaction emoji:string = EmojiReaction;
 
@@ -8324,12 +9254,12 @@ getMessageAvailableReactions chat_id:int53 message_id:int53 row_size:int32 = Ava
 //@description Clears the list of recently used reactions
 clearRecentReactions = Ok;
 
-//@description Adds a reaction to a message. Use getMessageAvailableReactions to receive the list of available reactions for the message
+//@description Adds a reaction or a tag to a message. Use getMessageAvailableReactions to receive the list of available reactions for the message
 //@chat_id Identifier of the chat to which the message belongs
 //@message_id Identifier of the message
 //@reaction_type Type of the reaction to add
 //@is_big Pass true if the reaction is added with a big animation
-//@update_recent_reactions Pass true if the reaction needs to be added to recent reactions
+//@update_recent_reactions Pass true if the reaction needs to be added to recent reactions; tags are never added to the list of recent reactions
 addMessageReaction chat_id:int53 message_id:int53 reaction_type:ReactionType is_big:Bool update_recent_reactions:Bool = Ok;
 
 //@description Removes a reaction from a message. A chosen reaction can always be removed
@@ -8337,6 +9267,13 @@ addMessageReaction chat_id:int53 message_id:int53 reaction_type:ReactionType is_
 //@message_id Identifier of the message
 //@reaction_type Type of the reaction to remove
 removeMessageReaction chat_id:int53 message_id:int53 reaction_type:ReactionType = Ok;
+
+//@description Sets reactions on a message; for bots only
+//@chat_id Identifier of the chat to which the message belongs
+//@message_id Identifier of the message
+//@reaction_types Types of the reaction to set
+//@is_big Pass true if the reactions are added with a big animation
+setMessageReactions chat_id:int53 message_id:int53 reaction_types:vector<ReactionType> is_big:Bool = Ok;
 
 //@description Returns reactions added for a message, along with their sender
 //@chat_id Identifier of the chat to which the message belongs
@@ -8349,6 +9286,15 @@ getMessageAddedReactions chat_id:int53 message_id:int53 reaction_type:ReactionTy
 //@description Changes type of default reaction for the current user
 //@reaction_type New type of the default reaction
 setDefaultReactionType reaction_type:ReactionType = Ok;
+
+//@description Returns tags used in Saved Messages or a Saved Messages topic
+//@saved_messages_topic_id Identifier of Saved Messages topic which tags will be returned; pass 0 to get all Saved Messages tags
+getSavedMessagesTags saved_messages_topic_id:int53 = SavedMessagesTags;
+
+//@description Changes label of a Saved Messages tag; for Telegram Premium users only
+//@tag The tag which label will be changed
+//@label New label for the tag; 0-12 characters
+setSavedMessagesTagLabel tag:ReactionType label:string = Ok;
 
 
 //@description Searches for a given quote in a text. Returns found quote start position in UTF-16 code units. Returns a 404 error if the quote is not found. Can be called synchronously
@@ -8373,6 +9319,10 @@ parseMarkdown text:formattedText = FormattedText;
 //@description Replaces text entities with Markdown formatting in a human-friendly format. Entities that can't be represented in Markdown unambiguously are kept as is. Can be called synchronously
 //@text The text
 getMarkdownText text:formattedText = FormattedText;
+
+//@description Returns an emoji for the given country. Returns an empty string on failure. Can be called synchronously
+//@country_code A two-letter ISO 3166-1 alpha-2 country code as received from getCountries
+getCountryFlagEmoji country_code:string = Text;
 
 //@description Returns the MIME type of a file, guessed by its extension. Returns an empty string on failure. Can be called synchronously
 //@file_name The name of the file or path to the file
@@ -8432,6 +9382,11 @@ stopPoll chat_id:int53 message_id:int53 reply_markup:ReplyMarkup = Ok;
 hideSuggestedAction action:SuggestedAction = Ok;
 
 
+//@description Returns information about a business connection by its identifier; for bots only
+//@connection_id Identifier of the business connection to return
+getBusinessConnection connection_id:string = BusinessConnection;
+
+
 //@description Returns information about a button of type inlineKeyboardButtonTypeLoginUrl. The method needs to be called when the user presses the button
 //@chat_id Chat identifier of the message with the button
 //@message_id Message identifier of the message with the button
@@ -8447,13 +9402,13 @@ getLoginUrlInfo chat_id:int53 message_id:int53 button_id:int53 = LoginUrlInfo;
 getLoginUrl chat_id:int53 message_id:int53 button_id:int53 allow_write_access:Bool = HttpUrl;
 
 
-//@description Shares a user after pressing a keyboardButtonTypeRequestUser button with the bot
+//@description Shares users after pressing a keyboardButtonTypeRequestUsers button with the bot
 //@chat_id Identifier of the chat with the bot
 //@message_id Identifier of the message with the button
 //@button_id Identifier of the button
-//@shared_user_id Identifier of the shared user
-//@only_check Pass true to check that the user can be shared by the button instead of actually sharing them
-shareUserWithBot chat_id:int53 message_id:int53 button_id:int32 shared_user_id:int53 only_check:Bool = Ok;
+//@shared_user_ids Identifiers of the shared users
+//@only_check Pass true to check that the users can be shared by the button instead of actually sharing them
+shareUsersWithBot chat_id:int53 message_id:int53 button_id:int32 shared_user_ids:vector<int53> only_check:Bool = Ok;
 
 //@description Shares a chat after pressing a keyboardButtonTypeRequestChat button with the bot
 //@chat_id Identifier of the chat with the bot
@@ -8519,7 +9474,7 @@ sendWebAppData bot_user_id:int53 button_text:string data:string = Ok;
 //@url The URL from an inlineKeyboardButtonTypeWebApp button, a botMenuButton button, an internalLinkTypeAttachmentMenuBot link, or an empty string otherwise
 //@theme Preferred Web App theme; pass null to use the default theme
 //@application_name Short name of the application; 0-64 English letters, digits, and underscores
-//@message_thread_id If not 0, a message thread identifier in which the message will be sent
+//@message_thread_id If not 0, the message thread identifier in which the message will be sent
 //@reply_to Information about the message or story to be replied in the message sent by the Web App; pass null if none
 openWebApp chat_id:int53 bot_user_id:int53 url:string theme:themeParameters application_name:string message_thread_id:int53 reply_to:InputMessageReplyTo = WebAppInfo;
 
@@ -8597,9 +9552,10 @@ deleteChatReplyMarkup chat_id:int53 message_id:int53 = Ok;
 
 //@description Sends a notification about user activity in a chat
 //@chat_id Chat identifier
-//@message_thread_id If not 0, a message thread identifier in which the action was performed
+//@message_thread_id If not 0, the message thread identifier in which the action was performed
+//@business_connection_id Unique identifier of business connection on behalf of which to send the request; for bots only
 //@action The action description; pass null to cancel the currently active action
-sendChatAction chat_id:int53 message_thread_id:int53 action:ChatAction = Ok;
+sendChatAction chat_id:int53 message_thread_id:int53 business_connection_id:string action:ChatAction = Ok;
 
 
 //@description Informs TDLib that the chat is opened by the user. Many useful activities depend on the chat being opened or closed (e.g., in supergroups and channels all updates are received only for opened chats)
@@ -8706,7 +9662,7 @@ createNewSupergroupChat title:string is_forum:Bool is_channel:Bool description:s
 //@user_id Identifier of the target user
 createNewSecretChat user_id:int53 = Chat;
 
-//@description Creates a new supergroup from an existing basic group and sends a corresponding messageChatUpgradeTo and messageChatUpgradeFrom; requires creator privileges. Deactivates the original basic group
+//@description Creates a new supergroup from an existing basic group and sends a corresponding messageChatUpgradeTo and messageChatUpgradeFrom; requires owner privileges. Deactivates the original basic group
 //@chat_id Identifier of the chat to upgrade
 upgradeBasicGroupChatToSupergroupChat chat_id:int53 = Chat;
 
@@ -8750,6 +9706,10 @@ getChatFolderChatCount folder:chatFolder = Count;
 //@chat_folder_ids Identifiers of chat folders in the new correct order
 //@main_chat_list_position Position of the main chat list among chat folders, 0-based. Can be non-zero only for Premium users
 reorderChatFolders chat_folder_ids:vector<int32> main_chat_list_position:int32 = Ok;
+
+//@description Toggles whether chat folder tags are enabled
+//@are_tags_enabled Pass true to enable folder tags; pass false to disable them
+toggleChatFolderTags are_tags_enabled:Bool = Ok;
 
 //@description Returns recommended chat folders for the current user
 getRecommendedChatFolders = RecommendedChatFolders;
@@ -8810,21 +9770,28 @@ getArchiveChatListSettings = ArchiveChatListSettings;
 setArchiveChatListSettings settings:archiveChatListSettings = Ok;
 
 
-//@description Changes the chat title. Supported only for basic groups, supergroups and channels. Requires can_change_info administrator right
+//@description Changes the chat title. Supported only for basic groups, supergroups and channels. Requires can_change_info member right
 //@chat_id Chat identifier
 //@title New title of the chat; 1-128 characters
 setChatTitle chat_id:int53 title:string = Ok;
 
-//@description Changes the photo of a chat. Supported only for basic groups, supergroups and channels. Requires can_change_info administrator right
+//@description Changes the photo of a chat. Supported only for basic groups, supergroups and channels. Requires can_change_info member right
 //@chat_id Chat identifier
 //@photo New chat photo; pass null to delete the chat photo
 setChatPhoto chat_id:int53 photo:InputChatPhoto = Ok;
 
-//@description Changes accent color and background custom emoji of a chat. Supported only for channels with getOption("channel_custom_accent_color_boost_level_min") boost level. Requires can_change_info administrator right
+//@description Changes accent color and background custom emoji of a channel chat. Requires can_change_info administrator right
 //@chat_id Chat identifier
-//@accent_color_id Identifier of the accent color to use
-//@background_custom_emoji_id Identifier of a custom emoji to be shown on the reply header background; 0 if none
+//@accent_color_id Identifier of the accent color to use. The chat must have at least accentColor.min_channel_chat_boost_level boost level to pass the corresponding color
+//@background_custom_emoji_id Identifier of a custom emoji to be shown on the reply header and link preview background; 0 if none. Use chatBoostLevelFeatures.can_set_background_custom_emoji to check whether a custom emoji can be set
 setChatAccentColor chat_id:int53 accent_color_id:int32 background_custom_emoji_id:int64 = Ok;
+
+//@description Changes accent color and background custom emoji for profile of a supergroup or channel chat. Requires can_change_info administrator right
+//@chat_id Chat identifier
+//@profile_accent_color_id Identifier of the accent color to use for profile; pass -1 if none. The chat must have at least profileAccentColor.min_supergroup_chat_boost_level for supergroups
+//-or profileAccentColor.min_channel_chat_boost_level for channels boost level to pass the corresponding color
+//@profile_background_custom_emoji_id Identifier of a custom emoji to be shown on the chat's profile photo background; 0 if none. Use chatBoostLevelFeatures.can_set_profile_background_custom_emoji to check whether a custom emoji can be set
+setChatProfileAccentColor chat_id:int53 profile_accent_color_id:int32 profile_background_custom_emoji_id:int64 = Ok;
 
 //@description Changes the message auto-delete or self-destruct (for secret chats) time in a chat. Requires change_info administrator right in basic groups, supergroups and channels
 //-Message auto-delete time can't be changed in a chat with the current user (Saved Messages) and the chat 777000 (Telegram).
@@ -8832,17 +9799,30 @@ setChatAccentColor chat_id:int53 accent_color_id:int32 background_custom_emoji_i
 //@message_auto_delete_time New time value, in seconds; unless the chat is secret, it must be from 0 up to 365 * 86400 and be divisible by 86400. If 0, then messages aren't deleted automatically
 setChatMessageAutoDeleteTime chat_id:int53 message_auto_delete_time:int32 = Ok;
 
+//@description Changes the emoji status of a chat. Use chatBoostLevelFeatures.can_set_emoji_status to check whether an emoji status can be set. Requires can_change_info administrator right
+//@chat_id Chat identifier
+//@emoji_status New emoji status; pass null to remove emoji status
+setChatEmojiStatus chat_id:int53 emoji_status:emojiStatus = Ok;
+
 //@description Changes the chat members permissions. Supported only for basic groups and supergroups. Requires can_restrict_members administrator right
 //@chat_id Chat identifier
 //@permissions New non-administrator members permissions in the chat
 setChatPermissions chat_id:int53 permissions:chatPermissions = Ok;
 
-//@description Changes the background in a specific chat. Supported only in private and secret chats with non-deleted users
+//@description Sets the background in a specific chat. Supported only in private and secret chats with non-deleted users, and in chats with sufficient boost level and can_change_info administrator right
 //@chat_id Chat identifier
-//@background The input background to use; pass null to create a new filled background or to remove the current background
-//@type Background type; pass null to remove the current background
-//@dark_theme_dimming Dimming of the background in dark themes, as a percentage; 0-100
-setChatBackground chat_id:int53 background:InputBackground type:BackgroundType dark_theme_dimming:int32 = Ok;
+//@background The input background to use; pass null to create a new filled or chat theme background
+//@type Background type; pass null to use default background type for the chosen background; backgroundTypeChatTheme isn't supported for private and secret chats.
+//-Use chatBoostLevelFeatures.chat_theme_background_count and chatBoostLevelFeatures.can_set_custom_background to check whether the background type can be set in the boosted chat
+//@dark_theme_dimming Dimming of the background in dark themes, as a percentage; 0-100. Applied only to Wallpaper and Fill types of background
+//@only_for_self Pass true to set background only for self; pass false to set background for all chat users. Always false for backgrounds set in boosted chats. Background can be set for both users only by Telegram Premium users and if set background isn't of the type inputBackgroundPrevious
+setChatBackground chat_id:int53 background:InputBackground type:BackgroundType dark_theme_dimming:int32 only_for_self:Bool = Ok;
+
+//@description Deletes background in a specific chat
+//@chat_id Chat identifier
+//@restore_previous Pass true to restore previously set background. Can be used only in private and secret chats with non-deleted users if userFullInfo.set_chat_background == true.
+//-Supposed to be used from messageChatSetBackground messages with the currently set background that was set for both sides by the other user
+deleteChatBackground chat_id:int53 restore_previous:Bool = Ok;
 
 //@description Changes the chat theme. Supported only in private and secret chats
 //@chat_id Chat identifier
@@ -8851,8 +9831,8 @@ setChatTheme chat_id:int53 theme_name:string = Ok;
 
 //@description Changes the draft message in a chat
 //@chat_id Chat identifier
-//@message_thread_id If not 0, a message thread identifier in which the draft was changed
-//@draft_message New draft message; pass null to remove the draft
+//@message_thread_id If not 0, the message thread identifier in which the draft was changed
+//@draft_message New draft message; pass null to remove the draft. All files in draft message content must be of the type inputFileLocal. Media thumbnails and captions are ignored
 setChatDraftMessage chat_id:int53 message_thread_id:int53 draft_message:draftMessage = Ok;
 
 //@description Changes the notification settings of a chat. Notification settings of a chat with the current user (Saved Messages) can't be changed
@@ -8865,7 +9845,12 @@ setChatNotificationSettings chat_id:int53 notification_settings:chatNotification
 //@has_protected_content New value of has_protected_content
 toggleChatHasProtectedContent chat_id:int53 has_protected_content:Bool = Ok;
 
-//@description Changes the translatable state of a chat; for Telegram Premium users only
+//@description Changes the view_as_topics setting of a forum chat or Saved Messages
+//@chat_id Chat identifier
+//@view_as_topics New value of view_as_topics
+toggleChatViewAsTopics chat_id:int53 view_as_topics:Bool = Ok;
+
+//@description Changes the translatable state of a chat
 //@chat_id Chat identifier
 //@is_translatable New value of is_translatable
 toggleChatIsTranslatable chat_id:int53 is_translatable:Bool = Ok;
@@ -8880,9 +9865,9 @@ toggleChatIsMarkedAsUnread chat_id:int53 is_marked_as_unread:Bool = Ok;
 //@default_disable_notification New value of default_disable_notification
 toggleChatDefaultDisableNotification chat_id:int53 default_disable_notification:Bool = Ok;
 
-//@description Changes reactions, available in a chat. Available for basic groups, supergroups, and channels. Requires can_change_info administrator right
+//@description Changes reactions, available in a chat. Available for basic groups, supergroups, and channels. Requires can_change_info member right
 //@chat_id Identifier of the chat
-//@available_reactions Reactions available in the chat. All emoji reactions must be active
+//@available_reactions Reactions available in the chat. All explicitly specified emoji reactions must be active. In channel chats up to the chat's boost level custom emoji reactions can be explicitly specified
 setChatAvailableReactions chat_id:int53 available_reactions:ChatAvailableReactions = Ok;
 
 //@description Changes application-specific data associated with a chat
@@ -8890,13 +9875,13 @@ setChatAvailableReactions chat_id:int53 available_reactions:ChatAvailableReactio
 //@client_data New value of client_data
 setChatClientData chat_id:int53 client_data:string = Ok;
 
-//@description Changes information about a chat. Available for basic groups, supergroups, and channels. Requires can_change_info administrator right
+//@description Changes information about a chat. Available for basic groups, supergroups, and channels. Requires can_change_info member right
 //@chat_id Identifier of the chat
 //@param_description New chat description; 0-255 characters
 setChatDescription chat_id:int53 description:string = Ok;
 
 //@description Changes the discussion group of a channel chat; requires can_change_info administrator right in the channel if it is specified
-//@chat_id Identifier of the channel chat. Pass 0 to remove a link from the supergroup passed in the second argument to a linked channel chat (requires can_pin_messages rights in the supergroup)
+//@chat_id Identifier of the channel chat. Pass 0 to remove a link from the supergroup passed in the second argument to a linked channel chat (requires can_pin_messages member right in the supergroup)
 //@discussion_chat_id Identifier of a new channel's discussion group. Use 0 to remove the discussion group. Use the method getSuitableDiscussionChats to find all suitable groups.
 //-Basic group chats must be first upgraded to supergroup chats. If new chat members don't have access to old messages in the supergroup, then toggleSupergroupIsAllHistoryAvailable must be used first to change that
 setChatDiscussionGroup chat_id:int53 discussion_chat_id:int53 = Ok;
@@ -8906,28 +9891,28 @@ setChatDiscussionGroup chat_id:int53 discussion_chat_id:int53 = Ok;
 //@location New location for the chat; must be valid and not null
 setChatLocation chat_id:int53 location:chatLocation = Ok;
 
-//@description Changes the slow mode delay of a chat. Available only for supergroups; requires can_restrict_members rights
+//@description Changes the slow mode delay of a chat. Available only for supergroups; requires can_restrict_members right
 //@chat_id Chat identifier
 //@slow_mode_delay New slow mode delay for the chat, in seconds; must be one of 0, 10, 30, 60, 300, 900, 3600
 setChatSlowModeDelay chat_id:int53 slow_mode_delay:int32 = Ok;
 
-//@description Pins a message in a chat; requires can_pin_messages rights or can_edit_messages rights in the channel
+//@description Pins a message in a chat; requires can_pin_messages member right if the chat is a basic group or supergroup, or can_edit_messages administrator right if the chat is a channel
 //@chat_id Identifier of the chat
 //@message_id Identifier of the new pinned message
 //@disable_notification Pass true to disable notification about the pinned message. Notifications are always disabled in channels and private chats
 //@only_for_self Pass true to pin the message only for self; private chats only
 pinChatMessage chat_id:int53 message_id:int53 disable_notification:Bool only_for_self:Bool = Ok;
 
-//@description Removes a pinned message from a chat; requires can_pin_messages rights in the group or can_edit_messages rights in the channel
+//@description Removes a pinned message from a chat; requires can_pin_messages member right if the chat is a basic group or supergroup, or can_edit_messages administrator right if the chat is a channel
 //@chat_id Identifier of the chat
 //@message_id Identifier of the removed pinned message
 unpinChatMessage chat_id:int53 message_id:int53 = Ok;
 
-//@description Removes all pinned messages from a chat; requires can_pin_messages rights in the group or can_edit_messages rights in the channel
+//@description Removes all pinned messages from a chat; requires can_pin_messages member right if the chat is a basic group or supergroup, or can_edit_messages administrator right if the chat is a channel
 //@chat_id Identifier of the chat
 unpinAllChatMessages chat_id:int53 = Ok;
 
-//@description Removes all pinned messages from a forum topic; requires can_pin_messages rights in the supergroup
+//@description Removes all pinned messages from a forum topic; requires can_pin_messages member right in the supergroup
 //@chat_id Identifier of the chat
 //@message_thread_id Message thread identifier in which messages will be unpinned
 unpinAllMessageThreadMessages chat_id:int53 message_thread_id:int53 = Ok;
@@ -8941,24 +9926,26 @@ joinChat chat_id:int53 = Ok;
 //@chat_id Chat identifier
 leaveChat chat_id:int53 = Ok;
 
-//@description Adds a new member to a chat. Members can't be added to private or secret chats
+//@description Adds a new member to a chat; requires can_invite_users member right. Members can't be added to private or secret chats
 //@chat_id Chat identifier
 //@user_id Identifier of the user
 //@forward_limit The number of earlier messages from the chat to be forwarded to the new member; up to 100. Ignored for supergroups and channels, or if the added user is a bot
 addChatMember chat_id:int53 user_id:int53 forward_limit:int32 = Ok;
 
-//@description Adds multiple new members to a chat. Currently, this method is only available for supergroups and channels. This method can't be used to join a chat. Members can't be added to a channel if it has more than 200 members
+//@description Adds multiple new members to a chat; requires can_invite_users member right. Currently, this method is only available for supergroups and channels. This method can't be used to join a chat. Members can't be added to a channel if it has more than 200 members
 //@chat_id Chat identifier
 //@user_ids Identifiers of the users to be added to the chat. The maximum number of added users is 20 for supergroups and 100 for channels
 addChatMembers chat_id:int53 user_ids:vector<int53> = Ok;
 
-//@description Changes the status of a chat member, needs appropriate privileges. This function is currently not suitable for transferring chat ownership; use transferChatOwnership instead. Use addChatMember or banChatMember if some additional parameters needs to be passed
+//@description Changes the status of a chat member; requires can_invite_users member right to add a chat member, can_promote_members administrator right to change administrator rights of the member,
+//-and can_restrict_members administrator right to change restrictions of a user. This function is currently not suitable for transferring chat ownership; use transferChatOwnership instead.
+//-Use addChatMember or banChatMember if some additional parameters needs to be passed
 //@chat_id Chat identifier
 //@member_id Member identifier. Chats can be only banned and unbanned in supergroups and channels
 //@status The new status of the member in the chat
 setChatMemberStatus chat_id:int53 member_id:MessageSender status:ChatMemberStatus = Ok;
 
-//@description Bans a member in a chat. Members can't be banned in private or secret chats. In supergroups and channels, the user will not be able to return to the group on their own using invite links, etc., unless unbanned first
+//@description Bans a member in a chat; requires can_restrict_members administrator right. Members can't be banned in private or secret chats. In supergroups and channels, the user will not be able to return to the group on their own using invite links, etc., unless unbanned first
 //@chat_id Chat identifier
 //@member_id Member identifier
 //@banned_until_date Point in time (Unix timestamp) when the user will be unbanned; 0 if never. If the user is banned for more than 366 days or for less than 30 seconds from the current time, the user is considered to be banned forever. Ignored in basic groups and if a chat is banned
@@ -8968,7 +9955,7 @@ banChatMember chat_id:int53 member_id:MessageSender banned_until_date:int32 revo
 //@description Checks whether the current session can be used to transfer a chat ownership to another user
 canTransferOwnership = CanTransferOwnershipResult;
 
-//@description Changes the owner of a chat. The current user must be a current owner of the chat. Use the method canTransferOwnership to check whether the ownership can be transferred from the current session. Available only for supergroups and channel chats
+//@description Changes the owner of a chat; requires owner privileges in the chat. Use the method canTransferOwnership to check whether the ownership can be transferred from the current session. Available only for supergroups and channel chats
 //@chat_id Chat identifier
 //@user_id Identifier of the user to which transfer the ownership. The ownership can't be transferred to a bot or to a deleted user
 //@password The 2-step verification password of the current user
@@ -8979,7 +9966,7 @@ transferChatOwnership chat_id:int53 user_id:int53 password:string = Ok;
 //@member_id Member identifier
 getChatMember chat_id:int53 member_id:MessageSender = ChatMember;
 
-//@description Searches for a specified query in the first name, last name and usernames of the members of a specified chat. Requires administrator rights in channels
+//@description Searches for a specified query in the first name, last name and usernames of the members of a specified chat. Requires administrator rights if the chat is a channel
 //@chat_id Chat identifier
 //@query Query to search for
 //@limit The maximum number of users to be returned; up to 200
@@ -9052,23 +10039,24 @@ readChatList chat_list:ChatList = Ok;
 //@only_local Pass true to get only locally available information without sending network requests
 getStory story_sender_chat_id:int53 story_id:int32 only_local:Bool = Story;
 
-//@description Returns channel chats in which the current user has the right to post stories. The chats must be rechecked with canSendStory before actually trying to post a story there
+//@description Returns supergroup and channel chats in which the current user has the right to post stories. The chats must be rechecked with canSendStory before actually trying to post a story there
 getChatsToSendStories = Chats;
 
-//@description Checks whether the current user can send a story on behalf of a chat; requires can_post_stories rights for channel chats
+//@description Checks whether the current user can send a story on behalf of a chat; requires can_post_stories right for supergroup and channel chats
 //@chat_id Chat identifier
 canSendStory chat_id:int53 = CanSendStoryResult;
 
-//@description Sends a new story to a chat; requires can_post_stories rights for channel chats. Returns a temporary story
+//@description Sends a new story to a chat; requires can_post_stories right for supergroup and channel chats. Returns a temporary story
 //@chat_id Identifier of the chat that will post the story
 //@content Content of the story
 //@areas Clickable rectangle areas to be shown on the story media; pass null if none
-//@caption Story caption; pass null to use an empty caption; 0-getOption("story_caption_length_max") characters
-//@privacy_settings The privacy settings for the story
+//@caption Story caption; pass null to use an empty caption; 0-getOption("story_caption_length_max") characters; can have entities only if getOption("can_use_text_entities_in_story_caption")
+//@privacy_settings The privacy settings for the story; ignored for stories sent to supergroup and channel chats
 //@active_period Period after which the story is moved to archive, in seconds; must be one of 6 * 3600, 12 * 3600, 86400, or 2 * 86400 for Telegram Premium users, and 86400 otherwise
+//@from_story_full_id Full identifier of the original story, which content was used to create the story
 //@is_pinned Pass true to keep the story accessible after expiration
 //@protect_content Pass true if the content of the story must be protected from forwarding and screenshotting
-sendStory chat_id:int53 content:InputStoryContent areas:inputStoryAreas caption:formattedText privacy_settings:StoryPrivacySettings active_period:int32 is_pinned:Bool protect_content:Bool = Story;
+sendStory chat_id:int53 content:InputStoryContent areas:inputStoryAreas caption:formattedText privacy_settings:StoryPrivacySettings active_period:int32 from_story_full_id:storyFullId is_pinned:Bool protect_content:Bool = Story;
 
 //@description Changes content and caption of a story. Can be called only if story.can_be_edited == true
 //@story_sender_chat_id Identifier of the chat that posted the story
@@ -9078,11 +10066,10 @@ sendStory chat_id:int53 content:InputStoryContent areas:inputStoryAreas caption:
 //@caption New story caption; pass null to keep the current caption
 editStory story_sender_chat_id:int53 story_id:int32 content:InputStoryContent areas:inputStoryAreas caption:formattedText = Ok;
 
-//@description Changes privacy settings of a story. Can be called only if story.can_be_edited == true
-//@story_sender_chat_id Identifier of the chat that posted the story
+//@description Changes privacy settings of a story. The method can be called only for stories posted on behalf of the current user and if story.can_be_edited == true
 //@story_id Identifier of the story
 //@privacy_settings The new privacy settigs for the story
-setStoryPrivacySettings story_sender_chat_id:int53 story_id:int32 privacy_settings:StoryPrivacySettings = Ok;
+setStoryPrivacySettings story_id:int32 privacy_settings:StoryPrivacySettings = Ok;
 
 //@description Toggles whether a story is accessible after expiration. Can be called only if story.can_toggle_is_pinned == true
 //@story_sender_chat_id Identifier of the chat that posted the story
@@ -9120,7 +10107,7 @@ getChatActiveStories chat_id:int53 = ChatActiveStories;
 //-For optimal performance, the number of returned stories is chosen by TDLib and can be smaller than the specified limit
 getChatPinnedStories chat_id:int53 from_story_id:int32 limit:int32 = Stories;
 
-//@description Returns the list of all stories posted by the given chat; requires can_edit_stories rights for channel chats.
+//@description Returns the list of all stories posted by the given chat; requires can_edit_stories right in the chat.
 //-The stories are returned in a reverse chronological order (i.e., in order of decreasing story_id). For optimal performance, the number of returned stories is chosen by TDLib
 //@chat_id Chat identifier
 //@from_story_id Identifier of the story starting from which stories must be returned; use 0 to get results from the last story
@@ -9142,21 +10129,31 @@ closeStory story_sender_chat_id:int53 story_id:int32 = Ok;
 //@row_size Number of reaction per row, 5-25
 getStoryAvailableReactions row_size:int32 = AvailableReactions;
 
-//@description Changes chosen reaction on a story
+//@description Changes chosen reaction on a story that has already been sent
 //@story_sender_chat_id The identifier of the sender of the story
 //@story_id The identifier of the story
 //@reaction_type Type of the reaction to set; pass null to remove the reaction. `reactionTypeCustomEmoji` reactions can be used only by Telegram Premium users
 //@update_recent_reactions Pass true if the reaction needs to be added to recent reactions
 setStoryReaction story_sender_chat_id:int53 story_id:int32 reaction_type:ReactionType update_recent_reactions:Bool = Ok;
 
-//@description Returns viewers of a story. The method can be called only for stories posted on behalf of the current user
+//@description Returns interactions with a story. The method can be called only for stories posted on behalf of the current user
 //@story_id Story identifier
-//@query Query to search for in names and usernames of the viewers; may be empty to get all relevant viewers
-//@only_contacts Pass true to get only contacts; pass false to get all relevant viewers
-//@prefer_with_reaction Pass true to get viewers with reaction first; pass false to get viewers sorted just by view_date
+//@query Query to search for in names, usernames and titles; may be empty to get all relevant interactions
+//@only_contacts Pass true to get only interactions by contacts; pass false to get all relevant interactions
+//@prefer_forwards Pass true to get forwards and reposts first, then reactions, then other views; pass false to get interactions sorted just by interaction date
+//@prefer_with_reaction Pass true to get interactions with reaction first; pass false to get interactions sorted just by interaction date. Ignored if prefer_forwards == true
 //@offset Offset of the first entry to return as received from the previous request; use empty string to get the first chunk of results
-//@limit The maximum number of story viewers to return
-getStoryViewers story_id:int32 query:string only_contacts:Bool prefer_with_reaction:Bool offset:string limit:int32 = StoryViewers;
+//@limit The maximum number of story interactions to return
+getStoryInteractions story_id:int32 query:string only_contacts:Bool prefer_forwards:Bool prefer_with_reaction:Bool offset:string limit:int32 = StoryInteractions;
+
+//@description Returns interactions with a story posted in a chat. Can be used only if story is posted on behalf of a chat and the user is an administrator in the chat
+//@story_sender_chat_id The identifier of the sender of the story
+//@story_id Story identifier
+//@reaction_type Pass the default heart reaction or a suggested reaction type to receive only interactions with the specified reaction type; pass null to receive all interactions
+//@prefer_forwards Pass true to get forwards and reposts first, then reactions, then other views; pass false to get interactions sorted just by interaction date
+//@offset Offset of the first entry to return as received from the previous request; use empty string to get the first chunk of results
+//@limit The maximum number of story interactions to return
+getChatStoryInteractions story_sender_chat_id:int53 story_id:int32 reaction_type:ReactionType prefer_forwards:Bool offset:string limit:int32 = StoryInteractions;
 
 //@description Reports a story to the Telegram moderators
 //@story_sender_chat_id The identifier of the sender of the story to report
@@ -9169,12 +10166,29 @@ reportStory story_sender_chat_id:int53 story_id:int32 reason:ReportReason text:s
 //-and for the next "story_stealth_mode_future_period" seconds; for Telegram Premium users only
 activateStoryStealthMode = Ok;
 
+//@description Returns forwards of a story as a message to public chats and reposts by public channels. Can be used only if the story is posted on behalf of the current user or story.can_get_statistics == true.
+//-For optimal performance, the number of returned messages and stories is chosen by TDLib
+//@story_sender_chat_id The identifier of the sender of the story
+//@story_id The identifier of the story
+//@offset Offset of the first entry to return as received from the previous request; use empty string to get the first chunk of results
+//@limit The maximum number of messages and stories to be returned; must be positive and can't be greater than 100. For optimal performance, the number of returned objects is chosen by TDLib and can be smaller than the specified limit
+getStoryPublicForwards story_sender_chat_id:int53 story_id:int32 offset:string limit:int32 = PublicForwards;
+
+
+//@description Returns list of features available on the specific chat boost level; this is an offline request
+//@is_channel Pass true to get the list of features for channels; pass false to get the list of features for supergroups
+//@level Chat boost level
+getChatBoostLevelFeatures is_channel:Bool level:int32 = ChatBoostLevelFeatures;
+
+//@description Returns list of features available on the first 10 chat boost levels; this is an offline request
+//@is_channel Pass true to get the list of features for channels; pass false to get the list of features for supergroups
+getChatBoostFeatures is_channel:Bool = ChatBoostFeatures;
 
 //@description Returns the list of available chat boost slots for the current user
 getAvailableChatBoostSlots = ChatBoostSlots;
 
-//@description Returns the current boost status for a channel chat
-//@chat_id Identifier of the channel chat
+//@description Returns the current boost status for a supergroup or a channel chat
+//@chat_id Identifier of the chat
 getChatBoostStatus chat_id:int53 = ChatBoostStatus;
 
 //@description Boosts a chat and returns the list of available chat boost slots for the current user after the boost
@@ -9182,7 +10196,7 @@ getChatBoostStatus chat_id:int53 = ChatBoostStatus;
 //@slot_ids Identifiers of boost slots of the current user from which to apply boosts to the chat
 boostChat chat_id:int53 slot_ids:vector<int32> = ChatBoostSlots;
 
-//@description Returns an HTTPS link to boost the specified channel chat
+//@description Returns an HTTPS link to boost the specified supergroup or channel chat
 //@chat_id Identifier of the chat
 getChatBoostLink chat_id:int53 = ChatBoostLink;
 
@@ -9190,14 +10204,14 @@ getChatBoostLink chat_id:int53 = ChatBoostLink;
 //@url The link to boost a chat
 getChatBoostLinkInfo url:string = ChatBoostLinkInfo;
 
-//@description Returns list of boosts applied to a chat; requires administrator rights in the channel chat
+//@description Returns list of boosts applied to a chat; requires administrator rights in the chat
 //@chat_id Identifier of the chat
 //@only_gift_codes Pass true to receive only boosts received from gift codes and giveaways created by the chat
 //@offset Offset of the first entry to return as received from the previous request; use empty string to get the first chunk of results
 //@limit The maximum number of boosts to be returned; up to 100. For optimal performance, the number of returned boosts can be smaller than the specified limit
 getChatBoosts chat_id:int53 only_gift_codes:Bool offset:string limit:int32 = FoundChatBoosts;
 
-//@description Returns list of boosts applied to a chat by a given user; requires administrator rights in the channel chat; for bots only
+//@description Returns list of boosts applied to a chat by a given user; requires administrator rights in the chat; for bots only
 //@chat_id Identifier of the chat
 //@user_id Identifier of the user
 getUserChatBoosts chat_id:int53 user_id:int53 = FoundChatBoosts;
@@ -9214,17 +10228,27 @@ getAttachmentMenuBot bot_user_id:int53 = AttachmentMenuBot;
 toggleBotIsAddedToAttachmentMenu bot_user_id:int53 is_added:Bool allow_write_access:Bool = Ok;
 
 
-//@description Returns up to 8 emoji statuses, which must be shown right after the default Premium Badge in the emoji status list
+//@description Returns up to 8 emoji statuses, which must be shown right after the default Premium Badge in the emoji status list for self status
 getThemedEmojiStatuses = EmojiStatuses;
 
-//@description Returns recent emoji statuses
+//@description Returns recent emoji statuses for self status
 getRecentEmojiStatuses = EmojiStatuses;
 
-//@description Returns default emoji statuses
+//@description Returns default emoji statuses for self status
 getDefaultEmojiStatuses = EmojiStatuses;
 
-//@description Clears the list of recently used emoji statuses
+//@description Clears the list of recently used emoji statuses for self status
 clearRecentEmojiStatuses = Ok;
+
+
+//@description Returns up to 8 emoji statuses, which must be shown in the emoji status list for chats
+getThemedChatEmojiStatuses = EmojiStatuses;
+
+//@description Returns default emoji statuses for chats
+getDefaultChatEmojiStatuses = EmojiStatuses;
+
+//@description Returns the list of emoji statuses, which can't be used as chat emoji status, even they are from a sticker set with is_allowed_as_chat_emoji_status == true
+getDisallowedChatEmojiStatuses = EmojiStatuses;
 
 
 //@description Downloads a file from the cloud. Download progress and completion of the download will be notified through updateFile updates
@@ -9330,11 +10354,11 @@ searchFileDownloads query:string only_active:Bool only_completed:Bool offset:str
 getMessageFileType message_file_head:string = MessageFileType;
 
 //@description Returns a confirmation text to be shown to the user before starting message import
-//@chat_id Identifier of a chat to which the messages will be imported. It must be an identifier of a private chat with a mutual contact or an identifier of a supergroup chat with can_change_info administrator right
+//@chat_id Identifier of a chat to which the messages will be imported. It must be an identifier of a private chat with a mutual contact or an identifier of a supergroup chat with can_change_info member right
 getMessageImportConfirmationText chat_id:int53 = Text;
 
 //@description Imports messages exported from another app
-//@chat_id Identifier of a chat to which the messages will be imported. It must be an identifier of a private chat with a mutual contact or an identifier of a supergroup chat with can_change_info administrator right
+//@chat_id Identifier of a chat to which the messages will be imported. It must be an identifier of a private chat with a mutual contact or an identifier of a supergroup chat with can_change_info member right
 //@message_file File with messages to import. Only inputFileLocal and inputFileGenerated are supported. The file must not be previously uploaded
 //@attached_files Files used in the imported messages. Only inputFileLocal and inputFileGenerated are supported. The files must not be previously uploaded
 importMessages chat_id:int53 message_file:InputFile attached_files:vector<InputFile> = Ok;
@@ -9482,18 +10506,18 @@ getVideoChatAvailableParticipants chat_id:int53 = MessageSenders;
 //@default_participant_id Default group call participant identifier to join the video chats
 setVideoChatDefaultParticipant chat_id:int53 default_participant_id:MessageSender = Ok;
 
-//@description Creates a video chat (a group call bound to a chat). Available only for basic groups, supergroups and channels; requires can_manage_video_chats rights
+//@description Creates a video chat (a group call bound to a chat). Available only for basic groups, supergroups and channels; requires can_manage_video_chats administrator right
 //@chat_id Identifier of a chat in which the video chat will be created
 //@title Group call title; if empty, chat title will be used
 //@start_date Point in time (Unix timestamp) when the group call is supposed to be started by an administrator; 0 to start the video chat immediately. The date must be at least 10 seconds and at most 8 days in the future
-//@is_rtmp_stream Pass true to create an RTMP stream instead of an ordinary video chat; requires creator privileges
+//@is_rtmp_stream Pass true to create an RTMP stream instead of an ordinary video chat; requires owner privileges
 createVideoChat chat_id:int53 title:string start_date:int32 is_rtmp_stream:Bool = GroupCallId;
 
-//@description Returns RTMP URL for streaming to the chat; requires creator privileges
+//@description Returns RTMP URL for streaming to the chat; requires owner privileges
 //@chat_id Chat identifier
 getVideoChatRtmpUrl chat_id:int53 = RtmpUrl;
 
-//@description Replaces the current RTMP URL for streaming to the chat; requires creator privileges
+//@description Replaces the current RTMP URL for streaming to the chat; requires owner privileges
 //@chat_id Chat identifier
 replaceVideoChatRtmpUrl chat_id:int53 = RtmpUrl;
 
@@ -9746,7 +10770,7 @@ getInstalledStickerSets sticker_type:StickerType = StickerSets;
 
 //@description Returns a list of archived sticker sets
 //@sticker_type Type of the sticker sets to return
-//@offset_sticker_set_id Identifier of the sticker set from which to return the result
+//@offset_sticker_set_id Identifier of the sticker set from which to return the result; use 0 to get results from the beginning
 //@limit The maximum number of sticker sets to return; up to 100
 getArchivedStickerSets sticker_type:StickerType offset_sticker_set_id:int64 limit:int32 = StickerSets;
 
@@ -9774,9 +10798,10 @@ searchStickerSet name:string = StickerSet;
 //@limit The maximum number of sticker sets to return
 searchInstalledStickerSets sticker_type:StickerType query:string limit:int32 = StickerSets;
 
-//@description Searches for ordinary sticker sets by looking for specified query in their title and name. Excludes installed sticker sets from the results
+//@description Searches for sticker sets by looking for specified query in their title and name. Excludes installed sticker sets from the results
+//@sticker_type Type of the sticker sets to return
 //@query Query to search for
-searchStickerSets query:string = StickerSets;
+searchStickerSets sticker_type:StickerType query:string = StickerSets;
 
 //@description Installs/uninstalls or activates/archives a sticker set
 //@set_id Identifier of the sticker set
@@ -9798,7 +10823,7 @@ reorderInstalledStickerSets sticker_type:StickerType sticker_set_ids:vector<int6
 getRecentStickers is_attached:Bool = Stickers;
 
 //@description Manually adds a new sticker to the list of recently used stickers. The new sticker is added to the top of the list. If the sticker was already in the list, it is removed from the list first.
-//-Only stickers belonging to a sticker set can be added to this list. Emoji stickers can't be added to recent stickers
+//-Only stickers belonging to a sticker set or in WEBP or WEBM format can be added to this list. Emoji stickers can't be added to recent stickers
 //@is_attached Pass true to add the sticker to the list of stickers recently attached to photo or video files; pass false to add the sticker to the list of recently sent stickers
 //@sticker Sticker file to add
 addRecentSticker is_attached:Bool sticker:InputFile = Stickers;
@@ -9816,7 +10841,7 @@ clearRecentStickers is_attached:Bool = Ok;
 getFavoriteStickers = Stickers;
 
 //@description Adds a new sticker to the list of favorite stickers. The new sticker is added to the top of the list. If the sticker was already in the list, it is removed from the list first.
-//-Only stickers belonging to a sticker set can be added to this list. Emoji stickers can't be added to favorite stickers
+//-Only stickers belonging to a sticker set or in WEBP or WEBM format can be added to this list. Emoji stickers can't be added to favorite stickers
 //@sticker Sticker file to add
 addFavoriteSticker sticker:InputFile = Ok;
 
@@ -9828,11 +10853,15 @@ removeFavoriteSticker sticker:InputFile = Ok;
 //@sticker Sticker file identifier
 getStickerEmojis sticker:InputFile = Emojis;
 
-//@description Searches for emojis by keywords. Supported only if the file database is enabled
+//@description Searches for emojis by keywords. Supported only if the file database is enabled. Order of results is unspecified
 //@text Text to search for
-//@exact_match Pass true if only emojis, which exactly match the text, needs to be returned
 //@input_language_codes List of possible IETF language tags of the user's input language; may be empty if unknown
-searchEmojis text:string exact_match:Bool input_language_codes:vector<string> = Emojis;
+searchEmojis text:string input_language_codes:vector<string> = EmojiKeywords;
+
+//@description Return emojis matching the keyword. Supported only if the file database is enabled. Order of results is unspecified
+//@text Text to search for
+//@input_language_codes List of possible IETF language tags of the user's input language; may be empty if unknown
+getKeywordEmojis text:string input_language_codes:vector<string> = Emojis;
 
 //@description Returns available emojis categories
 //@type Type of emoji categories to return; pass null to get default emoji categories
@@ -9908,8 +10937,13 @@ deleteProfilePhoto profile_photo_id:int64 = Ok;
 
 //@description Changes accent color and background custom emoji for the current user; for Telegram Premium users only
 //@accent_color_id Identifier of the accent color to use
-//@background_custom_emoji_id Identifier of a custom emoji to be shown on the reply header background; 0 if none
+//@background_custom_emoji_id Identifier of a custom emoji to be shown on the reply header and link preview background; 0 if none
 setAccentColor accent_color_id:int32 background_custom_emoji_id:int64 = Ok;
+
+//@description Changes accent color and background custom emoji for profile of the current user; for Telegram Premium users only
+//@profile_accent_color_id Identifier of the accent color to use for profile; pass -1 if none
+//@profile_background_custom_emoji_id Identifier of a custom emoji to be shown on the user's profile photo background; 0 if none
+setProfileAccentColor profile_accent_color_id:int32 profile_background_custom_emoji_id:int64 = Ok;
 
 //@description Changes the first and last name of the current user
 //@first_name The new value of the first name for the current user; 1-64 characters
@@ -9933,13 +10967,41 @@ toggleUsernameIsActive username:string is_active:Bool = Ok;
 //@usernames The new order of active usernames. All currently active usernames must be specified
 reorderActiveUsernames usernames:vector<string> = Ok;
 
+//@description Changes the birthdate of the current user
+//@birthdate The new value of the current user's birthdate; pass null to remove the birthdate
+setBirthdate birthdate:birthdate = Ok;
+
+//@description Changes the personal chat of the current user
+//@chat_id Identifier of the new personal chat; pass 0 to remove the chat. Use getSuitablePersonalChats to get suitable chats
+setPersonalChat chat_id:int53 = Ok;
+
 //@description Changes the emoji status of the current user; for Telegram Premium users only
 //@emoji_status New emoji status; pass null to switch to the default badge
 setEmojiStatus emoji_status:emojiStatus = Ok;
 
-//@description Changes the location of the current user. Needs to be called if getOption("is_location_visible") is true and location changes for more than 1 kilometer
+//@description Changes the location of the current user. Needs to be called if getOption("is_location_visible") is true and location changes for more than 1 kilometer. Must not be called if the user has a business location
 //@location The new location of the user
 setLocation location:location = Ok;
+
+//@description Changes the business location of the current user. Requires Telegram Business subscription
+//@location The new location of the business; pass null to remove the location
+setBusinessLocation location:businessLocation = Ok;
+
+//@description Changes the business opening hours of the current user. Requires Telegram Business subscription
+//@opening_hours The new opening hours of the business; pass null to remove the opening hours; up to 28 time intervals can be specified
+setBusinessOpeningHours opening_hours:businessOpeningHours = Ok;
+
+//@description Changes the business greeting message settings of the current user. Requires Telegram Business subscription
+//@greeting_message_settings The new settings for the greeting message of the business; pass null to disable the greeting message
+setBusinessGreetingMessageSettings greeting_message_settings:businessGreetingMessageSettings = Ok;
+
+//@description Changes the business away message settings of the current user. Requires Telegram Business subscription
+//@away_message_settings The new settings for the away message of the business; pass null to disable the away message
+setBusinessAwayMessageSettings away_message_settings:businessAwayMessageSettings = Ok;
+
+//@description Changes the business intro of the current user. Requires Telegram Business subscription
+//@intro The new intro of the business; pass null to remove the intro
+setBusinessIntro intro:inputBusinessIntro = Ok;
 
 //@description Changes the phone number of the user and sends an authentication code to the user's new phone number; for official Android and iOS applications only. On success, returns information about the sent code
 //@phone_number The new phone number of the user in international format
@@ -9952,6 +11014,18 @@ resendChangePhoneNumberCode = AuthenticationCodeInfo;
 //@description Checks the authentication code sent to confirm a new phone number of the user
 //@code Authentication code to check
 checkChangePhoneNumberCode code:string = Ok;
+
+
+//@description Returns the business bot that is connected to the current user account. Returns a 404 error if there is no connected bot
+getBusinessConnectedBot = BusinessConnectedBot;
+
+//@description Adds or changes business bot that is connected to the current user account
+//@bot Connection settings for the bot
+setBusinessConnectedBot bot:businessConnectedBot = Ok;
+
+//@description Deletes the business bot that is connected to the current user account
+//@bot_user_id Unique user identifier for the bot
+deleteBusinessConnectedBot bot_user_id:int53 = Ok;
 
 
 //@description Returns an HTTPS link, which can be used to get information about the current user
@@ -10127,7 +11201,17 @@ reorderSupergroupActiveUsernames supergroup_id:int53 usernames:vector<string> = 
 //@sticker_set_id New value of the supergroup sticker set identifier. Use 0 to remove the supergroup sticker set
 setSupergroupStickerSet supergroup_id:int53 sticker_set_id:int64 = Ok;
 
-//@description Toggles whether sender signature is added to sent messages in a channel; requires can_change_info administrator right
+//@description Changes the custom emoji sticker set of a supergroup; requires can_change_info administrator right. The chat must have at least chatBoostFeatures.min_custom_emoji_sticker_set_boost_level boost level to pass the corresponding color
+//@supergroup_id Identifier of the supergroup
+//@custom_emoji_sticker_set_id New value of the custom emoji sticker set identifier for the supergroup. Use 0 to remove the custom emoji sticker set in the supergroup
+setSupergroupCustomEmojiStickerSet supergroup_id:int53 custom_emoji_sticker_set_id:int64 = Ok;
+
+//@description Changes the number of times the supergroup must be boosted by a user to ignore slow mode and chat permission restrictions; requires can_restrict_members administrator right
+//@supergroup_id Identifier of the supergroup
+//@unrestrict_boost_count New value of the unrestrict_boost_count supergroup setting; 0-8. Use 0 to remove the setting
+setSupergroupUnrestrictBoostCount supergroup_id:int53 unrestrict_boost_count:int32 = Ok;
+
+//@description Toggles whether sender signature is added to sent messages in a channel; requires can_change_info member right
 //@supergroup_id Identifier of the channel
 //@sign_messages New value of sign_messages
 toggleSupergroupSignMessages supergroup_id:int53 sign_messages:Bool = Ok;
@@ -10142,7 +11226,7 @@ toggleSupergroupJoinToSendMessages supergroup_id:int53 join_to_send_messages:Boo
 //@join_by_request New value of join_by_request
 toggleSupergroupJoinByRequest supergroup_id:int53 join_by_request:Bool = Ok;
 
-//@description Toggles whether the message history of a supergroup is available to new members; requires can_change_info administrator right
+//@description Toggles whether the message history of a supergroup is available to new members; requires can_change_info member right
 //@supergroup_id The identifier of the supergroup
 //@is_all_history_available The new value of is_all_history_available
 toggleSupergroupIsAllHistoryAvailable supergroup_id:int53 is_all_history_available:Bool = Ok;
@@ -10199,6 +11283,10 @@ closeSecretChat secret_chat_id:int32 = Ok;
 getChatEventLog chat_id:int53 query:string from_event_id:int64 limit:int32 filters:chatEventLogFilters user_ids:vector<int53> = ChatEvents;
 
 
+//@description Returns the list of supported time zones
+getTimeZones = TimeZones;
+
+
 //@description Returns an invoice payment form. This method must be called when the user presses inline button of the type inlineKeyboardButtonTypeBuy
 //@input_invoice The invoice
 //@theme Preferred payment form theme; pass null to use the default theme
@@ -10243,31 +11331,35 @@ createInvoiceLink invoice:InputMessageContent = HttpUrl;
 getSupportUser = User;
 
 
-//@description Returns backgrounds installed by the user
-//@for_dark_theme Pass true to order returned backgrounds for a dark theme
-getBackgrounds for_dark_theme:Bool = Backgrounds;
-
 //@description Constructs a persistent HTTP URL for a background
 //@name Background name
-//@type Background type
+//@type Background type; backgroundTypeChatTheme isn't supported
 getBackgroundUrl name:string type:BackgroundType = HttpUrl;
 
 //@description Searches for a background by its name
 //@name The name of the background
 searchBackground name:string = Background;
 
-//@description Changes the background selected by the user; adds background to the list of installed backgrounds
-//@background The input background to use; pass null to create a new filled background or to remove the current background
-//@type Background type; pass null to use the default type of the remote background or to remove the current background
-//@for_dark_theme Pass true if the background is changed for a dark theme
-setBackground background:InputBackground type:BackgroundType for_dark_theme:Bool = Background;
+//@description Sets default background for chats; adds the background to the list of installed backgrounds
+//@background The input background to use; pass null to create a new filled background
+//@type Background type; pass null to use the default type of the remote background; backgroundTypeChatTheme isn't supported
+//@for_dark_theme Pass true if the background is set for a dark theme
+setDefaultBackground background:InputBackground type:BackgroundType for_dark_theme:Bool = Background;
+
+//@description Deletes default background for chats
+//@for_dark_theme Pass true if the background is deleted for a dark theme
+deleteDefaultBackground for_dark_theme:Bool = Ok;
+
+//@description Returns backgrounds installed by the user
+//@for_dark_theme Pass true to order returned backgrounds for a dark theme
+getInstalledBackgrounds for_dark_theme:Bool = Backgrounds;
 
 //@description Removes background from the list of installed backgrounds
 //@background_id The background identifier
-removeBackground background_id:int64 = Ok;
+removeInstalledBackground background_id:int64 = Ok;
 
 //@description Resets list of installed backgrounds to its default value
-resetBackgrounds = Ok;
+resetInstalledBackgrounds = Ok;
 
 
 //@description Returns information about the current localization target. This is an offline request if only_local is true. Can be called before authorization
@@ -10340,6 +11432,26 @@ setUserPrivacySettingRules setting:UserPrivacySetting rules:userPrivacySettingRu
 //@setting The privacy setting
 getUserPrivacySettingRules setting:UserPrivacySetting = UserPrivacySettingRules;
 
+//@description Changes privacy settings for message read date
+//@settings New settings
+setReadDatePrivacySettings settings:readDatePrivacySettings = Ok;
+
+//@description Returns privacy settings for message read date
+getReadDatePrivacySettings = ReadDatePrivacySettings;
+
+//@description Changes privacy settings for new chat creation; can be used only if getOption("can_set_new_chat_privacy_settings")
+//@settings New settings
+setNewChatPrivacySettings settings:newChatPrivacySettings = Ok;
+
+//@description Returns privacy settings for new chat creation
+getNewChatPrivacySettings = NewChatPrivacySettings;
+
+
+//@description Check whether the current user can message another user or try to create a chat with them
+//@user_id Identifier of the other user
+//@only_local Pass true to get only locally available information without sending network requests
+canSendMessageToUser user_id:int53 only_local:Bool = CanSendMessageToUserResult;
+
 
 //@description Returns the value of an option by its name. (Check the list of available options on https://core.telegram.org/tdlib/options.) Can be called before authorization. Can be called synchronously for options "version" and "commit_hash"
 //@name The name of the option
@@ -10409,12 +11521,18 @@ getChatStatistics chat_id:int53 is_dark:Bool = ChatStatistics;
 //@is_dark Pass true if a dark theme is used by the application
 getMessageStatistics chat_id:int53 message_id:int53 is_dark:Bool = MessageStatistics;
 
-//@description Returns forwarded copies of a channel message to different public channels. Can be used only if message.can_get_statistics == true. For optimal performance, the number of returned messages is chosen by TDLib
+//@description Returns forwarded copies of a channel message to different public channels and public reposts as a story. Can be used only if message.can_get_statistics == true. For optimal performance, the number of returned messages and stories is chosen by TDLib
 //@chat_id Chat identifier of the message
 //@message_id Message identifier
 //@offset Offset of the first entry to return as received from the previous request; use empty string to get the first chunk of results
-//@limit The maximum number of messages to be returned; must be positive and can't be greater than 100. For optimal performance, the number of returned messages is chosen by TDLib and can be smaller than the specified limit
-getMessagePublicForwards chat_id:int53 message_id:int53 offset:string limit:int32 = FoundMessages;
+//@limit The maximum number of messages and stories to be returned; must be positive and can't be greater than 100. For optimal performance, the number of returned objects is chosen by TDLib and can be smaller than the specified limit
+getMessagePublicForwards chat_id:int53 message_id:int53 offset:string limit:int32 = PublicForwards;
+
+//@description Returns detailed statistics about a story. Can be used only if story.can_get_statistics == true
+//@chat_id Chat identifier
+//@story_id Story identifier
+//@is_dark Pass true if a dark theme is used by the application
+getStoryStatistics chat_id:int53 story_id:int32 is_dark:Bool = StoryStatistics;
 
 //@description Loads an asynchronous or a zoomed in statistical graph
 //@chat_id Chat identifier
@@ -10597,64 +11715,76 @@ checkStickerSetName name:string = CheckStickerSetNameResult;
 //@description Creates a new sticker set. Returns the newly created sticker set
 //@user_id Sticker set owner; ignored for regular users
 //@title Sticker set title; 1-64 characters
-//@name Sticker set name. Can contain only English letters, digits and underscores. Must end with *"_by_<bot username>"* (*<bot_username>* is case insensitive) for bots; 1-64 characters
-//@sticker_format Format of the stickers in the set
+//@name Sticker set name. Can contain only English letters, digits and underscores. Must end with *"_by_<bot username>"* (*<bot_username>* is case insensitive) for bots; 0-64 characters.
+//-If empty, then the name returned by getSuggestedStickerSetName will be used automatically
 //@sticker_type Type of the stickers in the set
 //@needs_repainting Pass true if stickers in the sticker set must be repainted; for custom emoji sticker sets only
-//@stickers List of stickers to be added to the set; must be non-empty. All stickers must have the same format. For TGS stickers, uploadStickerFile must be used before the sticker is shown
+//@stickers List of stickers to be added to the set; 1-200 stickers for custom emoji sticker sets, and 1-120 stickers otherwise. For TGS stickers, uploadStickerFile must be used before the sticker is shown
 //@source Source of the sticker set; may be empty if unknown
-createNewStickerSet user_id:int53 title:string name:string sticker_format:StickerFormat sticker_type:StickerType needs_repainting:Bool stickers:vector<inputSticker> source:string = StickerSet;
+createNewStickerSet user_id:int53 title:string name:string sticker_type:StickerType needs_repainting:Bool stickers:vector<inputSticker> source:string = StickerSet;
 
-
-//@description Adds a new sticker to a set; for bots only
-//@user_id Sticker set owner
-//@name Sticker set name
+//@description Adds a new sticker to a set
+//@user_id Sticker set owner; ignored for regular users
+//@name Sticker set name. The sticker set must be owned by the current user, and contain less than 200 stickers for custom emoji sticker sets and less than 120 otherwise
 //@sticker Sticker to add to the set
 addStickerToSet user_id:int53 name:string sticker:inputSticker = Ok;
 
-//@description Sets a sticker set thumbnail; for bots only
-//@user_id Sticker set owner
-//@name Sticker set name
-//@thumbnail Thumbnail to set in PNG, TGS, or WEBM format; pass null to remove the sticker set thumbnail. Thumbnail format must match the format of stickers in the set
-setStickerSetThumbnail user_id:int53 name:string thumbnail:InputFile = Ok;
+//@description Replaces existing sticker in a set. The function is equivalent to removeStickerFromSet, then addStickerToSet, then setStickerPositionInSet
+//@user_id Sticker set owner; ignored for regular users
+//@name Sticker set name. The sticker set must be owned by the current user
+//@old_sticker Sticker to remove from the set
+//@new_sticker Sticker to add to the set
+replaceStickerInSet user_id:int53 name:string old_sticker:InputFile new_sticker:inputSticker = Ok;
 
-//@description Sets a custom emoji sticker set thumbnail; for bots only
-//@name Sticker set name
+//@description Sets a sticker set thumbnail
+//@user_id Sticker set owner; ignored for regular users
+//@name Sticker set name. The sticker set must be owned by the current user
+//@thumbnail Thumbnail to set; pass null to remove the sticker set thumbnail
+//@format Format of the thumbnail; pass null if thumbnail is removed
+setStickerSetThumbnail user_id:int53 name:string thumbnail:InputFile format:StickerFormat = Ok;
+
+//@description Sets a custom emoji sticker set thumbnail
+//@name Sticker set name. The sticker set must be owned by the current user
 //@custom_emoji_id Identifier of the custom emoji from the sticker set, which will be set as sticker set thumbnail; pass 0 to remove the sticker set thumbnail
 setCustomEmojiStickerSetThumbnail name:string custom_emoji_id:int64 = Ok;
 
-//@description Sets a sticker set title; for bots only
-//@name Sticker set name
+//@description Sets a sticker set title
+//@name Sticker set name. The sticker set must be owned by the current user
 //@title New sticker set title
 setStickerSetTitle name:string title:string = Ok;
 
-//@description Deleted a sticker set; for bots only
-//@name Sticker set name
+//@description Completely deletes a sticker set
+//@name Sticker set name. The sticker set must be owned by the current user
 deleteStickerSet name:string = Ok;
 
-//@description Changes the position of a sticker in the set to which it belongs; for bots only. The sticker set must have been created by the bot
+//@description Changes the position of a sticker in the set to which it belongs. The sticker set must be owned by the current user
 //@sticker Sticker
 //@position New position of the sticker in the set, 0-based
 setStickerPositionInSet sticker:InputFile position:int32 = Ok;
 
-//@description Removes a sticker from the set to which it belongs; for bots only. The sticker set must have been created by the bot
-//@sticker Sticker
+//@description Removes a sticker from the set to which it belongs. The sticker set must be owned by the current user
+//@sticker Sticker to remove from the set
 removeStickerFromSet sticker:InputFile = Ok;
 
-//@description Changes the list of emoji corresponding to a sticker; for bots only. The sticker must belong to a regular or custom emoji sticker set created by the bot
+//@description Changes the list of emoji corresponding to a sticker. The sticker must belong to a regular or custom emoji sticker set that is owned by the current user
 //@sticker Sticker
 //@emojis New string with 1-20 emoji corresponding to the sticker
 setStickerEmojis sticker:InputFile emojis:string = Ok;
 
-//@description Changes the list of keywords of a sticker; for bots only. The sticker must belong to a regular or custom emoji sticker set created by the bot
+//@description Changes the list of keywords of a sticker. The sticker must belong to a regular or custom emoji sticker set that is owned by the current user
 //@sticker Sticker
 //@keywords List of up to 20 keywords with total length up to 64 characters, which can be used to find the sticker
 setStickerKeywords sticker:InputFile keywords:vector<string> = Ok;
 
-//@description Changes the mask position of a mask sticker; for bots only. The sticker must belong to a mask sticker set created by the bot
+//@description Changes the mask position of a mask sticker. The sticker must belong to a mask sticker set that is owned by the current user
 //@sticker Sticker
 //@mask_position Position where the mask is placed; pass null to remove mask position
 setStickerMaskPosition sticker:InputFile mask_position:maskPosition = Ok;
+
+//@description Returns sticker sets owned by the current user
+//@offset_sticker_set_id Identifier of the sticker set from which to return owned sticker sets; use 0 to get results from the beginning
+//@limit The maximum number of sticker sets to be returned; must be positive and can't be greater than 100. For optimal performance, the number of returned objects is chosen by TDLib and can be smaller than the specified limit
+getOwnedStickerSets offset_sticker_set_id:int64 limit:int32 = StickerSets;
 
 
 //@description Returns information about a file with a map thumbnail in PNG format. Only map thumbnail files with size less than 1MB can be downloaded
@@ -10689,7 +11819,7 @@ clickPremiumSubscriptionButton = Ok;
 getPremiumState = PremiumState;
 
 //@description Returns available options for Telegram Premium gift code or giveaway creation
-//@boosted_chat_id Identifier of the channel chat, which will be automatically boosted by receivers of the gift codes and which is administered by the user; 0 if none
+//@boosted_chat_id Identifier of the supergroup or channel chat, which will be automatically boosted by receivers of the gift codes and which is administered by the user; 0 if none
 getPremiumGiftCodePaymentOptions boosted_chat_id:int53 = PremiumGiftCodePaymentOptions;
 
 //@description Return information about a Telegram Premium gift code
@@ -10700,14 +11830,14 @@ checkPremiumGiftCode code:string = PremiumGiftCodeInfo;
 //@code The code to apply
 applyPremiumGiftCode code:string = Ok;
 
-//@description Launches a prepaid Telegram Premium giveaway for subscribers of channel chats; requires can_post_messages rights in the channels
+//@description Launches a prepaid Telegram Premium giveaway
 //@giveaway_id Unique identifier of the prepaid giveaway
 //@parameters Giveaway parameters
 launchPrepaidPremiumGiveaway giveaway_id:int64 parameters:premiumGiveawayParameters = Ok;
 
 //@description Returns information about a Telegram Premium giveaway
 //@chat_id Identifier of the channel chat which started the giveaway
-//@message_id Identifier of the giveaway message in the chat
+//@message_id Identifier of the giveaway or a giveaway winners message in the chat
 getPremiumGiveawayInfo chat_id:int53 message_id:int53 = PremiumGiveawayInfo;
 
 //@description Checks whether Telegram Premium purchase is possible. Must be called before in-store Premium purchase
@@ -10725,6 +11855,11 @@ assignAppStoreTransaction receipt:bytes purpose:StorePaymentPurpose = Ok;
 //@purchase_token Google Play purchase token
 //@purpose Transaction purpose
 assignGooglePlayTransaction package_name:string store_product_id:string purchase_token:string purpose:StorePaymentPurpose = Ok;
+
+
+//@description Returns information about features, available to Business users
+//@source Source of the request; pass null if the method is called from settings or some non-standard source
+getBusinessFeatures source:BusinessFeature = BusinessFeatures;
 
 
 //@description Accepts Telegram terms of services
@@ -10772,6 +11907,11 @@ getPhoneNumberInfo phone_number_prefix:string = PhoneNumberInfo;
 getPhoneNumberInfoSync language_code:string phone_number_prefix:string = PhoneNumberInfo;
 
 
+//@description Returns information about a given collectible item that was purchased at https://fragment.com
+//@type Type of the collectible item. The item must be used by a user and must be visible to the current user
+getCollectibleItemInfo type:CollectibleItemType = CollectibleItemInfo;
+
+
 //@description Returns information about a tg:// deep link. Use "tg://need_update_for_some_feature" or "tg:some_unsupported_feature" for testing. Returns a 404 error for unknown links. Can be called before authorization
 //@link The link
 getDeepLinkInfo link:string = DeepLinkInfo;
@@ -10779,10 +11919,6 @@ getDeepLinkInfo link:string = DeepLinkInfo;
 
 //@description Returns application config, provided by the server. Can be called before authorization
 getApplicationConfig = JsonValue;
-
-//@description Adds server-provided application changelog as messages to the chat 777000 (Telegram) or as a stories; for official applications only. Returns a 404 error if nothing changed
-//@previous_application_version The previous application version
-addApplicationChangelog previous_application_version:string = Ok;
 
 //@description Saves application log event on the server. Can be called before authorization
 //@type Event type

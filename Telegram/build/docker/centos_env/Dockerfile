@@ -806,7 +806,7 @@ ENV OPENSSL_ROOT_DIR {{ OPENSSL_PREFIX }}
 RUN git init td \
 	&& cd td \
 	&& git remote add origin {{ GIT }}/tdlib/td.git \
-	&& git fetch --depth=1 origin ec788c7505c4f2b31b59743d2f4f97d6fdcba451 \
+	&& git fetch --depth=1 origin d7203eb719304866a7eb7033ef03d421459335b8 \
 	&& git reset --hard FETCH_HEAD \
 	&& rm -rf .git \
 	&& env -u CFLAGS -u CXXFLAGS cmake -B out/Release . \
