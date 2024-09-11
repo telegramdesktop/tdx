@@ -191,6 +191,7 @@ private:
 	};
 }
 
+#if 0 // mtp
 [[nodiscard]] Ui::CollectibleInfo Parse(
 		const QString &entity,
 		not_null<PeerData*> owner,
@@ -208,6 +209,27 @@ private:
 		.cryptoCurrency = qs(data.vcrypto_currency()),
 		.currency = qs(data.vcurrency()),
 		.url = qs(data.vurl()),
+		.date = data.vpurchase_date().v,
+	};
+}
+#endif
+[[nodiscard]] Ui::CollectibleInfo Parse(
+		const QString &entity,
+		not_null<PeerData*> owner,
+		const TLcollectibleItemInfo &info) {
+	const auto &data = info.data();
+	return {
+		.entity = entity,
+		.copyText = (entity.startsWith('+')
+			? QString()
+			: owner->session().createInternalLinkFull(entity)),
+		.ownerUserpic = Ui::MakeUserpicThumbnail(owner, true),
+		.ownerName = owner->name(),
+		.cryptoAmount = uint64(data.vcryptocurrency_amount().v),
+		.amount = uint64(data.vamount().v),
+		.cryptoCurrency = data.vcryptocurrency().v,
+		.currency = data.vcurrency().v,
+		.url = data.vurl().v,
 		.date = data.vpurchase_date().v,
 	};
 }
@@ -881,6 +903,25 @@ void SessionNavigation::resolveCollectible(
 		_api.request(base::take(_collectibleRequestId)).cancel();
 	}
 	_collectibleEntity = entity;
+	_collectibleRequestId = _api.request(TLgetCollectibleItemInfo(
+		((Ui::DetectCollectibleType(entity) == Ui::CollectibleType::Phone)
+			? tl_collectibleItemTypePhoneNumber(tl_string(entity))
+			: tl_collectibleItemTypeUsername(tl_string(entity)))
+	)).done([=](const TLcollectibleItemInfo &result) {
+		const auto entity = base::take(_collectibleEntity);
+		_collectibleRequestId = 0;
+		uiShow()->show(Box(
+			Ui::CollectibleInfoBox,
+			Parse(entity, _session->data().peer(ownerId), result),
+			PrepareCollectibleDetails(_session)));
+	}).fail([=](const Error &error) {
+		_collectibleEntity = QString();
+		_collectibleRequestId = 0;
+		if (fail) {
+			fail(error.message);
+		}
+	}).send();
+#if 0 // mtp
 	_collectibleRequestId = _api.request(MTPfragment_GetCollectibleInfo(
 		((Ui::DetectCollectibleType(entity) == Ui::CollectibleType::Phone)
 			? MTP_inputCollectiblePhone(MTP_string(entity))
@@ -899,6 +940,7 @@ void SessionNavigation::resolveCollectible(
 			fail(error.type());
 		}
 	}).send();
+#endif
 }
 
 void SessionNavigation::applyBoost(
