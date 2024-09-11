@@ -2366,6 +2366,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 	};
 
+#if 0 // mtp
 #ifdef _DEBUG // Sometimes we need to save emoji to files.
 	if (const auto item = _dragStateItem) {
 		const auto emojiStickers = &session->emojiStickersPack();
@@ -2378,6 +2379,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			}
 		}
 	}
+#endif
 #endif
 
 	const auto asGroup = !Element::Moused()

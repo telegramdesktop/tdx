@@ -3309,10 +3309,16 @@ void ApiWrap::setGroupEmojiSet(
 	Expects(megagroup->mgInfo != nullptr);
 
 	megagroup->mgInfo->emojiSet = set;
+	sender().request(TLsetSupergroupCustomEmojiStickerSet(
+		tl_int53(peerToChannel(megagroup->id).bare),
+		tl_int64(set.id)
+	)).send();
+#if 0 // mtp
 	request(MTPchannels_SetEmojiStickers(
 		megagroup->inputChannel,
 		Data::InputStickerSet(set)
 	)).send();
+#endif
 	_session->changes().peerUpdated(
 		megagroup,
 		Data::PeerUpdate::Flag::EmojiSet);
@@ -3995,11 +4001,17 @@ void ApiWrap::requestHistory(
 		return;
 	}
 
+	auto prepared = Api::PrepareHistoryRequest(peer, messageId, slice);
+#if 0 // mtp
 	const auto prepared = Api::PrepareHistoryRequest(peer, messageId, slice);
 	auto &histories = history->owner().histories();
 	const auto requestType = Data::Histories::RequestType::History;
 	histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
 		return request(
+#endif
+	{
+		const auto finish = [] {};
+		sender().request(
 			std::move(prepared)
 		).done([=](const Api::HistoryRequestResult &result) {
 			_historyRequests.remove(key);
@@ -4017,7 +4029,10 @@ void ApiWrap::requestHistory(
 			_historyRequests.remove(key);
 			finish();
 		}).send();
+	}
+#if 0 // mtp
 	});
+#endif
 	_historyRequests.emplace(key);
 }
 
@@ -4632,6 +4647,13 @@ void ApiWrap::cancelLocalItem(not_null<HistoryItem*> item) {
 void ApiWrap::sendShortcutMessages(
 		not_null<PeerData*> peer,
 		BusinessShortcutId id) {
+	sender().request(TLsendQuickReplyShortcutMessages(
+		peerToTdbChat(peer->id),
+		tl_int32(id),
+		tl_int32(0) // sending_id
+	)).fail([=](const Error &error) {
+	}).send();
+#if 0 // mtp
 	auto ids = QVector<MTPint>();
 	auto randomIds = QVector<MTPlong>();
 	request(MTPmessages_SendQuickReplyMessages(
@@ -4643,6 +4665,7 @@ void ApiWrap::sendShortcutMessages(
 		applyUpdates(result);
 	}).fail([=](const MTP::Error &error) {
 	}).send();
+#endif
 }
 
 void ApiWrap::sendMessage(MessageToSend &&message) {

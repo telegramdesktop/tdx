@@ -235,7 +235,9 @@ ClickHandlerPtr MakePaidMediaLink(not_null<HistoryItem*> item) {
 			if (result != Result::Paid) {
 				return;
 			} else if (const auto item = session->data().message(itemId)) {
+#if 0 // mtp
 				session->api().views().pollExtendedMedia(item, true);
+#endif
 				if (const auto strong = weak.get()) {
 					ShowPaidMediaUnlockedToast(strong, item);
 				}
