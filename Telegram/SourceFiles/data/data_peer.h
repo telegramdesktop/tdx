@@ -42,6 +42,8 @@ class TLchatActionBar;
 class TLfile;
 class TLchatAvailableReactions;
 class TLstring;
+class TLbusinessBotManageBar;
+class TLemojiStatus;
 } // namespace Tdb
 
 namespace Data {
@@ -232,7 +234,10 @@ public:
 	[[nodiscard]] DocumentId backgroundEmojiId() const;
 	bool changeBackgroundEmojiId(DocumentId id);
 
+#if 0 // mtp
 	void setEmojiStatus(const MTPEmojiStatus &status);
+#endif
+	void setEmojiStatus(const Tdb::TLemojiStatus *status);
 	void setEmojiStatus(DocumentId emojiStatusId, TimeId until = 0);
 	[[nodiscard]] DocumentId emojiStatusId() const;
 
@@ -452,6 +457,7 @@ public:
 	[[nodiscard]] UserData *businessBot() const;
 	[[nodiscard]] QString businessBotManageUrl() const;
 	void clearBusinessBot();
+	void updateBusinessBot(const Tdb::TLbusinessBotManageBar *bar);
 
 	enum class TranslationFlag : uchar {
 		Unknown,

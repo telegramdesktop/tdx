@@ -582,6 +582,13 @@ HistoryItem::HistoryItem(
 
 	createComponents(std::move(config));
 
+	if (const auto type = data.vself_destruct_type()) {
+		type->match([&](const TLDmessageSelfDestructTypeImmediately &) {
+			_flags |= MessageFlag::SelfDestructImmediate;
+		}, [](const TLDmessageSelfDestructTypeTimer &) {
+		});
+	}
+
 	setContent(data.vcontent());
 	if (const auto groupId = data.vmedia_album_id().v) {
 		if (replacing && replacing->groupId()) {
@@ -2932,6 +2939,10 @@ std::vector<Data::MessageReaction> HistoryItem::reactionsWithLocal() const {
 
 int HistoryItem::reactionsPaidScheduled() const {
 	return _reactions ? _reactions->scheduledPaid() : 0;
+}
+
+bool HistoryItem::selfDestructImmediate() const {
+	return _flags & MessageFlag::SelfDestructImmediate;
 }
 
 bool HistoryItem::reactionsAreTags() const {

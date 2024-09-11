@@ -111,7 +111,10 @@ PersonalChannelController::PersonalChannelController(
 
 PersonalChannelController::~PersonalChannelController() {
 	if (_requestId) {
+#if 0 // mtp
 		_window->session().api().request(_requestId).cancel();
+#endif
+		_window->session().sender().request(_requestId).cancel();
 	}
 }
 
@@ -125,6 +128,7 @@ void PersonalChannelController::prepare() {
 		tr::lng_contacts_loading(),
 		computeListSt().about));
 
+#if 0 // mtp
 	using Flag = MTPchannels_GetAdminedPublicChannels::Flag;
 	_requestId = _window->session().api().request(
 		MTPchannels_GetAdminedPublicChannels(
@@ -139,6 +143,16 @@ void PersonalChannelController::prepare() {
 		const auto owner = &_window->session().data();
 		for (const auto &chat : chats) {
 			if (const auto peer = owner->processChat(chat)) {
+#endif
+	_requestId = _window->session().sender().request(
+		TLgetSuitablePersonalChats()
+	).done([=](const TLchats &result) {
+		_requestId = 0;
+
+		setDescription(nullptr);
+		const auto owner = &_window->session().data();
+		for (const auto &chat : result.data().vchat_ids().v) {
+			if (const auto peer = owner->peerLoaded(peerFromTdbChat(chat))) {
 				const auto rowId = peer->id.value;
 				const auto channel = peer->asChannel();
 				if (channel && !delegate()->peerListFindRow(rowId)) {
@@ -201,6 +215,7 @@ void SavePersonalChannel(
 		|| (messageId
 			&& self->personalChannelMessageId() != messageId)) {
 		self->setPersonalChannel(channelId, messageId);
+#if 0 // mtp
 		self->session().api().request(MTPaccount_UpdatePersonalChannel(
 			channel ? channel->inputChannel : MTP_inputChannelEmpty()
 		)).done(crl::guard(window, [=] {
@@ -209,6 +224,16 @@ void SavePersonalChannel(
 				: tr::lng_settings_channel_removed)(tr::now));
 		})).fail(crl::guard(window, [=](const MTP::Error &error) {
 			window->showToast(u"Error: "_q + error.type());
+		})).send();
+#endif
+		self->session().sender().request(TLsetPersonalChat(
+			channel ? peerToTdbChat(channel->id) : tl_int53(0)
+		)).done(crl::guard(window, [=] {
+			window->showToast((channel
+				? tr::lng_settings_channel_saved
+				: tr::lng_settings_channel_removed)(tr::now));
+		})).fail(crl::guard(window, [=](const Error &error) {
+			window->showToast(error.message);
 		})).send();
 	}
 }
@@ -826,6 +851,7 @@ bool ShowEditBirthday(
 	const auto save = [=](Data::Birthday result) {
 		user->setBirthday(result);
 
+#if 0 // mtp
 		using Flag = MTPaccount_UpdateBirthday::Flag;
 		using BFlag = MTPDbirthday::Flag;
 		user->session().api().request(MTPaccount_UpdateBirthday(
@@ -843,6 +869,18 @@ bool ShowEditBirthday(
 				? tr::lng_flood_error(tr::now)
 				: (u"Error: "_q + error.type()));
 		})).handleFloodErrors().send();
+#endif
+		user->session().sender().request(TLsetBirthdate(result
+			? tl_birthdate(
+				tl_int32(result.day()),
+				tl_int32(result.month()),
+				tl_int32(result.year()))
+			: std::optional<TLbirthdate>()
+		)).done(crl::guard(controller, [=] {
+			controller->showToast(tr::lng_settings_birthday_saved(tr::now));
+		})).fail(crl::guard(controller, [=](const Error &error) {
+			controller->showToast(error.message);
+		})).send();
 	};
 	controller->show(Box(
 		Ui::EditBirthdayBox,

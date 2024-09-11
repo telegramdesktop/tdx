@@ -1262,7 +1262,11 @@ void ShortcutMessages::edit(
 		if (!*saveEditMsgRequestId) {
 			return;
 		}
+#if 0 // mtp
 		_session->api().request(base::take(*saveEditMsgRequestId)).cancel();
+#endif
+		_session->sender().request(
+			base::take(*saveEditMsgRequestId)).cancel();
 	});
 
 	const auto done = [=](mtpRequestId requestId) {
