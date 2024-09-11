@@ -18,12 +18,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/basic_click_handlers.h"
 #include "ui/widgets/buttons.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+
 namespace Api {
+
+using namespace Tdb;
 
 void RestrictSponsored(
 		not_null<ChannelData*> channel,
 		bool restricted,
 		Fn<void(QString)> failed) {
+	channel->session().sender().request(
+		TLtoggleSupergroupCanHaveSponsoredMessages(
+			tl_int53(peerToChannel(channel->id).bare),
+			tl_bool(!restricted))
+	).fail([=](const Error &error) {
+		failed(error.message);
+	}).send();
+#if 0 // mtp
 	channel->session().api().request(MTPchannels_RestrictSponsoredMessages(
 		channel->inputChannel,
 		MTP_bool(restricted))
@@ -32,6 +45,7 @@ void RestrictSponsored(
 	}).fail([=](const MTP::Error &error) {
 		failed(error.type());
 	}).send();
+#endif
 }
 
 void HandleWithdrawalButton(
@@ -88,6 +102,25 @@ void HandleWithdrawalButton(
 						}
 					}
 				};
+				const auto ddone = [=](const TLhttpUrl &result) {
+					done(result.data().vurl().v);
+				};
+				const auto fail = [=](const Error &error) {
+					show->showToast(error.message);
+				};
+				if (channel) {
+					session->sender().request(TLgetChatRevenueWithdrawalUrl(
+						peerToTdbChat(channel->id),
+						tl_string(result.password)
+					)).done(ddone).fail(fail).send();
+				} else if (peer) {
+					session->sender().request(TLgetStarWithdrawalUrl(
+						peerToSender(peer->id),
+						tl_int53(receiver.creditsAmount()),
+						tl_string(result.password)
+					)).done(ddone).fail(fail).send();
+				}
+#if 0 // mtp
 				const auto fail = [=](const MTP::Error &error) {
 					show->showToast(error.type());
 				};
@@ -109,6 +142,7 @@ void HandleWithdrawalButton(
 						done(qs(r.data().vurl()));
 					}).fail(fail).send();
 				}
+#endif
 			});
 			show->show(Box<PasscodeBox>(session, fields));
 		});
@@ -117,6 +151,8 @@ void HandleWithdrawalButton(
 		if (state->loading) {
 			return;
 		}
+		processOut();
+#if 0 // mtp
 		const auto fail = [=](const MTP::Error &error) {
 			auto box = PrePasswordErrorBox(
 				error.type(),
@@ -145,6 +181,7 @@ void HandleWithdrawalButton(
 					MTP_inputCheckPasswordEmpty()
 			)).fail(fail).send();
 		}
+#endif
 	});
 }
 

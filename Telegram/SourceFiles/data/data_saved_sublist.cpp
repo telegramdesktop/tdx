@@ -170,9 +170,11 @@ int SavedSublist::fixedOnTopIndex() const {
 	return 0;
 }
 
+#if 0 // mtp
 bool SavedSublist::shouldBeInChatList() const {
 	return isPinnedDialog(FilterId()) || !_items.empty();
 }
+#endif
 
 Dialogs::UnreadState SavedSublist::chatListUnreadState() const {
 	return {};

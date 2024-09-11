@@ -15,8 +15,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "main/main_session.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "data/data_user.h"
+
 namespace Data {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kPerPage = 50;
 constexpr auto kFirstPerPage = 10;
@@ -72,9 +77,34 @@ void SavedMessages::loadMore(not_null<SavedSublist*> sublist) {
 	_loadMore.call();
 }
 
+SavedSublistId SavedMessages::sublistId(PeerData *savedSublistPeer) const {
+	if (!savedSublistPeer) {
+		return 0;
+	}
+	const auto i = _sublistIds.find(savedSublistPeer->id);
+	return (i != end(_sublistIds)) ? i->second : 0;
+}
+
+SavedSublistId SavedMessages::sublistId(SavedSublist *sublist) const {
+	return sublistId(sublist ? sublist->peer().get() : nullptr);
+}
+
+SavedSublist *SavedMessages::sublistById(SavedSublistId id) const {
+	for (const auto &[peerId, sublistId] : _sublistIds) {
+		if (sublistId == id) {
+			const auto peer = _owner->peer(peerId);
+			const auto i = _sublists.find(peer);
+			return (i != end(_sublists)) ? i->second.get() : nullptr;
+		}
+	}
+	return nullptr;
+}
+
 void SavedMessages::sendLoadMore() {
 	if (_loadMoreRequestId || _chatsList.loaded()) {
 		return;
+	}
+#if 0 // mtp
 	} else if (!_pinnedLoaded) {
 		loadPinned();
 	}
@@ -92,11 +122,19 @@ void SavedMessages::sendLoadMore() {
 		if (error.type() == u"SAVED_DIALOGS_UNSUPPORTED"_q) {
 			_unsupported = true;
 		}
+#endif
+	_loadMoreRequestId = _owner->session().sender().request(
+		TLloadSavedMessagesTopics(
+			tl_int32(_sublists.empty() ? kListPerPage : kListFirstPerPage))
+	).done([=] {
+		_loadMoreRequestId = 0;
+	}).fail([=] {
 		_chatsList.setLoaded();
 		_loadMoreRequestId = 0;
 	}).send();
 }
 
+#if 0 // mtp
 void SavedMessages::loadPinned() {
 	if (_pinnedRequestId) {
 		return;
@@ -114,6 +152,7 @@ void SavedMessages::loadPinned() {
 		_pinnedRequestId = 0;
 	}).send();
 }
+#endif
 
 void SavedMessages::sendLoadMore(not_null<SavedSublist*> sublist) {
 	if (_loadMoreRequests.contains(sublist) || sublist->isFullLoaded()) {
@@ -123,6 +162,7 @@ void SavedMessages::sendLoadMore(not_null<SavedSublist*> sublist) {
 	const auto offsetId = list.empty() ? MsgId(0) : list.back()->id;
 	const auto offsetDate = list.empty() ? MsgId(0) : list.back()->date();
 	const auto limit = offsetId ? kPerPage : kFirstPerPage;
+#if 0 // mtp
 	const auto requestId = _owner->session().api().request(
 		MTPmessages_GetSavedHistory(
 			sublist->peer()->input,
@@ -150,8 +190,18 @@ void SavedMessages::sendLoadMore(not_null<SavedSublist*> sublist) {
 				count = data.vcount().v;
 			}
 		});
-
+#endif
+	const auto requestId = _owner->session().sender().request(
+		TLgetSavedMessagesTopicHistory(
+			tl_int53(sublistId(sublist->peer())),
+			tl_int53(offsetId.bare),
+			tl_int32(0), // offset
+			tl_int32(limit))
+	).done([=](const TLmessages &result) {
 		_loadMoreRequests.remove(sublist);
+		const auto &data = result.data();
+		const auto count = data.vtotal_count().v;
+		const auto list = &data.vmessages().v;
 		if (!list) {
 			sublist->setFullLoaded();
 			return;
@@ -159,15 +209,27 @@ void SavedMessages::sendLoadMore(not_null<SavedSublist*> sublist) {
 		auto items = std::vector<not_null<HistoryItem*>>();
 		items.reserve(list->size());
 		for (const auto &message : *list) {
+#if 0 // mtp
 			const auto item = owner().addNewMessage(
 				message,
 				{},
+				NewMessageType::Existing);
+#endif
+			if (!message) {
+				continue;
+			}
+			const auto item = owner().processMessage(
+				*message,
 				NewMessageType::Existing);
 			if (item) {
 				items.push_back(item);
 			}
 		}
 		sublist->append(std::move(items), count);
+		if (list->empty()) {
+			sublist->setFullLoaded();
+		}
+#if 0 // mtp
 		if (result.type() == mtpc_messages_messages) {
 			sublist->setFullLoaded();
 		}
@@ -175,12 +237,15 @@ void SavedMessages::sendLoadMore(not_null<SavedSublist*> sublist) {
 		if (error.type() == u"SAVED_DIALOGS_UNSUPPORTED"_q) {
 			_unsupported = true;
 		}
+#endif
+	}).fail([=] {
 		sublist->setFullLoaded();
 		_loadMoreRequests.remove(sublist);
 	}).send();
 	_loadMoreRequests[sublist] = requestId;
 }
 
+#if 0 // mtp
 void SavedMessages::apply(
 		const MTPmessages_SavedDialogs &result,
 		bool pinned) {
@@ -247,6 +312,7 @@ void SavedMessages::apply(
 		_offsetPeer = offsetPeer;
 	}
 }
+#endif
 
 void SavedMessages::sendLoadMoreRequests() {
 	if (_loadMoreScheduled) {
@@ -257,6 +323,7 @@ void SavedMessages::sendLoadMoreRequests() {
 	}
 }
 
+#if 0 // mtp
 void SavedMessages::apply(const MTPDupdatePinnedSavedDialogs &update) {
 	const auto list = update.vorder();
 	if (!list) {
@@ -295,6 +362,36 @@ void SavedMessages::apply(const MTPDupdateSavedDialogPinned &update) {
 	}, [&](const MTPDdialogPeerFolder &data) {
 		DEBUG_LOG(("API Error: Folder in updateSavedDialogPinned."));
 	});
+}
+#endif
+
+void SavedMessages::apply(const TLDupdateSavedMessagesTopic &update) {
+	const auto &data = update.vtopic().data();
+	const auto id = data.vid().v;
+	auto peer = (PeerData*)nullptr;
+	data.vtype().match([&](const TLDsavedMessagesTopicTypeMyNotes &) {
+		peer = session().user();
+	}, [&](const TLDsavedMessagesTopicTypeAuthorHidden &) {
+		peer = session().data().peer(PeerData::kSavedHiddenAuthorId);
+	}, [&](const TLDsavedMessagesTopicTypeSavedFromChat &data) {
+		peer = session().data().peer(peerFromTdbChat(data.vchat_id()));
+	});
+	_sublistIds[peer->id] = id;
+
+	const auto selfId = _owner->session().userPeerId();
+	auto item = (HistoryItem*)nullptr;
+	if (const auto last = data.vlast_message()) {
+		item = _owner->processMessage(*last, NewMessageType::Existing);
+	}
+	if (item) {
+		const auto entry = sublist(peer);
+		const auto entryPinned = data.vis_pinned().v;
+		entry->applyMaybeLast(item);
+	}
+}
+
+void SavedMessages::apply(const TLDupdateSavedMessagesTopicCount &update) {
+	_chatsList.setCloudListSize(update.vtopic_count().v);
 }
 
 } // namespace Data

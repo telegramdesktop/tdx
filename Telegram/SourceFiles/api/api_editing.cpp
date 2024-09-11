@@ -260,7 +260,8 @@ mtpRequestId EditCaption(
 	return session->sender().request(TLeditMessageCaption(
 		peerToTdbChat(item->history()->peer->id),
 		tl_int53(item->id.bare),
-		Api::FormattedTextToTdb(caption)
+		Api::FormattedTextToTdb(caption),
+		tl_bool(options.invertCaption)
 	)).done([=](const TLmessage &result) {
 		session->data().processMessage(result, NewMessageType::Existing);
 		done();

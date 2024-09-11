@@ -10,6 +10,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flags.h"
 #include "data/data_location.h"
 
+namespace Tdb {
+class TLbusinessInfo;
+class TLbusinessRecipients;
+class TLbusinessAwayMessageSettings;
+class TLbusinessGreetingMessageSettings;
+} // namespace Tdb
+
 class UserData;
 
 namespace Data {
@@ -57,6 +64,7 @@ enum class BusinessRecipientsType : uchar {
 	Bots,
 };
 
+#if 0 // mtp
 [[nodiscard]] MTPInputBusinessRecipients ForMessagesToMTP(
 	const BusinessRecipients &data);
 [[nodiscard]] MTPInputBusinessBotRecipients ForBotsToMTP(
@@ -67,6 +75,15 @@ enum class BusinessRecipientsType : uchar {
 [[nodiscard]] BusinessRecipients FromMTP(
 	not_null<Session*> owner,
 	const MTPBusinessBotRecipients &recipients);
+#endif
+
+[[nodiscard]] Tdb::TLbusinessRecipients ForMessagesToTL(
+	const BusinessRecipients &data);
+[[nodiscard]] Tdb::TLbusinessRecipients ForBotsToTL(
+	const BusinessRecipients &data);
+[[nodiscard]] BusinessRecipients FromTL(
+	not_null<Session*> owner,
+	const Tdb::TLbusinessRecipients &recipients);
 
 struct Timezone {
 	QString id;
@@ -217,11 +234,17 @@ struct BusinessDetails {
 		const BusinessDetails &b) = default;
 };
 
+#if 0 // mtp
 [[nodiscard]] BusinessDetails FromMTP(
 	not_null<Session*> owner,
 	const tl::conditional<MTPBusinessWorkHours> &hours,
 	const tl::conditional<MTPBusinessLocation> &location,
 	const tl::conditional<MTPBusinessIntro> &intro);
+#endif
+
+[[nodiscard]] BusinessDetails FromTL(
+	not_null<Session*> owner,
+	const tl::conditional<Tdb::TLbusinessInfo> &info);
 
 enum class AwayScheduleType : uchar {
 	Never = 0,
@@ -254,9 +277,15 @@ struct AwaySettings {
 		const AwaySettings &b) = default;
 };
 
+#if 0 // mtp
 [[nodiscard]] AwaySettings FromMTP(
 	not_null<Session*> owner,
 	const tl::conditional<MTPBusinessAwayMessage> &message);
+#endif
+
+[[nodiscard]] AwaySettings FromTL(
+	not_null<Session*> owner,
+	const tl::conditional<Tdb::TLbusinessAwayMessageSettings> &settings);
 
 struct GreetingSettings {
 	BusinessRecipients recipients;
@@ -272,8 +301,14 @@ struct GreetingSettings {
 		const GreetingSettings &b) = default;
 };
 
+#if 0 // mtp
 [[nodiscard]] GreetingSettings FromMTP(
 	not_null<Session*> owner,
 	const tl::conditional<MTPBusinessGreetingMessage> &message);
+#endif
+
+[[nodiscard]] GreetingSettings FromTL(
+	not_null<Session*> owner,
+	const tl::conditional<Tdb::TLbusinessGreetingMessageSettings> &settings);
 
 } // namespace Data
