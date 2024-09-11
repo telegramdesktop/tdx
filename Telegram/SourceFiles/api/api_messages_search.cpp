@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "tdb/tdb_sender.h"
 #include "tdb/tdb_tl_scheme.h"
+#include "data/data_saved_messages.h"
 
 namespace Api {
 namespace {
@@ -121,17 +122,21 @@ void MessagesSearch::searchRequest() {
 	if (_requestId) {
 		_history->session().sender().request(_requestId).cancel();
 	}
+	const auto from = _request.from;
+	const auto fromPeer = _history->peer->isUser() ? nullptr : from;
+	const auto savedPeer = _history->peer->isSelf() ? from : nullptr;
 	_requestId = _history->session().sender().request(TLsearchChatMessages(
 		peerToTdbChat(_history->peer->id),
-		tl_string(_query),
-		(_from
-			? peerToSender(_from->id)
+		tl_string(_request.query),
+		(fromPeer
+			? peerToSender(fromPeer->id)
 			: std::optional<TLmessageSender>()),
 		tl_int53(_offsetId.bare), // from_message_id
 		tl_int32(0), // offset
 		tl_int32(kSearchPerPage),
 		std::nullopt, // filter
-		tl_int53(0) // message_thread_id
+		tl_int53(0), // message_thread_id
+		tl_int53(_history->owner().savedMessages().sublistId(savedPeer))
 	)).done([=](const TLfoundChatMessages &result, RequestId id) {
 		searchReceived(result, id, nextToken);
 	}).fail([=](const Error &error) {

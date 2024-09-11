@@ -2884,6 +2884,7 @@ TextForMimeData MediaGiveawayResults::clipboardText() const {
 	return TextForMimeData();
 }
 
+#if 0 // mtp
 bool MediaGiveawayResults::updateInlineResultMedia(const MTPMessageMedia &media) {
 	return true;
 }
@@ -2891,6 +2892,7 @@ bool MediaGiveawayResults::updateInlineResultMedia(const MTPMessageMedia &media)
 bool MediaGiveawayResults::updateSentMedia(const MTPMessageMedia &media) {
 	return true;
 }
+#endif
 
 std::unique_ptr<HistoryView::Media> MediaGiveawayResults::createView(
 		not_null<HistoryView::Element*> message,

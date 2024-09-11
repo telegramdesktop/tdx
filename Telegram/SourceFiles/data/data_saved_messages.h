@@ -9,6 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "dialogs/dialogs_main_list.h"
 
+namespace Tdb {
+class TLDupdateSavedMessagesTopic;
+class TLDupdateSavedMessagesTopicCount;
+} // namespace Tdb
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -34,8 +39,16 @@ public:
 	void loadMore();
 	void loadMore(not_null<SavedSublist*> sublist);
 
+#if 0 // mtp
 	void apply(const MTPDupdatePinnedSavedDialogs &update);
 	void apply(const MTPDupdateSavedDialogPinned &update);
+#endif
+	void apply(const Tdb::TLDupdateSavedMessagesTopic &update);
+	void apply(const Tdb::TLDupdateSavedMessagesTopicCount &update);
+
+	[[nodiscard]] SavedSublistId sublistId(PeerData *savedSublistPeer) const;
+	[[nodiscard]] SavedSublistId sublistId(SavedSublist *sublist) const;
+	[[nodiscard]] SavedSublist *sublistById(SavedSublistId id) const;
 
 private:
 	void loadPinned();
@@ -51,14 +64,17 @@ private:
 	base::flat_map<
 		not_null<PeerData*>,
 		std::unique_ptr<SavedSublist>> _sublists;
+	base::flat_map<PeerId, SavedSublistId> _sublistIds;
 
 	base::flat_map<not_null<SavedSublist*>, mtpRequestId> _loadMoreRequests;
 	mtpRequestId _loadMoreRequestId = 0;
 	mtpRequestId _pinnedRequestId = 0;
 
+#if 0 // mtp
 	TimeId _offsetDate = 0;
 	MsgId _offsetId = 0;
 	PeerData *_offsetPeer = nullptr;
+#endif
 
 	SingleQueuedInvokation _loadMore;
 	base::flat_set<not_null<SavedSublist*>> _loadMoreSublistsScheduled;
