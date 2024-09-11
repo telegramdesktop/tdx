@@ -57,6 +57,16 @@ using namespace Tdb;
 }
 #endif
 
+[[nodiscard]] ChatLink FromTL(const TLbusinessChatLink &link) {
+	const auto &data = link.data();
+	return {
+		.link = data.vlink().v,
+		.title = data.vtitle().v,
+		.message = FormattedTextFromTdb(data.vtext()),
+		.clicks = data.vview_count().v,
+	};
+}
+
 } // namespace
 
 ChatLinks::ChatLinks(not_null<ApiWrap*> api) : _api(api) {
@@ -67,19 +77,28 @@ void ChatLinks::create(
 		const TextWithEntities &message,
 		Fn<void(Link)> done) {
 	const auto session = &_api->session();
-#if 0 // tdlib todo
+#if 0 // mtp
 	_api->request(MTPaccount_CreateBusinessChatLink(
 		ToMTP(session, title, message)
 	)).done([=](const MTPBusinessChatLink &result) {
 		const auto link = FromMTP(session, result);
+#endif
+	session->sender().request(TLcreateBusinessChatLink(
+		tl_inputBusinessChatLink(
+			FormattedTextToTdb(message),
+			tl_string(title))
+	)).done([=](const TLbusinessChatLink &result) {
+		const auto link = FromTL(result);
 		_list.push_back(link);
 		_updates.fire({ .was = QString(), .now = link });
 		if (done) done(link);
+#if 0 // mtp
 	}).fail([=](const MTP::Error &error) {
 		const auto type = error.type();
+#endif
+	}).fail([=] {
 		if (done) done(Link());
 	}).send();
-#endif
 }
 
 void ChatLinks::edit(
@@ -88,12 +107,20 @@ void ChatLinks::edit(
 		const TextWithEntities &message,
 		Fn<void(Link)> done) {
 	const auto session = &_api->session();
-#if 0 // tdlib todo
+#if 0 // mtp
 	_api->request(MTPaccount_EditBusinessChatLink(
 		MTP_string(link),
 		ToMTP(session, title, message)
 	)).done([=](const MTPBusinessChatLink &result) {
 		const auto parsed = FromMTP(session, result);
+#endif
+	session->sender().request(TLeditBusinessChatLink(
+		tl_string(link),
+		tl_inputBusinessChatLink(
+			FormattedTextToTdb(message),
+			tl_string(title))
+	)).done([=](const TLbusinessChatLink &result) {
+		const auto parsed = FromTL(result);
 		if (parsed.link != link) {
 			LOG(("API Error: EditBusinessChatLink changed the link."));
 			if (done) done(Link());
@@ -108,19 +135,25 @@ void ChatLinks::edit(
 			LOG(("API Error: EditBusinessChatLink link not found."));
 			if (done) done(Link());
 		}
+#if 0 // mtp
 	}).fail([=](const MTP::Error &error) {
 		const auto type = error.type();
+#endif
+	}).fail([=] {
 		if (done) done(Link());
 	}).send();
-#endif
 }
 
 void ChatLinks::destroy(
 		const QString &link,
 		Fn<void()> done) {
-#if 0 // tdlib todo
+#if 0 // mtp
 	_api->request(MTPaccount_DeleteBusinessChatLink(
 		MTP_string(link)
+	)).done([=] {
+#endif
+	_api->sender().request(TLdeleteBusinessChatLink(
+		tl_string(link)
 	)).done([=] {
 		const auto i = ranges::find(_list, link, &Link::link);
 		if (i != end(_list)) {
@@ -131,18 +164,20 @@ void ChatLinks::destroy(
 			LOG(("API Error: DeleteBusinessChatLink link not found."));
 			if (done) done();
 		}
+#if 0 // mtp
 	}).fail([=](const MTP::Error &error) {
 		const auto type = error.type();
+#endif
+	}).fail([=] {
 		if (done) done();
 	}).send();
-#endif
 }
 
 void ChatLinks::preload() {
 	if (_loaded || _requestId) {
 		return;
 	}
-#if 0 // tdlib todo
+#if 0 // mtp
 	_requestId = _api->request(MTPaccount_GetBusinessChatLinks(
 	)).done([=](const MTPaccount_BusinessChatLinks &result) {
 		const auto &data = result.data();
@@ -150,10 +185,17 @@ void ChatLinks::preload() {
 		const auto owner = &session->data();
 		owner->processUsers(data.vusers());
 		owner->processChats(data.vchats());
+#endif
+	_requestId = _api->sender().request(TLgetBusinessChatLinks(
+	)).done([=](const TLbusinessChatLinks &result) {
+		const auto &data = result.data();
 		auto links = std::vector<Link>();
 		links.reserve(data.vlinks().v.size());
 		for (const auto &link : data.vlinks().v) {
+#if 0 // mtp
 			links.push_back(FromMTP(session, link));
+#endif
+			links.push_back(FromTL(link));
 		}
 		_list = std::move(links);
 		_loaded = true;
@@ -163,7 +205,6 @@ void ChatLinks::preload() {
 		_loaded = true;
 		_loadedUpdates.fire({});
 	}).send();
-#endif
 }
 
 const std::vector<ChatLink> &ChatLinks::list() const {

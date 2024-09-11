@@ -448,6 +448,7 @@ void SessionNavigation::resolveChatLink(
 		const QString &slug,
 		Fn<void(not_null<PeerData*> peer, TextWithEntities draft)> done) {
 	_api.request(base::take(_resolveRequestId)).cancel();
+#if 0 // mtp
 	_resolveRequestId = _api.request(MTPaccount_ResolveBusinessChatLink(
 		MTP_string(slug)
 	)).done([=](const MTPaccount_ResolvedBusinessChatLinks &result) {
@@ -468,6 +469,20 @@ void SessionNavigation::resolveChatLink(
 		if (error.code() == 400) {
 			showToast(tr::lng_confirm_phone_link_invalid(tr::now));
 		}
+	}).send();
+#endif
+	_api.request(TLgetBusinessChatLinkInfo(
+		tl_string(slug)
+	)).done([=](const TLbusinessChatLinkInfo &result) {
+		_resolveRequestId = 0;
+		parentController()->hideLayer();
+		const auto &data = result.data();
+		done(
+			_session->data().peer(peerFromTdbChat(data.vchat_id())),
+			Api::FormattedTextFromTdb(data.vtext()));
+	}).fail([=] {
+		_resolveRequestId = 0;
+		showToast(tr::lng_confirm_phone_link_invalid(tr::now));
 	}).send();
 }
 
