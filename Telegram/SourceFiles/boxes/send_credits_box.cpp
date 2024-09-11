@@ -41,8 +41,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_premium.h"
 #include "styles/style_settings.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+
 namespace Ui {
 namespace {
+
+using namespace Tdb;
 
 struct PaidMediaData {
 	const Data::Invoice *invoice = nullptr;
@@ -270,6 +275,7 @@ void SendCreditsBox(
 		const auto show = box->uiShow();
 		const auto weak = MakeWeak(box.get());
 		state->confirmButtonBusy = true;
+#if 0 // mtp
 		session->api().request(
 			MTPpayments_SendStarsForm(
 				MTP_long(form->formId),
@@ -304,6 +310,26 @@ void SendCreditsBox(
 			} else {
 				show->showToast(id);
 			}
+		}).send();
+#endif
+		session->sender().request(TLsendPaymentForm(
+			tl_inputInvoiceTelegram(
+				tl_telegramPaymentPurposeStars(
+					tl_string(form->invoice.currency),
+					tl_int53(form->invoice.amount),
+					tl_int53(form->invoice.credits))),
+			tl_int64(form->formId),
+			tl_string(),
+			tl_string(),
+			null,
+			tl_int53(0) // tip_amount
+		)).done([=] {
+			state->confirmButtonBusy = false;
+			box->closeBox();
+			sent();
+		}).fail([=](const Error &error) {
+			state->confirmButtonBusy = false;
+			box->uiShow()->showToast(error.message);
 		}).send();
 	});
 	{

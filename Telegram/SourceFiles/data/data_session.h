@@ -598,10 +598,14 @@ public:
 #endif
 
 	not_null<HistoryItem*> processMessage(
-		const Tdb::TLmessage &data,
+		const Tdb::TLmessage &message,
 		MsgId oldMessageId = 0);
 	not_null<HistoryItem*> processMessage(
-		const Tdb::TLmessage &data,
+		const Tdb::TLmessage &message,
+		NewMessageType type);
+	not_null<HistoryItem*> processMessage(
+		BusinessShortcutId shortcutId,
+		const Tdb::TLquickReplyMessage &message,
 		NewMessageType type);
 
 	[[nodiscard]] int unreadBadge() const;

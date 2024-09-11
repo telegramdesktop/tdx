@@ -12,9 +12,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "main/main_session.h"
 
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Api {
 namespace {
 
+using namespace Tdb;
+
+#if 0 // mtp
 [[nodiscard]] ChatLink FromMTP(
 		not_null<Main::Session*> session,
 		const MTPBusinessChatLink &link) {
@@ -49,6 +55,7 @@ namespace {
 		std::move(entities),
 		MTP_string(title));
 }
+#endif
 
 } // namespace
 
@@ -60,6 +67,7 @@ void ChatLinks::create(
 		const TextWithEntities &message,
 		Fn<void(Link)> done) {
 	const auto session = &_api->session();
+#if 0 // tdlib todo
 	_api->request(MTPaccount_CreateBusinessChatLink(
 		ToMTP(session, title, message)
 	)).done([=](const MTPBusinessChatLink &result) {
@@ -71,6 +79,7 @@ void ChatLinks::create(
 		const auto type = error.type();
 		if (done) done(Link());
 	}).send();
+#endif
 }
 
 void ChatLinks::edit(
@@ -79,6 +88,7 @@ void ChatLinks::edit(
 		const TextWithEntities &message,
 		Fn<void(Link)> done) {
 	const auto session = &_api->session();
+#if 0 // tdlib todo
 	_api->request(MTPaccount_EditBusinessChatLink(
 		MTP_string(link),
 		ToMTP(session, title, message)
@@ -102,11 +112,13 @@ void ChatLinks::edit(
 		const auto type = error.type();
 		if (done) done(Link());
 	}).send();
+#endif
 }
 
 void ChatLinks::destroy(
 		const QString &link,
 		Fn<void()> done) {
+#if 0 // tdlib todo
 	_api->request(MTPaccount_DeleteBusinessChatLink(
 		MTP_string(link)
 	)).done([=] {
@@ -123,12 +135,14 @@ void ChatLinks::destroy(
 		const auto type = error.type();
 		if (done) done();
 	}).send();
+#endif
 }
 
 void ChatLinks::preload() {
 	if (_loaded || _requestId) {
 		return;
 	}
+#if 0 // tdlib todo
 	_requestId = _api->request(MTPaccount_GetBusinessChatLinks(
 	)).done([=](const MTPaccount_BusinessChatLinks &result) {
 		const auto &data = result.data();
@@ -149,6 +163,7 @@ void ChatLinks::preload() {
 		_loaded = true;
 		_loadedUpdates.fire({});
 	}).send();
+#endif
 }
 
 const std::vector<ChatLink> &ChatLinks::list() const {

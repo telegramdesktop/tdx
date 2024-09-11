@@ -43,7 +43,9 @@ public:
 	}
 
 	int fixedOnTopIndex() const override;
+#if 0 // mtp
 	bool shouldBeInChatList() const override;
+#endif
 	Dialogs::UnreadState chatListUnreadState() const override;
 	Dialogs::BadgesState chatListBadgesState() const override;
 	HistoryItem *chatListMessage() const override;

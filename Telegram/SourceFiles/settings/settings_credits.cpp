@@ -331,12 +331,14 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 		apiFull->request({}, [=](Data::CreditsStatusSlice fullSlice) {
 			apiIn->request({}, [=](Data::CreditsStatusSlice inSlice) {
 				apiOut->request({}, [=](Data::CreditsStatusSlice outSlice) {
+#if 0 // mtp upstream remove bot dependency
 					::Api::PremiumPeerBot(
 						&_controller->session()
 					) | rpl::start_with_next([=](not_null<PeerData*> bot) {
 						fill(bot, fullSlice, inSlice, outSlice);
 						apiLifetime->destroy();
 					}, *apiLifetime);
+#endif
 				});
 			});
 		});
