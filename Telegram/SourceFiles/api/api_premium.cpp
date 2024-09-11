@@ -1076,18 +1076,28 @@ bool PremiumGiftCodeOptions::giveawayGiftsPurchaseAvailable() const {
 }
 
 SponsoredToggle::SponsoredToggle(not_null<Main::Session*> session)
+#if 0 // mtp
 : _api(&session->api().instance()) {
+#endif
+: _session(session)
+, _api(&session->sender()) {
 }
 
 rpl::producer<bool> SponsoredToggle::toggled() {
 	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
 
+		_api.request(TLgetUserFullInfo(
+			tl_int53(peerToUser(_session->userPeerId()).bare)
+		)).done([=](const TLDuserFullInfo &data) {
+			consumer.put_next_copy(data.vhas_sponsored_messages_enabled().v);
+#if 0 // mtp
 		_api.request(MTPusers_GetFullUser(
 			MTP_inputUserSelf()
 		)).done([=](const MTPusers_UserFull &result) {
 			consumer.put_next_copy(
 				result.data().vfull_user().data().is_sponsored_enabled());
+#endif
 		}).fail([=] { consumer.put_next(false); }).send();
 
 		return lifetime;

@@ -265,7 +265,10 @@ void AddViewMediaHandler(
 		.flags = MessageFlag::HasFromId | MessageFlag::AdminLogEntry,
 		.from = peerId,
 		.date = base::unixtime::serialize(e.date),
+	}, TextWithEntities());
+#if 0 // mtp
 	}, TextWithEntities(), MTP_messageMediaEmpty());
+#endif
 	auto fake = std::vector<std::unique_ptr<Data::Media>>();
 	fake.reserve(e.extended.size());
 	for (const auto &item : e.extended) {

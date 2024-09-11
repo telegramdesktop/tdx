@@ -10,6 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 
+#include "main/main_account.h"
+#include "tdb/tdb_options.h"
+
 namespace Data {
 
 PremiumLimits::PremiumLimits(not_null<Main::Session*> session)

@@ -76,6 +76,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/add_participants_box.h"
 #include "window/notifications_manager.h"
 #include "data/components/factchecks.h"
+#include "mainwidget.h"
 
 namespace Api {
 namespace {
@@ -2909,6 +2910,10 @@ void Updates::applyUpdate(const TLupdate &update) {
 		owner.applyLastMessage(data);
 	}, [&](const TLDupdateChatPosition &data) {
 		owner.applyDialogPosition(data);
+	}, [&](const TLDupdateChatAddedToList &data) {
+		// ?? can be in chat list and without position in that list
+	}, [&](const TLDupdateChatRemovedFromList &data) {
+		// ?? can be not in chat list and with a position in that list
 	}, [&](const TLDupdateChatMessageSender &data) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
 		if (const auto peer = owner.peerLoaded(peerId)) {
@@ -2942,6 +2947,13 @@ void Updates::applyUpdate(const TLupdate &update) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
 		if (const auto history = owner.historyLoaded(peerId)) {
 			history->setUnreadMark(data.vis_marked_as_unread().v);
+		}
+	}, [&](const TLDupdateChatViewAsTopics &data) {
+		const auto peerId = peerFromTdbChat(data.vchat_id());
+		if (const auto peer = owner.peerLoaded(peerId)) {
+			if (const auto channel = peer->asChannel()) {
+				channel->setViewAsMessagesFlag(!data.vview_as_topics().v);
+			}
 		}
 	}, [&](const TLDupdateChatBlockList &data) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
@@ -3014,6 +3026,8 @@ void Updates::applyUpdate(const TLupdate &update) {
 		}
 	}, [&](const TLDupdateActiveEmojiReactions &data) {
 		owner.reactions().refreshActive(data);
+	}, [&](const TLDupdateAvailableMessageEffects &data) {
+		owner.reactions().refreshEffects(data);
 	}, [&](const TLDupdateDefaultReactionType &data) {
 		owner.reactions().refreshFavorite(data);
 	}, [&](const TLDupdateChatNotificationSettings &data) {
@@ -3033,6 +3047,7 @@ void Updates::applyUpdate(const TLupdate &update) {
 			return Data::DefaultNotify::Broadcast;
 		});
 		owner.notifySettings().apply(type, data.vnotification_settings());
+	}, [&](const TLDupdateReactionNotificationSettings &data) {
 	}, [&](const TLDupdateChatMessageAutoDeleteTime &data) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
 		if (const auto peer = owner.peerLoaded(peerId)) {
@@ -3042,6 +3057,11 @@ void Updates::applyUpdate(const TLupdate &update) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
 		if (const auto peer = owner.peerLoaded(peerId)) {
 			peer->setActionBar(data.vaction_bar());
+		}
+	}, [&](const TLDupdateChatBusinessBotManageBar &data) {
+		const auto peerId = peerFromTdbChat(data.vchat_id());
+		if (const auto peer = owner.peerLoaded(peerId)) {
+			peer->updateBusinessBot(data.vbusiness_bot_manage_bar());
 		}
 	}, [&](const TLDupdateChatBackground &data) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
@@ -3082,6 +3102,11 @@ void Updates::applyUpdate(const TLupdate &update) {
 			for (const auto &position : data.vpositions().v) {
 				history->applyPosition(position.data());
 			}
+		}
+	}, [&](const TLDupdateChatEmojiStatus &data) {
+		const auto peerId = peerFromTdbChat(data.vchat_id());
+		if (const auto peer = owner.peerLoaded(peerId)) {
+			peer->setEmojiStatus(data.vemoji_status());
 		}
 	}, [&](const TLDupdateChatFolders &data) {
 		owner.chatsFilters().apply(data);
@@ -3196,11 +3221,12 @@ void Updates::applyUpdate(const TLupdate &update) {
 		session().data().stickers().apply(data);
 	}, [&](const TLDupdateSavedNotificationSounds &data) {
 		session().api().ringtones().applyUpdate();
-	}, [&](const TLDupdateSelectedBackground &data) {
+	}, [&](const TLDupdateDefaultBackground &data) {
 	}, [&](const TLDupdateChatThemes &data) {
 		session().data().cloudThemes().applyUpdate(data);
 	}, [&](const TLDupdateAccentColors &data) {
 		session().applyAccentColors(data);
+	}, [&](const TLDupdateProfileAccentColors &data) {
 	}, [&](const TLDupdateLanguagePackStrings &data) {
 		Lang::CurrentCloudManager().apply(data);
 	}, [&](const TLDupdateTermsOfService &data) {
@@ -3266,26 +3292,6 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateFileAddedToDownloads &data) {
 	}, [&](const TLDupdateFileDownload &data) {
 	}, [&](const TLDupdateFileRemovedFromDownloads &data) {
-	}, [&](const TLDupdateAddChatMembersPrivacyForbidden &data) {
-		const auto peerId = peerFromTdbChat(data.vchat_id());
-		if (const auto peer = owner.peerLoaded(peerId)) {
-			auto users = std::vector<not_null<UserData*>>();
-			for (const auto &id : data.vuser_ids().v) {
-				if (const auto user = owner.userLoaded(UserId(id.v))) {
-					users.push_back(user);
-				}
-			}
-			if (const auto window = Core::App().windowFor(peer)) {
-				if (const auto controller = window->sessionController()) {
-					if (&controller->session() == &peer->session()) {
-						ChatInviteForbidden(
-							window->uiShow(),
-							peer,
-							std::move(users));
-					}
-				}
-			}
-		}
 	}, [&](const TLDupdateAutosaveSettings &data) {
 	}, [&](const TLDupdateForumTopicInfo &data) {
 		const auto peerId = peerFromTdbChat(data.vchat_id());
@@ -3295,6 +3301,21 @@ void Updates::applyUpdate(const TLupdate &update) {
 				topic->applyInfo(data.vinfo());
 			}
 		}
+	}, [&](const TLDupdateOwnedStarCount &data) {
+		session().credits().apply(data);
+	}, [&](const TLDupdateSpeechRecognitionTrial &data) {
+		session().api().transcribes().apply(data);
+	}, [&](const TLDupdateSpeedLimitNotification &data) {
+		if (const auto window = Core::App().activeWindow()) {
+			if (const auto controller = window->sessionController()) {
+				if (&controller->session() == &session()) {
+					controller->content()->showNonPremiumLimitToast(
+						!data.vis_upload().v);
+				}
+			}
+		}
+	}, [&](const TLDupdateContactCloseBirthdays &data) {
+
 	}, [&](const TLDupdateStory &data) {
 		owner.stories().apply(data);
 	}, [&](const TLDupdateStoryDeleted &data) {
@@ -3305,6 +3326,13 @@ void Updates::applyUpdate(const TLupdate &update) {
 		owner.stories().apply(data);
 	}, [&](const TLDupdateStoryStealthMode &data) {
 		owner.stories().apply(data);
+
+	}, [&](const TLDupdateSavedMessagesTags &data) {
+		owner.reactions().refreshMyTags(data);
+	}, [&](const TLDupdateSavedMessagesTopic &data) {
+		owner.savedMessages().apply(data);
+	}, [&](const TLDupdateSavedMessagesTopicCount &data) {
+		owner.savedMessages().apply(data);
 
 	}, [&](const TLDupdateQuickReplyShortcut &data) {
 		owner.shortcutMessages().apply(data);
@@ -3318,6 +3346,8 @@ void Updates::applyUpdate(const TLupdate &update) {
 		// Updates below are handled in a different place.
 	}, [&](const TLDupdateConnectionState &data) {
 	}, [&](const TLDupdateServiceNotification &data) {
+	}, [&](const TLDupdateChatRevenueAmount &data) {
+	}, [&](const TLDupdateStarRevenueStatus &data) {
 
 		// Updates below are not relevant.
 	}, [&](const TLDupdateStorySendSucceeded &data) {

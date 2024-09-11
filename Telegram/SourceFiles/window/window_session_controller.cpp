@@ -1606,6 +1606,7 @@ SessionController::SessionController(
 		}));
 	}, _lifetime);
 
+#if 0 // mtp
 	session->downloader().nonPremiumDelays(
 	) | rpl::start_with_next([=](DocumentId id) {
 		checkNonPremiumLimitToastDownload(id);
@@ -1615,6 +1616,7 @@ SessionController::SessionController(
 	) | rpl::start_with_next([=](FullMsgId id) {
 		checkNonPremiumLimitToastUpload(id);
 	}, _lifetime);
+#endif
 
 	session->addWindow(this);
 
@@ -1624,6 +1626,7 @@ SessionController::SessionController(
 	});
 }
 
+#if 0 // mtp
 bool SessionController::skipNonPremiumLimitToast(bool download) const {
 	if (session().premium()) {
 		return true;
@@ -1667,6 +1670,7 @@ void SessionController::checkNonPremiumLimitToastUpload(FullMsgId id) {
 		session().saveSettingsDelayed();
 	}
 }
+#endif
 
 void SessionController::suggestArchiveAndMute() {
 	const auto weak = base::make_weak(this);
@@ -1970,7 +1974,9 @@ void SessionController::setupPremiumToast() {
 	}) | rpl::distinct_until_changed() | rpl::skip(
 		1
 	) | rpl::filter([=](bool premium) {
+#if 0 // mtp
 		session().mtp().requestConfig();
+#endif
 		return premium;
 	}) | rpl::start_with_next([=] {
 		MainWindowShow(this).showToast({

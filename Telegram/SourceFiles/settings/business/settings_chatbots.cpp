@@ -30,8 +30,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+
 namespace Settings {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kDebounceTimeout = crl::time(400);
 
@@ -272,6 +277,11 @@ Main::Session &PreviewController::session() const {
 			auto result = rpl::lifetime();
 
 			const auto requestId = result.make_state<mtpRequestId>();
+			*requestId = session->sender().request(TLsearchPublicChat(
+				tl_string(extracted)
+			)).done([=](const TLchat &result) {
+				const auto peer = session->data().processPeer(result);
+#if 0 // mtp
 			*requestId = session->api().request(MTPcontacts_ResolveUsername(
 				MTP_string(extracted)
 			)).done([=](const MTPcontacts_ResolvedPeer &result) {
@@ -280,6 +290,7 @@ Main::Session &PreviewController::session() const {
 				session->data().processChats(data.vchats());
 				const auto peerId = peerFromMTP(data.vpeer());
 				const auto peer = session->data().peer(peerId);
+#endif
 				if (const auto user = peer->asUser()) {
 					if (user->isBot()) {
 						cache->emplace(extracted, user);
@@ -298,7 +309,10 @@ Main::Session &PreviewController::session() const {
 			}).send();
 
 			result.add([=] {
+#if 0 // mtp
 				session->api().request(*requestId).cancel();
+#endif
+				session->sender().request(*requestId).cancel();
 			});
 			return result;
 		};

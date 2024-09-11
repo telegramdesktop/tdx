@@ -932,10 +932,16 @@ void ReportReactionBox(
 					ChatRestrictionsInfo());
 			}
 		}
+#if 0 // mtp
 		data.group->session().api().request(MTPmessages_ReportReaction(
 			data.group->input,
 			MTP_int(data.messageId.bare),
 			participant->input
+#endif
+		data.group->session().sender().request(TLreportMessageReactions(
+			peerToTdbChat(data.group->id),
+			tl_int53(data.messageId.bare),
+			peerToSender(participant->id)
 		)).done(crl::guard(controller, [=] {
 			controller->showToast(tr::lng_report_thanks(tr::now));
 		})).send();

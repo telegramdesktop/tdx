@@ -205,6 +205,7 @@ struct UpdatedFileReferences {
 	std::map<FileLocationId, QByteArray> data;
 };
 
+#if 0 // mtp
 UpdatedFileReferences GetFileReferences(const MTPmessages_Messages &data);
 UpdatedFileReferences GetFileReferences(const MTPphotos_Photos &data);
 UpdatedFileReferences GetFileReferences(const MTPusers_UserFull &data);
@@ -224,5 +225,6 @@ UpdatedFileReferences GetFileReferences(const MTPstories_Stories &data);
 
 // Admin Log Event.
 UpdatedFileReferences GetFileReferences(const MTPMessageMedia &data);
+#endif
 
 } // namespace Data

@@ -1067,9 +1067,11 @@ auto BusinessBotStatus::PeerState(not_null<PeerData*> peer)
 }
 
 void BusinessBotStatus::setupState(not_null<PeerData*> peer) {
+#if 0 // mtp
 	if (!BarCurrentlyHidden(peer)) {
 		peer->session().api().requestPeerSettings(peer);
 	}
+#endif
 	PeerState(
 		peer
 	) | rpl::start_with_next([=](State state) {

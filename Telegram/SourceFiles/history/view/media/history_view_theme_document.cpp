@@ -38,8 +38,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 #include "styles/style_chat.h"
 
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
+
 namespace HistoryView {
 namespace {
+
+using namespace Tdb;
 
 [[nodiscard]] bool WallPaperRevertable(
 		not_null<PeerData*> peer,
@@ -545,6 +550,7 @@ ClickHandlerPtr ThemeDocumentBox::createViewLink() {
 				&& !view->data()->out()
 				&& WallPaperRevertable(view->data())) {
 				const auto reset = crl::guard(weak, [=](Fn<void()> close) {
+#if 0 // mtp
 					const auto api = &controller->session().api();
 					api->request(MTPmessages_SetChatWallPaper(
 						MTP_flags(MTPmessages_SetChatWallPaper::Flag::f_revert),
@@ -555,6 +561,12 @@ ClickHandlerPtr ThemeDocumentBox::createViewLink() {
 					)).done([=](const MTPUpdates &result) {
 						api->applyUpdates(result);
 					}).send();
+#endif
+					controller->session().sender().request(
+						TLdeleteChatBackground(
+							peerToTdbChat(view->data()->history()->peer->id),
+							tl_bool(true))
+					).send();
 					close();
 				});
 				controller->show(Ui::MakeConfirmBox({
