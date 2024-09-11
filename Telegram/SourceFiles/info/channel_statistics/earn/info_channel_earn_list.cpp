@@ -66,8 +66,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtSvg/QSvgRenderer>
 #include <QtWidgets/QApplication>
 
+#include "tdb/tdb_account.h"
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Info::ChannelEarn {
 namespace {
+
+using namespace Tdb;
 
 using EarnInt = Data::EarnInt;
 
@@ -300,6 +305,41 @@ void InnerWidget::load() {
 		state->apiLifetime.destroy();
 		state->apiCreditsLifetime.destroy();
 
+		const auto peerId = _peer->id;
+		_peer->session().tdb().updates(
+		) | rpl::start_with_next([=](const TLupdate &update) {
+			update.match([&](const TLDupdateStarRevenueStatus &data) {
+				if (peerId != peerFromSender(data.vowner_id())) {
+					return;
+				}
+				const auto &status = data.vstatus().data();
+				auto &e = _state.creditsEarn;
+				e.currentBalance = status.vcurrent_count().v;
+				e.availableBalance = status.vavailable_count().v;
+				e.overallRevenue = status.vtotal_count().v;
+				e.isWithdrawalEnabled = status.vwithdrawal_enabled().v;
+				e.nextWithdrawalAt = (status.vwithdrawal_enabled().v
+					? QDateTime::currentDateTime().addSecs(
+						status.vnext_withdrawal_in().v)
+					: QDateTime()),
+				state->apiCreditsHistory.request({}, [=](
+						const Data::CreditsStatusSlice &data) {
+					_state.creditsStatusSlice = data;
+					_stateUpdated.fire({});
+				});
+			}, [&](const TLDupdateChatRevenueAmount &data) {
+				if (peerId != peerFromTdbChat(data.vchat_id())) {
+					return;
+				}
+				const auto &amount = data.vrevenue_amount().data();
+				auto &e = _state.currencyEarn;
+				e.currentBalance = amount.vbalance_amount().v;
+				e.availableBalance = amount.vavailable_amount().v;
+				e.overallRevenue = amount.vtotal_amount().v;
+				_stateUpdated.fire({});
+			}, [](const auto &) {});
+		}, lifetime());
+#if 0 // mtp
 		_peer->session().account().mtpUpdates(
 		) | rpl::start_with_next([=, peerId = _peer->id](
 				const MTPUpdates &updates) {
@@ -351,6 +391,7 @@ void InnerWidget::load() {
 				}
 			});
 		}, lifetime());
+#endif
 	};
 
 	_showFinished.events(
@@ -361,10 +402,12 @@ void InnerWidget::load() {
 			state->apiCreditsHistory.request({}, [=](
 					const Data::CreditsStatusSlice &data) {
 				_state.creditsStatusSlice = data;
+#if 0 // mtp
 				::Api::PremiumPeerBot(
 					&_peer->session()
 				) | rpl::start_with_next([=](not_null<PeerData*> bot) {
 					_state.premiumBotId = bot->id;
+#endif
 					state->apiCredits.request(
 					) | rpl::start_with_error_done([=](const QString &error) {
 						if (canViewCredits) {
@@ -377,8 +420,10 @@ void InnerWidget::load() {
 						_state.creditsEarn = state->apiCredits.data();
 						finish();
 					}, state->apiCreditsLifetime);
+#if 0 // mtp
 					state->apiPremiumBotLifetime.destroy();
 				}, state->apiPremiumBotLifetime);
+#endif
 			});
 		}, state->apiLifetime);
 	}, lifetime());

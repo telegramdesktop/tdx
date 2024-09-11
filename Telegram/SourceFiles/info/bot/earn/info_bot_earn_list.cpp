@@ -42,8 +42,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 #include "styles/style_statistics.h"
 
+#include "tdb/tdb_account.h"
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Info::BotEarn {
 namespace {
+
+using namespace Tdb;
 
 void AddHeader(
 		not_null<Ui::VerticalLayout*> content,
@@ -98,6 +103,20 @@ void InnerWidget::load() {
 			_loaded.fire(true);
 			fill();
 
+			_peer->session().tdb().updates(
+			) | rpl::start_with_next([=](const TLupdate &update) {
+				update.match([&](const TLDupdateStarRevenueStatus &data) {
+					const auto peerId = peerFromSender(data.vowner_id());
+					if (peerId == _peer->id) {
+						request([=](Data::CreditsEarnStatistics state) {
+							_state = state;
+							_stateUpdated.fire({});
+						});
+					}
+				}, [](const auto &) {
+				});
+			}, lifetime());
+#if 0 // mtp
 			_peer->session().account().mtpUpdates(
 			) | rpl::start_with_next([=](const MTPUpdates &updates) {
 				using TL = MTPDupdateStarsRevenueStatus;
@@ -111,6 +130,7 @@ void InnerWidget::load() {
 					}
 				});
 			}, lifetime());
+#endif
 		});
 	}, lifetime());
 }

@@ -181,11 +181,16 @@ void Chatbots::togglePaused(not_null<PeerData*> peer, bool paused) {
 		api->request(i->second.requestId).cancel();
 		_sentRequests.erase(i);
 	}
-#if 0 // tdlib todo
+	const auto id = api->request(TLtoggleBusinessConnectedBotChatIsPaused(
+		peerToTdbChat(peer->id),
+		tl_bool(paused)
+	)).done([=] {
+#if 0 // mtp
 	const auto id = api->request(MTPaccount_ToggleConnectedBotPaused(
 		peer->input,
 		MTP_bool(paused)
 	)).done([=] {
+#endif
 		if (_sentRequests[peer].type != type) {
 			return;
 		} else if (const auto settings = peer->barSettings()) {
@@ -194,19 +199,22 @@ void Chatbots::togglePaused(not_null<PeerData*> peer, bool paused) {
 					& ~PeerBarSetting::BusinessBotCanReply)
 				: ((*settings & ~PeerBarSetting::BusinessBotPaused)
 					| PeerBarSetting::BusinessBotCanReply));
+#if 0 // mtp
 		} else {
 			api->requestPeerSettings(peer);
+#endif
 		}
 		_sentRequests.remove(peer);
 	}).fail([=] {
 		if (_sentRequests[peer].type != type) {
 			return;
 		}
+#if 0 // mtp
 		api->requestPeerSettings(peer);
+#endif
 		_sentRequests.remove(peer);
 	}).send();
 	_sentRequests[peer] = SentRequest{ type, id };
-#endif
 }
 
 void Chatbots::removeFrom(not_null<PeerData*> peer) {
@@ -224,25 +232,32 @@ void Chatbots::removeFrom(not_null<PeerData*> peer) {
 		api->request(i->second.requestId).cancel();
 		_sentRequests.erase(i);
 	}
-#if 0 // tdlib todo
+	const auto id = api->request(TLremoveBusinessConnectedBotFromChat(
+		peerToTdbChat(peer->id)
+	)).done([=] {
+#if 0 // mtp
 	const auto id = api->request(MTPaccount_DisablePeerConnectedBot(
 		peer->input
 	)).done([=] {
+#endif
 		if (_sentRequests[peer].type != type) {
 			return;
 		} else if (const auto settings = peer->barSettings()) {
 			peer->clearBusinessBot();
+#if 0 // mtp
 		} else {
 			api->requestPeerSettings(peer);
+#endif
 		}
 		_sentRequests.remove(peer);
 		reload();
 	}).fail([=] {
+#if 0 // mtp
 		api->requestPeerSettings(peer);
+#endif
 		_sentRequests.remove(peer);
 	}).send();
 	_sentRequests[peer] = SentRequest{ type, id };
-#endif
 }
 
 void Chatbots::reload() {

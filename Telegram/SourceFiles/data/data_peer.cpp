@@ -877,6 +877,29 @@ void PeerData::checkFolder(FolderId folderId) {
 }
 #endif
 
+void PeerData::updateBusinessBot(const TLbusinessBotManageBar *bar) {
+	if (!bar) {
+		clearBusinessBot();
+		return;
+	}
+	const auto &data = bar->data();
+	if (!_barDetails) {
+		_barDetails = std::make_unique<PeerBarDetails>();
+	}
+	_barDetails->businessBot = _owner->user(data.vbot_user_id().v);
+	_barDetails->businessBotManageUrl = data.vmanage_url().v;
+	if (const auto settings = barSettings()) {
+		setBarSettings(*settings
+			| PeerBarSetting::HasBusinessBot
+			| (data.vis_bot_paused().v
+				? PeerBarSetting::BusinessBotPaused
+				: PeerBarSetting(0))
+			| (data.vcan_bot_reply().v
+				? PeerBarSetting::BusinessBotCanReply
+				: PeerBarSetting(0)));
+	}
+}
+
 void PeerData::clearBusinessBot() {
 	if (const auto details = _barDetails.get()) {
 		if (details->requestChatDate) {
@@ -1052,7 +1075,6 @@ bool PeerData::changeBackgroundEmojiId(
 		? cloudBackgroundEmoji->v
 		: DocumentId());
 }
-#endif
 
 bool PeerData::changeColor(
 		const tl::conditional<MTPPeerColor> &cloudColor) {
@@ -1064,6 +1086,7 @@ bool PeerData::changeColor(
 		: DocumentId());
 	return changed1 || changed2;
 }
+#endif
 
 void PeerData::fillNames() {
 	_nameWords.clear();
@@ -1399,6 +1422,12 @@ void PeerData::setEmojiStatus(const MTPEmojiStatus &status) {
 }
 #endif
 
+void PeerData::setEmojiStatus(const TLemojiStatus *status) {
+	setEmojiStatus(
+		status ? status->data().vcustom_emoji_id().v : 0,
+		status ? status->data().vexpiration_date().v : 0);
+}
+
 void PeerData::setEmojiStatus(DocumentId emojiStatusId, TimeId until) {
 	if (_emojiStatusId != emojiStatusId) {
 		_emojiStatusId = emojiStatusId;
@@ -1488,7 +1517,10 @@ bool PeerData::isRepliesChat() const {
 	if (id != kTestId && id != kProductionId) {
 		return false;
 	}
+#if 0 // mtp
 	return ((session().mtp().environment() == MTP::Environment::Production)
+#endif
+	return (!session().isTestMode()
 		? kProductionId
 		: kTestId) == id;
 }

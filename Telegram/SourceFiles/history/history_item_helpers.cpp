@@ -1013,6 +1013,12 @@ void ClearMediaAsExpired(not_null<HistoryItem*> item) {
 			return;
 		}
 		if (const auto document = media->document()) {
+			item->updateContent(document->isVoiceMessage()
+				? tl_messageExpiredVoiceNote()
+				: document->isVideoMessage()
+				? tl_messageExpiredVideoNote()
+				: tl_messageExpiredVideo());
+#if 0 // mtp
 			item->applyEditionToHistoryCleared();
 			auto text = (document->isVideoFile()
 				? tr::lng_ttl_video_expired
@@ -1022,11 +1028,15 @@ void ClearMediaAsExpired(not_null<HistoryItem*> item) {
 				? tr::lng_ttl_round_expired
 				: tr::lng_message_empty)(tr::now, Ui::Text::WithEntities);
 			item->updateServiceText(PreparedServiceText{ std::move(text) });
+#endif
 		} else if (const auto photo = media->photo()) {
+			item->updateContent(tl_messageExpiredPhoto());
+#if 0 // mtp
 			item->applyEditionToHistoryCleared();
 			item->updateServiceText(PreparedServiceText{
 				tr::lng_ttl_photo_expired(tr::now, Ui::Text::WithEntities)
 			});
+#endif
 		}
 	}
 }

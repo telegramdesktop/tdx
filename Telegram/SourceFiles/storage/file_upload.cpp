@@ -115,6 +115,7 @@ struct Uploader::Request {
 	bool nonPremiumDelayed = false;
 };
 
+#if 0 // mtp
 Uploader::Entry::Entry(
 	FullMsgId itemId,
 	const std::shared_ptr<FilePrepareResult> &file)
@@ -155,6 +156,7 @@ bool Uploader::Entry::setPartSize(int partSize) {
 	docPartsCount = (docSize + docPartSize - 1) / docPartSize;
 	return (docPartsCount <= kDocumentMaxPartsCountDefault);
 }
+#endif
 
 Uploader::Uploader(not_null<ApiWrap*> api)
 : _api(api) {
@@ -793,6 +795,7 @@ void Uploader::unpause() {
 #endif
 }
 
+#if 0 // mtp
 void Uploader::cancelRequests(FullMsgId itemId) {
 	for (auto i = begin(_requests); i != end(_requests);) {
 		if (i->second.itemId == itemId) {
@@ -810,6 +813,7 @@ void Uploader::cancelRequests(FullMsgId itemId) {
 		&Request::itemId
 	), end(_pendingFromRemovedDcIndices));
 }
+#endif
 
 void Uploader::cancelAllRequests() {
 #if 0 // mtp

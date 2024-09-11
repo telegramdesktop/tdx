@@ -278,6 +278,7 @@ public:
 	[[nodiscard]] rpl::producer<rpl::no_value, QString> setToggled(bool);
 
 private:
+	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
 
 };

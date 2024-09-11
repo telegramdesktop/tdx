@@ -4078,6 +4078,7 @@ not_null<DocumentData*> Session::venueIconDocument(const QString &icon) {
 	if (i != end(_venueIcons)) {
 		return i->second;
 	}
+#if 0 // mtp
 	const auto result = documentFromWeb(MTP_webDocumentNoProxy(
 		MTP_string(u"https://ss3.4sqi.net/img/categories_v2/"_q
 			+ icon
@@ -4085,6 +4086,13 @@ not_null<DocumentData*> Session::venueIconDocument(const QString &icon) {
 		MTP_int(0),
 		MTP_string("image/png"),
 		MTP_vector<MTPDocumentAttribute>()), {}, {});
+#endif
+	const auto result = document(base::RandomValue<DocumentId>());
+	result->setMimeString(u"image/png"_q);
+	result->setContentUrl(u"https://ss3.4sqi.net/img/categories_v2/"_q
+		+ icon
+		+ u"_64.png"_q);
+
 	_venueIcons.emplace(icon, result);
 	return result;
 }
@@ -5672,12 +5680,21 @@ void Session::saveViewAsMessages(
 		bool viewAsMessages) {
 	const auto channel = forum->channel();
 	if (const auto requestId = _viewAsMessagesRequests.take(channel)) {
+#if 0 // mtp
 		_session->api().request(*requestId).cancel();
+#endif
+		_session->sender().request(*requestId).cancel();
 	}
+#if 0 // mtp
 	_viewAsMessagesRequests[channel] = _session->api().request(
 		MTPchannels_ToggleViewForumAsMessages(
 			channel->inputChannel,
 			MTP_bool(viewAsMessages))
+#endif
+	_viewAsMessagesRequests[channel] = _session->sender().request(
+		TLtoggleChatViewAsTopics(
+			peerToTdbChat(channel->id),
+			tl_bool(!viewAsMessages))
 	).done([=] {
 		_viewAsMessagesRequests.remove(channel);
 	}).fail([=] {

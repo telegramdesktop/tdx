@@ -388,7 +388,9 @@ void SetupBirthday(
 		{ &st::menuIconGiftPremium });
 
 	const auto key = Api::UserPrivacy::Key::Birthday;
+#if 0 // mtp
 	session->api().userPrivacy().reload(key);
+#endif
 	auto isExactlyContacts = session->api().userPrivacy().value(
 		key
 	) | rpl::map([=](const Api::UserPrivacy::Rule &value) {

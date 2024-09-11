@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_file_origin.h"
 
+#if 0 // mtp
 namespace Data {
 namespace {
 
@@ -256,3 +257,4 @@ UpdatedFileReferences GetFileReferences(const MTPMessageMedia &data) {
 }
 
 } // namespace Data
+#endif

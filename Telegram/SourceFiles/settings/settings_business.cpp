@@ -396,7 +396,9 @@ void Business::setupContent() {
 	const auto owner = &_controller->session().data();
 	owner->chatbots().preload();
 	owner->businessInfo().preload();
+#if 0 // mtp
 	owner->shortcutMessages().preloadShortcuts();
+#endif
 	owner->session().api().chatLinks().preload();
 
 	Ui::AddSkip(content, st::settingsFromFileTop);
@@ -688,6 +690,16 @@ QPointer<Ui::RpWidget> Business::createPinnedToBottom(
 
 	auto buttonText = _buttonText.value();
 
+	const auto weak = base::make_weak(_controller);
+	const auto startSubscription = [=] {
+		const auto value = _radioGroup->current();
+		const auto options = session->api().premium().subscriptionOptions();
+		if (value >= 0 && value < options.size()) {
+			options[value].startPayment(QVariant::fromValue(
+				ClickHandlerContext{ .sessionWindow = weak }));
+		}
+	};
+
 	_subscribe = CreateSubscribeButton({
 		_controller,
 		content,
@@ -700,6 +712,9 @@ QPointer<Ui::RpWidget> Business::createPinnedToBottom(
 				? options[value].botUrl
 				: QString();
 		},
+		nullptr, // show
+		false, // showPromo
+		startSubscription
 	});
 	{
 		const auto callback = [=](int value) {

@@ -36,8 +36,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 #include "styles/style_window.h"
 
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Window {
 namespace {
+
+using namespace Tdb;
 
 class VersionLabel final
 	: public Ui::FlatLabel
@@ -94,6 +99,16 @@ not_null<Ui::SettingsButton*> AddMyChannelsBox(
 			Fn<void(not_null<DocumentData*>)> done) {
 		const auto api = box->lifetime().make_state<MTP::Sender>(
 			&session->mtp());
+		api->request(TLsearchStickerSet(
+			tl_string(u"tg_placeholders_android"_q),
+			tl_bool(false)
+		)).done([=](const TLstickerSet &result) {
+			const auto &v = result.data().vstickers().v;
+			if (v.size() > 1) {
+				done(session->data().processDocument(v[1]));
+			}
+		}).send();
+#if 0 // mtp
 		api->request(MTPmessages_GetStickerSet(
 			Data::InputStickerSet({
 				.shortName = u"tg_placeholders_android"_q,
@@ -108,6 +123,7 @@ not_null<Ui::SettingsButton*> AddMyChannelsBox(
 			}, [](const MTPDmessages_stickerSetNotModified &) {
 			});
 		}).send();
+#endif
 	};
 	const auto addIcon = [=](not_null<Ui::GenericBox*> box) {
 		const auto widget = box->addRow(object_ptr<Ui::RpWidget>(box));
