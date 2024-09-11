@@ -26,7 +26,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h" // popupMenuExpandedSeparator.
 #include "styles/style_menu_icons.h"
 
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
+
 namespace {
+
+using namespace Tdb;
 
 [[nodiscard]] QString Trim(QString text) {
 	return text
@@ -101,6 +106,7 @@ ResolvePhoneAction::ResolvePhoneAction(
 		_peer = peer;
 		_loaded.force_assign(true);
 	} else {
+#if 0 // mtp
 		_api.request(MTPcontacts_ResolvePhone(
 			MTP_string(phone)
 		)).done([=](const MTPcontacts_ResolvedPeer &result) {
@@ -114,6 +120,19 @@ ResolvePhoneAction::ResolvePhoneAction(
 			});
 		}).fail([=](const MTP::Error &error) {
 			if (error.code() == 400) {
+				_peer.force_assign(nullptr);
+				_loaded.force_assign(true);
+			}
+		}).send();
+#endif
+		_api.request(TLsearchUserByPhoneNumber(
+			tl_string(phone),
+			tl_bool(false)
+		)).done([=](const TLuser &result) {
+			_peer = owner->processUser(result);
+			_loaded.force_assign(true);
+		}).fail([=](const Error &error) {
+			if (error.code == 404) {
 				_peer.force_assign(nullptr);
 				_loaded.force_assign(true);
 			}
