@@ -21,11 +21,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "api/api_text_entities.h"
+#include "data/data_credits.h"
+
 namespace Api {
 namespace {
 
-constexpr auto kTransactionsLimit = 100;
+using namespace Tdb;
 
+constexpr auto kTransactionsLimit = 100;
+constexpr auto kTransactionsPerStatus = 3;
+constexpr auto kTransactionsPerPage = 50;
+
+#if 0 // mtp
 [[nodiscard]] Data::CreditsHistoryEntry HistoryFromTL(
 		const MTPStarsTransaction &tl,
 		not_null<PeerData*> peer) {
@@ -172,6 +181,183 @@ constexpr auto kTransactionsLimit = 100;
 			status.data().vsubscriptions_next_offset().value_or_empty()),
 	};
 }
+#endif
+
+[[nodiscard]] Data::CreditsHistoryEntry HistoryFromTL(
+		const TLstarTransaction &tl,
+		not_null<PeerData*> peer) {
+	const auto &data = tl.data();
+	auto result = Data::CreditsHistoryEntry{
+		.id = data.vid().v,
+		.date = base::unixtime::parse(data.vdate().v),
+		.credits = uint64(data.vstar_count().v),
+		.refunded = data.vis_refund().v,
+		.in = (int64(data.vstar_count().v) >= 0),
+	};
+	const auto fillPaidMedia = [&](const TLvector<TLpaidMedia> &media) {
+		const auto list = media.v;
+		if (list.empty()) {
+			return;
+		}
+		using namespace Data;
+		const auto owner = &peer->owner();
+		result.extended.reserve(list.size());
+		for (const auto &media : list) {
+			media.match([&](const TLDpaidMediaPhoto &data) {
+				const auto photo = owner->processPhoto(data.vphoto());
+				if (!photo->isNull()) {
+					result.extended.push_back(Data::CreditsHistoryMedia{
+						.type = Data::CreditsHistoryMediaType::Photo,
+						.id = photo->id,
+					});
+				}
+			}, [&](const TLDpaidMediaVideo &data) {
+				const auto document = owner->processDocument(
+					data.vvideo());
+				if (document->isAnimation()
+					|| document->isVideoFile()
+					|| document->isGifv()) {
+					result.extended.push_back(Data::CreditsHistoryMedia{
+						.type = Data::CreditsHistoryMediaType::Video,
+						.id = document->id,
+					});
+				}
+			}, [&](const auto &) {});
+		}
+	};
+
+	using Type = Data::CreditsHistoryEntry::PeerType;
+	data.vpartner().match([&](const TLDstarTransactionPartnerTelegram &) {
+		result.peerType = Type::PremiumBot;
+	}, [&](const TLDstarTransactionPartnerAppStore &) {
+		result.peerType = Type::AppStore;
+	}, [&](const TLDstarTransactionPartnerGooglePlay &) {
+		result.peerType = Type::PlayMarket;
+	}, [&](const TLDstarTransactionPartnerFragment &data) {
+		result.peerType = Type::Fragment;
+		if (const auto state = data.vwithdrawal_state()) {
+			state->match([&](const TLDrevenueWithdrawalStateFailed &) {
+				result.failed = true;
+			}, [&](const TLDrevenueWithdrawalStatePending &) {
+				result.pending = true;
+			}, [&](const TLDrevenueWithdrawalStateSucceeded &data) {
+				result.successDate = base::unixtime::parse(data.vdate().v);
+				result.successLink = data.vurl().v;
+			});
+		}
+	}, [&](const TLDstarTransactionPartnerTelegramAds &data) {
+		result.peerType = Type::Ads;
+	}, [&](const TLDstarTransactionPartnerBot &data) {
+		data.vpurpose().match([&](
+				const TLDbotTransactionPurposePaidMedia &data) {
+			fillPaidMedia(data.vmedia());
+		}, [&](const TLDbotTransactionPurposeInvoicePayment &data) {
+			if (const auto product = data.vproduct_info()) {
+				const auto &data = product->data();
+				result.title = data.vtitle().v;
+				result.description = Api::FormattedTextFromTdb(
+					data.vdescription());
+				if (const auto photo = data.vphoto()) {
+					result.photoId = peer->owner().processPhoto(*photo)->id;
+				}
+			}
+		});
+		result.barePeerId = peerFromUser(data.vuser_id().v).value;
+		result.peerType = Type::Peer;
+	}, [&](const TLDstarTransactionPartnerBusiness &data) {
+		fillPaidMedia(data.vmedia());
+		result.barePeerId = peerFromUser(data.vuser_id().v).value;
+		result.peerType = Type::Peer;
+	}, [&](const TLDstarTransactionPartnerChat &data) {
+		using namespace Data;
+		result.barePeerId = peerFromTdbChat(data.vchat_id()).value;
+		data.vpurpose().match([&](
+			const TLDchatTransactionPurposeJoin &data) {
+			result.subscriptionUntil = base::unixtime::parse(
+				base::unixtime::now() + data.vperiod().v);
+		}, [&](const TLDchatTransactionPurposePaidMedia &data) {
+			result.bareMsgId = data.vmessage_id().v;
+			fillPaidMedia(data.vmedia());
+		}, [&](const TLDchatTransactionPurposeReaction &data) {
+			result.bareMsgId = data.vmessage_id().v;
+			result.reaction = true;
+		}, [&](const TLDchatTransactionPurposeGiveaway &data) {
+			result.bareGiveawayMsgId = uint64(data.vgiveaway_message_id().v);
+		});
+		result.peerType = Type::Peer;
+	}, [&](const TLDstarTransactionPartnerUser &data) {
+		using namespace Data;
+		result.barePeerId = peerFromUser(data.vuser_id()).value;
+		data.vpurpose().match([&](
+				const TLDuserTransactionPurposeGiftSell &data) {
+			const auto &gift = data.vgift().data();
+			result.convertStars = gift.vdefault_sell_star_count().v;
+			result.converted = true;
+		}, [&](const TLDuserTransactionPurposeGiftSend &data) {
+			const auto &gift = data.vgift().data();
+			result.convertStars = gift.vdefault_sell_star_count().v;
+		}, [&](const TLDuserTransactionPurposeGiftedStars &data) {
+			result.bareGiftStickerId = data.vsticker()
+				? peer->owner().processDocument(*data.vsticker())->id
+				: 0;
+		});
+		result.gift = true;
+		result.peerType = Type::Peer;
+	}, [&](const TLDstarTransactionPartnerUnsupported &) {
+		result.peerType = Type::Unsupported;
+	});
+	return result;
+}
+
+[[nodiscard]] Data::SubscriptionEntry SubscriptionFromTL(
+		const TLstarSubscription &tl) {
+	const auto &data = tl.data();
+	return Data::SubscriptionEntry{
+		.id = data.vid().v,
+		.inviteHash = data.vinvite_link().v,
+		.until = base::unixtime::parse(data.vexpiration_date().v),
+		.subscription = Data::PeerSubscription{
+			.credits = uint64(data.vpricing().data().vstar_count().v),
+			.period = data.vpricing().data().vperiod().v,
+		},
+		.barePeerId = peerFromTdbChat(data.vchat_id()).value,
+		.cancelled = data.vis_canceled().v,
+		.expired = (base::unixtime::now() > data.vexpiration_date().v),
+		.canRefulfill = data.vcan_reuse().v,
+	};
+}
+
+[[nodiscard]] Data::CreditsStatusSlice StatusFromTL(
+		const TLstarTransactions &status,
+		not_null<PeerData*> peer) {
+	const auto &data = status.data();
+	return Data::CreditsStatusSlice{
+		.list = ranges::views::all(
+			data.vtransactions().v
+		) | ranges::views::transform([&](const TLstarTransaction &tl) {
+			return HistoryFromTL(tl, peer);
+		}) | ranges::to_vector,
+		.balance = uint64(data.vstar_count().v),
+		.allLoaded = data.vnext_offset().v.isEmpty(),
+		.token = data.vnext_offset().v,
+	};
+}
+
+[[nodiscard]] Data::CreditsStatusSlice StatusFromTL(
+		const TLstarSubscriptions &status,
+		not_null<PeerData*> peer) {
+	const auto &data = status.data();
+	return Data::CreditsStatusSlice{
+		.subscriptions = ranges::views::all(
+			data.vsubscriptions().v
+		) | ranges::views::transform([&](const TLstarSubscription &tl) {
+			return SubscriptionFromTL(tl);
+		}) | ranges::to_vector,
+		.balance = uint64(data.vstar_count().v),
+		.allLoaded = data.vnext_offset().v.isEmpty(),
+		.token = data.vnext_offset().v,
+	};
+}
 
 } // namespace
 
@@ -190,17 +376,26 @@ rpl::producer<rpl::no_value, QString> CreditsTopupOptions::request() {
 			return ranges::views::all(
 				options
 			) | ranges::views::transform([=](const auto &option) {
+				const auto &data = option.data();
 				return Data::CreditTopupOption{
+#if 0 // mtp
 					.credits = option.data().vstars().v,
 					.product = qs(
 						option.data().vstore_product().value_or_empty()),
 					.currency = qs(option.data().vcurrency()),
 					.amount = option.data().vamount().v,
 					.extended = option.data().is_extended(),
+#endif
+					.credits = uint64(data.vstar_count().v),
+					.product = data.vstore_product_id().v,
+					.currency = data.vcurrency().v,
+					.amount = uint64(data.vamount().v),
+					.extended = data.vis_additional().v,
 					.giftBarePeerId = giftBarePeerId,
 				};
 			}) | ranges::to_vector;
 		};
+#if 0 // mtp
 		const auto fail = [=](const MTP::Error &error) {
 			consumer.put_error_copy(error.type());
 		};
@@ -222,7 +417,24 @@ rpl::producer<rpl::no_value, QString> CreditsTopupOptions::request() {
 				consumer.put_done();
 			}).fail(fail).send();
 		}
-
+#endif
+		const auto send = [&](auto &&request) {
+			_api.request(
+				std::move(request)
+			).done([=](const TLDstarPaymentOptions &result) {
+				_options = optionsFromTL(result.voptions().v);
+				consumer.put_done();
+			}).fail([=](const Error &error) {
+				consumer.put_error_copy(error.message);
+			}).send();
+		};
+		if (_peer->isSelf()) {
+			send(TLgetStarPaymentOptions());
+		} else if (const auto user = _peer->asUser()) {
+			send(TLgetStarGiftPaymentOptions(
+				tl_int53(peerToUser(user->id).bare)
+			));
+		}
 		return lifetime;
 	};
 }
@@ -243,13 +455,25 @@ void CreditsStatus::request(
 		return;
 	}
 
+#if 0 // mtp
 	using TLResult = MTPpayments_StarsStatus;
 
 	_requestId = _api.request(MTPpayments_GetStarsStatus(
 		_peer->isSelf() ? MTP_inputPeerSelf() : _peer->input
+#endif
+	using TLResult = TLstarTransactions;
+	_requestId = _api.request(TLgetStarTransactions(
+		peerToSender(_peer->id),
+		tl_string(), // subscription_id
+		null,
+		tl_string(),
+		tl_int32(kTransactionsPerStatus)
 	)).done([=](const TLResult &result) {
 		_requestId = 0;
+#if 0 // mtp
 		const auto balance = result.data().vbalance().v;
+#endif
+		const auto balance = result.data().vstar_count().v;
 		_peer->session().credits().apply(_peer->id, balance);
 		if (const auto onstack = done) {
 			onstack(StatusFromTL(result, _peer));
@@ -264,11 +488,15 @@ void CreditsStatus::request(
 
 CreditsHistory::CreditsHistory(not_null<PeerData*> peer, bool in, bool out)
 : _peer(peer)
+#if 0 // mtp
 , _flags((in == out)
 	? HistoryTL::Flags(0)
 	: HistoryTL::Flags(0)
 		| (in ? HistoryTL::Flag::f_inbound : HistoryTL::Flags(0))
 		| (out ? HistoryTL::Flag::f_outbound : HistoryTL::Flags(0)))
+#endif
+, _in(in)
+, _out(out)
 , _api(&peer->session().api().instance()) {
 }
 
@@ -278,6 +506,7 @@ void CreditsHistory::request(
 	if (_requestId) {
 		return;
 	}
+#if 0 // mtp
 	_requestId = _api.request(MTPpayments_GetStarsTransactions(
 		MTP_flags(_flags),
 		MTPstring(), // subscription_id
@@ -285,6 +514,18 @@ void CreditsHistory::request(
 		MTP_string(token),
 		MTP_int(kTransactionsLimit)
 	)).done([=](const MTPpayments_StarsStatus &result) {
+#endif
+	_requestId = _api.request(TLgetStarTransactions(
+		peerToSender(_peer->id),
+		tl_string(), // subscription_id
+		((_in == _out)
+			? std::optional<TLstarTransactionDirection>()
+			: _in
+			? tl_starTransactionDirectionIncoming()
+			: tl_starTransactionDirectionOutgoing()),
+		tl_string(token),
+		tl_int32(kTransactionsPerPage)
+	)).done([=](const TLstarTransactions &result) {
 		_requestId = 0;
 		done(StatusFromTL(result, _peer));
 	}).fail([=] {
@@ -299,11 +540,18 @@ void CreditsHistory::requestSubscriptions(
 	if (_requestId) {
 		return;
 	}
+#if 0 // mtp
 	_requestId = _api.request(MTPpayments_GetStarsSubscriptions(
 		MTP_flags(0),
 		_peer->isSelf() ? MTP_inputPeerSelf() : _peer->input,
 		MTP_string(token)
 	)).done([=](const MTPpayments_StarsStatus &result) {
+#endif
+	Assert(_peer->isSelf());
+	_requestId = _api.request(TLgetStarSubscriptions(
+		tl_bool(false), // only_expiring
+		tl_string(token)
+	)).done([=](const TLstarSubscriptions &result) {
 		_requestId = 0;
 		done(StatusFromTL(result, _peer));
 	}).fail([=] {
@@ -314,6 +562,8 @@ void CreditsHistory::requestSubscriptions(
 
 rpl::producer<not_null<PeerData*>> PremiumPeerBot(
 		not_null<Main::Session*> session) {
+	return rpl::single(not_null<PeerData*>(session->user()));
+#if 0 // mtp this won't be used so just workaround it for now
 	const auto username = session->appConfig().get<QString>(
 		u"premium_bot_username"_q,
 		QString());
@@ -343,6 +593,7 @@ rpl::producer<not_null<PeerData*>> PremiumPeerBot(
 
 		return lifetime;
 	};
+#endif
 }
 
 CreditsEarnStatistics::CreditsEarnStatistics(not_null<PeerData*> peer)
@@ -355,6 +606,7 @@ rpl::producer<rpl::no_value, QString> CreditsEarnStatistics::request() {
 		auto lifetime = rpl::lifetime();
 
 		const auto finish = [=](const QString &url) {
+#if 0 // mtp
 			makeRequest(MTPpayments_GetStarsRevenueStats(
 				MTP_flags(0),
 				(_isUser ? user()->input : channel()->input)
@@ -380,8 +632,35 @@ rpl::producer<rpl::no_value, QString> CreditsEarnStatistics::request() {
 			}).fail([=](const MTP::Error &error) {
 				consumer.put_error_copy(error.type());
 			}).send();
+#endif
+			api().request(TLgetStarRevenueStatistics(
+				peerToSender(_isUser ? user()->id : channel()->id),
+				tl_bool(false)
+			)).done([=](const TLstarRevenueStatistics &result) {
+				const auto &data = result.data();
+				const auto &status = data.vstatus().data();
+				_data = Data::CreditsEarnStatistics{
+					.revenueGraph = StatisticalGraphFromTL(
+						data.vrevenue_by_day_graph()),
+					.currentBalance = uint64(status.vcurrent_count().v),
+					.availableBalance = uint64(status.vavailable_count().v),
+					.overallRevenue = uint64(status.vtotal_count().v),
+					.usdRate = data.vusd_rate().v,
+					.isWithdrawalEnabled = status.vwithdrawal_enabled().v,
+					.nextWithdrawalAt = (status.vwithdrawal_enabled().v
+						? QDateTime::currentDateTime().addSecs(
+							status.vnext_withdrawal_in().v)
+						: QDateTime()),
+					.buyAdsUrl = url,
+				};
+
+				consumer.put_done();
+			}).fail([=](const Error &error) {
+				consumer.put_error_copy(error.message);
+			}).send();
 		};
 
+#if 0 // mtp
 		makeRequest(
 			MTPpayments_GetStarsRevenueAdsAccountUrl(
 				(_isUser ? user()->input : channel()->input))
@@ -390,7 +669,14 @@ rpl::producer<rpl::no_value, QString> CreditsEarnStatistics::request() {
 		}).fail([=](const MTP::Error &error) {
 			finish({});
 		}).send();
-
+#endif
+		api().request(TLgetStarAdAccountUrl(
+			peerToSender(_isUser ? user()->id : channel()->id)
+		)).done([=](const TLhttpUrl &result) {
+			finish(result.data().vurl().v);
+		}).fail([=](const Error &error) {
+			finish({});
+		}).send();
 		return lifetime;
 	};
 }
@@ -408,22 +694,35 @@ rpl::producer<rpl::no_value, QString> CreditsGiveawayOptions::request() {
 	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
 
+#if 0 // mtp
 		using TLOption = MTPStarsGiveawayOption;
+#endif
 
 		const auto optionsFromTL = [=](const auto &options) {
 			return ranges::views::all(
 				options
 			) | ranges::views::transform([=](const auto &option) {
+				const TLDstarGiveawayPaymentOption &data = option.data();
 				return Data::CreditsGiveawayOption{
 					.winners = ranges::views::all(
+#if 0 // mtp
 						option.data().vwinners().v
+#endif
+						option.data().vwinner_options().v
 					) | ranges::views::transform([](const auto &winner) {
 						return Data::CreditsGiveawayOption::Winner{
+#if 0 // mtp
 							.users = winner.data().vusers().v,
 							.perUserStars = winner.data().vper_user_stars().v,
 							.isDefault = winner.data().is_default(),
+#endif
+							.users = winner.data().vwinner_count().v,
+							.perUserStars = uint64(
+								winner.data().vwon_star_count().v),
+							.isDefault = winner.data().vis_default().v,
 						};
 					}) | ranges::to_vector,
+#if 0 // mtp
 					.storeProduct = qs(
 						option.data().vstore_product().value_or_empty()),
 					.currency = qs(option.data().vcurrency()),
@@ -432,15 +731,31 @@ rpl::producer<rpl::no_value, QString> CreditsGiveawayOptions::request() {
 					.yearlyBoosts = option.data().vyearly_boosts().v,
 					.isExtended = option.data().is_extended(),
 					.isDefault = option.data().is_default(),
+#endif
+					.storeProduct = data.vstore_product_id().v,
+					.currency = data.vcurrency().v,
+					.amount = uint64(data.vamount().v),
+					.credits = uint64(data.vstar_count().v),
+					.yearlyBoosts = data.vyearly_boost_count().v,
+					.isExtended = data.vis_additional().v,
+					.isDefault = data.vis_default().v,
 				};
 			}) | ranges::to_vector;
 		};
+#if 0 // mtp
 		const auto fail = [=](const MTP::Error &error) {
 			consumer.put_error_copy(error.type());
 		};
 
 		_api.request(MTPpayments_GetStarsGiveawayOptions(
 		)).done([=](const MTPVector<TLOption> &result) {
+#endif
+		const auto fail = [=](const Error &error) {
+			consumer.put_error_copy(error.message);
+		};
+		_api.request(TLgetStarGiveawayPaymentOptions(
+		)).done([=](const TLstarGiveawayPaymentOptions &got) {
+			const auto &result = got.data().voptions();
 			_options = optionsFromTL(result.v);
 			consumer.put_done();
 		}).fail(fail).send();

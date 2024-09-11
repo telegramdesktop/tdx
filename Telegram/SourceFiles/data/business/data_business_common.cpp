@@ -11,8 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Data {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kDay = WorkingInterval::kDay;
 constexpr auto kWeek = WorkingInterval::kWeek;
@@ -78,6 +82,7 @@ BusinessRecipients BusinessRecipients::MakeValid(BusinessRecipients value) {
 	return value;
 }
 
+#if 0 // mtp
 MTPInputBusinessRecipients ForMessagesToMTP(const BusinessRecipients &data) {
 	using Flag = MTPDinputBusinessRecipients::Flag;
 	const auto &chats = data.allButExcluded ? data.excluded : data.included;
@@ -239,6 +244,153 @@ BusinessDetails FromMTP(
 	return GreetingSettings{
 		.recipients = FromMTP(owner, data.vrecipients()),
 		.noActivityDays = data.vno_activity_days().v,
+		.shortcutId = data.vshortcut_id().v,
+	};
+}
+#endif
+
+TLbusinessRecipients ForMessagesToTL(const BusinessRecipients &data) {
+	auto copy = data;
+	(copy.allButExcluded ? copy.included : copy.excluded) = {};
+	return ForBotsToTL(copy);
+}
+
+TLbusinessRecipients ForBotsToTL(const BusinessRecipients &data) {
+	const auto &chats = data.allButExcluded ? data.excluded : data.included;
+	auto chatIds = QVector<TLint53>();
+	chatIds.reserve(chats.list.size());
+	for (const auto &user : chats.list) {
+		chatIds.push_back(peerToTdbChat(user->id));
+	}
+	auto excludedChatIds = QVector<TLint53>();
+	if (!data.allButExcluded) {
+		excludedChatIds.reserve(data.excluded.list.size());
+		for (const auto &user : data.excluded.list) {
+			excludedChatIds.push_back(peerToTdbChat(user->id));
+		}
+	}
+	using Type = BusinessChatType;
+	return tl_businessRecipients(
+		tl_vector<TLint53>(chatIds),
+		tl_vector<TLint53>(excludedChatIds),
+		tl_bool(chats.types & Type::ExistingChats),
+		tl_bool(chats.types & Type::NewChats),
+		tl_bool(chats.types & Type::Contacts),
+		tl_bool(chats.types & Type::NonContacts),
+		tl_bool(data.allButExcluded));
+}
+
+BusinessRecipients FromTL(
+		not_null<Session*> owner,
+		const TLbusinessRecipients &recipients) {
+	using Type = BusinessChatType;
+
+	const auto &data = recipients.data();
+	auto result = BusinessRecipients{
+		.allButExcluded = data.vexclude_selected().v,
+	};
+
+	auto &chats = result.allButExcluded
+		? result.excluded
+		: result.included;
+	chats.types = Type()
+		| (data.vselect_new_chats().v ? Type::NewChats : Type())
+		| (data.vselect_existing_chats().v ? Type::ExistingChats : Type())
+		| (data.vselect_contacts().v ? Type::Contacts : Type())
+		| (data.vselect_non_contacts().v ? Type::NonContacts : Type());
+	for (const auto chatId : data.vchat_ids().v) {
+		if (const auto userId = peerToUser(peerFromTdbChat(chatId))) {
+			chats.list.push_back(owner->user(userId));
+		}
+	}
+	for (const auto chatId : data.vexcluded_chat_ids().v) {
+		if (const auto userId = peerToUser(peerFromTdbChat(chatId))) {
+			result.excluded.list.push_back(owner->user(userId));
+		}
+	}
+	return result;
+}
+
+BusinessDetails FromTL(
+		not_null<Session*> owner,
+		const tl::conditional<TLbusinessInfo> &info) {
+	if (!info) {
+		return {};
+	}
+	auto result = BusinessDetails();
+	const auto &data = info->data();
+	if (const auto hours = data.vopening_hours()) {
+		const auto &data = hours->data();
+		result.hours.timezoneId = data.vtime_zone_id().v;
+		result.hours.intervals.list = ranges::views::all(
+			data.vopening_hours().v
+		) | ranges::views::transform([](
+				const TLbusinessOpeningHoursInterval &open) {
+			const auto &data = open.data();
+			return WorkingInterval{
+				data.vstart_minute().v * 60,
+				data.vend_minute().v * 60,
+			};
+		}) | ranges::to_vector;
+	}
+	if (const auto location = data.vlocation()) {
+		const auto &data = location->data();
+		result.location.address = data.vaddress().v;
+		if (const auto point = data.vlocation()) {
+			result.location.point = LocationPoint(*point);
+		}
+	}
+	if (const auto intro = data.vstart_page()) {
+		const auto &data = intro->data();
+		result.intro.title = data.vtitle().v;
+		result.intro.description = data.vmessage().v;
+		if (const auto document = data.vsticker()) {
+			result.intro.sticker = owner->processDocument(*document);
+			if (!result.intro.sticker->sticker()) {
+				result.intro.sticker = nullptr;
+			}
+		}
+	}
+	return result;
+}
+
+AwaySettings FromTL(
+		not_null<Session*> owner,
+		const tl::conditional<TLbusinessAwayMessageSettings> &settings) {
+	if (!settings) {
+		return AwaySettings();
+	}
+	const auto &data = settings->data();
+	auto result = AwaySettings{
+		.recipients = FromTL(owner, data.vrecipients()),
+		.shortcutId = data.vshortcut_id().v,
+		.offlineOnly = data.voffline_only().v,
+	};
+	data.vschedule().match([&](
+			const TLDbusinessAwayMessageScheduleAlways &) {
+		result.schedule.type = AwayScheduleType::Always;
+	}, [&](const TLDbusinessAwayMessageScheduleOutsideOfOpeningHours &) {
+		result.schedule.type = AwayScheduleType::OutsideWorkingHours;
+	}, [&](const TLDbusinessAwayMessageScheduleCustom &data) {
+		result.schedule.type = AwayScheduleType::Custom;
+		result.schedule.customInterval = WorkingInterval{
+			data.vstart_date().v,
+			data.vend_date().v,
+		};
+	});
+	return result;
+}
+
+[[nodiscard]] GreetingSettings FromTL(
+		not_null<Session*> owner,
+		const tl::conditional<TLbusinessGreetingMessageSettings> &settings) {
+	if (!settings) {
+		return GreetingSettings();
+	}
+	const auto &data = settings->data();
+	return GreetingSettings{
+		.recipients = FromTL(owner, data.vrecipients()),
+		.noActivityDays = data.vinactivity_days().v,
 		.shortcutId = data.vshortcut_id().v,
 	};
 }

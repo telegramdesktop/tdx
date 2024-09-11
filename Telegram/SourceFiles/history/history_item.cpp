@@ -607,6 +607,35 @@ HistoryItem::HistoryItem(
 }
 
 HistoryItem::HistoryItem(
+		not_null<History*> history,
+		MsgId id,
+		const Tdb::TLDquickReplyMessage &data,
+		BusinessShortcutId shortcutId)
+: HistoryItem(history, {
+	.id = id,
+	.flags = FlagsFromTdb(data),
+	.from = history->session().userPeerId(),
+}) {
+	auto config = CreateConfig();
+	if (const auto replyTo = data.vreply_to_message_id().v) {
+		config.reply.messageId = replyTo;
+	}
+	config.viaBotId = data.vvia_bot_user_id().v;
+	config.markup = HistoryMessageMarkupData(data.vreply_markup());
+
+	createComponents(std::move(config));
+
+	setContent(data.vcontent());
+	if (const auto groupId = data.vmedia_album_id().v) {
+		setGroupId(
+			MessageGroupId::FromRaw(
+				history->peer->id,
+				groupId,
+				(_flags & MessageFlag::IsOrWasScheduled)));
+	}
+}
+
+HistoryItem::HistoryItem(
 	not_null<History*> history,
 	HistoryItemCommonFields &&fields,
 	PreparedServiceText &&message,

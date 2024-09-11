@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Tdb {
 class TLmessage;
 class TLDmessage;
+class TLDquickReplyMessage;
 class TLmessageContent;
 class TLDmessageForwardInfo;
 class TLDmessageImportInfo;
@@ -204,6 +205,11 @@ public:
 		const Tdb::TLDmessage &data,
 		MessageFlags localFlags,
 		HistoryItem *replacing);
+	HistoryItem(
+		not_null<History*> history,
+		MsgId id,
+		const Tdb::TLDquickReplyMessage &data,
+		BusinessShortcutId shortcutId);
 
 	struct Destroyer {
 		void operator()(HistoryItem *value);

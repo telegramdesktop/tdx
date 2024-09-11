@@ -19,8 +19,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_helpers.h"
 #include "apiwrap.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Data {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kRequestTimeLimit = 60 * crl::time(1000);
 
@@ -102,7 +106,10 @@ bool IsShortcutMsgId(MsgId id) {
 ShortcutMessages::ShortcutMessages(not_null<Session*> owner)
 : _session(&owner->session())
 , _history(owner->history(_session->userPeerId()))
+#if 0 // mtp
 , _clearTimer([=] { clearOldRequests(); }) {
+#endif
+{
 	owner->itemRemoved(
 	) | rpl::filter([](not_null<const HistoryItem*> item) {
 		return item->isBusinessShortcut();
@@ -113,10 +120,14 @@ ShortcutMessages::ShortcutMessages(not_null<Session*> owner)
 
 ShortcutMessages::~ShortcutMessages() {
 	for (const auto &request : _requests) {
+#if 0 // mtp
 		_session->api().request(request.second.requestId).cancel();
+#endif
+		_session->sender().request(request.second.requestId).cancel();
 	}
 }
 
+#if 0 // mtp
 void ShortcutMessages::clearOldRequests() {
 	const auto now = crl::now();
 	while (true) {
@@ -133,6 +144,8 @@ void ShortcutMessages::clearOldRequests() {
 }
 
 void ShortcutMessages::updateShortcuts(const QVector<MTPQuickReply> &list) {
+#endif
+void ShortcutMessages::updateShortcuts(const QVector<TLint32> &list) {
 	auto shortcuts = parseShortcuts(list);
 	auto changes = std::vector<ShortcutIdChange>();
 	for (auto &[id, shortcut] : _shortcuts.list) {
@@ -200,6 +213,7 @@ void ShortcutMessages::mergeMessagesFromTo(
 	}
 }
 
+#if 0 // mtp
 Shortcuts ShortcutMessages::parseShortcuts(
 		const QVector<MTPQuickReply> &list) const {
 	auto result = Shortcuts();
@@ -217,6 +231,27 @@ Shortcut ShortcutMessages::parseShortcut(const MTPQuickReply &reply) const {
 		.count = data.vcount().v,
 		.name = qs(data.vshortcut()),
 		.topMessageId = localMessageId(data.vtop_message().v),
+	};
+}
+#endif
+
+Shortcuts ShortcutMessages::parseShortcuts(
+		const QVector<TLint32> &list) const {
+	auto result = Shortcuts();
+	for (const auto &reply : list) {
+		result.list.emplace(reply.v);
+	}
+	return result;
+}
+
+Shortcut ShortcutMessages::parseShortcut(
+		const TLquickReplyShortcut &shortcut) const {
+	const auto &data = shortcut.data();
+	return Shortcut{
+		.id = BusinessShortcutId(data.vid().v),
+		.count = data.vmessage_count().v,
+		.name = data.vname().v,
+		.topMessageId = data.vfirst_message().data().vid().v,
 	};
 }
 
@@ -237,6 +272,7 @@ int ShortcutMessages::count(BusinessShortcutId shortcutId) const {
 	return (i != end(_data)) ? i->second.items.size() : 0;
 }
 
+#if 0 // mtp
 void ShortcutMessages::apply(const MTPDupdateQuickReplies &update) {
 	updateShortcuts(update.vquick_replies().v);
 	scheduleShortcutsReload();
@@ -266,6 +302,10 @@ void ShortcutMessages::scheduleShortcutsReload() {
 
 void ShortcutMessages::apply(const MTPDupdateNewQuickReply &update) {
 	const auto &reply = update.vquick_reply();
+#endif
+void ShortcutMessages::apply(const TLDupdateQuickReplyShortcut &data) {
+	const auto &reply = data.vshortcut();
+
 	auto foundId = BusinessShortcutId();
 	const auto shortcut = parseShortcut(reply);
 	for (auto &[id, existing] : _shortcuts.list) {
@@ -293,6 +333,7 @@ void ShortcutMessages::apply(const MTPDupdateNewQuickReply &update) {
 	}
 }
 
+#if 0 // mtp
 void ShortcutMessages::apply(const MTPDupdateQuickReplyMessage &update) {
 	const auto &message = update.vmessage();
 	const auto shortcutId = BusinessShortcutIdFromMessage(message);
@@ -309,6 +350,7 @@ void ShortcutMessages::apply(const MTPDupdateQuickReplyMessage &update) {
 		request(shortcutId);
 	}
 }
+#endif
 
 void ShortcutMessages::updateCount(BusinessShortcutId shortcutId) {
 	const auto i = _data.find(shortcutId);
@@ -325,6 +367,7 @@ void ShortcutMessages::updateCount(BusinessShortcutId shortcutId) {
 	}
 }
 
+#if 0 // mtp
 void ShortcutMessages::apply(
 		const MTPDupdateDeleteQuickReplyMessages &update) {
 	const auto shortcutId = update.vshortcut_id().v;
@@ -355,6 +398,10 @@ void ShortcutMessages::apply(
 
 void ShortcutMessages::apply(const MTPDupdateDeleteQuickReply &update) {
 	const auto shortcutId = update.vshortcut_id().v;
+#endif
+void ShortcutMessages::apply(
+		const TLDupdateQuickReplyShortcutDeleted &data) {
+	const auto shortcutId = data.vshortcut_id().v;
 	if (!shortcutId) {
 		return;
 	}
@@ -372,6 +419,7 @@ void ShortcutMessages::apply(const MTPDupdateDeleteQuickReply &update) {
 	}
 }
 
+#if 0 // mtp
 void ShortcutMessages::apply(
 		const MTPDupdateMessageID &update,
 		not_null<HistoryItem*> local) {
@@ -387,6 +435,36 @@ void ShortcutMessages::apply(
 		local->setRealId(localMessageId(id));
 		list.itemById.emplace(id, local);
 	}
+}
+#endif
+
+void ShortcutMessages::apply(const TLDupdateQuickReplyShortcuts &data) {
+	updateShortcuts(data.vshortcut_ids().v);
+}
+
+void ShortcutMessages::apply(
+		const TLDupdateQuickReplyShortcutMessages &data) {
+	const auto shortcutId = data.vshortcut_id().v;
+	const auto &messages = data.vmessages().v;
+	if (messages.isEmpty()) {
+		clearNotSending(shortcutId);
+		return;
+	}
+	auto received = base::flat_set<not_null<HistoryItem*>>();
+	auto clear = base::flat_set<not_null<HistoryItem*>>();
+	auto &list = _data.emplace(shortcutId, List()).first->second;
+	for (const auto &message : messages) {
+		if (const auto item = append(shortcutId, list, message)) {
+			received.emplace(item);
+		}
+	}
+	for (const auto &owned : list.items) {
+		const auto item = owned.get();
+		if (!item->isSending() && !received.contains(item)) {
+			clear.emplace(item);
+		}
+	}
+	updated(shortcutId, received, clear);
 }
 
 void ShortcutMessages::appendSending(not_null<HistoryItem*> item) {
@@ -438,6 +516,7 @@ Data::MessagesSlice ShortcutMessages::list(BusinessShortcutId shortcutId) {
 	return result;
 }
 
+#if 0 // mtp
 void ShortcutMessages::preloadShortcuts() {
 	if (_shortcutsLoaded || _shortcutsRequestId) {
 		return;
@@ -458,6 +537,7 @@ void ShortcutMessages::preloadShortcuts() {
 		});
 	}).send();
 }
+#endif
 
 const Shortcuts &ShortcutMessages::shortcuts() const {
 	return _shortcuts;
@@ -539,6 +619,7 @@ void ShortcutMessages::editShortcut(
 			}
 		}
 	}
+#if 0 // mtp
 	_session->api().request(MTPmessages_EditQuickReplyShortcut(
 		MTP_int(id),
 		MTP_string(name)
@@ -551,6 +632,11 @@ void ShortcutMessages::editShortcut(
 			fail(type);
 		}
 	}).send();
+#endif
+	_session->sender().request(TLsetQuickReplyShortcutName(
+		tl_int32(id),
+		tl_string(name)
+	)).send();
 }
 
 void ShortcutMessages::removeShortcut(BusinessShortcutId shortcutId) {
@@ -566,15 +652,23 @@ void ShortcutMessages::removeShortcut(BusinessShortcutId shortcutId) {
 	_shortcuts.list.remove(shortcutId);
 	_shortcutIdChanges.fire({ shortcutId, 0 });
 
+#if 0 // mtp
 	_session->api().request(MTPmessages_DeleteQuickReplyShortcut(
 		MTP_int(shortcutId)
+	)).send();
+#endif
+	_session->sender().request(TLdeleteQuickReplyShortcut(
+		tl_int32(shortcutId)
 	)).send();
 }
 
 void ShortcutMessages::cancelRequest(BusinessShortcutId shortcutId) {
 	const auto j = _requests.find(shortcutId);
 	if (j != end(_requests)) {
+#if 0 // mtp
 		_session->api().request(j->second.requestId).cancel();
+#endif
+		_session->sender().request(j->second.requestId).cancel();
 		_requests.erase(j);
 	}
 }
@@ -584,6 +678,16 @@ void ShortcutMessages::request(BusinessShortcutId shortcutId) {
 	if (request.requestId || TooEarlyForRequest(request.lastReceived)) {
 		return;
 	}
+	request.requestId = _session->sender().request(
+		TLloadQuickReplyShortcutMessages(tl_int32(shortcutId))
+	).done([=] {
+		auto &request = _requests[shortcutId];
+		request.lastReceived = crl::now();
+		request.requestId = 0;
+	}).fail([=] {
+		_requests.remove(shortcutId);
+	}).send();
+#if 0 // mtp
 	const auto i = _data.find(shortcutId);
 	const auto hash = (i != end(_data))
 		? countListHash(i->second)
@@ -599,8 +703,10 @@ void ShortcutMessages::request(BusinessShortcutId shortcutId) {
 	}).fail([=] {
 		_requests.remove(shortcutId);
 	}).send();
+#endif
 }
 
+#if 0 // mtp
 void ShortcutMessages::parse(
 		BusinessShortcutId shortcutId,
 		const MTPmessages_Messages &list) {
@@ -646,9 +752,18 @@ HistoryItem *ShortcutMessages::append(
 	const auto id = message.match([&](const auto &data) {
 		return data.vid().v;
 	});
+#endif
+HistoryItem *ShortcutMessages::append(
+		BusinessShortcutId shortcutId,
+		List &list,
+		const TLquickReplyMessage &message) {
+	const auto &data = message.data();
+	const auto id = data.vid().v;
 	const auto i = list.itemById.find(id);
 	if (i != end(list.itemById)) {
 		const auto existing = i->second;
+		existing->updateContent(data.vcontent());
+#if 0 // mtp
 		message.match([&](const MTPDmessage &data) {
 			if (data.is_edit_hide()) {
 				existing->applyEdition(HistoryMessageEdition(_session, data));
@@ -666,6 +781,7 @@ HistoryItem *ShortcutMessages::append(
 			existing->updateDate(data.vdate().v);
 			_history->owner().requestItemTextRefresh(existing);
 		}, [&](const auto &data) {});
+#endif
 		return existing;
 	}
 
@@ -673,10 +789,16 @@ HistoryItem *ShortcutMessages::append(
 		LOG(("API Error: Bad id in quick reply messages: %1.").arg(id));
 		return nullptr;
 	}
+#if 0 // mtp
 	const auto item = _session->data().addNewMessage(
 		localMessageId(id),
 		PrepareMessage(shortcutId, message),
 		MessageFlags(), // localFlags
+		NewMessageType::Existing);
+#endif
+	const auto item = _session->data().processMessage(
+		shortcutId,
+		message,
 		NewMessageType::Existing);
 	if (!item
 		|| item->history() != _history
@@ -766,6 +888,7 @@ uint64 ShortcutMessages::countListHash(const List &list) const {
 	return HashFinalize(hash);
 }
 
+#if 0 // mtp
 MTPInputQuickReplyShortcut ShortcutIdToMTP(
 		not_null<Main::Session*> session,
 		BusinessShortcutId id) {
@@ -774,5 +897,6 @@ MTPInputQuickReplyShortcut ShortcutIdToMTP(
 			session->data().shortcutMessages().lookupShortcut(id).name))
 		: MTPInputQuickReplyShortcut();
 }
+#endif
 
 } // namespace Data

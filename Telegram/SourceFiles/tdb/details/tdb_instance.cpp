@@ -949,9 +949,7 @@ void Instance::Client::sendTdlibParameters() {
 			tl_string(_config.systemLanguageCode),
 			tl_string(_config.deviceModel),
 			tl_string(_config.systemVersion),
-			tl_string(_config.applicationVersion),
-			tl_bool(true), // enable_storage_optimizer
-			tl_bool(false)), // ignore_file_names
+			tl_string(_config.applicationVersion)),
 		nullptr,
 		fail,
 		true);

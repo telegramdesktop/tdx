@@ -10,6 +10,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "base/timer.h"
 
+namespace tl {
+class int_type;
+} // namespace tl
+
+namespace Tdb {
+using TLint32 = tl::int_type;
+class TLquickReplyMessage;
+class TLquickReplyShortcut;
+class TLDupdateQuickReplyShortcut;
+class TLDupdateQuickReplyShortcutDeleted;
+class TLDupdateQuickReplyShortcuts;
+class TLDupdateQuickReplyShortcutMessages;
+} // namespace Tdb
+
 class History;
 
 namespace Main {
@@ -56,6 +70,7 @@ public:
 	[[nodiscard]] int count(BusinessShortcutId shortcutId) const;
 	[[nodiscard]] MsgId localMessageId(MsgId remoteId) const;
 
+#if 0 // mtp
 	void apply(const MTPDupdateQuickReplies &update);
 	void apply(const MTPDupdateNewQuickReply &update);
 	void apply(const MTPDupdateQuickReplyMessage &update);
@@ -64,6 +79,12 @@ public:
 	void apply(
 		const MTPDupdateMessageID &update,
 		not_null<HistoryItem*> local);
+#endif
+
+	void apply(const Tdb::TLDupdateQuickReplyShortcut &data);
+	void apply(const Tdb::TLDupdateQuickReplyShortcutDeleted &data);
+	void apply(const Tdb::TLDupdateQuickReplyShortcuts &data);
+	void apply(const Tdb::TLDupdateQuickReplyShortcutMessages &data);
 
 	void appendSending(not_null<HistoryItem*> item);
 	void removeSending(not_null<HistoryItem*> item);
@@ -99,6 +120,7 @@ private:
 	};
 
 	void request(BusinessShortcutId shortcutId);
+#if 0 // mtp
 	void parse(
 		BusinessShortcutId shortcutId,
 		const MTPmessages_Messages &list);
@@ -106,6 +128,11 @@ private:
 		BusinessShortcutId shortcutId,
 		List &list,
 		const MTPMessage &message);
+#endif
+	HistoryItem *append(
+		BusinessShortcutId shortcutId,
+		List &list,
+		const Tdb::TLquickReplyMessage &message);
 	void clearNotSending(BusinessShortcutId shortcutId);
 	void updated(
 		BusinessShortcutId shortcutId,
@@ -118,19 +145,30 @@ private:
 	void cancelRequest(BusinessShortcutId shortcutId);
 	void updateCount(BusinessShortcutId shortcutId);
 
+#if 0 // mtp
 	void scheduleShortcutsReload();
+#endif
 	void mergeMessagesFromTo(
 		BusinessShortcutId fromId,
 		BusinessShortcutId toId);
+#if 0 // mtp
 	void updateShortcuts(const QVector<MTPQuickReply> &list);
 	[[nodiscard]] Shortcut parseShortcut(const MTPQuickReply &reply) const;
 	[[nodiscard]] Shortcuts parseShortcuts(
 		const QVector<MTPQuickReply> &list) const;
+#endif
+	void updateShortcuts(const QVector<Tdb::TLint32> &list);
+	[[nodiscard]] Shortcuts parseShortcuts(
+		const QVector<Tdb::TLint32> &list) const;
+	[[nodiscard]] Shortcut parseShortcut(
+		const Tdb::TLquickReplyShortcut &shortcut) const;
 
 	const not_null<Main::Session*> _session;
 	const not_null<History*> _history;
 
+#if 0 // mtp
 	base::Timer _clearTimer;
+#endif
 	base::flat_map<BusinessShortcutId, List> _data;
 	base::flat_map<BusinessShortcutId, Request> _requests;
 	rpl::event_stream<BusinessShortcutId> _updates;
@@ -147,8 +185,10 @@ private:
 
 };
 
+#if 0 // mtp
 [[nodiscard]] MTPInputQuickReplyShortcut ShortcutIdToMTP(
 	not_null<Main::Session*> session,
 	BusinessShortcutId id);
+#endif
 
 } // namespace Data

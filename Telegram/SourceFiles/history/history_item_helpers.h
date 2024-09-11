@@ -15,6 +15,7 @@ class int64_type;
 
 namespace Tdb {
 class TLDmessage;
+class TLDquickReplyMessage;
 using TLint53 = tl::int64_type;
 } // namespace Tdb
 
@@ -33,6 +34,8 @@ class Session;
 } // namespace Main
 
 [[nodiscard]] MessageFlags FlagsFromTdb(const Tdb::TLDmessage &data);
+[[nodiscard]] MessageFlags FlagsFromTdb(
+	const Tdb::TLDquickReplyMessage &data);
 [[nodiscard]] TimeId MessageDateFromTdb(const Tdb::TLDmessage &data);
 
 [[nodiscard]] std::vector<not_null<UserData*>> ParseInvitedToCallUsers(

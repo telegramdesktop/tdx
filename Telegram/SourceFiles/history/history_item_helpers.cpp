@@ -117,6 +117,44 @@ MessageFlags FlagsFromTdb(const TLDmessage &data) {
 		| (invertMedia ? Flag::InvertMedia : Flag());
 }
 
+MessageFlags FlagsFromTdb(const TLDquickReplyMessage &data) {
+	using Flag = MessageFlag;
+	const auto mediaUnread = data.vcontent().match([&](
+			const TLDmessageVoiceNote &data) {
+		return !data.vis_listened().v;
+	}, [&](const TLDmessageVideoNote &data) {
+		return !data.vis_viewed().v;
+	}, [](const auto &) {
+		return false;
+	});
+	const auto sendingOrFailedFlag = [&] {
+		if (const auto state = data.vsending_state()) {
+			return state->match([](const TLDmessageSendingStatePending &) {
+				return Flag::BeingSent;
+			}, [](const TLDmessageSendingStateFailed &) {
+				return Flag::SendingFailed;
+			});
+		}
+		return Flag();
+	}();
+	const auto invertMedia = data.vcontent().match([&](
+			const TLDmessageText &text) {
+		if (const auto options = text.vlink_preview_options()) {
+			return options->data().vshow_above_text().v;
+		}
+		return false;
+	}, [](const auto &) {
+		return false;
+	});
+	return sendingOrFailedFlag
+		| (int(sendingOrFailedFlag) ? Flag::Local : Flag())
+		| (mediaUnread ? Flag::MediaIsUnread : Flag())
+		| (data.vcan_be_edited().v ? Flag::CanEdit : Flag())
+		| (data.vreply_to_message_id().v ? Flag::HasReplyInfo : Flag())
+		| (data.vreply_markup() ? Flag::HasReplyMarkup : Flag())
+		| (invertMedia ? Flag::InvertMedia : Flag());
+}
+
 TimeId MessageDateFromTdb(const TLDmessage &data) {
 	if (const auto &state = data.vscheduling_state()) {
 		return state->match([&](

@@ -623,15 +623,21 @@ void UserData::setBirthday(Data::Birthday value) {
 	}
 }
 
+#if 0 // mtp
 void UserData::setBirthday(const tl::conditional<MTPBirthday> &value) {
-	if (!value) {
+#endif
+void UserData::setBirthday(const tl::conditional<TLbirthdate> &value) {
+		if (!value) {
 		setBirthday(Data::Birthday());
 	} else {
 		const auto &data = value->data();
 		setBirthday(Data::Birthday(
 			data.vday().v,
 			data.vmonth().v,
+			data.vyear().v));
+#if 0 // mtp
 			data.vyear().value_or_empty()));
+#endif
 	}
 }
 

@@ -3303,6 +3303,15 @@ void Updates::applyUpdate(const TLupdate &update) {
 	}, [&](const TLDupdateStoryStealthMode &data) {
 		owner.stories().apply(data);
 
+	}, [&](const TLDupdateQuickReplyShortcut &data) {
+		owner.shortcutMessages().apply(data);
+	}, [&](const TLDupdateQuickReplyShortcutDeleted &data) {
+		owner.shortcutMessages().apply(data);
+	}, [&](const TLDupdateQuickReplyShortcuts &data) {
+		owner.shortcutMessages().apply(data);
+	}, [&](const TLDupdateQuickReplyShortcutMessages &data) {
+		owner.shortcutMessages().apply(data);
+
 		// Updates below are handled in a different place.
 	}, [&](const TLDupdateConnectionState &data) {
 	}, [&](const TLDupdateServiceNotification &data) {

@@ -515,9 +515,19 @@ not_null<HistoryItem*> History::createItem(
 		localFlags,
 		replacing);
 	if (result->isScheduled()) {
-		owner().scheduledMessages().append(result);
+		session().scheduledMessages().append(result);
 	}
 	return result;
+}
+
+not_null<HistoryItem*> History::createItem(
+		BusinessShortcutId shortcutId,
+		const TLquickReplyMessage &message) {
+	const auto id = message.data().vid().v;
+	if (const auto result = owner().message(peer, id)) {
+		return result;
+	}
+	return makeMessage(id, message.data(), shortcutId);
 }
 
 #if 0 // mtp
@@ -580,6 +590,12 @@ not_null<HistoryItem*> History::addMessage(
 		old->destroy();
 	}
 	return item;
+}
+
+not_null<HistoryItem*> History::addMessage(
+		BusinessShortcutId shortcutId,
+		const Tdb::TLquickReplyMessage &message) {
+	return createItem(shortcutId, message);
 }
 
 not_null<HistoryItem*> History::insertItem(

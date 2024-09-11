@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Tdb {
 class TLDchatPosition;
 class TLmessage;
+class TLquickReplyMessage;
 class TLDmessages;
 class TLDupdateMessageMentionRead;
 } // namespace Tdb
@@ -207,6 +208,9 @@ public:
 		const Tdb::TLmessage &message,
 		NewMessageType type = NewMessageType::Existing,
 		MsgId oldMessageId = 0);
+	not_null<HistoryItem*> addMessage(
+		BusinessShortcutId shortcutId,
+		const Tdb::TLquickReplyMessage &message);
 
 	// Used only internally and for channel admin log.
 #if 0 // mtp

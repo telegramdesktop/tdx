@@ -205,7 +205,10 @@ public:
 
 	[[nodiscard]] Data::Birthday birthday() const;
 	void setBirthday(Data::Birthday value);
+#if 0 // mtp
 	void setBirthday(const tl::conditional<MTPBirthday> &value);
+#endif
+	void setBirthday(const tl::conditional<Tdb::TLbirthdate> &value);
 
 	[[nodiscard]] int commonChatsCount() const;
 	void setCommonChatsCount(int count);
