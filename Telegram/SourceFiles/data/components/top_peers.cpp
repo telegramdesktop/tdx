@@ -18,9 +18,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/serialize_peer.h"
 #include "storage/storage_account.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+
 namespace Data {
 namespace {
 
+using namespace Tdb;
+
+constexpr auto kTopChatsLimit = 30;
 constexpr auto kLimit = 64;
 constexpr auto kRequestTimeLimit = 10 * crl::time(1000);
 
@@ -83,9 +89,15 @@ void TopPeers::remove(not_null<PeerData*> peer) {
 		updated();
 	}
 
+#if 0 // mtp
 	_requestId = _session->api().request(MTPcontacts_ResetTopPeerRating(
 		MTP_topPeerCategoryCorrespondents(),
 		peer->input
+	)).send();
+#endif
+	_requestId = _session->sender().request(TLremoveTopChat(
+		tl_topChatCategoryUsers(),
+		peerToTdbChat(peer->id)
 	)).send();
 }
 
@@ -103,6 +115,7 @@ void TopPeers::increment(not_null<PeerData*> peer, TimeId date) {
 			i = end(_list) - 1;
 			changed = true;
 		}
+#if 0 // mtp
 		const auto &config = peer->session().mtp().config();
 		const auto decay = config.values().ratingDecay;
 		i->rating += RatingDelta(date, _lastReceivedDate, decay);
@@ -114,6 +127,7 @@ void TopPeers::increment(not_null<PeerData*> peer, TimeId date) {
 				break;
 			}
 		}
+#endif
 		if (changed) {
 			updated();
 		} else {
@@ -145,8 +159,13 @@ void TopPeers::toggleDisabled(bool disabled) {
 		updated();
 	}
 
+	_session->sender().request(TLsetOption(
+		tl_string("disable_top_chats"),
+		tl_optionValueBoolean(tl_bool(disabled))
+#if 0 // mtp
 	_session->api().request(MTPcontacts_ToggleTopPeers(
 		MTP_bool(!disabled)
+#endif
 	)).done([=] {
 		if (!_disabled) {
 			request();
@@ -159,6 +178,7 @@ void TopPeers::request() {
 		return;
 	}
 
+#if 0 // mtp
 	_requestId = _session->api().request(MTPcontacts_GetTopPeers(
 		MTP_flags(MTPcontacts_GetTopPeers::Flag::f_correspondents),
 		MTP_int(0),
@@ -199,6 +219,20 @@ void TopPeers::request() {
 			}
 		}, [](const MTPDcontacts_topPeersNotModified &) {
 		});
+#endif
+	_session->sender().request(TLgetTopChats(
+		tl_topChatCategoryUsers(),
+		tl_int32(kTopChatsLimit)
+	)).done([=](const TLchats &result) {
+		_lastReceived = crl::now();
+		_requestId = 0;
+
+		_disabled = false;
+		const auto &ids = result.data().vchat_ids().v;
+		_list = ids | ranges::views::transform([&](const TLint53 &id) {
+			return TopPeer{ _session->data().peer(peerFromTdbChat(id)) };
+		}) | ranges::to_vector;
+		updated();
 	}).fail([=] {
 		_lastReceived = crl::now();
 		_requestId = 0;
