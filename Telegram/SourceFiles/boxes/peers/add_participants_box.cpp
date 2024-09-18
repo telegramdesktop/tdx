@@ -215,6 +215,20 @@ void SimpleForbiddenBox(
 
 	const auto &stButton = st::premiumGiftBox;
 	box->setStyle(stButton);
+	const auto startSubscription = [=] {
+		// later do async - it is still slow if done after launch
+		const auto features = Settings::GetPremiumFeaturesSync(
+			&peer->session(),
+			u"invite_privacy"_q);
+		const auto window = ChatHelpers::ResolveWindowDefault()(
+			&peer->session(),
+			ChatHelpers::WindowUsage::PremiumPromo);
+		if (window) {
+			Settings::CreateStartSubscription(
+				window,
+				features ? &*features : nullptr)();
+		}
+	};
 	auto raw = Settings::CreateSubscribeButton(
 		sshow,
 		ChatHelpers::ResolveWindowDefault(),
@@ -223,6 +237,8 @@ void SimpleForbiddenBox(
 			.computeRef = [] { return u"invite_privacy"_q; },
 			.text = tr::lng_messages_privacy_premium_button(),
 			.showPromo = true,
+
+			.startSubscription = startSubscription,
 		});
 	auto button = object_ptr<Ui::GradientButton>::fromRaw(raw);
 	button->resizeToWidth(st::boxWideWidth
@@ -382,6 +398,20 @@ void InviteForbiddenController::setComplexCover() {
 	const auto show = delegate()->peerListUiShow();
 	FillUpgradeToPremiumCover(container, show, _peer, _forbidden);
 
+	const auto startSubscription = [peer = _peer] {
+		// later do async - it is still slow if done after launch
+		const auto features = Settings::GetPremiumFeaturesSync(
+			&peer->session(),
+			u"invite_privacy"_q);
+		const auto window = ChatHelpers::ResolveWindowDefault()(
+			&peer->session(),
+			ChatHelpers::WindowUsage::PremiumPromo);
+		if (window) {
+			Settings::CreateStartSubscription(
+				window,
+				features ? &*features : nullptr)();
+		}
+	};
 	container->add(
 		object_ptr<Ui::GradientButton>::fromRaw(
 			Settings::CreateSubscribeButton(
@@ -391,6 +421,8 @@ void InviteForbiddenController::setComplexCover() {
 					.parent = container,
 					.computeRef = [] { return u"invite_privacy"_q; },
 					.text = tr::lng_messages_privacy_premium_button(),
+
+					.startSubscription = startSubscription,
 				})),
 				st::inviteForbiddenSubscribePadding);
 
