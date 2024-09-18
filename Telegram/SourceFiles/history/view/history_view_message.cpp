@@ -1092,9 +1092,11 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 	const auto item = data();
 	const auto media = this->media();
 
+#if 0 // mtp
 	if (item->hasUnrequestedFactcheck()) {
 		item->history()->session().factchecks().requestFor(item);
 	}
+#endif
 
 	const auto stm = context.messageStyle();
 	const auto bubble = drawBubble();
