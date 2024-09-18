@@ -47,7 +47,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_window.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+
 namespace {
+
+using namespace Tdb;
 
 struct ModerateOptions final {
 	bool allCanBan = false;
@@ -243,6 +248,9 @@ void CreateModerateMessagesBox(
 			auto filtered = ranges::views::all(
 				ids
 			) | ranges::views::transform([](const FullMsgId &id) {
+				return tl_int53(id.msg.bare);
+			}) | ranges::to<QVector<TLint53>>();
+#if 0 // mtp
 				return MTP_int(id.msg);
 			}) | ranges::to<QVector<MTPint>>();
 			c->session().api().request(
@@ -251,6 +259,11 @@ void CreateModerateMessagesBox(
 					p->input,
 					MTP_vector<MTPint>(std::move(filtered)))
 			).send();
+#endif
+			c->session().sender().request(TLreportSupergroupSpam(
+				tl_int53(peerToChannel(c->id).bare),
+				tl_vector<TLint53>(filtered)
+			)).send();
 		});
 	}
 
