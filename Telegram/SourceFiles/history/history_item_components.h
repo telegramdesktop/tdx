@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Tdb {
 class TLmessageReplyTo;
+class TLfactCheck;
 } // namespace Tdb
 
 struct WebPageData;
@@ -604,12 +605,16 @@ struct MessageFactcheck {
 	}
 };
 
+#if 0 // mtp
 [[nodiscard]] MessageFactcheck FromMTP(
 	not_null<HistoryItem*> item,
 	const tl::conditional<MTPFactCheck> &factcheck);
 [[nodiscard]] MessageFactcheck FromMTP(
 	not_null<Main::Session*> session,
 	const tl::conditional<MTPFactCheck> &factcheck);
+#endif
+[[nodiscard]] MessageFactcheck FromTL(
+	const tl::conditional<Tdb::TLfactCheck> &factcheck);
 
 struct HistoryMessageFactcheck
 : public RuntimeComponent<HistoryMessageFactcheck, HistoryItem> {

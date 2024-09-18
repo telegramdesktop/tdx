@@ -1109,9 +1109,11 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		p.translate(selectionTranslation, 0);
 	}
 
+#if 0 // mtp
 	if (item->hasUnrequestedFactcheck()) {
 		item->history()->session().factchecks().requestFor(item);
 	}
+#endif
 
 	const auto stm = context.messageStyle();
 	const auto bubble = drawBubble();
