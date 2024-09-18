@@ -250,7 +250,9 @@ public:
 		const QString &label,
 		const TextWithEntities &content);
 	void setFactcheck(MessageFactcheck info);
+#if 0 // mtp
 	[[nodiscard]] bool hasUnrequestedFactcheck() const;
+#endif
 	[[nodiscard]] TextWithEntities factcheckText() const;
 
 	[[nodiscard]] not_null<Data::Thread*> notificationThread() const;
