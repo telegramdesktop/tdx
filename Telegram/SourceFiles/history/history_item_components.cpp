@@ -1160,6 +1160,7 @@ HistoryMessageLogEntryOriginal &HistoryMessageLogEntryOriginal::operator=(
 
 HistoryMessageLogEntryOriginal::~HistoryMessageLogEntryOriginal() = default;
 
+#if 0 // mtp
 MessageFactcheck FromMTP(
 		not_null<HistoryItem*> item,
 		const tl::conditional<MTPFactCheck> &factcheck) {
@@ -1186,6 +1187,18 @@ MessageFactcheck FromMTP(
 	}
 	result.hash = data.vhash().v;
 	result.needCheck = data.is_need_check();
+	return result;
+}
+#endif
+
+MessageFactcheck FromTL(const tl::conditional<Tdb::TLfactCheck> &factcheck) {
+	auto result = MessageFactcheck();
+	if (!factcheck) {
+		return result;
+	}
+	const auto &data = factcheck->data();
+	result.text = Api::FormattedTextFromTdb(data.vtext());
+	result.country = data.vcountry_code().v;
 	return result;
 }
 

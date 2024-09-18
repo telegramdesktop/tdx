@@ -75,6 +75,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "boxes/peers/add_participants_box.h"
 #include "window/notifications_manager.h"
+#include "data/components/factchecks.h"
 
 namespace Api {
 namespace {
@@ -2887,6 +2888,8 @@ void Updates::applyUpdate(const TLupdate &update) {
 			item->history()->unreadReactions().setCount(
 				data.vunread_reaction_count().v);
 		}
+	}, [&](const TLDupdateMessageFactCheck &data) {
+		_session->factchecks().apply(data);
 	}, [&](const TLDupdateMessageLiveLocationViewed &data) {
 	}, [&](const TLDupdateActiveLiveLocationMessages &data) {
 		for (const auto &message : data.vmessages().v) {

@@ -606,6 +606,7 @@ HistoryItem::HistoryItem(
 		_flags |= MessageFlag::ReactionsAreTags;
 	}
 	applyTTL(data);
+	setFactcheck(FromTL(data.vfact_check()));
 }
 
 HistoryItem::HistoryItem(
@@ -1732,10 +1733,12 @@ void HistoryItem::setFactcheck(MessageFactcheck info) {
 	}
 }
 
+#if 0 // mtp
 bool HistoryItem::hasUnrequestedFactcheck() const {
 	const auto factcheck = Get<HistoryMessageFactcheck>();
 	return factcheck && factcheck->data.needCheck && !factcheck->requested;
 }
+#endif
 
 TextWithEntities HistoryItem::factcheckText() const {
 	if (const auto factcheck = Get<HistoryMessageFactcheck>()) {

@@ -304,6 +304,8 @@ bool Session::apply(const TLDupdateOption &update) {
 	if (update.vname().v == "is_premium_available") {
 		_premiumPossible = OptionValue<bool>(update.vvalue());
 		return true;
+	} else if (factchecks().apply(update)) {
+		return true;
 	}
 	return _api->apply(update);
 }

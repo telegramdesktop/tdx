@@ -22,8 +22,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "ui/layers/show.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+
 namespace Data {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kRequestDelay = crl::time(1000);
 
@@ -31,9 +36,13 @@ constexpr auto kRequestDelay = crl::time(1000);
 
 Factchecks::Factchecks(not_null<Main::Session*> session)
 : _session(session)
+#if 0 // mtp
 , _requestTimer([=] { request(); }) {
+#endif
+{
 }
 
+#if 0 // mtp
 void Factchecks::requestFor(not_null<HistoryItem*> item) {
 	subscribeIfNotYet();
 
@@ -121,6 +130,28 @@ void Factchecks::request() {
 		}
 	}).send();
 }
+#endif
+
+void Factchecks::apply(const TLDupdateMessageFactCheck &data) {
+	const auto fullId = FullMsgId{
+		peerFromTdbChat(data.vchat_id()),
+		data.vmessage_id().v
+	};
+	if (const auto item = _session->data().message(fullId)) {
+		item->setFactcheck(FromTL(&data.vfact_check()));
+	}
+}
+
+bool Factchecks::apply(const Tdb::TLDupdateOption &data) {
+	if (data.vname().v == u"can_edit_fact_check"_q) {
+		_canEdit = data.vvalue().c_optionValueBoolean().vvalue().v;
+	} else if (data.vname().v == u"fact_check_length_max"_q) {
+		_lengthLimit = data.vvalue().c_optionValueInteger().vvalue().v;
+	} else {
+		return false;
+	}
+	return true;
+}
 
 std::unique_ptr<HistoryView::WebPage> Factchecks::makeMedia(
 		not_null<HistoryView::Message*> view,
@@ -154,11 +185,17 @@ bool Factchecks::canEdit(not_null<HistoryItem*> item) const {
 }
 
 bool Factchecks::canEdit() const {
+#if 0 // mtp
 	return _session->appConfig().get<bool>(u"can_edit_factcheck"_q, false);
+#endif
+	return _canEdit;
 }
 
 int Factchecks::lengthLimit() const {
+#if 0 // mtp
 	return _session->appConfig().get<int>(u"factcheck_length_limit"_q, 1024);
+#endif
+	return _lengthLimit;
 }
 
 void Factchecks::save(
@@ -168,6 +205,7 @@ void Factchecks::save(
 	const auto item = _session->data().message(itemId);
 	if (!item) {
 		return;
+#if 0 // mtp
 	} else if (text.empty()) {
 		_session->api().request(MTPmessages_DeleteFactCheck(
 			item->history()->peer->input,
@@ -194,7 +232,19 @@ void Factchecks::save(
 		}).fail([=](const MTP::Error &error) {
 			done(error.type());
 		}).send();
+#endif
 	}
+	_session->sender().request(TLsetMessageFactCheck(
+		peerToTdbChat(item->history()->peer->id),
+		tl_int53(item->id.bare),
+		(text.empty()
+			? std::optional<TLformattedText>()
+			: Api::FormattedTextToTdb(text))
+	)).done([=] {
+		done(QString());
+	}).fail([=](const Error &error) {
+		done(error.message);
+	}).send();
 }
 
 void Factchecks::save(
