@@ -50,11 +50,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/window_session_controller_link_info.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+
 #include <QtGui/QGuiApplication>
 #include <QtGui/QWindow>
 
 namespace Iv {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kGeoPointScale = 1;
 constexpr auto kGeoPointZoomMin = 13;
@@ -240,11 +245,18 @@ void Shown::fillChannelJoinedValues(const Prepared &result) {
 		const auto channelId = ChannelId(id.toLongLong());
 		const auto channel = _session->data().channel(channelId);
 		if (!channel->isLoaded() && !channel->username().isEmpty()) {
+#if 0 // mtp
 			channel->session().api().request(MTPcontacts_ResolveUsername(
 				MTP_string(channel->username())
 			)).done([=](const MTPcontacts_ResolvedPeer &result) {
 				channel->owner().processUsers(result.data().vusers());
 				channel->owner().processChats(result.data().vchats());
+			}).send();
+#endif
+			channel->session().sender().request(TLsearchPublicChat(
+				tl_string(channel->username())
+			)).done([=](const TLchat &result) {
+				channel->owner().processPeer(result);
 			}).send();
 		}
 		_inChannelValues[id] = Info::Profile::AmInChannelValue(channel);
@@ -929,10 +941,16 @@ void Instance::show(
 			const auto url = event.url;
 			auto &requested = _fullRequested[session][url];
 			requested.lastRequestedAt = crl::now();
+#if 0 // mtp
 			session->api().request(MTPmessages_GetWebPage(
 				MTP_string(url),
 				MTP_int(requested.hash)
 			)).done([=](const MTPmessages_WebPage &result) {
+#endif
+			session->sender().request(TLgetWebPageInstantView(
+				tl_string(url),
+				tl_bool(true)
+			)).done([=](const TLwebPageInstantView &result) {
 				const auto page = processReceivedPage(session, url, result);
 				if (page && page->iv) {
 					const auto parts = event.url.split('#');
@@ -986,7 +1004,10 @@ void Instance::trackSession(not_null<Main::Session*> session) {
 		_fullRequested.remove(session);
 		_ivCache.remove(session);
 		if (_ivRequestSession == session) {
+#if 0 // mtp
 			session->api().request(_ivRequestId).cancel();
+#endif
+			session->sender().request(_ivRequestId).cancel();
 			_ivRequestSession = nullptr;
 			_ivRequestUri = QString();
 			_ivRequestId = 0;
@@ -1032,7 +1053,10 @@ void Instance::openWithIvPreferred(
 	const auto url = parts[0];
 	auto &cache = _ivCache[session];
 	if (const auto i = cache.find(url); i != end(cache)) {
+#if 0 // mtp
 		const auto page = i->second;
+#endif
+		const auto &page = i->second;
 		if (page && page->iv) {
 			auto my = context.value<ClickHandlerContext>();
 			if (const auto window = my.sessionWindow.get()) {
@@ -1047,25 +1071,39 @@ void Instance::openWithIvPreferred(
 	} else if (_ivRequestSession == session.get() && _ivRequestUri == uri) {
 		return;
 	} else if (_ivRequestId) {
+#if 0 // mtp
 		_ivRequestSession->api().request(_ivRequestId).cancel();
+#endif
+		_ivRequestSession->sender().request(_ivRequestId).cancel();
 	}
+#if 0 // mtp
 	const auto finish = [=](WebPageData *page) {
+#endif
+	const auto finish = [=](PageIv *page) {
 		Expects(_ivRequestSession == session);
 
 		_ivRequestId = 0;
 		_ivRequestUri = QString();
 		_ivRequestSession = nullptr;
+#if 0 // mtp
 		_ivCache[session][url] = page;
+#endif
 		openWithIvPreferred(session, uri, context);
 	};
 	_ivRequestSession = session;
 	_ivRequestUri = uri;
 	auto &requested = _fullRequested[session][url];
 	requested.lastRequestedAt = crl::now();
+#if 0 // mtp
 	_ivRequestId = session->api().request(MTPmessages_GetWebPage(
 		MTP_string(url),
 		MTP_int(requested.hash)
 	)).done([=](const MTPmessages_WebPage &result) {
+#endif
+	_ivRequestId = session->sender().request(TLgetWebPageInstantView(
+		tl_string(url),
+		tl_bool(true)
+	)).done([=](const TLwebPageInstantView &result) {
 		finish(processReceivedPage(session, url, result));
 	}).fail([=] {
 		finish(nullptr);
@@ -1133,10 +1171,16 @@ void Instance::requestFull(
 		return;
 	}
 	requested.lastRequestedAt = now;
+#if 0 // mtp
 	session->api().request(MTPmessages_GetWebPage(
 		MTP_string(id),
 		MTP_int(requested.hash)
 	)).done([=](const MTPmessages_WebPage &result) {
+#endif
+	session->sender().request(TLgetWebPageInstantView(
+		tl_string(id),
+		tl_bool(true)
+	)).done([=](const TLwebPageInstantView &result) {
 		const auto page = processReceivedPage(session, id, result);
 		if (page && page->iv && _shown && _shownSession == session) {
 			_shown->update(page->iv.get());
@@ -1144,9 +1188,22 @@ void Instance::requestFull(
 	}).send();
 }
 
+#if 0 // mtp
 WebPageData *Instance::processReceivedPage(
+#endif
+Instance::PageIv *Instance::processReceivedPage(
 		not_null<Main::Session*> session,
 		const QString &url,
+		const TLwebPageInstantView &result) {
+	auto owned = std::make_unique<PageIv>(PageIv{
+		.iv = std::make_unique<Data>(url, result),
+	});
+	const auto raw = owned.get();
+	_ivCache[session][url] = std::move(owned);
+	auto &requested = _fullRequested[session][url];
+	requested.page = raw;
+	return raw;
+#if 0 // mtp
 		const MTPmessages_WebPage &result) {
 	const auto &data = result.data();
 	const auto owner = &session->data();
@@ -1168,6 +1225,7 @@ WebPageData *Instance::processReceivedPage(
 		requested.page = owner->processWebpage(mtp).get();
 	});
 	return requested.page;
+#endif
 }
 
 void Instance::processOpenChannel(const QString &context) {

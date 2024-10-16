@@ -7,6 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Tdb {
+class TLlinkPreview;
+class TLwebPageInstantView;
+} // namespace Tdb
+
 namespace Iv {
 
 struct Source;
@@ -39,7 +44,12 @@ struct Geo {
 
 class Data final {
 public:
+#if 0 // mtp
 	Data(const MTPDwebPage &webpage, const MTPPage &page);
+#endif
+	Data(
+		const QString &url,
+		const Tdb::TLwebPageInstantView &data);
 	~Data();
 
 	[[nodiscard]] QString id() const;

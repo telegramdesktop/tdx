@@ -37,6 +37,7 @@ PUBLIC
     desktop-app::lib_ui
     tdesktop::td_scheme
 PRIVATE
+    desktop-app::external_xxhash
     desktop-app::lib_webview
     desktop-app::external_ada
     tdesktop::td_lang

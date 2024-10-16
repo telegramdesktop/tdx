@@ -10,6 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/iv_prepare.h"
 #include "webview/webview_interface.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include <xxhash.h>
+
 #include <QtCore/QRegularExpression>
 #include <QtCore/QUrl>
 
@@ -17,6 +20,10 @@ namespace Iv {
 namespace {
 
 bool FailureRecorded/* = false*/;
+
+[[nodiscard]] uint64 IdFromTdb(const QString &url) {
+	return XXH64(url.data(), url.size() * sizeof(ushort), 0);
+}
 
 } // namespace
 
@@ -45,6 +52,7 @@ Geo GeoPointFromId(QByteArray data) {
 	};
 }
 
+#if 0 // mtp
 Data::Data(const MTPDwebPage &webpage, const MTPPage &page)
 : _source(std::make_unique<Source>(Source{
 	.pageId = webpage.vid().v,
@@ -60,13 +68,31 @@ Data::Data(const MTPDwebPage &webpage, const MTPPage &page)
 		: SiteNameFromUrl(qs(webpage.vurl())))
 })) {
 }
+#endif
+
+Data::Data(
+	const QString &url,
+	const Tdb::TLwebPageInstantView &data)
+: _source(std::make_unique<Source>(Source{
+	.pageId = IdFromTdb(url),
+	.page = data,
+	.url = url,
+})) {
+
+}
 
 QString Data::id() const {
+#if 0 // mtp
 	return qs(_source->page.data().vurl());
+#endif
+	return _source->url;
 }
 
 bool Data::partial() const {
+#if 0 // mtp
 	return _source->page.data().is_part();
+#endif
+	return !_source->page.data().vis_full().v;
 }
 
 Data::~Data() = default;
