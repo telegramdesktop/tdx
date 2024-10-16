@@ -772,6 +772,14 @@ bool SendDice(MessageToSend &message) {
 }
 
 void SendLocation(SendAction action, float64 lat, float64 lon) {
+	SendPreparedMessage(
+		action,
+		tl_inputMessageLocation(
+			tl_location(tl_double(lat), tl_double(lon), tl_double(0)),
+			tl_int32(0), // live_period
+			tl_int32(0), // heading
+			tl_int32(0))); // proximity_alert_radius
+#if 0 // mtp
 	SendSimpleMedia(
 		action,
 		MTP_inputMediaGeoPoint(
@@ -780,9 +788,23 @@ void SendLocation(SendAction action, float64 lat, float64 lon) {
 				MTP_double(lat),
 				MTP_double(lon),
 				MTPint()))); // accuracy_radius
+#endif
 }
 
 void SendVenue(SendAction action, Data::InputVenue venue) {
+	SendPreparedMessage(
+		action,
+		tl_inputMessageVenue(tl_venue(
+			tl_location(
+				tl_double(venue.lat),
+				tl_double(venue.lon),
+				tl_double(0)),
+			tl_string(venue.title),
+			tl_string(venue.address),
+			tl_string(venue.provider),
+			tl_string(venue.id),
+			tl_string(venue.venueType))));
+#if 0 // mtp
 	SendSimpleMedia(
 		action,
 		MTP_inputMediaVenue(
@@ -796,6 +818,7 @@ void SendVenue(SendAction action, Data::InputVenue venue) {
 			MTP_string(venue.provider),
 			MTP_string(venue.id),
 			MTP_string(venue.venueType)));
+#endif
 }
 
 void FillMessagePostFlags(
