@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "iv/iv_delegate.h"
 
+namespace Tdb {
+class TLwebPageInstantView;
+} // namespace Tdb
+
 namespace Main {
 class Session;
 class SessionShow;
@@ -66,9 +70,15 @@ public:
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
+	struct PageIv {
+		std::unique_ptr<Data> iv;
+	};
 	struct FullResult {
 		crl::time lastRequestedAt = 0;
+#if 0 // mtp
 		WebPageData *page = nullptr;
+#endif
+		PageIv *page = nullptr;
 		int32 hash = 0;
 	};
 
@@ -78,10 +88,16 @@ private:
 
 	void trackSession(not_null<Main::Session*> session);
 
+#if 0 // mtp
 	WebPageData *processReceivedPage(
 		not_null<Main::Session*> session,
 		const QString &url,
 		const MTPmessages_WebPage &result);
+#endif
+	PageIv *processReceivedPage(
+		not_null<Main::Session*> session,
+		const QString &url,
+		const Tdb::TLwebPageInstantView &result);
 
 	const not_null<Delegate*> _delegate;
 
@@ -95,9 +111,14 @@ private:
 		not_null<Main::Session*>,
 		base::flat_map<QString, FullResult>> _fullRequested;
 
+#if 0 // mtp
 	base::flat_map<
 		not_null<Main::Session*>,
 		base::flat_map<QString, WebPageData*>> _ivCache;
+#endif
+	base::flat_map<
+		not_null<Main::Session*>,
+		base::flat_map<QString, std::unique_ptr<PageIv>>> _ivCache;
 	Main::Session *_ivRequestSession = nullptr;
 	QString _ivRequestUri;
 	mtpRequestId _ivRequestId = 0;
