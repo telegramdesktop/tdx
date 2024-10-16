@@ -52,8 +52,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QGuiApplication>
 #include <QtGui/QScreen>
 
+#include "tdb/tdb_option.h"
+#include "tdb/tdb_sender.h"
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Ui {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kResolveAddressDelay = 3 * crl::time(1000);
 constexpr auto kSearchDebounceDelay = crl::time(900);
@@ -616,14 +622,33 @@ void SetupVenues(
 
 [[nodiscard]] PickerVenueList ParseVenues(
 		not_null<Main::Session*> session,
+#if 0 // mtp
 		const MTPmessages_BotResults &venues) {
 	const auto &data = venues.data();
 	session->data().processUsers(data.vusers());
+#endif
+		const TLinlineQueryResults &venues) {
+	const auto &data = venues.data();
 
 	auto &list = data.vresults().v;
 	auto result = PickerVenueList();
 	result.list.reserve(list.size());
 	for (const auto &found : list) {
+		found.match([&](const TLDinlineQueryResultVenue &data) {
+			const auto &venue = data.vvenue().data();
+
+			const auto &location = venue.vlocation().data();
+			result.list.push_back({
+				.lat = location.vlatitude().v,
+				.lon = location.vlongitude().v,
+				.title = venue.vtitle().v,
+				.address = venue.vaddress().v,
+				.provider = venue.vprovider().v,
+				.id = venue.vid().v,
+				.venueType = venue.vtype().v,
+			});
+		}, [](const auto &) {});
+#if 0 // mtp
 		found.match([&](const auto &data) {
 			data.vsend_message().match([&](
 					const MTPDbotInlineMessageMediaVenue &data) {
@@ -640,6 +665,7 @@ void SetupVenues(
 				}, [](const auto &) {});
 			}, [](const auto &) {});
 		});
+#endif
 	}
 	return result;
 }
@@ -1153,6 +1179,7 @@ void LocationPicker::venuesRequest(
 	} else if (_venuesBotRequestId) {
 		return;
 	}
+#if 0 // mtp
 	const auto username = _session->serverConfig().venueSearchUsername;
 	_venuesBotRequestId = _api.request(MTPcontacts_ResolveUsername(
 		MTP_string(username)
@@ -1172,6 +1199,26 @@ void LocationPicker::venuesRequest(
 	}).fail([=] {
 		LOG(("API Error: Error returned on lookup: %1").arg(username));
 	}).send();
+#endif
+	_venuesBotRequestId = _api.request(TLgetOption(
+		tl_string("venue_search_bot_username")
+	)).done([=](const TLoptionValue &result) {
+		const auto username = OptionValue<QString>(result);
+		_venuesBotRequestId = _api.request(TLsearchPublicChat(
+			tl_string(username)
+		)).done([=](const TLchat &result) {
+			const auto peer = _session->data().processPeer(result);
+			const auto user = peer->asUser();
+			if (user && user->isBotInlineGeo()) {
+				_venuesBot = user;
+				venuesSendRequest();
+			} else {
+				LOG(("API Error: Bad peer returned by: %1").arg(username));
+			}
+		}).fail([=] {
+			LOG(("API Error: Error returned on lookup: %1").arg(username));
+		}).send();
+	}).send();
 }
 
 void LocationPicker::venuesSendRequest() {
@@ -1180,6 +1227,7 @@ void LocationPicker::venuesSendRequest() {
 	if (_venuesRequestId || !_venuesRequestLocation) {
 		return;
 	}
+#if 0 // mtp
 	_venuesRequestId = _api.request(MTPmessages_GetInlineBotResults(
 		MTP_flags(MTPmessages_GetInlineBotResults::Flag::f_geo_point),
 		_venuesBot->inputUser,
@@ -1192,6 +1240,17 @@ void LocationPicker::venuesSendRequest() {
 		MTP_string(_venuesRequestQuery),
 		MTP_string() // offset
 	)).done([=](const MTPmessages_BotResults &result) {
+#endif
+	_venuesRequestId = _api.request(TLgetInlineQueryResults(
+		tl_int53(peerToUser(_venuesBot->id).bare),
+		_venueRecipient ? peerToTdbChat(_venueRecipient->id) : tl_int53(0),
+		tl_location(
+			tl_double(_venuesRequestLocation.point.x()),
+			tl_double(_venuesRequestLocation.point.y()),
+			tl_double(0)),
+		tl_string(_venuesRequestQuery),
+		tl_string() // offset
+	)).done([=](const TLinlineQueryResults &result) {
 		auto parsed = ParseVenues(_session, result);
 		_venuesCache[_venuesRequestQuery].push_back({
 			.location = _venuesRequestLocation,
