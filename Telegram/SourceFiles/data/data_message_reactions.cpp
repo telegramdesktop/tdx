@@ -2232,12 +2232,19 @@ void Reactions::sendPaidPrivacyRequest(
 	Expects(!send.count);
 
 	const auto id = item->fullId();
+#if 0 // mtp
 	auto &api = _owner->session().api();
 	const auto requestId = api.request(
 		MTPmessages_TogglePaidReactionPrivacy(
 			item->history()->peer->input,
 			MTP_int(id.msg),
 			MTP_bool(*send.anonymous))
+#endif
+	const auto requestId = _owner->session().sender().request(
+		TLtogglePaidMessageReactionIsAnonymous(
+			peerToTdbChat(item->history()->peer->id),
+			tl_int53(id.msg.bare),
+			tl_bool(*send.anonymous))
 	).done([=] {
 		if (const auto item = _owner->message(id)) {
 			if (_sendingPaid.remove(item)) {
@@ -2245,7 +2252,10 @@ void Reactions::sendPaidPrivacyRequest(
 			}
 		}
 		checkQuitPreventFinished();
+#if 0 // mtp
 	}).fail([=](const MTP::Error &error) {
+#endif
+	}).fail([=](const Error &error) {
 		if (const auto item = _owner->message(id)) {
 			if (_sendingPaid.remove(item)) {
 				sendPaidFinish(item, send, false);
@@ -2267,6 +2277,7 @@ void Reactions::sendPaidRequest(
 	}
 
 	const auto id = item->fullId();
+#if 0 // mtp
 	const auto randomId = base::unixtime::mtproto_msg_id();
 	auto &api = _owner->session().api();
 	using Flag = MTPmessages_SendPaidReaction::Flag;
@@ -2278,19 +2289,55 @@ void Reactions::sendPaidRequest(
 		MTP_long(randomId),
 		MTP_bool(send.anonymous.value_or(false))
 	)).done([=](const MTPUpdates &result) {
+#endif
+	const auto requestId = _owner->session().sender().request(
+		TLaddPendingPaidMessageReaction(
+			peerToTdbChat(id.peer),
+			tl_int53(id.msg.bare),
+			tl_int53(send.count),
+			tl_bool(!send.anonymous.has_value()),
+			tl_bool(send.anonymous.value_or(false)))
+	).done([=] {
+		const auto item = _owner->message(id);
+		if (!item) {
+			checkQuitPreventFinished();
+			return;
+		}
+		_sendingPaid[item] = _owner->session().sender().request(
+			TLcommitPendingPaidMessageReactions(
+				peerToTdbChat(id.peer),
+				tl_int53(id.msg.bare))
+		).done([=] {
+
 		if (const auto item = _owner->message(id)) {
 			if (_sendingPaid.remove(item)) {
 				sendPaidFinish(item, send, true);
 			}
 		}
+#if 0 // mtp
 		_owner->session().api().applyUpdates(result);
+#endif
 		checkQuitPreventFinished();
+
+		}).fail([=] {
+			if (const auto item = _owner->message(id)) {
+				_sendingPaid.remove(item);
+				sendPaidFinish(item, send, false);
+			}
+			checkQuitPreventFinished();
+		}).send();
+#if 0 // mtp
 	}).fail([=](const MTP::Error &error) {
+#endif
+	}).fail([=] {
 		if (const auto item = _owner->message(id)) {
 			_sendingPaid.remove(item);
+#if 0 // mtp
 			if (error.type() == u"RANDOM_ID_EXPIRED"_q) {
 				sendPaidRequest(item, send);
 			} else {
+#endif
+			{
 				sendPaidFinish(item, send, false);
 			}
 		}
