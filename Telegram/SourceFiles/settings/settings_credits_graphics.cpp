@@ -86,12 +86,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 #include "styles/style_statistics.h"
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+
 #include <xxhash.h> // XXH64.
 
 #include <QtSvg/QSvgRenderer>
 
 namespace Settings {
 namespace {
+
+using namespace Tdb;
 
 const auto kTopUpPrefix = "cloud_lng_topup_purpose_";
 
@@ -167,6 +172,7 @@ void ToggleStarGiftSaved(
 	using Flag = MTPpayments_SaveStarGift::Flag;
 	const auto api = &window->session().api();
 	const auto weak = base::make_weak(window);
+#if 0 // mtp
 	api->request(MTPpayments_SaveStarGift(
 		MTP_flags(save ? Flag(0) : Flag::f_unsave),
 		sender->inputUser,
@@ -181,6 +187,24 @@ void ToggleStarGiftSaved(
 	}).fail([=](const MTP::Error &error) {
 		if (const auto strong = weak.get()) {
 			strong->showToast(error.type());
+		}
+		done(false);
+	}).send();
+#endif
+	window->session().sender().request(TLtoggleGiftIsSaved(
+		tl_int53(peerToUser(sender->id).bare),
+		tl_int53(itemId.bare),
+		tl_bool(save)
+	)).done([=] {
+		if (const auto strong = weak.get()) {
+			strong->showToast((save
+				? tr::lng_gift_display_done
+				: tr::lng_gift_display_done_hide)(tr::now));
+		}
+		done(true);
+	}).fail([=](const Error &error) {
+		if (const auto strong = weak.get()) {
+			strong->showToast(error.message);
 		}
 		done(false);
 	}).send();
@@ -212,6 +236,7 @@ void ConvertStarGift(
 		Fn<void(bool)> done) {
 	const auto api = &window->session().api();
 	const auto weak = base::make_weak(window);
+#if 0 // mtp
 	api->request(MTPpayments_ConvertStarGift(
 		sender->inputUser,
 		MTP_int(itemId)
@@ -228,6 +253,26 @@ void ConvertStarGift(
 	}).fail([=](const MTP::Error &error) {
 		if (const auto strong = weak.get()) {
 			strong->showToast(error.type());
+		}
+		done(false);
+	}).send();
+#endif
+	window->session().sender().request(TLsellGift(
+		tl_int53(peerToUser(sender->id).bare),
+		tl_int53(itemId.bare)
+	)).done([=] {
+		if (const auto strong = weak.get()) {
+			strong->showSettings(Settings::CreditsId());
+			strong->showToast(tr::lng_gift_got_stars(
+				tr::now,
+				lt_count,
+				stars,
+				Ui::Text::RichLangValue));
+		}
+		done(true);
+	}).fail([=](const Error &error) {
+		if (const auto strong = weak.get()) {
+			strong->showToast(error.message);
 		}
 		done(false);
 	}).send();
@@ -1229,6 +1274,7 @@ void ReceiptCreditsBox(
 				}
 			});
 		} else {
+#if 0 // mtp
 			using Flag = MTPpayments_ChangeStarsSubscription::Flag;
 			session->api().request(
 				MTPpayments_ChangeStarsSubscription(
@@ -1245,6 +1291,20 @@ void ReceiptCreditsBox(
 					state->confirmButtonBusy = false;
 				}
 				show->showToast(error.type());
+			}).send();
+#endif
+			session->sender().request(TLeditStarSubscription(
+				tl_string(s.id),
+				tl_bool(toCancel)
+			)).done([=] {
+				if (const auto strong = weak.data()) {
+					strong->closeBox();
+				}
+			}).fail([=, show = box->uiShow()](const Error &error) {
+				if (const auto strong = weak.data()) {
+					state->confirmButtonBusy = false;
+				}
+				show->showToast(error.message);
 			}).send();
 		}
 	};

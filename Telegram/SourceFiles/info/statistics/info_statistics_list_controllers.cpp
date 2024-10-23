@@ -1085,10 +1085,12 @@ void CreditsController::applySlice(const Data::CreditsStatusSlice &slice) {
 
 	auto giftPacksRequested = false;
 	for (const auto &item : slice.list) {
+#if 0 // mtp
 		if (item.bareGiveawayMsgId && !giftPacksRequested) {
 			giftPacksRequested = true;
 			session().giftBoxStickersPacks().load();
 		}
+#endif
 		delegate()->peerListAppendRow(create(item, {}));
 	}
 	for (const auto &item : slice.subscriptions) {

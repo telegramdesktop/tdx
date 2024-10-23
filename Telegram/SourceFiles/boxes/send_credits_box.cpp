@@ -43,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "tdb/tdb_tl_scheme.h"
 #include "tdb/tdb_sender.h"
+#include "api/api_text_entities.h"
 
 namespace Ui {
 namespace {
@@ -470,6 +471,7 @@ void SendStarGift(
 		not_null<Main::Session*> session,
 		std::shared_ptr<Payments::CreditsFormData> data,
 		Fn<void(std::optional<QString>)> done) {
+#if 0 // mtp
 	session->api().request(MTPpayments_SendStarsForm(
 		MTP_long(data->formId),
 		data->inputInvoice
@@ -481,6 +483,18 @@ void SendStarGift(
 		done(std::nullopt);
 	}).fail([=](const MTP::Error &error) {
 		done(error.type());
+	}).send();
+#endif
+	const auto &gift = v::get<Payments::InvoiceStarGift>(data->id.value);
+	session->sender().request(TLsendGift(
+		tl_int64(gift.giftId),
+		tl_int53(peerToUser(gift.user->id).bare),
+		Api::FormattedTextToTdb(gift.message),
+		tl_bool(gift.anonymous)
+	)).done([=] {
+		done(std::nullopt);
+	}).fail([=](const Error &error) {
+		done(error.message);
 	}).send();
 }
 

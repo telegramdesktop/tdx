@@ -429,7 +429,9 @@ DocumentData *LookupGiftSticker(
 		not_null<Main::Session*> session,
 		const GiftDescriptor &descriptor) {
 	auto &packs = session->giftBoxStickersPacks();
+#if 0 // mtp
 	packs.load();
+#endif
 	return v::match(descriptor, [&](GiftTypePremium data) {
 		return packs.lookup(data.months);
 	}, [&](GiftTypeStars data) {
