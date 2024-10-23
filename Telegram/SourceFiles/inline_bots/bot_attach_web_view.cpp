@@ -1075,6 +1075,19 @@ void WebViewInstance::requestSimple() {
 }
 
 void WebViewInstance::requestMain() {
+	_requestId = _session->sender().request(TLgetMainWebApp(
+		peerToTdbChat(_context.action->history->peer->id),
+		tl_int53(peerToUser(_bot->id).bare),
+		tl_string(_button.startCommand),
+		Window::Theme::WebViewTheme(),
+		tl_string("tdesktop")
+	)).done([=](const TLmainWebApp &result) {
+		show(qs(result.data().vurl()));
+	}).fail([=](const Error &error) {
+		_parentShow->showToast(error.message);
+		close();
+	}).send();
+#if 0 // mtp
 	using Flag = MTPmessages_RequestMainWebView::Flag;
 	_requestId = _session->api().request(MTPmessages_RequestMainWebView(
 		MTP_flags(Flag::f_theme_params
@@ -1097,6 +1110,7 @@ void WebViewInstance::requestMain() {
 		_parentShow->showToast(error.type());
 		close();
 	}).send();
+#endif
 }
 
 void WebViewInstance::requestApp(bool allowWrite) {
@@ -1765,7 +1779,10 @@ AttachWebView::AttachWebView(not_null<Main::Session*> session)
 
 AttachWebView::~AttachWebView() {
 	closeAll();
+#if 0 // mtp
 	_session->api().request(_popularAppBotsRequestId).cancel();
+#endif
+	_session->sender().request(_popularAppBotsRequestId).cancel();
 }
 
 void AttachWebView::openByUsername(
@@ -1827,18 +1844,31 @@ void AttachWebView::loadPopularAppBots() {
 	if (_popularAppBotsLoaded.current() || _popularAppBotsRequestId) {
 		return;
 	}
+#if 0 // mtp
 	_popularAppBotsRequestId = _session->api().request(
 		MTPbots_GetPopularAppBots(
 			MTP_string(),
 			MTP_int(kPopularAppBotsLimit))
 	).done([=](const MTPbots_PopularAppBots &result) {
+#endif
+	_popularAppBotsRequestId = _session->sender().request(
+		TLgetGrossingWebAppBots(
+			tl_string(), // offset
+			tl_int32(kPopularAppBotsLimit))
+	).done([=](const TLfoundUsers &result) {
 		_popularAppBotsRequestId = 0;
 
+#if 0 // mtp
 		const auto &list = result.data().vusers().v;
+#endif
+		const auto &list = result.data().vuser_ids().v;
 		auto parsed = std::vector<not_null<UserData*>>();
 		parsed.reserve(list.size());
 		for (const auto &user : list) {
+#if 0 // mtp
 			const auto bot = _session->data().processUser(user);
+#endif
+			const auto bot = _session->data().user(UserId(user.v));
 			if (bot->isBot()) {
 				parsed.push_back(bot);
 			}
