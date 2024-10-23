@@ -24,8 +24,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 #include "styles/style_credits.h" // giftBoxPadding
 
+#include "tdb/tdb_tl_scheme.h"
+#include "tdb/tdb_sender.h"
+
 namespace Info::PeerGifts {
 namespace {
+
+using namespace Tdb;
 
 constexpr auto kPreloadPages = 2;
 constexpr auto kPerPage = 50;
@@ -208,13 +213,28 @@ void InnerWidget::loadMore() {
 	if (_allLoaded || _loadMoreRequestId) {
 		return;
 	}
+#if 0 // mtp
 	_loadMoreRequestId = _api.request(MTPpayments_GetUserStarGifts(
 		_user->inputUser,
 		MTP_string(_offset),
 		MTP_int(kPerPage)
 	)).done([=](const MTPpayments_UserStarGifts &result) {
+#endif
+	_loadMoreRequestId = _api.request(TLgetUserGifts(
+		tl_int53(peerToUser(_user->id).bare),
+		tl_string(_offset),
+		tl_int32(kPerPage)
+	)).done([=](const TLuserGifts &result) {
 		_loadMoreRequestId = 0;
 		const auto &data = result.data();
+		const auto offset = data.vnext_offset().v;
+		if (offset.isEmpty()) {
+			_allLoaded = true;
+		} else {
+			_offset = offset;
+		}
+		_totalCount = data.vtotal_count().v;
+#if 0 // mtp
 		if (const auto next = data.vnext_offset()) {
 			_offset = qs(*next);
 		} else {
@@ -224,6 +244,7 @@ void InnerWidget::loadMore() {
 
 		const auto owner = &_user->owner();
 		owner->processUsers(data.vusers());
+#endif
 
 		_entries.reserve(_entries.size() + data.vgifts().v.size());
 		for (const auto &gift : data.vgifts().v) {

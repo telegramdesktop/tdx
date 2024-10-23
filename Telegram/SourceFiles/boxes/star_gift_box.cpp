@@ -839,6 +839,7 @@ void SendGift(
 			= Payments::ProcessNonPanelPaymentFormFactory(window, done);
 		Payments::CheckoutProcess::Start(Payments::InvoiceStarGift{
 			.giftId = gift.id,
+			.stars = gift.stars,
 			.randomId = details.randomId,
 			.message = details.text,
 			.user = peer->asUser(),
