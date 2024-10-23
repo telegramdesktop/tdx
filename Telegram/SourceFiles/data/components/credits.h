@@ -15,6 +15,10 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Tdb {
+class TLDupdateOwnedStarCount;
+} // namespace Tdb
+
 namespace Data {
 
 class Credits final {
@@ -40,7 +44,10 @@ public:
 	void withdrawLocked(int count);
 	void invalidate();
 
+#if 0 // mtp
 	void apply(const MTPDupdateStarsBalance &data);
+#endif
+	void apply(const Tdb::TLDupdateOwnedStarCount &data);
 
 private:
 	void updateNonLockedValue();

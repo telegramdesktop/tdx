@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 
+#include "tdb/tdb_tl_scheme.h"
+
 namespace Data {
 namespace {
 
@@ -26,8 +28,13 @@ Credits::Credits(not_null<Main::Session*> session)
 
 Credits::~Credits() = default;
 
+#if 0 // mtp
 void Credits::apply(const MTPDupdateStarsBalance &data) {
 	apply(data.vbalance().v);
+}
+#endif
+void Credits::apply(const Tdb::TLDupdateOwnedStarCount &data) {
+	apply(data.vstar_count().v);
 }
 
 rpl::producer<float64> Credits::rateValue(
