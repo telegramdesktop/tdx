@@ -1114,6 +1114,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		item->history()->session().factchecks().requestFor(item);
 	}
 #endif
+	item->ensurePropertiesLoaded();
 
 	const auto stm = context.messageStyle();
 	const auto bubble = drawBubble();

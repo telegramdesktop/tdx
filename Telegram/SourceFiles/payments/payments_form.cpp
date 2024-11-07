@@ -302,12 +302,34 @@ Form::Form(InvoiceId id, bool receipt)
 	if (_receiptMode) {
 		_invoice.receipt.paid = true;
 		requestReceipt();
+	} else if (v::is<InvoiceStarGift>(id.value)) {
+		crl::on_main(this, [=] {
+			sendStarGiftForm();
+		});
 	} else {
 		requestForm();
 	}
 }
 
 Form::~Form() = default;
+
+void Form::sendStarGiftForm() {
+	const auto &gift = v::get<InvoiceStarGift>(_id.value);
+	const auto invoice = InvoiceCredits{
+		.session = _session,
+		.randomId = 0,
+		.credits = uint64(gift.stars),
+		.currency = ::Ui::kCreditsCurrency,
+		.amount = uint64(gift.stars),
+	};
+	const auto formData = CreditsFormData{
+		.id = _id,
+		.invoice = invoice,
+		.starGiftLimitedCount = gift.limitedCount,
+		.starGiftForm = true,
+	};
+	_updates.fire(CreditsPaymentStarted{ .data = formData });
+}
 
 void Form::fillInvoiceFromMessage() {
 	const auto message = std::get_if<InvoiceMessage>(&_id.value);

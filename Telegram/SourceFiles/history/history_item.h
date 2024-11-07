@@ -245,6 +245,8 @@ public:
 	void setRealShortcutId(BusinessShortcutId id);
 	void setCustomServiceLink(ClickHandlerPtr link);
 
+	void ensurePropertiesLoaded();
+
 	void addLogEntryOriginal(
 		WebPageId localId,
 		const QString &label,

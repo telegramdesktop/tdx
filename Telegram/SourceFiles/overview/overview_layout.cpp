@@ -162,6 +162,7 @@ ItemBase::ItemBase(
 : _delegate(delegate)
 , _parent(parent)
 , _dateTime(ItemDateTime(parent)) {
+	_parent->ensurePropertiesLoaded();
 }
 
 ItemBase::~ItemBase() = default;

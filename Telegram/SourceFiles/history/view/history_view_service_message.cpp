@@ -501,6 +501,8 @@ void Service::draw(Painter &p, const PaintContext &context) const {
 	}
 	const auto &margin = st::msgServiceMargin;
 
+	data()->ensurePropertiesLoaded();
+
 	const auto st = context.st;
 	auto height = this->height() - margin.top() - margin.bottom();
 	auto dateh = 0;
