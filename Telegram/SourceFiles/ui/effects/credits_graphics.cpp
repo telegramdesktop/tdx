@@ -442,6 +442,8 @@ PaintRoundImageCallback GenerateGiftStickerUserpicCallback(
 		not_null<Main::Session*> session,
 		uint64 stickerId,
 		Fn<void()> update) {
+	Expects(stickerId != 0);
+
 	struct State {
 		std::optional<UserpicBuilder::PreviewPainter> painter;
 		int size = 0;

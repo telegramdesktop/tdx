@@ -1333,7 +1333,11 @@ void HistoryItem::setServiceText(PreparedServiceText &&prepared) {
 	_text = std::move(prepared.text);
 	data->textLinks = std::move(prepared.links);
 	if (had) {
+#if 0 // mtp
 		_history->owner().requestItemTextRefresh(this);
+#endif
+		// Media could be updated as well which requires to recreate views.
+		_history->owner().requestItemViewRefresh(this);
 	}
 }
 
@@ -1833,6 +1837,52 @@ void HistoryItem::setRealShortcutId(BusinessShortcutId id) {
 void HistoryItem::setCustomServiceLink(ClickHandlerPtr link) {
 	AddComponents(HistoryServiceCustomLink::Bit());
 	Get<HistoryServiceCustomLink>()->link = std::move(link);
+}
+
+void HistoryItem::ensurePropertiesLoaded() {
+	if (!isRegular() || (_flags & MessageFlag::PropertiesLoaded)) {
+		return;
+	}
+	_flags |= MessageFlag::PropertiesLoaded;
+	const auto id = fullId();
+	const auto session = &history()->session();
+	session->sender().request(TLgetMessageProperties(
+		peerToTdbChat(id.peer),
+		tl_int53(id.msg.bare)
+	)).done([=](const TLDmessageProperties &data) {
+		if (const auto that = session->data().message(id)) {
+			that->_flags |= MessageFlag::PropertiesLoaded;
+			// data.vcan_be_copied_to_secret_chat()
+			// data.vcan_be_deleted_only_for_self()
+			if (data.vcan_be_deleted_for_all_users().v) {
+				that->_flags |= MessageFlag::CanDeleteForAll;
+			}
+			if (data.vcan_be_edited().v) {
+				that->_flags |= MessageFlag::CanEdit;
+			}
+			// data.vcan_be_forwarded()
+			// data.vcan_be_paid()
+			// data.vcan_be_pinned()
+			// data.vcan_be_replied()
+			// data.vcan_be_replied_in_another_chat()
+			// data.vcan_be_saved()
+			// data.vcan_be_shared_in_story()
+			// data.vcan_edit_scheduling_state()
+			// data.vcan_get_embedding_code()
+			// data.vcan_get_link()
+			// data.vcan_get_media_timestamp_links()
+			// data.vcan_get_message_thread()
+			// data.vcan_get_read_date()
+			// data.vcan_get_statistics()
+			// data.vcan_get_viewers()
+			// data.vcan_recognize_speech()
+			// data.vcan_report_chat()
+			// data.vcan_report_reactions()
+			// data.vcan_report_supergroup_spam()
+			// data.vcan_set_fact_check()
+			// data.vneed_show_statistics()
+		}
+	}).send();
 }
 
 void HistoryItem::destroy() {
@@ -5115,6 +5165,24 @@ void HistoryItem::setServiceMessageByContent(
 			lt_from,
 			fromLinkText(), // Link 1.
 			Ui::Text::WithEntities);
+	}, [&](const TLDmessageGiveawayCompleted &data) {
+		const auto winners = data.vwinner_count().v;
+		const auto unclaimed = data.vunclaimed_prize_count().v;
+		const auto credits = data.vis_star_giveaway().v;
+		prepared.text = {
+			(!winners
+				? tr::lng_action_giveaway_results_none(tr::now)
+				: (credits && unclaimed)
+				? tr::lng_action_giveaway_results_credits_some(tr::now)
+				: (!credits && unclaimed)
+				? tr::lng_action_giveaway_results_some(tr::now)
+				: (credits && !unclaimed)
+				? tr::lng_action_giveaway_results_credits(
+					tr::now,
+					lt_count,
+					winners)
+				: tr::lng_action_giveaway_results(tr::now, lt_count, winners))
+		};
 	}, [&](const TLDmessageForumTopicCreated &data) {
 		const auto topicUrl = u"internal:url:https://t.me/c/%1/%2"_q
 			.arg(peerToChannel(history()->peer->id).bare)
@@ -5699,6 +5767,10 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 		return std::make_unique<Data::MediaGiveawayResults>(
 			item,
 			Data::ComputeGiveawayResultsData(item, data));
+	}, [&](const TLDmessagePaidMedia &media) -> Result {
+		return std::make_unique<Data::MediaInvoice>(
+			item,
+			Data::ComputeInvoiceData(item, media));
 	}, [](const auto &) -> Result {
 		return nullptr;
 	});
