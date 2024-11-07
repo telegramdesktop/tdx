@@ -1030,9 +1030,6 @@ void PeerData::setActionBar(const TLchatActionBar *bar) {
 		setBarSettings(existing
 			| Flag::ReportSpam
 			| (data.vcan_unarchive().v ? Flag::AutoArchived : Flag()));
-	}, [&](const TLDchatActionBarReportUnrelatedLocation &data) {
-		// later
-		// setBarSettings(existing | Flag::ReportGeo);
 	}, [&](const TLDchatActionBarInviteMembers &data) {
 		// later
 		// setBarSettings(existing | Flag::InviteMembers);
