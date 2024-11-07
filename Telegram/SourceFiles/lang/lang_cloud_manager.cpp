@@ -673,7 +673,7 @@ void CloudManager::sendSwitchingToLanguageRequest() {
 	}).send();
 #endif
 	if (!_api) {
-		_switchingToLanguageId = -1;
+		_switchingToLanguageRequest = -1;
 		return;
 	}
 	_switchingToLanguageRequest = _api->request(Tdb::TLgetLanguagePackInfo(
