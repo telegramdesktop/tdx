@@ -362,8 +362,9 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
       if [ "$AlphaVersion" == "0" ]; then
         cp -f tsetup_template.dmg tsetup.temp.dmg
         TempDiskPath=`hdiutil attach -nobrowse -noautoopenrw -readwrite tsetup.temp.dmg | awk -F "\t" 'END {print $3}'`
-        cp -R "./$BundleName" "$TempDiskPath/"
-        mv "$TempDiskPath/$BundleName" "$TempDiskPath/Tdx.app"
+        mv "./$BundleName" "./Tdx.app"
+        cp -R "./Tdx.app" "$TempDiskPath/"
+        mv "./Tdx.app" "./$BundleName"
         bless --folder "$TempDiskPath/"
         hdiutil detach "$TempDiskPath"
         hdiutil convert tsetup.temp.dmg -format UDBZ -ov -o "$SetupFile"
